@@ -2673,152 +2673,6 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     return DATASET
 
 
-def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, list_of_new_column_names = None):
-    
-    import numpy as np
-    import pandas as pd
-    
-    # df: dataframe containing the timestamp.
-    
-    # timestamp_tag_column: declare as a string under quotes. This is the column from 
-    # which we will extract the timestamp.
-    
-    # list_of_info_to_extract: list of information to extract from the timestamp. Each information
-    # will be extracted as a separate column. The allowed values are:
-    # 'year', 'month', 'week', 'day', 'hour', 'minute', or 'second'. Declare as a list even if only
-    # one information is going to be extracted. For instance:
-    # list_of_info_to_extract = ['second'] extracts only the second.
-    # list_of_info_to_extract = ['year', 'month', 'week', 'day'] extracts year, month, week and day. 
-    
-    # list_of_new_column_names: list of names (strings) of the new created columns. 
-    # If no value is provided, it will be equals to extracted_info. For instance: if
-    # list_of_info_to_extract = ['year', 'month', 'week', 'day'] and list_of_new_column_names = None,
-    # the new columns will be named as 'year', 'month', 'week', and 'day'.
-    # WARNING: This list must contain the same number of elements of list_of_info_to_extract and both
-    # must be in the same order. Considering the same example of list, if list_of_new_column_names =
-    # ['col1', 'col2', 'col3', 'col4'], 'col1' will be referrent to 'year', 'col2' to 'month', 'col3'
-    # to 'week', and 'col4' to 'day'
-    
-    
-    # Create a local copy of the dataframe to manipulate:
-    DATASET = df
-    
-    # Check if the list of column names is None. If it is, make it equals to the list of extracted
-    # information:
-    if (list_of_new_column_names is None):
-        
-        list_of_new_column_names = list_of_info_to_extract
-    
-    # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
-    # This will prevent any compatibility problems.
-    
-    # The pd.Timestamp function can handle a single timestamp per call. Then, we must
-    # loop trough the series, and apply the function to each element.
-    
-    # 1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
-    
-    # 2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in DATASET[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Save the list as the column timestamp_tag_column itself:
-    DATASET[timestamp_tag_column] = timestamp_list
-    
-    # 4. Sort the dataframe in ascending order of timestamps:
-    DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
-    # Reset indices:
-    DATASET = DATASET.reset_index(drop = True)
-    
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
-    
-    #Use the extracted_info as key to access the correct command in the dictionary.
-    #To access an item from a dictionary d = {'key1': item1, ...}, declare d['key1'],
-    #as if you would do to access a column from a dataframe.
-    
-    #By doing so, you will select the extraction command from the dictionary:
-    # Loop through each element of the dataset, access the timestamp, 
-    # extract the information and store it in the correspondent position of the 
-    # new_column. Again. The methods can only be applied to a single Timestamp object,
-    # not to the series. That is why we must loop through each of them:
-    
-    
-    # Now, loop through each one of the items from the list 'list_of_info_to_extract'.
-    # For each element, we will extract the information indicated by that item.
-    
-    for k in range(0, len(list_of_info_to_extract)):
-        
-        # loops from k = 0, index of the first element from the list list_of_info_to_extract
-        # to k = len(list_of_info_to_extract) - 1, index of the last element of the list
-        
-        # Access the k-th element of the list list_of_info_to_extract:
-        extracted_info = list_of_info_to_extract[k]
-        # The element will be referred as 'extracted_info'
-        
-        # Access the k-th element of the list list_of_new_column_names, which is the
-        # name that the new column should have:
-        new_column_name = list_of_new_column_names[k]
-        # The element will be referred as 'new_column_name'
-        
-        #start a list to store the values of the new column
-        new_column_vals = []
-
-        for i in range(len(DATASET)):
-            # i goes from zero to the index of the last element of the dataframe DATASET
-            # This element has index len(DATASET) - 1
-            # Append the values to the list according to the selected extracted_info
-
-            if (extracted_info == 'year'):
-
-                new_column_vals.append((timestamp_list[i]).year)
-
-            elif (extracted_info == "month"):
-
-                new_column_vals.append((timestamp_list[i]).month)
-
-            elif (extracted_info == "week"):
-
-                new_column_vals.append((timestamp_list[i]).week)
-
-            elif (extracted_info == "day"):
-
-                new_column_vals.append((timestamp_list[i]).day)
-
-            elif (extracted_info == "hour"):
-
-                new_column_vals.append((timestamp_list[i]).hour)
-
-            elif (extracted_info == "minute"):
-
-                new_column_vals.append((timestamp_list[i]).minute)
-
-            elif (extracted_info == "second"):
-
-                new_column_vals.append((timestamp_list[i]).second)
-
-            else:
-
-                print("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
-
-        # Copy the list 'new_column_vals' to a new column of the dataframe, named 'new_column_name':
-
-        DATASET[new_column_name] = new_column_vals
-     
-    # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
-    # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
-    # new dataframe:
-    print("Timestamp information successfully extracted. Check dataset\'s 10 first rows:\n")
-    print(DATASET.head(10))
-    
-    #Now that the information were retrieved from all Timestamps, return the new
-    #dataframe:
-    
-    return DATASET
-
-
 def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timedelta_column_name  = None, returned_timedelta_unit = None):
     
     import numpy as np
@@ -3445,3 +3299,744 @@ def SLICE_DATAFRAME (df, from_row = 'first_only', to_row = 'only', restart_index
     print(sliced_df)
     
     return sliced_df
+
+
+def visualize_and_characterize_missing_values (df, slice_time_window_from = None, slice_time_window_to = None, aggregate_time_in_terms_of = None):
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import missingno as msno
+    # misssingno package is built for visualizing missing values. 
+    
+    # df: dataframe to be analyzed
+    
+    # slice_time_window_from and slice_time_window_to (timestamps). When analyzing time series,
+    # use these parameters to observe only values in a given time range.
+    
+    # slice_time_window_from: the inferior limit of the analyzed window. If you declare this value
+    # and keep slice_time_window_to = None, then you will analyze all values that comes after
+    # slice_time_window_from.
+    # slice_time_window_to: the superior limit of the analyzed window. If you declare this value
+    # and keep slice_time_window_from = None, then you will analyze all values until
+    # slice_time_window_to.
+    # If slice_time_window_from = slice_time_window_to = None, only the standard analysis with
+    # the whole dataset will be performed. If both values are specified, then the specific time
+    # window from 'slice_time_window_from' to 'slice_time_window_to' will be analyzed.
+    # e.g. slice_time_window_from = 'May-1976', and slice_time_window_to = 'Jul-1976'
+    # Notice that the timestamps must be declares in quotes, just as strings.
+    
+    # aggregate_time_in_terms_of = None. Keep it None if you do not want to aggregate the time
+    # series. Alternatively, set aggregate_time_in_terms_of = 'Y' or aggregate_time_in_terms_of = 
+    # 'year' to aggregate the timestamps in years; set aggregate_time_in_terms_of = 'M' or
+    # 'month' to aggregate in terms of months; or set aggregate_time_in_terms_of = 'D' or 'day'
+    # to aggregate in terms of days.
+    
+    
+    # Start the agg_dict, a dictionary that correlates the input aggregate_time_in_terms_of to
+    # the correspondent argument that must be passed to the matrix method:
+    agg_dict = {
+        
+        'year': 'Y',
+        'Y': 'Y',
+        'month': 'M',
+        'M': 'M',
+        'day': 'D',
+        'D':'D'
+    }
+    
+    
+    if not (aggregate_time_in_terms_of is None):
+        # access the frequency in the dictionary
+        frequency = agg_dict[aggregate_time_in_terms_of] 
+    
+    df_length = len(df)
+    print(f"Total of rows of the dataframe = {df_length}\n")
+
+    total_of_missing_values = df.isna().sum()
+    print("Total of missing values for each feature:\n")
+    print(total_of_missing_values)
+    print("\n") # line_break
+    
+    percent_of_missing_values = (df.isna().mean()) * 100
+    print("Percent (%) of missing values for each feature:\n")
+    print(percent_of_missing_values)
+    print("\n") # line_break
+    
+    print("Bar chart of the missing values:\n")
+    msno.bar(df)
+    plt.show()
+    print("\n")
+    
+    print("Nullity Matrix: distribution of missing values through the dataframe:\n")
+    msno.matrix(df)
+    plt.show()
+    print("\n")
+    
+    if not ((slice_time_window_from is None) | (slice_time_window_to is None)):
+        
+        # There is at least one of these two values for slicing:
+        if not ((slice_time_window_from is None) & (slice_time_window_to is None)):
+                # both are present
+                
+                if not (aggregate_time_in_terms_of is None):
+                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                    msno.matrix(df.loc[slice_time_window_from:slice_time_window_to], freq = frequency)
+                    
+                else:
+                    # do not aggregate:
+                    print("Nullity matrix for the defined time window:\n")
+                    msno.matrix(df.loc[slice_time_window_from:slice_time_window_to])
+                
+                plt.show()
+                print("\n")
+        
+        elif not (slice_time_window_from is None):
+            # slice only from the start. The condition where both limits were present was already
+            # checked. To reach this condition, only one is not None
+            # slice from 'slice_time_window_from' to the end of dataframe
+            
+                if not (aggregate_time_in_terms_of is None):
+                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                    msno.matrix(df.loc[slice_time_window_from:], freq = frequency)
+                
+                else:
+                    # do not aggregate:
+                    print("Nullity matrix for the defined time window:\n")
+                    msno.matrix(df.loc[slice_time_window_from:])
+        
+                plt.show()
+                print("\n")
+            
+        else:
+        # equivalent to elif not (slice_time_window_to is None):
+            # slice only from the beginning to the upper limit. 
+            # The condition where both limits were present was already checked. 
+            # To reach this condition, only one is not None
+            # slice from the beginning to 'slice_time_window_to'
+            
+                if not (aggregate_time_in_terms_of is None):
+                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                    msno.matrix(df.loc[:slice_time_window_to], freq = frequency)
+                
+                else:
+                    # do not aggregate:
+                    print("Nullity matrix for the defined time window:\n")
+                    msno.matrix(df.loc[:slice_time_window_to])
+                
+                plt.show()
+                print("\n")
+    
+    else:
+        # Both slice limits are not. Let's check if we have to aggregate the dataframe:
+        if not (aggregate_time_in_terms_of is None):
+                print("Nullity matrix for the selected aggregation frequency:\n")
+                msno.matrix(df, freq = frequency)
+                plt.show()
+                print("\n")
+    
+    return total_of_missing_values, percent_of_missing_values
+
+
+def handle_missing_values (df, subset_columns_list = None, drop_missing_val = True, fill_missing_val = False, eliminate_only_completely_empty_rows = False, min_number_of_non_missing_val_for_a_row_to_be_kept = None, value_to_fill = None, fill_method = "fill_with_zeros", interpolation_order = 'linear'):
+    
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    # numpy has no function mode, but scipy's stats module has.
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html?msclkid=ccd9aaf2cb1b11ecb57c6f4b3e03a341
+    # Pandas dropna method: remove rows containing missing values.
+    # Pandas fillna method: fill missing values.
+    # Pandas interpolate method: fill missing values with interpolation:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.dropna.html
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.fillna.html
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.interpolate.html#pandas.DataFrame.interpolate
+    
+    
+    # subset_columns_list = list of columns to look for missing values. Only missing values
+    # in these columns will be considered for deciding which columns to remove.
+    # Declare it as a list of strings inside quotes containing the columns' names to look at,
+    # even if this list contains a single element. e.g. subset_columns_list = ['column1']
+    # will check only 'column1'; whereas subset_columns_list = ['col1', 'col2', 'col3'] will
+    # chek the columns named as 'col1', 'col2', and 'col3'.
+    # ATTENTION: Subsets are considered only for dropping missing values, not for filling.
+    
+    # drop_missing_val = True to eliminate the rows containing missing values.
+    
+    # fill_missing_val = False. Set this to True to activate the mode for filling the missing
+    # values.
+    
+    # eliminate_only_completely_empty_rows = False - This parameter shows effect only when
+    # drop_missing_val = True. If you set eliminate_only_completely_empty_rows = True, then
+    # only the rows where all the columns are missing will be eliminated.
+    # If you define a subset, then only the rows where all the subset columns are missing
+    # will be eliminated.
+    
+    # min_number_of_non_missing_val_for_a_row_to_be_kept = None - 
+    # This parameter shows effect only when drop_missing_val = True. 
+    # If you set min_number_of_non_missing_val_for_a_row_to_be_kept equals to an integer value,
+    # then only the rows where at least this integer number of non-missing values will be kept
+    # after dropping the NAs.
+    # e.g. if min_number_of_non_missing_val_for_a_row_to_be_kept = 2, only rows containing at
+    # least two columns without missing values will be kept.
+    # If you define a subset, then the criterium is applied only to the subset.
+    
+    # value_to_fill = None - This parameter shows effect only when
+    # fill_missing_val = True. Set this parameter as a float value to fill all missing
+    # values with this value. e.g. value_to_fill = 0 will fill all missing values with
+    # the number 0. You can also pass a function call like 
+    # value_to_fill = np.sum(dataset['col1']). In this case, the missing values will be
+    # filled with the sum of the series dataset['col1']
+    # Alternatively, you can also input a string to fill the missing values. e.g.
+    # value_to_fill = 'text' will fill all the missing values with the string "text".
+    
+    # You can also input a dictionary containing the column(s) to be filled as key(s);
+    # and the values to fill as the correspondent values. For instance:
+    # value_to_fill = {'col1': 10} will fill only 'col1' with value 10.
+    # value_to_fill = {'col1': 0, 'col2': 'text'} will fill 'col1' with zeros; and will
+    # fill 'col2' with the value 'text'
+    
+    # fill_method = "fill_with_zeros". - This parameter shows effect only 
+    # when fill_missing_val = True.
+    # Alternatively: fill_method = "fill_with_zeros" - fill all the missing values with 0
+    
+    # fill_method = "fill_with_value_to_fill" - fill the missing values with the value
+    # defined as the parameter value_to_fill
+    
+    # fill_method = "fill_with_avg_or_mode" - fill the missing values with the average value for 
+    # each column, if the column is numeric; or fill with the mode, if the column is categorical.
+    # The mode is the most commonly observed value.
+    
+    # fill_method = "ffill" - Forward (pad) fill: propagate last valid observation forward 
+    # to next valid.
+    # fill_method = 'bfill' - backfill: use next valid observation to fill gap.
+    
+    # fill_method = "fill_by_interpolating" - fill by interpolating the previous and the 
+    # following value. For categorical columns, it fills the
+    # missing with the previous value, just as like fill_method = 'ffill'
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.interpolate.html#pandas.DataFrame.interpolate
+    
+    # interpolation_order: order of the polynomial used for interpolating if fill_method =
+    # "fill_by_interpolating". If interpolation_order = None, interpolation_order = 'linear',
+    # or interpolation_order = 1, a linear (1st-order polynomial) will be used.
+    # If interpolation_order is an integer > 1, then it will represent the polynomial order.
+    # e.g. interpolation_order = 2, for a 2nd-order polynomial; interpolation_order = 3 for a
+    # 3rd-order, and so on.
+    
+    # WARNING: if the fillna method is selected (fill_missing_val == True), but no filling
+    # methodology is selected, the missing values of the dataset will be filled with 0.
+    # The same applies when a non-valid fill methodology is selected.
+    # Pandas fillna method does not allow us to fill only a selected subset.
+    
+    # WARNING: if fill_method == "fill_with_value_to_fill" but value_to_fill is None, the 
+    # missing values will be filled with the value 0.
+    
+    
+    # Set a local copy of df to manipulate:
+    cleaned_df = df
+    
+    if (subset_columns_list is None):
+        # all the columns are considered:
+        total_columns = cleaned_df.shape[1]
+    
+    else:
+        # Only the columns in the subset are considered.
+        # Total columns is the length of the list of columns to subset:
+        total_columns = len(subset_columns_list)
+        
+    # thresh argument of dropna method: int, optional - Require that many non-NA values.
+    # This is the minimum of non-missing values that a row must have in order to be kept:
+    THRESHOLD = min_number_of_non_missing_val_for_a_row_to_be_kept
+    
+    if ((drop_missing_val is None) & (fill_missing_val is None)):
+        print("No valid input set for neither \'drop_missing_val\' nor \'fill_missing_val\'. Then, setting \'drop_missing_val\' = True and \'fill_missing_val\' = False.\n")
+        drop_missing_val = True
+        fill_missing_val = False
+    
+    elif (drop_missing_val is None):
+        # The condition where both were missing was already tested. This one is tested only when the
+        # the first if was not run.
+        drop_missing_val = False
+        fill_missing_val = True
+    
+    elif (fill_missing_val is None):
+        drop_missing_val = True
+        fill_missing_val = False
+    
+    elif ((drop_missing_val == True) & (fill_missing_val == True)):
+        print("Both options \'drop_missing_val\' and \'fill_missing_val\' set as True. Then, selecting \'drop_missing_val\', which has preference.\n")
+        fill_missing_val = False
+    
+    elif ((drop_missing_val == False) & (fill_missing_val == False)):
+        print("Both options \'drop_missing_val\' and \'fill_missing_val\' set as False. Then, setting \'drop_missing_val\' = True.\n")
+        drop_missing_val = True
+    
+    boolean_filter1 = (drop_missing_val == True)
+
+    boolean_filter2 = (boolean_filter1) & (subset_columns_list is None)
+    # These filters are True only if both conditions inside parentheses are True.
+    # The operator & is equivalent to 'And' (intersection).
+    # The operator | is equivalent to 'Or' (union).
+    
+    boolean_filter3 = (fill_missing_val == True) & (fill_method is None)
+    # boolean_filter3 represents the situation where the fillna method was selected, but
+    # no filling method was set.
+    
+    boolean_filter4 = (value_to_fill is None) & (fill_method == "fill_with_value_to_fill")
+    # boolean_filter4 represents the situation where the fillna method will be used and the
+    # user selected to fill the missing values with 'value_to_fill', but did not set a value
+    # for 'value_to_fill'.
+    
+    if (boolean_filter1 == True):
+        # drop missing values
+        
+        print("Dropping rows containing missing values, accordingly to the provided parameters.\n")
+        
+        if (boolean_filter2 == True):
+            # no subset to filter
+            
+            if (eliminate_only_completely_empty_rows == True):
+                #Eliminate only completely empty rows
+                cleaned_df = cleaned_df.dropna(axis = 0, how = "all")
+                # if axis = 1, dropna will eliminate each column containing missing values.
+            
+            elif (min_number_of_non_missing_val_for_a_row_to_be_kept is not None):
+                # keep only rows containing at least the specified number of non-missing values:
+                cleaned_df = cleaned_df.dropna(axis = 0, thresh = THRESHOLD)
+            
+            else:
+                #Eliminate all rows containing missing values.
+                #The only parameter is drop_missing_val
+                cleaned_df = cleaned_df.dropna(axis = 0)
+        
+        else:
+            #In this case, there is a subset for applying the Pandas dropna method.
+            #Only the coluns in the subset 'subset_columns_list' will be analyzed.
+                  
+            if (eliminate_only_completely_empty_rows == True):
+                #Eliminate only completely empty rows
+                cleaned_df = cleaned_df.dropna(subset = subset_columns_list, how = "all")
+            
+            elif (min_number_of_non_missing_val_for_a_row_to_be_kept is not None):
+                # keep only rows containing at least the specified number of non-missing values:
+                cleaned_df = cleaned_df.dropna(subset = subset_columns_list, thresh = THRESHOLD)
+            
+            else:
+                #Eliminate all rows containing missing values.
+                #The only parameter is drop_missing_val
+                cleaned_df = cleaned_df.dropna(subset = subset_columns_list)
+        
+        print("Finished dropping of missing values.\n")
+    
+    else:
+        
+        print("Filling missing values.\n")
+        
+        # In this case, the user set a value for the parameter fill_missing_val to fill 
+        # the missing data.
+        
+        # Check if a filling dictionary was passed as value_to_fill:
+        if (type(value_to_fill) == dict):
+            
+            print(f"Applying the filling dictionary. Filling columns {value_to_fill.keys()} with the values {value_to_fill.values()}, respectively.\n")
+            cleaned_df = cleaned_df.fillna(value = value_to_fill)
+        
+        elif (boolean_filter3 == True):
+            # If this condition was reached, no filling dictionary was input.
+            # fillna method was selected, but no filling method was set.
+            # Then, filling with zero.
+            print("No filling method defined, so filling missing values with 0.\n")
+            cleaned_df = cleaned_df.fillna(0)
+        
+        elif (boolean_filter4 == True):
+            # fill_method == "fill_with_value_to_fill" but value_to_fill is None.
+            # Then, filling with zero.
+            print("No value input for filling, so filling missing values with 0.\n")
+            cleaned_df = cleaned_df.fillna(0)
+        
+        else:
+            # A filling methodology was selected.
+            if (fill_method == "fill_with_zeros"):
+                print("Filling missing values with 0.\n")
+                cleaned_df = cleaned_df.fillna(0)
+            
+            elif (fill_method == "fill_with_value_to_fill"):
+                print(f"Filling missing values with {value_to_fill}.\n")
+                cleaned_df = cleaned_df.fillna(value_to_fill)
+            
+            elif ((fill_method == "fill_with_avg_or_mode") | (fill_method == "fill_by_interpolating")):
+                
+                # We must separate the dataset into numerical columns and categorical columns
+                # 1. Get dataframe's columns list:
+                df_cols = df.columns
+                
+                # 2. start a list for the numeric and a list for the text (categorical) columns:
+                numeric_cols = []
+                text_cols = []
+                
+                # 3. Loop through each column on df_cols, to put it in the correspondent type of column:
+                for column in df_cols:
+                    # test each element in the list or array df_cols
+                    column_data_type = cleaned_df[column].dtype
+                    
+                    if ((column_data_type == 'O') | (column_data_type == 'object')):
+                        
+                        # The Pandas series was defined as an object, meaning it is categorical
+                        # (string, date, etc).
+                        # Append it to the list text_cols:
+                        text_cols.append(column)
+                    
+                    else:
+                        # The Pandas series is a numeric column: int64, float64,...
+                        # Append it to the numeric_cols list:
+                        numeric_cols.append(column)
+                
+                # Now, we have two subsets (lists) of columns, one for the categoricals, other
+                # for the numeric. It will avoid trying to fill categorical columns with the
+                # mean values.
+                
+                if (fill_method == "fill_with_avg_or_mode"):
+                
+                    print("Filling missing values with the average values (numeric variables); or with the modes (categorical variables). The mode is the most commonly observed value of the categorical variable.\n")
+                
+                    # 3. Start an empty list to store all of the average values,
+                    # and a list to store the modes:
+                    avg_list = []
+                    mode_list = []
+
+                    # 3. Loop through each column of numeric_cols.
+                    # Calculate the average value for the series df[column].
+                    # Append this value to avg_list.
+                    for column in numeric_cols:
+                        #check all elements of numeric_cols, named 'column'
+                        # Calculate the average of the series df[column]
+                        # and append it to the avg_list
+                        avg_list.append(cleaned_df[column].mean())    
+                        # Alternatively, one could append np.average(cleaned_df[column])
+
+                    # Now, we have a list containing the average value correspondent
+                    # to each column of the dataframe, named avg_list.
+                    # 4. Create a dictionary informing the columns and the values
+                    # to be input in each column. Each key of the dictionary must be a column.
+                    # The value for that key will be used to fill the correspondent column.
+
+                    # Start the dictionary:
+                    fill_dict = {}
+
+                    for i in range (0, len(numeric_cols)):
+                        # i = 0 to i = len(numeric_cols) - 1, index of the last value of the list.
+                        # Apply the update method to include numeric_cols[i] as key and
+                        # avg_list[i] as the value:
+                        fill_dict.update({numeric_cols[i]: avg_list[i]})
+
+                    # 5. Loop through each column of text_cols.
+                    # Calculate the mode for the series df[column].
+                    # Append this value to mode_list.
+                    for column in text_cols:
+                        #check all elements of numeric_cols, named 'column'
+                        # Calculate the average of the series df[column]
+                        # and append it to the mode_list
+
+                        mode_array = stats.mode(cleaned_df[column])
+                        # Here, if we use cleaned_df[column].agg(stats.mode), the function will
+                        # firstly group each element of the series and then calculate the mode,
+                        # resulting in a series of modes. Since each row has only one value,
+                        # This value will be repeated. If we call stats.mode (series), instead,
+                        # we aggregate the whole series in a single mode array.
+
+                        # The function stats.mode(X) returns an array as: 
+                        # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
+                        # If we select the first element from this array, stats.mode(X)[0], 
+                        # the function will return an array as array(['a'], dtype='<U1'). 
+                        # We want the first element from this array stats.mode(X)[0][0], 
+                        # which will return a string like 'a':
+                        try:
+                            mode_list.append(mode_array[0][0])
+
+                        except IndexError:
+                            # This error is generated when trying to access an array storing no values.
+                            # (i.e., with missing values). Since there is no dimension, it is not possible
+                            # to access the [0][0] position. In this case, simply append the np.nan 
+                            # the (missing value):
+                            mode_list.append(np.nan)
+
+                    # Update the dictionary to include the text columns and the correspondent modes,
+                    # keeping the same format. For that, loop through each element of the lists
+                    # text_cols and mode_list:
+                    for i in range (0, len(text_cols)):
+                        # i = 0 to i = len(text_cols) - 1, index of the last value of the list.
+                        # Apply the update method to include text_cols[i] as key and
+                        # mode_list[i] as the value:
+                        fill_dict.update({text_cols[i]: mode_list[i]})
+
+                    # Now, fill_dict is in the correct format for the fillna method:
+                    # 'column' as key; value to fill that column as value.
+                    # In fillna documentation, we see that the argument 'value' must have a dictionary
+                    # with this particular format as input:
+                    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.fillna.html#pandas.DataFrame.fillna
+
+                    # This dictionary correlates each column to its average value.
+
+                    #6. Finally, use this dictionary to fill the missing values of each column
+                    # with the average value of that column
+                    cleaned_df = cleaned_df.fillna(value = fill_dict)
+                    # The method will search the column name in fill_dict (key of the dictionary),
+                    # and will use the correspondent value (average) to fill the missing values.
+
+                elif (fill_method == "fill_by_interpolating"):
+                    # Pandas interpolate method
+                    
+                    # Separate the dataframes into a dataframe for filling with interpolation (numeric
+                    # variables); and a dataframe for forward filling (categorical variables).
+                    
+                    # Before subsetting, check if the list is not empty.
+                    
+                    if (len(numeric_cols) > 0):
+                        # There are numeric columns to subset.
+                        # Define the subset of numeric varibles.
+                        numeric_subset = cleaned_df[numeric_cols]
+                        # Create a key series from index, which will be used as key for merging the 
+                        # subsets (the correspondent rows necessarily have same index):
+                        numeric_subset['interpolate_key'] = numeric_subset.index
+                    
+                        if (type(interpolation_order) == int):
+                            # an integer number was input
+
+                            if (interpolation_order > 1):
+
+                                print(f"Performing interpolation of numeric variables with {interpolation_order}-degree polynomial to fill missing values.\n")
+                                numeric_subset = numeric_subset.interpolate(method = 'polynomial', order = interpolation_order)
+
+                            else:
+                                # 1st order or invalid order (0 or negative) was used
+                                print("Performing linear interpolation of numeric variables to fill missing values.\n")
+                                numeric_subset = numeric_subset.interpolate(method = 'linear')
+
+                        else:
+                            # 'linear', None or invalid text was input:
+                            print("Performing linear interpolation of numeric variables to fill missing values.\n")
+                            numeric_subset = numeric_subset.interpolate(method = 'linear')
+                    
+                    # Now, we finished the interpolation of the numeric variables. Let's check if
+                    # there are categorical variables to forward fill.
+                    if (len(text_cols) > 0):
+                        # There are text columns to subset.
+                        # Define the subset of text varibles.
+                        text_subset = cleaned_df[text_cols]
+                        # Create a key series from index, which will be used as key for merging the 
+                        # subsets (the correspondent rows necessarily have same index):
+                        text_subset['interpolate_key'] = text_subset.index
+                        
+                        # Now, fill missing values by forward filling:
+                        print("Using forward filling to fill missing values of the categorical variables.\n")
+                        text_subset = text_subset.fillna(method = "ffill")
+                    
+                    # Now, let's check if there are both a numeric_subset and a text_subset to merge
+                    if ((len(numeric_cols) > 0) & (len(text_cols) > 0)):
+                        # Two subsets were created. Merge them on column key, using 'inner' join
+                        # (perfect correspondence of the indices). Save it on cleaned_df.
+                        # Use the merge method: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.merge.html
+                        cleaned_df = numeric_subset.merge(text_subset, on = 'interpolate_key', how = "inner")
+                        
+                        # Drop the column 'interpolate_key', created only for merging.
+                        # Use the drop method:
+                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
+                    
+                    elif (len(numeric_cols) > 0):
+                        # since it did not pass the test for checking if both were present, there
+                        # are only numeric columns. So, make the cleaned_df the numeric_subset itself
+                        # and drop the key column:
+                        cleaned_df = numeric_subset
+                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
+                    
+                    elif (len(text_cols) > 0):
+                        # since it did not pass the test for checking if both were present, there
+                        # are only text columns. So, make the cleaned_df the text_subset itself
+                        # and drop the key column:
+                        cleaned_df = text_subset
+                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
+                        
+            
+            elif ((fill_method == "ffill") | (fill_method == "bfill")):
+                # use forward or backfill
+                cleaned_df = cleaned_df.fillna(method = fill_method)
+            
+            else:
+                print("No valid filling methodology was selected. Then, filling missing values with 0.")
+                cleaned_df = cleaned_df.fillna(0)
+        
+        
+    #Reset index before returning the cleaned dataframe:
+    cleaned_df = cleaned_df.reset_index(drop = True)
+    
+    
+    print(f"Number of rows of the dataframe before cleaning = {df.shape[0]} rows.")
+    print(f"Number of rows of the dataframe after cleaning = {cleaned_df.shape[0]} rows.")
+    print(f"Percentual variation of the number of rows = {(df.shape[0] - cleaned_df.shape[0])/(df.shape[0]) * 100} %\n")
+    print("Check the 10 first rows of the cleaned dataframe:\n")
+    print(cleaned_df.head(10))
+    
+    return cleaned_df
+
+
+def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 110):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    
+    #show_masked_plot = True - keep as True if you want to see a cleaned version of the plot
+    # where a mask is applied.
+    
+    #responses_to_return_corr - keep as None to return the full correlation tensor.
+    # If you want to display the correlations for a particular group of features, input them
+    # as a list, even if this list contains a single element. Examples:
+    # responses_to_return_corr = ['response1'] for a single response
+    # responses_to_return_corr = ['response1', 'response2', 'response3'] for multiple
+    # responses. Notice that 'response1',... should be substituted by the name ('string')
+    # of a column of the dataset that represents a response variable.
+    # WARNING: The returned coefficients will be ordered according to the order of the list
+    # of responses. i.e., they will be firstly ordered based on 'response1'
+    
+    # set_returned_limit = None - This variable will only present effects in case you have
+    # provided a response feature to be returned. In this case, keep set_returned_limit = None
+    # to return all of the correlation coefficients; or, alternatively, 
+    # provide an integer number to limit the total of coefficients returned. 
+    # e.g. if set_returned_limit = 10, only the ten highest coefficients will be returned. 
+
+    correlation_matrix = df.corr(method = 'pearson')
+    
+    if (show_masked_plot == False):
+        #Show standard plot
+        
+        plt.figure()
+        sns.heatmap((correlation_matrix)**2, annot = True, fmt = ".2f")
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "correlation_plot"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 110 dpi
+                png_resolution_dpi = 110
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        plt.figure(figsize = (24,8))
+        plt.show()
+
+    #Oncee the pandas method .corr() calculates R, we raised it to the second power 
+    # to obtain R². R² goes from zero to 1, where 1 represents the perfect correlation.
+    
+    else:
+        
+        #Show masked (cleaner) plot instead of the standard one
+        
+        plt.figure()
+        # Mask for the upper triangle
+        mask = np.zeros_like((correlation_matrix)**2)
+
+        mask[np.triu_indices_from(mask)] = True
+
+        # Generate a custom diverging colormap
+        cmap = sns.diverging_palette(220, 10, as_cmap = True)
+
+        # Heatmap with mask and correct aspect ratio
+        sns.heatmap(((correlation_matrix)**2), mask = mask, cmap = cmap, center = 0,
+                    linewidths = .5)
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "correlation_plot"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 110 dpi
+                png_resolution_dpi = 110
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        plt.figure(figsize = (24,8))
+        plt.show()
+
+        #Again, the method dataset.corr() calculates R within the variables of dataset.
+        #To calculate R², we simply raise it to the second power: (dataset.corr()**2)
+    
+    #Sort the values of correlation_matrix in Descending order:
+    
+    if (responses_to_return_corr is not None):
+        
+        #Select only the desired responses, by passing the list responses_to_return_corr
+        # as parameter for column filtering:
+        correlation_matrix = correlation_matrix[responses_to_return_corr]
+        
+        #Now sort the values according to the responses, by passing the list
+        # responses_to_return_corr as the parameter
+        correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = False)
+        
+        # If a limit of coefficients was determined, apply it:
+        if (set_returned_limit is not None):
+                
+                correlation_matrix = correlation_matrix.head(set_returned_limit)
+                #Pandas .head(X) method returns the first X rows of the dataframe.
+                # Here, it returns the defined limit of coefficients, set_returned_limit.
+                # The default .head() is X = 5.
+        
+        print(correlation_matrix)
+    
+    print("ATTENTION: The correlation plots show the linear correlations R², which go from 0 (none correlation) to 1 (perfect correlation). Obviously, the main diagonal always shows R² = 1, since the data is perfectly correlated to itself.\n")
+    print("The returned correlation matrix, on the other hand, presents the linear coefficients of correlation R, not R². R values go from -1 (perfect negative correlation) to 1 (perfect positive correlation).\n")
+    print("None of these coefficients take non-linear relations and the presence of a multiple linear correlation in account. For these cases, it is necessary to calculate R² adjusted, which takes in account the presence of multiple preditors and non-linearities.\n")
+    
+    print("Correlation matrix - numeric results:\n")
+    print(correlation_matrix)
+    
+    return correlation_matrix
