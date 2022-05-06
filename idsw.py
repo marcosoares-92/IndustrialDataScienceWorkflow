@@ -1367,7 +1367,7 @@ def export_pd_dataframe_as_csv (dataframe_obj_to_be_exported, new_file_name_with
     print("Warning: if there was a file in this file path, it was replaced by the exported dataframe.")
 
 
-def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'ordered', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
+def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
     
     #WARNING: Only two dataframes can be merged on each call of the function.
     
@@ -1401,6 +1401,47 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
     # The default is None. Input ordered_filling = 'ffill' to fill missings with the
     # previous value.
     
+    
+    # Firstly, let's guarantee that the keys were actually read as timestamps of the same type.
+    # We will do that by converting all values to Pandas timestamps.
+    
+    # 1. Start lists to store the Pandas timestamps:
+    timestamp_list_left = []
+    timestamp_list_right = []
+    
+    # 2. Loop through each element of the timestamp columns left_key and right_key, 
+    # and apply the function to guarantee that all elements are Pandas timestamps
+    
+    # left dataframe:
+    for timestamp in df_left[left_key]:
+        #Access each element 'timestamp' of the series df[timestamp_tag_column]
+        timestamp_list_left.append(pd.Timestamp(timestamp, unit = 'ns'))
+    
+    # right dataframe:
+    for timestamp in df_right[right_key]:
+        #Access each element 'timestamp' of the series df[timestamp_tag_column]
+        timestamp_list_right.append(pd.Timestamp(timestamp, unit = 'ns'))
+    
+    # 3. Set the key columns as the lists of objects converted to Pandas dataframes:
+    df_left[left_key] = timestamp_list_left
+    df_right[right_key] = timestamp_list_right
+    
+    # Now, even if the dates were read as different types of variables (like string for one
+    # and datetime for the other), we converted them to a same type (Pandas timestamp), avoiding
+    # compatibility issues.
+    
+    # For performing merge 'asof', the timestamps must be previously sorted in ascending order.
+    # Pandas sort_values method: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.sort_values.html
+    # Let's sort the dataframes in ascending order of timestamps before merging:
+    
+    df_left = df_left.sort_values(by = left_key, ascending = True)
+    df_right = df_right.sort_values(by = right_key, ascending = True)
+    
+    # Reset indices:
+    df_left = df_left.reset_index(drop = True)
+    df_right = df_right.reset_index(drop = True)
+        
+    
     if (merge_method == 'ordered'):
     
         if (ordered_filling == 'ffill'):
@@ -1426,7 +1467,7 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
         merged_df = merged_df.sort_values(by = merged_df.columns[0], ascending = True)
         #sort by the first column, with index 0.
     
-    # Now, reset index positions:
+    # Now, reset index positions of the merged dataframe:
     merged_df = merged_df.reset_index(drop = True)
     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
@@ -2128,8 +2169,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     print("WARNING: If you do not specify the categorical variables as the list \'list_of_categorical_columns\', they will be all lost in the final dataframe.\n")
     print("This function will process all numeric variables automatically, but the categorical (object) ones will be removed if they are not specified.\n")
     print("The categorical variables will be grouped in terms of mode, i.e., as the most common value observed during the aggregated time period. This is the maximum of the statistical distribution of that variable.\n")
-    print("WARNING: this function requires a time column and at least one numeric column to run. If your dataframe does not contain numeric column, create one by simply making it equals to zero. For instance, for a dataframe df, declare and run df[\'numeric_col\'] = 0 to start a numeric variable named \'numeric_col\'.\n")
-    
+     
     # df - dataframe/table containing the data to be grouped
     
     # timestamp_tag_colum: name (header) of the column containing the
@@ -2184,6 +2224,42 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # 'max', etc. The default is 'mean'. Then, if no aggregate is provided, 
     # the mean will be calculated.
     
+    agg_dict = {
+        
+        'mean': 'mean',
+        'sum': 'sum',
+        'median': 'median',
+        'std': 'std',
+        'min': 'min',
+        'max': 'max',
+        'mode': stats.mode,
+        'geometric_mean': stats.gmean,
+        'harmonic_mean': stats.hmean,
+        'kurtosis': stats.kurtosis,
+        'skew': stats.skew,
+        'geometric_std': stats.gstd,
+        'interquartile_range': stats.iqr,
+        'mean_standard_error': stats.sem,
+        'entropy': stats.entropy
+        
+    }
+    # scipy.stats Summary statistics:
+    # https://docs.scipy.org/doc/scipy/reference/stats.html
+    
+    # Convert the input into the correct aggregation function. Access the value on key
+    # aggregate_function in dictionary agg_dict:
+    
+    if (aggregate_function in agg_dict.keys()):
+        
+        aggregate_function = agg_dict[aggregate_function]
+    
+    else:
+        print(f"Select a valid aggregate function: {agg_dict.keys()}")
+        return "error"
+    
+    # Now, aggregate_function actually stores the value that must be passed to the agg method.
+    
+    
     #You can pass a list of multiple aggregations, like: 
     #aggregate_function = [mean, max, sum]
     #You can also pass custom functions, like: pct30 (30-percentile), or np.mean
@@ -2214,17 +2290,17 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     df_copy = df
     
     
-    #1. Start a list to store the Pandas timestamps:
+    # 1. Start a list to store the Pandas timestamps:
     timestamp_list = []
     
-    #2. Loop through each element of the timestamp column, and apply the function
+    # 2. Loop through each element of the timestamp column, and apply the function
     # to guarantee that all elements are Pandas timestamps
     
     for timestamp in df_copy[timestamp_tag_column]:
         #Access each element 'timestamp' of the series df[timestamp_tag_column]
         timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
     
-    #3. Create a column in the dataframe that will be used as key for the Grouper class
+    # 3. Create a column in the dataframe that will be used as key for the Grouper class
     # The grouper requires a column in the dataframe - it cannot use a list for that.
     # Simply copy the list as the new column:
     df_copy['timestamp_obj'] = timestamp_list
@@ -2232,256 +2308,212 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # Now we have a list correspondent to timestamp_tag_column, but only with
     # Pandas timestamp objects
     
+    # 4. Sort the dataframe in ascending order of timestamps:
+    df_copy = df_copy.sort_values(by = 'timestamp_obj', ascending = True)
+    
+    # Reset indices before aggregation:
+    df_copy = df_copy.reset_index(drop = True)
+    
     # In this function, we do not convert the Timestamp to a datetime64 object.
     # That is because the Grouper class specifically requires a Pandas Timestamp
     # object to group the dataframes.
     
-    # Let's group the dataframe and save the grouped one as grouped_df
-    
-    if (start_time is not None):
+    if ((list_of_categorical_columns is not None) & (len(list_of_categorical_columns) > 0)):
         
-        grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(aggregate_function)
-    
-    elif (offset_time is not None):
+        # Let's prepare another copy of the dataframe before it gets manipulated:
         
-        grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(aggregate_function)
-    
-    else:
+        # 1. Subset the dataframe to contain only the timestamps and the categorical columns.
+        # For this, create a list with 'timestamp_obj' and append each element from the list
+        # of categorical columns to this list. Save it as subset_list:
         
-        #Standard situation, when both start_time and offset_time are None
-        grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(aggregate_function)
-    
-    print (f"Numerical variables of the dataframe grouped by every {number_of_periods_to_group} {frq_unit}.")
-    
-    #The parameter 'key' of the Grouper class must be the name (string) of a column
-    # of the dataframe
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Grouper.html
-    
-    #The objects 'timestamp_obj' are now the index from grouped_df dataframe
-    #Let's store them as a column and restart the index:
-    #1. Copy the index to a new column:
-    grouped_df['Timestamp_grouped'] = grouped_df.index
-    
-    #2. Reset the index:
-    grouped_df = grouped_df.reset_index(drop = True)
-    
-    #3. 'pandas.Timestamp_grouped' is now the last column. Let's create a list of the
-    # reordered columns, starting from 'pandas.Timestamp_grouped'
-    
-    reordered_cols_list = ['Timestamp_grouped']
-    
-    for i in range((len(grouped_df.columns)-1)):
+        subset_list = ['timestamp_obj'] 
         
-        #This loop goes from i = 0 to i = (len(grouped_df.columnns)-2)
-        # grouped_df.columnns is a list containing the columns names. Since indexing goes
-        # from 0, the last element is the index i = (len(grouped_df.columnns)-1).
-        # But this last element is 'pandas.Timestamp_grouped', which we used as the
-        # first element of the list reordered_cols_list. Then, we must loop from the
-        # first element of grouped_df.columnns to the element immediately before 'pandas.Timestamp_grouped'.
-        # Then, the last element to be read is (len(grouped_df.columnns)-2)
-        # range (i, j) goes from i to j-1. If only one value is specified, i = 0 and j =
-        # declared value. If you print all i values in range(10), numbers from 0 to 9
-        # will be shown.
+        for cat_var in list_of_categorical_columns:
+            subset_list.append(cat_var)
+    
+        # 2. Subset df_copy and save it as grouped_df_categorical:
+        grouped_df_categorical = df_copy[subset_list]
         
-        reordered_cols_list.append(grouped_df.columns[i])
     
-    #4. Reorder the dataframe passing the list reordered_cols_list as the column filters
-    # / columns selection list.Notice that df[['col1', 'col2']] = df[list], where list =
-    # ['col1', 'col2']. To select or reorder columns, we pass the list of columns under
-    # brackets as parameter.
+    # Let's try to group the dataframe and save it as grouped_df
+    try:
+        
+        if (start_time is not None):
+
+            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(aggregate_function)
+
+        elif (offset_time is not None):
+
+            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(aggregate_function)
+
+        else:
+
+            #Standard situation, when both start_time and offset_time are None
+            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(aggregate_function)
+
+        print (f"Numerical variables of the dataframe grouped by every {number_of_periods_to_group} {frq_unit}.")
     
-    grouped_df = grouped_df[reordered_cols_list]
     
-    # Now, grouped_df contains the grouped numerical features. We must now process the categorical
-    # variables.
-    # Notice that we have the lists:
-    # list_of_categorical_columns: categorical columns on the dataset df_copy
-    # timestamp_list: list of timestamp objects correspondent to the dataset df_copy
-    # grouped_df: dataframe with the aggregated timestamps, which may have been saved as strings,
-    # since they were converted to index.
+        #The parameter 'key' of the Grouper class must be the name (string) of a column
+        # of the dataframe
+        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Grouper.html
+
+        #The objects 'timestamp_obj' are now the index from grouped_df dataframe
+        #Let's store them as a column and restart the index:
+        #1. Copy the index to a new column:
+        grouped_df['Timestamp_grouped'] = grouped_df.index
+
+        #2. Reset the index:
+        grouped_df = grouped_df.reset_index(drop = True)
+
+        #3. 'pandas.Timestamp_grouped' is now the last column. Let's create a list of the
+        # reordered columns, starting from 'pandas.Timestamp_grouped'
+
+        reordered_cols_list = ['Timestamp_grouped']
+
+        for i in range((len(grouped_df.columns)-1)):
+
+            #This loop goes from i = 0 to i = (len(grouped_df.columnns)-2)
+            # grouped_df.columnns is a list containing the columns names. Since indexing goes
+            # from 0, the last element is the index i = (len(grouped_df.columnns)-1).
+            # But this last element is 'pandas.Timestamp_grouped', which we used as the
+            # first element of the list reordered_cols_list. Then, we must loop from the
+            # first element of grouped_df.columnns to the element immediately before 'pandas.Timestamp_grouped'.
+            # Then, the last element to be read is (len(grouped_df.columnns)-2)
+            # range (i, j) goes from i to j-1. If only one value is specified, i = 0 and j =
+            # declared value. If you print all i values in range(10), numbers from 0 to 9
+            # will be shown.
+
+            reordered_cols_list.append(grouped_df.columns[i])
+
+        #4. Reorder the dataframe passing the list reordered_cols_list as the column filters
+        # / columns selection list.Notice that df[['col1', 'col2']] = df[list], where list =
+        # ['col1', 'col2']. To select or reorder columns, we pass the list of columns under
+        # brackets as parameter.
+
+        grouped_df = grouped_df[reordered_cols_list]
+
+        # Now, grouped_df contains the grouped numerical features. We must now process the categorical
+        # variables.
+        # Notice that we have the lists:
+        # list_of_categorical_columns: categorical columns on the dataset df_copy
+        # timestamp_list: list of timestamp objects correspondent to the dataset df_copy
+        # grouped_df: dataframe with the aggregated timestamps, which may have been saved as strings,
+        # since they were converted to index.
+    
+    except:
+        # an exception error is returned when trying to use a numeric aggregate such as 'mean'
+        # in a dataframe containing only categorical variables.
+        print("No numeric variables detected to group.\n")
     
     
     #### LET'S AGGREGATE THE CATEGORICAL VARIABLES
-    ### Pandas does not allow us to directly aggregate the categorical features in terms of mode,
-    ### their most common value. So, we use an indirect approach:
-    # 1. We use the aggregated timestamps obtained for the numeric columns as template:
-    # For instance, if we aggregated by day, the aggregated timestamps will show different days.
-    # Since this is an aggregated timestamp, the original dataframe contains several entries for that
-    # day.
-    # 2. We loop through each row of the aggregated dataframe to obtain the aggregated timestamps and
-    # the correct number of rows.
-    # 3. Then, we loop through each row of the original dataframe and check if that row belongs to the
-    # aggregated timestamp being considered. Again, for the aggregation by days example: we look for
-    # each one of the original rows that would be aggregated in a same day. Then, we save the
-    # values of that categorical variable in that time interval as a list (in other words, the
-    # values that belong to a same day are saved in a list).
-    # 3.1. Basically, to verify if a value belongs to the aggregated interval, we must check the 
-    # attributes of the Pandas Timestamps. If we are aggregating by 'seconds', so we are looking for
-    # timestamps on the original dataframe that have the same year, month, day, hour, minute and second
-    # as the aggregated times. If we are aggregating by days, the year, month and day must match. If we
-    # are aggregating by year, only the years must match, and so on.
-    # 4. After we obtained the list of values, we simply calculate the mode with scipy.stats.mode
-    # function. We save all modes in a list of modes, with one mode for each aggregated dataframe row.
-    # 5. Finally, we create a new column in the new dataframe for the categorical variable. This column
-    # will be the list of modes.
-    
     
     ## Check if there is a list of categorical features. If there is, run the next block of code:
     
-    if not (list_of_categorical_columns is None):
-        # There are categorical columns to aggregate too:
+    if ((list_of_categorical_columns is not None) & (len(list_of_categorical_columns) > 0)):
+        # There are categorical columns to aggregate too - the list is not empty
+        # Consider: a = np.array(['a', 'a', 'b'])
+        # The stats.mode function stats.mode(a) returns an array as: 
+        # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
+        # If we select the first element from this array, stats.mode(a)[0], the function will 
+        # return an array as array(['a'], dtype='<U1'). 
+        # We want the first element from this array stats.mode(a)[0][0], 
+        # which will return a string like 'a'
+        
+        # We can pass stats.mode as the aggregate function in agg: agg(stats.mode)
+        
+        # The original timestamps, already converted to Pandas timestamp objects, are stored in:
+        # timestamp_list. So, we can again use this list to aggregation. It was saved as the
+        # column 'timestamp_obj' from the dataframe df_copy
+        
+        # This will generate series where each element will be an array like:
+        # series = ([mode_for_that_row], [X]), where X is the counting for that row. For example, if we
+        # aggregate by week, and there is a 'categorical_value' by day, X will be 7.
+        
+        # to access a row from the series, for instance, row 0: series[0]. 
+        # This element will be an array like:
+        # ModeResult(mode=array([mode_for_that_row], dtype='<U19'), count=array([X])).
+        # To access the first element of this array, we put another index: series[0][0].
+        # This element will be like:
+        # array([mode_for_that_row], dtype='<U19')
+        # The mode is the first element from this array. To access it, we add another index:
+        # series[0][0][0]. The result will be: mode_for_that_row
+        
+        ## Aggregate the dataframe in terms of mode:
+        
+        if (start_time is not None):
 
-        # Firstly, let's obtain Timestamps objects from the aggregated column 'Timestamp_grouped'
+            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(stats.mode)
 
-        # Start a list:
-        agg_timestamps = []
+        elif (offset_time is not None):
 
-        for timestamp in grouped_df['Timestamp_grouped']:
-            #Access each element 'timestamp' of the series grouped_df['Timestamp_grouped']
-            agg_timestamps.append(pd.Timestamp(timestamp, unit = 'ns'))
+            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(stats.mode)
 
+        else:
 
-        ### Aggregation loops:
-        # - a main for loop for selecting the categorical column;
-        # - a nested for loop for going through the rows of the aggregated dataframe containing
-        # only numerical columns and the aggregated timestamps;
-        # - a while loop nested into the nested for loop for going through the rows of the original
-        # dataframe.
+            #Standard situation, when both start_time and offset_time are None
+            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(stats.mode)
 
-        # Loop through each column in the list list_of_categorical_columns:
+        #The objects 'timestamp_obj' are now the index from grouped_df_categorical dataframe
+        #Let's store them as a column and restart the index:
+        #1. Copy the index to a new column:
+        grouped_df_categorical['Timestamp_grouped'] = grouped_df_categorical.index
+
+        #2. Reset the index:
+        grouped_df_categorical = grouped_df_categorical.reset_index(drop = True)
+        
+        # Now, each column from this dataframe is a series where each element is 
+        # an array like ([mode_for_that_row], [X]). We want only the [0][0] element from the series,
+        # which is the mode.
+        
+        # Loop through each categorical variable:
         for cat_var in list_of_categorical_columns:
-
-            # Each element of the list list_of_categorical_columns is referred as 'cat_var'
-
-            # Let's fill grouped_df with the modes of the categorical features. The modes
-            # for 'cat_var' will be stored as the list cat_var_modes:
-            cat_var_modes = []
-
-            # Now, loop through each row from the dataframe grouped_df. For each row, we must
-            # store a mode (mode of the categorical variable for that aggregated time) in the
-            # list cat_var_modes. After obtaining all the modes, the column cat_var of the
-            # grouped_df will be the list cat_var_modes
-
-            k = 0
-            # Row from the dataframe df_copy, starting from 0 (1st row)
-            # The counting of k will restart only when the column changes, avoiding
-            # testing the first rows several times
-
-            # Start a list to store the values of the categorical variable obtained during the
-            # grouped time interval:
-            vals_list = []
-            # The mode of the values stored in vals_list will be the grouped value for the aggregated
-            # time interval, added to cat_var_modes list
-
-            # Loop from row i = 0 to row len(grouped_df)-1, index of the last row of the dataset
-            # grouped_df:
-            for i in range (0, len(grouped_df)):
-
-                boolean_filter = True
-                # Condition for starting the loop
-
-                while (boolean_filter): # while it is True, run it:
-
-                    # Add the element on row k from the series df_copy[cat_var]
-                    # to the list vals_list:
-                    vals_list.append((df_copy[cat_var][k]))
-                    # Go to the next row from df_copy:
-                    k = k + 1
-
-                    # Update boolean_filter according to the frequency unit defined:
-
-                    if (grouping_frequency_unit == 'second'):
-                        # we must check the equality for all values: year, month, day, hour,
-                        # minute, and second
-
-                        # Compare the element on row k from the list timestamp_list (timestamp_list[k]),
-                        # which contains the Pandas timestamp referrent to df_copy, with the element 
-                        # on row i from the list agg_timestamps (agg_timestamps[i]), with the aggregated
-                        # pandas Timestamp object.
-                        # We need the Pandas dataframes to access the attributes year, month, day, etc.
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).day) == ((agg_timestamps[i]).day))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).hour) == ((agg_timestamps[i]).hour))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).minute) == ((agg_timestamps[i]).minute))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).second) == ((agg_timestamps[i]).second))
-
-                    elif (grouping_frequency_unit == 'minute'):
-                        # we must check the equality for all values: year, month, day, hour, and
-                        # minute
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).day) == ((agg_timestamps[i]).day))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).hour) == ((agg_timestamps[i]).hour))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).minute) == ((agg_timestamps[i]).minute))
-
-                    elif (grouping_frequency_unit == 'hour'):
-                        # we must check the equality for all values: year, month, day, and hour
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).day) == ((agg_timestamps[i]).day))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).hour) == ((agg_timestamps[i]).hour))
-
-                    elif (grouping_frequency_unit == 'day'):
-                        # we must check the equality for all values: year, month, and day
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).day) == ((agg_timestamps[i]).day))
-
-                    elif (grouping_frequency_unit == 'week'):
-                        # we must check the equality for all values: year, month, and week
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).week) == ((agg_timestamps[i]).week))
-
-                    elif (grouping_frequency_unit == 'month'):
-                        # we must check the equality for all values: year, and month
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-                        boolean_filter = boolean_filter & (((timestamp_list[k]).month) == ((agg_timestamps[i]).month))
-
-                    else: # grouping_frequency_unit = 'year'
-                        # we must check the equality for only the year
-                        boolean_filter = (((timestamp_list[k]).year) == ((agg_timestamps[i]).year))
-
-                    # The filter is updated so it comes back to the start of the loop. If the filter is True,
-                    # The while loop continues. If not, the while loop is finished and we go to the end
-                    # of the for loop for the row i.
-
-                # Now we left the while loop and returned to the nested for loop (from i = 0 to the last row).
-                # So, for each row i from grouped_df, we have a list
-                # of categorical values vals_list. These are the values seem for the variable
-                # cat_var during the whole interval that is being aggregated. We have to retrieve the
-                # mode, the most common value during the aggregated interval:
-                mode_for_row_i = stats.mode(np.array(vals_list))[0][0]
-
-                # It is possible to set the following argument to stats.mode:
-                # nan_policy = 'omit': do not count the missing values to calculate the mode (not the default)
-                # If we omit the missing values, they will be substituted by zeros.
+            
+            # save as a series:
+            cat_var_series = grouped_df_categorical[cat_var]
+            # Start a list to store only the modes:
+            list_of_modes = []
+            
+            # Now, loop through each row of cat_var_series. Take the element [0][0]
+            # and append it to the list_of_modes:
+            
+            for i in range(0, len(cat_var_series)):
                 
-                # The numpy.array function guarantees the reading with the correct format
-                # Consider: a = np.array(['a', 'a', 'b'])
-                # The stats.mode function stats.mode(a) returns an array as: 
-                # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
-                # If we select the first element from this array, stats.mode(a)[0], the function will 
-                # return an array as array(['a'], dtype='<U1'). 
-                # We want the first element from this array stats.mode(a)[0][0], 
-                # which will return a string like 'a'
-
-                # Append the value mode_for_row_i to the list cat_var_modes:
-                cat_var_modes.append(mode_for_row_i)
-
-            # Now, we left the nested for loop (from the first to the last row) and are at the end of the
-            # main for loop (which tests each 'cat_var' variable in the list of categorical features).
-            # Before going to the next categorical variable, create a column cat_var in the dataframe
-            # grouped_df as the list cat_var_modes:
-            grouped_df[cat_var] = cat_var_modes
-
-            # Now that we grouped the categorical variable 'cat_var' in terms of mode, we can go to the
-            # nest categorical feature.
-
+                # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
+                # Append the element [0][0] from row [i]
+                
+                try:
+                    list_of_modes.append(cat_var_series[i][0][0])
+                
+                except IndexError:
+                    # This error is generated when trying to access an array storing no values.
+                    # (i.e., with missing values). Since there is no dimension, it is not possible
+                    # to access the [0][0] position. In this case, simply append the np.nan (missing value):
+                    list_of_modes.append(np.nan)
+            
+            # Now we finished the nested for loop, list_of_modes contain only the modes
+        
+            # Make the column cat_var the list_of_modes itself:
+            grouped_df_categorical[cat_var] = list_of_modes
+        
+        
+        # Finally, we must merge grouped_df_categorical to grouped_df
+        
+        try:
+            # Run it if there is a dataframe of aggregated numeric variables to merge with the dataframe
+            # of aggregated categorical variables.
+            SUFFIXES = (('_' + aggregate_function), '_mode') # Case there are duplicated rows
+            grouped_df = pd.merge_ordered(grouped_df, grouped_df_categorical, on = 'Timestamp_grouped', how = 'inner', suffixes = SUFFIXES, fill_method = 'ffill')
+        
+        except:
+            # There is no grouped_df to merge, because there were no numeric variables
+            grouped_df = grouped_df_categorical
+        
         print(f"Finished grouping the categorical features {list_of_categorical_columns} in terms of mode.")
         print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")
-
+        
+        
     # The next final block runs even if there is no categorical variable:
     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
@@ -2537,15 +2569,23 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     # The pd.Timestamp function can handle a single timestamp per call. Then, we must
     # loop trough the series, and apply the function to each element.
     
-    #1. Start a list to store the Pandas timestamps:
+    # 1. Start a list to store the Pandas timestamps:
     timestamp_list = []
     
-    #2. Loop through each element of the timestamp column, and apply the function
+    # 2. Loop through each element of the timestamp column, and apply the function
     # to guarantee that all elements are Pandas timestamps
     
     for timestamp in DATASET[timestamp_tag_column]:
         #Access each element 'timestamp' of the series df[timestamp_tag_column]
         timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+    
+    # 3. Save the list as the column timestamp_tag_column itself:
+    DATASET[timestamp_tag_column] = timestamp_list
+    
+    # 4. Sort the dataframe in ascending order of timestamps:
+    DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
+    # Reset indices:
+    DATASET = DATASET.reset_index(drop = True)
     
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
     
@@ -2633,315 +2673,150 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     return DATASET
 
 
-def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None, returned_timedelta_unit = None, return_avg_delay = True):
+def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, list_of_new_column_names = None):
     
     import numpy as np
     import pandas as pd
     
-    #THIS FUNCTION CALCULATES THE DIFFERENCE (timedelta - delay) BETWEEN TWO SUCCESSIVE
-    # Timestamps from a same column
+    # df: dataframe containing the timestamp.
     
-    #df: dataframe containing the two timestamp columns.
-    #timestamp_tag_column: string containing the name of the column with the timestamps
+    # timestamp_tag_column: declare as a string under quotes. This is the column from 
+    # which we will extract the timestamp.
     
-    #new_timedelta_column_name: name of the new column. If no value is provided, the default
-    #name [timestamp_tag_column1]-[timestamp_tag_column2] will be given:
+    # list_of_info_to_extract: list of information to extract from the timestamp. Each information
+    # will be extracted as a separate column. The allowed values are:
+    # 'year', 'month', 'week', 'day', 'hour', 'minute', or 'second'. Declare as a list even if only
+    # one information is going to be extracted. For instance:
+    # list_of_info_to_extract = ['second'] extracts only the second.
+    # list_of_info_to_extract = ['year', 'month', 'week', 'day'] extracts year, month, week and day. 
     
-    # return_avg_delay = True will print and return the value of the average delay.
-    # return_avg_delay = False will omit this information
+    # list_of_new_column_names: list of names (strings) of the new created columns. 
+    # If no value is provided, it will be equals to extracted_info. For instance: if
+    # list_of_info_to_extract = ['year', 'month', 'week', 'day'] and list_of_new_column_names = None,
+    # the new columns will be named as 'year', 'month', 'week', and 'day'.
+    # WARNING: This list must contain the same number of elements of list_of_info_to_extract and both
+    # must be in the same order. Considering the same example of list, if list_of_new_column_names =
+    # ['col1', 'col2', 'col3', 'col4'], 'col1' will be referrent to 'year', 'col2' to 'month', 'col3'
+    # to 'week', and 'col4' to 'day'
     
-    if (new_timedelta_column_name is None):
+    
+    # Create a local copy of the dataframe to manipulate:
+    DATASET = df
+    
+    # Check if the list of column names is None. If it is, make it equals to the list of extracted
+    # information:
+    if (list_of_new_column_names is None):
         
-        #apply the default name:
-        new_timedelta_column_name = "time_delay"
-    
-    #Pandas Timedelta class: applicable to timedelta objects
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timedelta.html
-    #The delta method from the Timedelta class converts returns the timedelta in
-    #nanoseconds, guaranteeing the internal compatibility:
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timedelta.delta.html#pandas.Timedelta.delta
-    
-    #returned_timedelta_unit: unit of the new column. If no value is provided, the unit will be
-    # considered as nanoseconds. 
-    # POSSIBLE VALUES FOR THE TIMEDELTA UNIT:
-    #'year', 'month', 'day', 'hour', 'minute', 'second'.
+        list_of_new_column_names = list_of_info_to_extract
     
     # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
     # This will prevent any compatibility problems.
     
-    #The pd.Timestamp function can handle a single timestamp per call. Then, we must
+    # The pd.Timestamp function can handle a single timestamp per call. Then, we must
     # loop trough the series, and apply the function to each element.
     
-    #1. Start a list to store the Pandas timestamps:
+    # 1. Start a list to store the Pandas timestamps:
     timestamp_list = []
     
-    #2. Loop through each element of the timestamp column, and apply the function
+    # 2. Loop through each element of the timestamp column, and apply the function
     # to guarantee that all elements are Pandas timestamps
     
-    for timestamp in df[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column1]
+    for timestamp in DATASET[timestamp_tag_column]:
+        #Access each element 'timestamp' of the series df[timestamp_tag_column]
         timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
     
+    # 3. Save the list as the column timestamp_tag_column itself:
+    DATASET[timestamp_tag_column] = timestamp_list
     
-    # Now, let's create a list of the following timestamps
-    following_timestamp = []
-    # Let's skip the index 0, correspondent to the first timestamp:
+    # 4. Sort the dataframe in ascending order of timestamps:
+    DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
+    # Reset indices:
+    DATASET = DATASET.reset_index(drop = True)
     
-    for i in range (1, len(timestamp_list)):
-        
-        # this loop goes from i = 1 to i = len(timestamp_list) - 1, the last index
-        # of the list. If we simply declared range (len(timestamp_list)), the loop
-        # will start from 0, the default
-        
-        #append the element from timestamp_list to following_timestamp:
-        following_timestamp.append(timestamp_list[i])
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
     
-    # Notice that this list has one element less than the original list, because we started
-    # copying from index 1, not 0. Therefore, let's repeat the last element of timestamp_list:
-    following_timestamp.append(timestamp_list[i])
-    # Notice that, once we did not restarted the variable i, it keeps its last value obtained
-    # during the loop, correspondent to the index of the last element.
-    # Now, let's store it into a column (series) of the dataframe:
-    timestamp_tag_column2 = timestamp_tag_column + "_delayed"
-    df[timestamp_tag_column2] = following_timestamp
+    #Use the extracted_info as key to access the correct command in the dictionary.
+    #To access an item from a dictionary d = {'key1': item1, ...}, declare d['key1'],
+    #as if you would do to access a column from a dataframe.
     
-    # Pandas Timestamps can be subtracted to result into a Pandas Timedelta.
-    # We will apply the delta method from Pandas Timedeltas.
-    
-    # 4. Create a timedelta object as the difference between the timestamps:
-    
-    # NOTICE: Even though a list could not be submitted to direct operations like
-    # sum, subtraction and multiplication, the series and NumPy arrays can. When we
-    # copied the list as a new column on the dataframes, we converted the lists to series
-    # called df[timestamp_tag_column1] and df[timestamp_tag_column2]. These two series now
-    # can be submitted to direct operations.
-    
-    # Delay = next measurement (tag_column2, timestamp higher) - current measurement
-    # (tag_column2, timestamp lower). Since we repeated the last timestamp twice,
-    # in the last row it will be subtracted from itself, resulting in zero.
-    # This is the expected, since we do not have a delay yet
-    timedelta_obj = df[timestamp_tag_column2] - df[timestamp_tag_column]
-    
-    #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
-    # can process only one element of the series in each call. Then, we must loop through
-    # the series to obtain the float values in nanoseconds. Even though this loop may 
-    # look unecessary, it uses the Delta method to guarantee the internal compatibility.
-    # Then, no errors due to manipulation of timestamps with different resolutions, or
-    # due to the presence of global variables, etc. will happen. This is the safest way
-    # to manipulate timedeltas.
-    
-    #5. Create an empty list to store the timedeltas in nanoseconds
-    TimedeltaList = []
-    
-    #6. Loop through each timedelta_obj and convert it to nanoseconds using the Delta
-    # method. Both pd.Timedelta function and the delta method can be applied to a 
-    # a single object.
-    #len(timedelta_obj) is the total of timedeltas present.
-    
-    for i in range(len(timedelta_obj)):
-        
-        #This loop goes from i = 0 to i = [len(timedelta_obj) - 1], so that
-        #all indices are evaluated.
-        
-        #append the element resultant from the delta method application on the
-        # i-th element of the list timedelta_obj, i.e., timedelta_obj[i].
-        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).delta)
-    
-    #Notice that the loop is needed because Pandas cannot handle a series/list of
-    #Timedelta objects simultaneously. It can manipulate a single object
-    # in each call or iteration.
-    
-    #Now the list contains the timedeltas in nanoseconds and guarantees internal
-    #compatibility.
-    # The delta method converts the Timedelta object to an integer number equals to the
-    # value of the timedelta in nanoseconds. Then we are now dealing with numbers, not
-    # with timestamps.
-    # Even though some steps seem unecessary, they are added to avoid errors and bugs
-    # hard to identify, resultant from a timestamp assigned to the wrong type of
-    # object.
-    
-    #The list is not as the series (columns) and arrays: it cannot be directly submitted to 
-    # operations like sum, division, and multiplication. For doing so, we can loop through 
-    # each element, what would be the case for using the Pandas Timestamp and Timedelta 
-    # functions, which can only manipulate one object per call.
-    # For simpler operations like division, we can convert the list to a NumPy array and
-    # submit the entire array to the operation at the same time, avoiding the use of 
-    # memory consuminh iterative methods.
-    
-    #Convert the timedelta list to a NumPy array:
-    # Notice that we could have created a column with the Timedeltalist, so that it would
-    # be converted to a series. On the other hand, we still did not defined the name of the
-    # new column. So, it is easier to simply convert it to a NumPy array, and then copy
-    # the array as a new column.
-    TimedeltaList = np.array(TimedeltaList)
-    
-    #Convert the array to the desired unit by dividing it by the proper factor:
-    
-    if (returned_timedelta_unit == 'year'):
-        
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
-        
-        #2. Convert it to minutes (1 min = 60 s):
-        TimedeltaList = TimedeltaList / 60.0 #in minutes
-        
-        #3. Convert it to hours (1 h = 60 min):
-        TimedeltaList = TimedeltaList / 60.0 #in hours
-        
-        #4. Convert it to days (1 day = 24 h):
-        TimedeltaList = TimedeltaList / 24.0 #in days
-        
-        #5. Convert it to years. 1 year = 365 days + 6 h = 365 days + 6/24 h/(h/day)
-        # = (365 + 1/4) days = 365.25 days
-        
-        TimedeltaList = TimedeltaList / (365.25) #in years
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.")
+    #By doing so, you will select the extraction command from the dictionary:
+    # Loop through each element of the dataset, access the timestamp, 
+    # extract the information and store it in the correspondent position of the 
+    # new_column. Again. The methods can only be applied to a single Timestamp object,
+    # not to the series. That is why we must loop through each of them:
     
     
-    elif (returned_timedelta_unit == 'month'):
-        
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
-        
-        #2. Convert it to minutes (1 min = 60 s):
-        TimedeltaList = TimedeltaList / 60.0 #in minutes
-        
-        #3. Convert it to hours (1 h = 60 min):
-        TimedeltaList = TimedeltaList / 60.0 #in hours
-        
-        #4. Convert it to days (1 day = 24 h):
-        TimedeltaList = TimedeltaList / 24.0 #in days
-        
-        #5. Convert it to months. Consider 1 month = 30 days
-        
-        TimedeltaList = TimedeltaList / (30.0) #in months
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in months. Considered 1 month = 30 days.")
-        
+    # Now, loop through each one of the items from the list 'list_of_info_to_extract'.
+    # For each element, we will extract the information indicated by that item.
     
-    elif (returned_timedelta_unit == 'day'):
+    for k in range(0, len(list_of_info_to_extract)):
         
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
+        # loops from k = 0, index of the first element from the list list_of_info_to_extract
+        # to k = len(list_of_info_to_extract) - 1, index of the last element of the list
         
-        #2. Convert it to minutes (1 min = 60 s):
-        TimedeltaList = TimedeltaList / 60.0 #in minutes
+        # Access the k-th element of the list list_of_info_to_extract:
+        extracted_info = list_of_info_to_extract[k]
+        # The element will be referred as 'extracted_info'
         
-        #3. Convert it to hours (1 h = 60 min):
-        TimedeltaList = TimedeltaList / 60.0 #in hours
+        # Access the k-th element of the list list_of_new_column_names, which is the
+        # name that the new column should have:
+        new_column_name = list_of_new_column_names[k]
+        # The element will be referred as 'new_column_name'
         
-        #4. Convert it to days (1 day = 24 h):
-        TimedeltaList = TimedeltaList / 24.0 #in days
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in days.")
-        
-    
-    elif (returned_timedelta_unit == 'hour'):
-        
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
-        
-        #2. Convert it to minutes (1 min = 60 s):
-        TimedeltaList = TimedeltaList / 60.0 #in minutes
-        
-        #3. Convert it to hours (1 h = 60 min):
-        TimedeltaList = TimedeltaList / 60.0 #in hours
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in hours [h].")
-    
+        #start a list to store the values of the new column
+        new_column_vals = []
 
-    elif (returned_timedelta_unit == 'minute'):
-        
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
-        
-        #2. Convert it to minutes (1 min = 60 s):
-        TimedeltaList = TimedeltaList / 60.0 #in minutes
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in minutes [min].")
-        
-        
-    elif (returned_timedelta_unit == 'second'):
-        
-        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-        TimedeltaList = TimedeltaList / (10**9) #in seconds
-        
-        #The .0 after the numbers guarantees a float division.
-        
-        print("Returned timedelta in seconds [s].")
-        
-        
-    else:
-        
-        returned_timedelta_unit = 'ns'
-        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).")
-        
-        #In case None unit is provided or a non-valid value or string is provided,
-        #The calculus will be in nanoseconds.
-    
-    #Finally, create a column in the dataframe named as new_timedelta_column_name 
-    # with the elements of TimedeltaList converted to the correct unit of time:
-    
-    #Append the selected unit as a suffix on the new_timedelta_column_name:
-    new_timedelta_column_name = new_timedelta_column_name + "_" + returned_timedelta_unit
-    
-    df[new_timedelta_column_name] = TimedeltaList
-      
+        for i in range(len(DATASET)):
+            # i goes from zero to the index of the last element of the dataframe DATASET
+            # This element has index len(DATASET) - 1
+            # Append the values to the list according to the selected extracted_info
+
+            if (extracted_info == 'year'):
+
+                new_column_vals.append((timestamp_list[i]).year)
+
+            elif (extracted_info == "month"):
+
+                new_column_vals.append((timestamp_list[i]).month)
+
+            elif (extracted_info == "week"):
+
+                new_column_vals.append((timestamp_list[i]).week)
+
+            elif (extracted_info == "day"):
+
+                new_column_vals.append((timestamp_list[i]).day)
+
+            elif (extracted_info == "hour"):
+
+                new_column_vals.append((timestamp_list[i]).hour)
+
+            elif (extracted_info == "minute"):
+
+                new_column_vals.append((timestamp_list[i]).minute)
+
+            elif (extracted_info == "second"):
+
+                new_column_vals.append((timestamp_list[i]).second)
+
+            else:
+
+                print("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
+
+        # Copy the list 'new_column_vals' to a new column of the dataframe, named 'new_column_name':
+
+        DATASET[new_column_name] = new_column_vals
+     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Time delays successfully calculated. Check dataset\'s 10 first rows:\n")
-    print(df.head(10))
+    print("Timestamp information successfully extracted. Check dataset\'s 10 first rows:\n")
+    print(DATASET.head(10))
     
-    if (return_avg_delay == True):
-        
-        # Let's calculate the average delay, print and return it:
-        # Firstly, we must remove the last element of the TimedeltaList.
-        # Remember that this element is 0 because there is no delay. It was added to allow
-        # the element-wise operations between the series.
-        # Let's eliminate the last element from TimedeltaList. Since this list was already
-        # copied to the dataframe, there is no risk of losing information.
-        
-        # Index of the last element:
-        last_element_index = len(TimedeltaList) - 1
-        
-        # Slice TimedeltaList until the element of index last_element_index - 1.
-        # It will eliminate the last element before we obtain the average:
-        TimedeltaList = TimedeltaList[:last_element_index]
-        # slice[i:j] slices including index i to index j-1; if the first element is not included,
-        # the slices goes from the 1st element; if the last element is not included, slices goes to
-        # the last element.
-        
-        # Now we calculate the average value:
-        avg_delay = np.average(TimedeltaList)
-        
-        print(f"Average delay = {avg_delay} {returned_timedelta_unit}")
-        
-        # Return the dataframe and the average value:
-        return df, avg_delay
+    #Now that the information were retrieved from all Timestamps, return the new
+    #dataframe:
     
-    #Finally, return the dataframe with the new column:
-    
-    else: 
-        # Return only the dataframe
-        return df
+    return DATASET
 
 
 def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timedelta_column_name  = None, returned_timedelta_unit = None):
@@ -2985,17 +2860,17 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
     #The pd.Timestamp function can handle a single timestamp per call. Then, we must
     # loop trough the series, and apply the function to each element.
     
-    #1. Start a list to store the Pandas timestamps:
+    # 1. Start a list to store the Pandas timestamps:
     timestamp_list = []
     
-    #2. Loop through each element of the timestamp column, and apply the function
+    # 2. Loop through each element of the timestamp column, and apply the function
     # to guarantee that all elements are Pandas timestamps
     
     for timestamp in df[timestamp_tag_column1]:
         #Access each element 'timestamp' of the series df[timestamp_tag_column1]
         timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
     
-    #3. Create a column in the dataframe that will store the timestamps.
+    # 3. Create a column in the dataframe that will store the timestamps.
     # Simply copy the list as the column:
     df[timestamp_tag_column1] = timestamp_list
     
@@ -3204,7 +3079,13 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
     timedelta_column_name = timedelta_column_name + "_" + returned_timedelta_unit
     
     df[timedelta_column_name] = TimedeltaList
-      
+    
+    # Sort the dataframe in ascending order of timestamps.
+    # Importance order: timestamp1, timestamp2, timedelta
+    df = df.sort_values(by = [timestamp_tag_column1, timestamp_tag_column2, timedelta_column_name], ascending = [True, True, True])
+    # Reset indices:
+    df = df.reset_index(drop = True)
+    
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
@@ -3324,7 +3205,13 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
         #the correct units.
     
     df[new_timestamp_col] = new_timestamps
-      
+    
+    # Sort the dataframe in ascending order of timestamps.
+    # Importance order: timestamp, new_timestamp_col
+    df = df.sort_values(by = [timestamp_tag_column, new_timestamp_col], ascending = [True, True])
+    # Reset indices:
+    df = df.reset_index(drop = True)
+    
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
