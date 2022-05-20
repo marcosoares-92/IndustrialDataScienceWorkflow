@@ -7671,6 +7671,693 @@ def histogram_alternative (df, column_to_analyze, total_of_bins, normal_curve_ov
     return general_stats, DATASET
 
 
+def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from statsmodels.stats import diagnostic
+    from scipy import stats
+    # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
+    # Check https://docs.scipy.org/doc/scipy/tutorial/stats.html
+    # Check https://docs.scipy.org/doc/scipy-1.8.0/html-scipyorg/reference/generated/scipy.stats.normaltest.html
+    
+    # WARNING: The statistical tests require at least 20 samples
+    
+    # column_to_analyze: column (variable) of the dataset that will be tested. Declare as a string,
+    # in quotes.
+    # e.g. column_to_analyze = 'col1' will analyze a column named 'col1'.
+    
+    # column_with_labels_to_test_subgroups: if there is a column with labels or
+    # subgroup indication, and the normality should be tested separately for each label, indicate
+    # it here as a string (in quotes). e.g. column_with_labels_to_test_subgroups = 'col2' 
+    # will retrieve the labels from 'col2'.
+    # Keep column_with_labels_to_test_subgroups = None if a single series (the whole column)
+    # will be tested.
+    
+    # Confidence level = 1 - ALPHA. For ALPHA = 0.10, we get a 0.90 = 90% confidence
+    # Set ALPHA = 0.05 to get 0.95 = 95% confidence in the analysis.
+    # Notice that, when less trust is needed, we can increase ALPHA to get less restrictive
+    # results.
+    
+    print("WARNING: The statistical tests require at least 20 samples.\n")
+    print("Interpretation:")
+    print("p-value: probability that data is described by the normal distribution.")
+    print("Criterion: the series is not described by normal if p < alpha = %.3f." %(alpha))
+    
+    # Set a local copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    # Start a list to store the different Pandas series to test:
+    list_of_dicts = []
+    
+    if not (column_with_labels_to_test_subgroups is None):
+        
+        # 1. Get the unique values from column_with_labels_to_test_subgroups
+        # and save it as the list labels_list:
+        labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
+        
+        # 2. Loop through each element from labels_list:
+        for label in labels_list:
+            
+            # 3. Create a copy of the DATASET, filtering for entries where 
+            # column_with_labels_to_test_subgroups == label:
+            filtered_df = (DATASET[DATASET[column_with_labels_to_test_subgroups] == label]).copy(deep = True)
+            # 4. Reset index of the copied dataframe:
+            filtered_df = filtered_df.reset_index(drop = True)
+            # 5. Create a dictionary, with an identification of the series, and the series
+            # that will be tested:
+            series_dict = {'series_id': (column_to_analyze + "_" + label), 
+                           'series': filtered_df[column_to_analyze],
+                           'total_elements_to_test': filtered_df[column_to_analyze].count()}
+            
+            # 6. Append this dictionary to the list of series:
+            list_of_dicts.append(series_dict)
+        
+    else:
+        # In this case, the only series is the column itself. So, let's create a dictionary with
+        # same structure:
+        series_dict = {'series_id': column_to_analyze, 'series': DATASET[column_to_analyze],
+                       'total_elements_to_test': DATASET[column_to_analyze].count()}
+        
+        # Append this dictionary to the list of series:
+        list_of_dicts.append(series_dict)
+    
+    
+    # Now, loop through each element from the list of series:
+    
+    for series_dict in list_of_dicts:
+        
+        # start a support list:
+        support_list = []
+        
+        # Check if there are at least 20 samples to test:
+        series_id = series_dict['series_id']
+        total_elements_to_test = series_dict['total_elements_to_test']
+        
+        if (total_elements_to_test < 20):
+            
+            print(f"Unable to test series {series_id}: at least 20 samples are needed, but found only {total_elements_to_test} entries for this series.\n")
+            # Add a warning to the dictionary:
+            series_dict['WARNING'] = "Series without the minimum number of elements (20) required to test the normality."
+            # Append it to the support list:
+            support_list.append(series_dict)
+            
+        else:
+            # Let's test the series.
+            y = series_dict['series']
+            
+            # Scipy.stats’ normality test
+            # It is based on D’Agostino and Pearson’s test that combines 
+            # skew and kurtosis to produce an omnibus test of normality.
+            _, scipystats_test_pval = stats.normaltest(y)
+            # The underscore indicates an output to be ignored, which is s^2 + k^2, 
+            # where s is the z-score returned by skewtest and k is the z-score returned by kurtosistest.
+            # https://docs.scipy.org/doc/scipy-1.8.0/html-scipyorg/reference/generated/scipy.stats.normaltest.html
+            
+            print("\n")
+            print("D\'Agostino and Pearson\'s normality test (scipy.stats normality test):")
+            print(f"p-value = {scipystats_test_pval} = {scipystats_test_pval*100}% of probability of being normal.")
+            
+            if (scipystats_test_pval < alpha):
+                
+                print("p = %.3f < %.3f" %(scipystats_test_pval, alpha))
+                print(f"According to this test, data is not described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            else:
+                
+                print("p = %.3f >= %.3f" %(scipystats_test_pval, alpha))
+                print(f"According to this test, data is described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            # add this test result to the dictionary:
+            series_dict['dagostino_pearson_p_val'] = scipystats_test_pval
+            series_dict['dagostino_pearson_p_in_pct'] = scipystats_test_pval*100
+            
+            # Scipy.stats’ Shapiro-Wilk test
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.shapiro.html
+            shapiro_test = stats.shapiro(y)
+            # returns ShapiroResult(statistic=0.9813305735588074, pvalue=0.16855233907699585)
+             
+            print("\n")
+            print("Shapiro-Wilk normality test:")
+            print(f"p-value = {shapiro_test[1]} = {(shapiro_test[1])*100}% of probability of being normal.")
+            
+            if (shapiro_test[1] < alpha):
+                
+                print("p = %.3f < %.3f" %(shapiro_test[1], alpha))
+                print(f"According to this test, data is not described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            else:
+                
+                print("p = %.3f >= %.3f" %(shapiro_test[1], alpha))
+                print(f"According to this test, data is described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            # add this test result to the dictionary:
+            series_dict['shapiro_wilk_p_val'] = shapiro_test[1]
+            series_dict['shapiro_wilk_p_in_pct'] = (shapiro_test[1])*100
+            
+            # Lilliefors’ normality test
+            lilliefors_test = diagnostic.kstest_normal(y, dist = 'norm', pvalmethod = 'table')
+            # Returns a tuple: index 0: ksstat: float
+            # Kolmogorov-Smirnov test statistic with estimated mean and variance.
+            # index 1: p-value:float
+            # If the pvalue is lower than some threshold, e.g. 0.10, then we can reject the Null hypothesis that the sample comes from a normal distribution.
+            
+            print("\n")
+            print("Lilliefors\'s normality test:")
+            print(f"p-value = {lilliefors_test[1]} = {(lilliefors_test[1])*100}% of probability of being normal.")
+            
+            if (lilliefors_test[1] < alpha):
+                
+                print("p = %.3f < %.3f" %(lilliefors_test[1], alpha))
+                print(f"According to this test, data is not described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            else:
+                
+                print("p = %.3f >= %.3f" %(lilliefors_test[1], alpha))
+                print(f"According to this test, data is described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            # add this test result to the dictionary:
+            series_dict['lilliefors_p_val'] = lilliefors_test[1]
+            series_dict['lilliefors_p_in_pct'] = (lilliefors_test[1])*100
+            
+    
+            # Anderson-Darling normality test
+            ad_test = diagnostic.normal_ad(y, axis = 0)
+            # Returns a tuple: index 0 - ad2: float
+            # Anderson Darling test statistic.
+            # index 1 - p-val: float
+            # The p-value for hypothesis that the data comes from a normal distribution with unknown mean and variance.
+            
+            print("\n")
+            print("Anderson-Darling (AD) normality test:")
+            print(f"p-value = {ad_test[1]} = {(ad_test[1])*100}% of probability of being normal.")
+            
+            if (ad_test[1] < alpha):
+                
+                print("p = %.3f < %.3f" %(ad_test[1], alpha))
+                print(f"According to this test, data is not described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            else:
+                
+                print("p = %.3f >= %.3f" %(ad_test[1], alpha))
+                print(f"According to this test, data is described by the normal distribution, for the {alpha*100}% confidence level defined.")
+            
+            # add this test result to the dictionary:
+            series_dict['anderson_darling_p_val'] = ad_test[1]
+            series_dict['anderson_darling_p_in_pct'] = (ad_test[1])*100
+            
+            # Now, append the series dictionary to the support list:
+            support_list.append(series_dict)
+            
+            # If the probability plot is supposed to be shown, plot it:
+            
+            if (show_probability_plot == True):
+                
+                print("\n")
+                #Obtain the probability plot  
+                fig, ax = plt.subplots(figsize = (12, 8))
+
+                ax.set_title(f"probability_plot_of_{series_id}_for_normal_distribution")
+
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 70 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)   
+
+                plot_results = stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+                #This function resturns a tuple, so we must store it into res
+
+                # Other distributions to check, see scipy Stats documentation. 
+                # you could test dist=stats.loggamma, where stats was imported from scipy
+                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
+
+                ax.grid(grid)
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = "probability_plot_normal"
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+
+                    #Export the file to this new path:
+                    # The extension will be automatically added by the savefig method:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                    #quality could be set from 1 to 100, where 100 is the best quality
+                    #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #transparent = True or False
+                    # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                    print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                #plt.figure(figsize = (12, 8))
+                #fig.tight_layout()
+
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+                plt.show()
+                
+                print("\n")
+            
+        
+    # Now we left the for loop, make the list of dicts support list itself:
+    list_of_dicts = support_list
+    
+    print("\n")
+    print("Finished normality tests. Returning a list of dictionaries, where each dictionary contains the series analyzed and the p-values obtained.")
+    print("Now, check general statistics of the data distribution:\n")
+    
+    # Now, let's obtain general statistics for all of the series, even those without the normality
+    # test results.
+    
+    # start a support list:
+    support_list = []
+    
+    for series_dict in list_of_dicts:
+        
+        # Calculate data skewness and kurtosis
+    
+        # Skewness
+        data_skew = stats.skew(y)
+        # skewness = 0 : normally distributed.
+        # skewness > 0 : more weight in the left tail of the distribution.
+        # skewness < 0 : more weight in the right tail of the distribution.
+        # https://www.geeksforgeeks.org/scipy-stats-skew-python/
+
+        # Kurtosis
+        data_kurtosis = stats.kurtosis(y, fisher = True)
+        # scipy.stats.kurtosis(array, axis=0, fisher=True, bias=True) function 
+        # calculates the kurtosis (Fisher or Pearson) of a data set. It is the the fourth 
+        # central moment divided by the square of the variance. 
+        # It is a measure of the “tailedness” i.e. descriptor of shape of probability 
+        # distribution of a real-valued random variable. 
+        # In simple terms, one can say it is a measure of how heavy tail is compared 
+        # to a normal distribution.
+        # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
+        # else Pearson’s definition is used (normal 3.0) if set to False.
+        # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
+        print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
+        print("For the data analyzed:\n")
+        print(f"skewness = {data_skew}")
+        print(f"kurtosis = {data_kurtosis}\n")
+
+        if (data_skew < 0):
+
+            print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
+
+        elif (data_skew > 0):
+
+            print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
+
+        else:
+
+            print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
+                
+
+        if (data_kurtosis == 0):
+
+            print("Data kurtosis = 0. No long-tail effects detected.\n")
+
+        else:
+
+            print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
+
+        #Calculate the mode of the distribution:
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
+        data_mode = stats.mode(y, axis = None)[0][0]
+        # returns an array of arrays. The first array is called mode=array and contains the mode.
+        # Axis: Default is 0. If None, compute over the whole array.
+        # we set axis = None to compute the general mode.
+
+        #Create general statistics dictionary:
+        general_statistics_dict = {
+
+            "series_mean": y.mean(),
+            "series_variance": y.var(),
+            "series_standard_deviation": y.std(),
+            "series_skewness": data_skew,
+            "series_kurtosis": data_kurtosis,
+            "series_mode": data_mode
+
+        }
+        
+        # Add this dictionary to the series dictionary:
+        series_dict['general_statistics'] = general_statistics_dict
+        
+        # Append the dictionary to support list:
+        support_list.append(series_dict)
+    
+    # Now, make the list of dictionaries support_list itself:
+    list_of_dicts = support_list
+
+    return list_of_dicts
+
+
+def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal'):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from statsmodels.stats import diagnostic
+    from scipy import stats
+    # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
+    # Check https://docs.scipy.org/doc/scipy/tutorial/stats.html
+    # Check https://docs.scipy.org/doc/scipy-1.8.0/html-scipyorg/reference/generated/scipy.stats.normaltest.html
+    
+    # column_to_analyze: column (variable) of the dataset that will be tested. Declare as a string,
+    # in quotes.
+    # e.g. column_to_analyze = 'col1' will analyze a column named 'col1'.
+    
+    # column_with_labels_to_test_subgroups: if there is a column with labels or
+    # subgroup indication, and the normality should be tested separately for each label, indicate
+    # it here as a string (in quotes). e.g. column_with_labels_to_test_subgroups = 'col2' 
+    # will retrieve the labels from 'col2'.
+    # Keep column_with_labels_to_test_subgroups = None if a single series (the whole column)
+    # will be tested.
+    
+    # Attention: if you want to test a normal distribution, use the function 
+    # test_data_normality. Function test_data_normality tests normality through 4 methods 
+    # and compare them: D’Agostino and Pearson’s; Shapiro-Wilk; Lilliefors; 
+    # and Anderson-Darling tests.
+    # The calculus of the p-value from the Anderson-Darling statistic is available only 
+    # for some distributions. The function specific for the normality calculates these 
+    # probabilities of following the normal.
+    # Here, the function is destined to test a variety of distributions, and so only the 
+    # Anderson-Darling test is performed.
+        
+    # statistical_distribution: string (inside quotes) containing the tested statistical 
+    # distribution.
+    # Notice: if data Y follow a 'lognormal', log(Y) follow a normal
+    # Poisson is a special case from 'gamma' distribution.
+    ## There are 91 accepted statistical distributions:
+    # 'alpha', 'anglit', 'arcsine', 'beta', 'beta_prime', 'bradford', 'burr', 'burr12', 
+    # 'cauchy', 'chi', 'chi-squared', 'cosine', 'double_gamma', 
+    # 'double_weibull', 'erlang', 'exponential', 'exponentiated_weibull', 'exponential_power',
+    # 'fatigue_life_birnbaum-saunders', 'fisk_log_logistic', 'folded_cauchy', 'folded_normal',
+    # 'F', 'gamma', 'generalized_logistic', 'generalized_pareto', 'generalized_exponential', 
+    # 'generalized_extreme_value', 'generalized_gamma', 'generalized_half-logistic', 
+    # 'generalized_inverse_gaussian', 'generalized_normal', 
+    # 'gilbrat', 'gompertz_truncated_gumbel', 'gumbel', 'gumbel_left-skewed', 'half-cauchy', 
+    # 'half-normal', 'half-logistic', 'hyperbolic_secant', 'gauss_hypergeometric', 
+    # 'inverted_gamma', 'inverse_normal', 'inverted_weibull', 'johnson_SB', 'johnson_SU', 
+    # 'KSone', 'KStwobign', 'laplace', 'left-skewed_levy', 
+    # 'levy', 'logistic', 'log_laplace', 'log_gamma', 'lognormal', 'log-uniform', 'maxwell', 
+    # 'mielke_Beta-Kappa', 'nakagami', 'noncentral_chi-squared', 'noncentral_F', 
+    # 'noncentral_t', 'normal', 'normal_inverse_gaussian', 'pareto', 'lomax', 
+    # 'power_lognormal', 'power_normal', 'power-function', 'R', 'rayleigh', 'rice', 
+    # 'reciprocal_inverse_gaussian', 'semicircular', 'student-t', 
+    # 'triangular', 'truncated_exponential', 'truncated_normal', 'tukey-lambda',
+    # 'uniform', 'von_mises', 'wald', 'weibull_maximum_extreme_value', 
+    # 'weibull_minimum_extreme_value', 'wrapped_cauchy'
+    
+    print("WARNING: The statistical tests require at least 20 samples.\n")
+    print("Attention: if you want to test a normal distribution, use the function test_data_normality.")
+    print("Function test_data_normality tests normality through 4 methods and compare them: D’Agostino and Pearson’s; Shapiro-Wilk; Lilliefors; and Anderson-Darling tests.")
+    print("The calculus of the p-value from the Anderson-Darling statistic is available only for some distributions.")
+    print("The function which specifically tests the normality calculates these probabilities that data follows the normal.")
+    print("Here, the function is destined to test a variety of distributions, and so only the Anderson-Darling test is performed.\n")
+    
+    print("If a compilation error is shown below, please update your Scipy version. Declare and run the following code into a separate cell:")
+    print("! pip install scipy --upgrade\n")
+    
+    # Lets define the statistic distributions:
+    # This are the callable Scipy objects which can be tested through Anderson-Darling test:
+    # They are listed and explained in: 
+    # https://docs.scipy.org/doc/scipy/tutorial/stats/continuous.html
+    
+    # This dictionary correlates the input name of the distribution to the correct scipy.stats
+    # callable object
+    # There are 91 possible statistical distributions:
+    
+    callable_statistical_distributions_dict = {
+        
+        'alpha': stats.alpha, 'anglit': stats.anglit, 'arcsine': stats.arcsine,
+        'beta': stats.beta, 'beta_prime': stats.betaprime, 'bradford': stats.bradford,
+        'burr': stats.burr, 'burr12': stats.burr12, 'cauchy': stats.cauchy,
+        'chi': stats.chi, 'chi-squared': stats.chi2,
+        'cosine': stats.cosine, 'double_gamma': stats.dgamma, 'double_weibull': stats.dweibull,
+        'erlang': stats.erlang, 'exponential': stats.expon, 'exponentiated_weibull': stats.exponweib,
+        'exponential_power': stats.exponpow, 'fatigue_life_birnbaum-saunders': stats.fatiguelife,
+        'fisk_log_logistic': stats.fisk, 'folded_cauchy': stats.foldcauchy,
+        'folded_normal': stats.foldnorm, 'F': stats.f, 'gamma': stats.gamma,
+        'generalized_logistic': stats.genlogistic, 'generalized_pareto': stats.genpareto,
+        'generalized_exponential': stats.genexpon, 'generalized_extreme_value': stats.genextreme,
+        'generalized_gamma': stats.gengamma, 'generalized_half-logistic': stats.genhalflogistic,
+        'generalized_inverse_gaussian': stats.geninvgauss,
+        'generalized_normal': stats.gennorm, 'gilbrat': stats.gilbrat,
+        'gompertz_truncated_gumbel': stats.gompertz, 'gumbel': stats.gumbel_r,
+        'gumbel_left-skewed': stats.gumbel_l, 'half-cauchy': stats.halfcauchy, 'half-normal': stats.halfnorm,
+        'half-logistic': stats.halflogistic, 'hyperbolic_secant': stats.hypsecant,
+        'gauss_hypergeometric': stats.gausshyper, 'inverted_gamma': stats.invgamma,
+        'inverse_normal': stats.invgauss, 'inverted_weibull': stats.invweibull,
+        'johnson_SB': stats.johnsonsb, 'johnson_SU': stats.johnsonsu, 'KSone': stats.ksone,
+        'KStwobign': stats.kstwobign, 'laplace': stats.laplace,
+        'left-skewed_levy': stats.levy_l,
+        'levy': stats.levy, 'logistic': stats.logistic, 'log_laplace': stats.loglaplace,
+        'log_gamma': stats.loggamma, 'lognormal': stats.lognorm, 'log-uniform': stats.loguniform,
+        'maxwell': stats.maxwell, 'mielke_Beta-Kappa': stats.mielke, 'nakagami': stats.nakagami,
+        'noncentral_chi-squared': stats.ncx2, 'noncentral_F': stats.ncf, 'noncentral_t': stats.nct,
+        'normal': stats.norm, 'normal_inverse_gaussian': stats.norminvgauss, 'pareto': stats.pareto,
+        'lomax': stats.lomax, 'power_lognormal': stats.powerlognorm, 'power_normal': stats.powernorm,
+        'power-function': stats.powerlaw, 'R': stats.rdist, 'rayleigh': stats.rayleigh,
+        'rice': stats.rayleigh, 'reciprocal_inverse_gaussian': stats.recipinvgauss,
+        'semicircular': stats.semicircular,
+        'student-t': stats.t, 'triangular': stats.triang,
+        'truncated_exponential': stats.truncexpon, 'truncated_normal': stats.truncnorm,
+        'tukey-lambda': stats.tukeylambda, 'uniform': stats.uniform, 'von_mises': stats.vonmises,
+        'wald': stats.wald, 'weibull_maximum_extreme_value': stats.weibull_max,
+        'weibull_minimum_extreme_value': stats.weibull_min, 'wrapped_cauchy': stats.wrapcauchy
+                
+    }
+    
+    # Get a list of keys from this dictionary, to compare with the selected string:
+    list_of_dictionary_keys = callable_statistical_distributions_dict.keys()
+    
+    #check if an invalid string was provided using the in method:
+    # The string must be in the list of dictionary keys
+    boolean_filter = statistical_distribution_to_test in list_of_dictionary_keys
+    # if it is the list, boolean_filter == True. If it is not, boolean_filter == False
+    
+    if (boolean_filter == False):
+        
+        print(f"Please, select a valid statistical distribution to test: {list_of_dictionary_keys}")
+        return "error"
+    
+    # Set a local copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    # Start a list to store the different Pandas series to test:
+    list_of_dicts = []
+    
+    if not (column_with_labels_to_test_subgroups is None):
+        
+        # 1. Get the unique values from column_with_labels_to_test_subgroups
+        # and save it as the list labels_list:
+        labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
+        
+        # 2. Loop through each element from labels_list:
+        for label in labels_list:
+            
+            # 3. Create a copy of the DATASET, filtering for entries where 
+            # column_with_labels_to_test_subgroups == label:
+            filtered_df = (DATASET[DATASET[column_with_labels_to_test_subgroups] == label]).copy(deep = True)
+            # 4. Reset index of the copied dataframe:
+            filtered_df = filtered_df.reset_index(drop = True)
+            # 5. Create a dictionary, with an identification of the series, and the series
+            # that will be tested:
+            series_dict = {'series_id': (column_to_analyze + "_" + label), 
+                           'series': filtered_df[column_to_analyze],
+                           'total_elements_to_test': filtered_df[column_to_analyze].count()}
+            
+            # 6. Append this dictionary to the list of series:
+            list_of_dicts.append(series_dict)
+        
+    else:
+        # In this case, the only series is the column itself. So, let's create a dictionary with
+        # same structure:
+        series_dict = {'series_id': column_to_analyze, 'series': DATASET[column_to_analyze],
+                       'total_elements_to_test': DATASET[column_to_analyze].count()}
+        
+        # Append this dictionary to the list of series:
+        list_of_dicts.append(series_dict)
+    
+    
+    # Now, loop through each element from the list of series:
+    
+    for series_dict in list_of_dicts:
+        
+        # start a support list:
+        support_list = []
+        
+        # Check if there are at least 20 samples to test:
+        series_id = series_dict['series_id']
+        total_elements_to_test = series_dict['total_elements_to_test']
+        
+        if (total_elements_to_test < 20):
+            
+            print(f"Unable to test series {series_id}: at least 20 samples are needed, but found only {total_elements_to_test} entries for this series.\n")
+            # Add a warning to the dictionary:
+            series_dict['WARNING'] = "Series without the minimum number of elements (20) required to test the normality."
+            # Append it to the support list:
+            support_list.append(series_dict)
+            
+        else:
+            # Let's test the series.
+            y = series_dict['series']
+            
+            # Calculate data skewness and kurtosis
+            # Skewness
+            data_skew = stats.skew(y)
+            # skewness = 0 : normally distributed.
+            # skewness > 0 : more weight in the left tail of the distribution.
+            # skewness < 0 : more weight in the right tail of the distribution.
+            # https://www.geeksforgeeks.org/scipy-stats-skew-python/
+
+            # Kurtosis
+            data_kurtosis = stats.kurtosis(y, fisher = True)
+            # scipy.stats.kurtosis(array, axis=0, fisher=True, bias=True) function 
+            # calculates the kurtosis (Fisher or Pearson) of a data set. It is the the fourth 
+            # central moment divided by the square of the variance. 
+            # It is a measure of the “tailedness” i.e. descriptor of shape of probability 
+            # distribution of a real-valued random variable. 
+            # In simple terms, one can say it is a measure of how heavy tail is compared 
+            # to a normal distribution.
+            # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
+            # else Pearson’s definition is used (normal 3.0) if set to False.
+            # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
+            print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
+            print("For the data analyzed:\n")
+            print(f"skewness = {data_skew}")
+            print(f"kurtosis = {data_kurtosis}\n")
+
+            if (data_skew < 0):
+
+                print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
+
+            elif (data_skew > 0):
+
+                print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
+
+            else:
+
+                print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
+                
+
+            if (data_kurtosis == 0):
+
+                print("Data kurtosis = 0. No long-tail effects detected.\n")
+
+            else:
+
+                print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
+
+            #Calculate the mode of the distribution:
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
+            data_mode = stats.mode(y, axis = None)[0][0]
+            # returns an array of arrays. The first array is called mode=array and contains the mode.
+            # Axis: Default is 0. If None, compute over the whole array.
+            # we set axis = None to compute the general mode.
+            
+            # Access the object correspondent to the distribution provided. To do so,
+            # simply access dict['key1'], where 'key1' is a key from a dictionary dict ={"key1": 'val1'}
+            # Access just as accessing a column from a dataframe.
+
+            anderson_darling_statistic = diagnostic.anderson_statistic(y, dist = (callable_statistical_distributions_dict[statistical_distribution_to_test]), fit = True)
+            
+            print(f"Anderson-Darling statistic for the distribution {statistical_distribution_to_test} = {anderson_darling_statistic}\n")
+            print("The Anderson–Darling test assesses whether a sample comes from a specified distribution.")
+            print("It makes use of the fact that, when given a hypothesized underlying distribution and assuming the data does arise from this distribution, the cumulative distribution function (CDF) of the data can be assumed to follow a uniform distribution.")
+            print("Then, data can be tested for uniformity using an appropriate distance test (Shapiro 1980).\n")
+            # source: https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
+
+            # Fit the distribution and get its parameters
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_continuous.fit.html
+
+            distribution_parameters = callable_statistical_distributions_dict[statistical_distribution_to_test].fit(y)
+            
+            # With method="MLE" (default), the fit is computed by minimizing the negative 
+            # log-likelihood function. A large, finite penalty (rather than infinite negative 
+            # log-likelihood) is applied for observations beyond the support of the distribution. 
+            # With method="MM", the fit is computed by minimizing the L2 norm of the relative errors 
+            # between the first k raw (about zero) data moments and the corresponding distribution 
+            # moments, where k is the number of non-fixed parameters. 
+
+            # distribution_parameters: Estimates for any shape parameters (if applicable), 
+            # followed by those for location and scale.
+            print(f"Distribution shape parameters calculated for {statistical_distribution_to_test} = {distribution_parameters}\n")
+            
+            print("ATTENTION:\n")
+            print("The critical values for the Anderson-Darling test are dependent on the specific distribution that is being tested.")
+            print("Tabulated values and formulas have been published (Stephens, 1974, 1976, 1977, 1979) for a few specific distributions: normal, lognormal, exponential, Weibull, logistic, extreme value type 1.")
+            print("The test consists on an one-sided test of the hypothesis that the distribution is of a specific form.")
+            print("The hypothesis is rejected if the test statistic, A, is greater than the critical value for that particular distribution.")
+            print("Note that, for a given distribution, the Anderson-Darling statistic may be multiplied by a constant which usually depends on the sample size, n).")
+            print("These constants are given in the various papers by Stephens, and may be simply referred as the \'adjusted Anderson-Darling statistic\'.")
+            print("This adjusted statistic is what should be compared against the critical values.")
+            print("Also, be aware that different constants (and therefore critical values) have been published.")
+            print("Therefore, you just need to be aware of what constant was used for a given set of critical values (the needed constant is typically given with the correspondent critical values).")
+            print("To learn more about the Anderson-Darling statistics and the check the full references of Stephens, go to the webpage from the National Institute of Standards and Technology (NIST):\n")
+            print("https://itl.nist.gov/div898/handbook/eda/section3/eda3e.htm")
+            print("\n")
+            
+            #Create general statistics dictionary:
+            general_statistics_dict = {
+
+                "series_mean": y.mean(),
+                "series_variance": y.var(),
+                "series_standard_deviation": y.std(),
+                "series_skewness": data_skew,
+                "series_kurtosis": data_kurtosis,
+                "series_mode": data_mode,
+                "AndersonDarling_statistic_A": anderson_darling_statistic,
+                "distribution_parameters": distribution_parameters
+
+            }
+
+            # Add this dictionary to the series dictionary:
+            series_dict['general_statistics'] = general_statistics_dict
+ 
+            # Now, append the series dictionary to the support list:
+            support_list.append(series_dict)
+        
+    # Now we left the for loop, make the list of dicts support list itself:
+    list_of_dicts = support_list
+    
+    print("General statistics successfully returned in the list \'list_of_dicts\'.\n")
+    print(list_of_dicts)
+    print("\n")
+    
+    print("Note: the obtention of the probability plot specific for each distribution requires shape parameters.")
+    print("Check Scipy documentation for additional information:")
+    print("https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html")
+    
+    return list_of_dicts
+
 
 def col_filter_rename (df, cols_list, mode = 'filter'):
     
