@@ -4751,6 +4751,8 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     # fill_method = "ffill" - Forward (pad) fill: propagate last valid observation forward 
     # to next valid.
     # fill_method = 'bfill' - backfill: use next valid observation to fill gap.
+    # fill_method = 'nearest' - 'ffill' or 'bfill', depending if the point is closest to the
+    # next or to the previous non-missing value.
     
     # fill_method = "fill_by_interpolating" - fill by interpolating the previous and the 
     # following value. For categorical columns, it fills the
@@ -5108,6 +5110,12 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 # use forward or backfill
                 cleaned_df = cleaned_df.fillna(method = fill_method)
             
+             elif (fill_method == "nearest"):
+                # nearest: applies the 'bfill' or 'ffill', depending if the point
+                # is closes to the previous or to the next non-missing value.
+                # It is a Pandas dataframe interpolation method, not a fillna one.
+                cleaned_df = cleaned_df.interpolate(method = 'nearest')
+            
             else:
                 print("No valid filling methodology was selected. Then, filling missing values with 0.")
                 cleaned_df = cleaned_df.fillna(0)
@@ -5121,6 +5129,414 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     print(f"Number of rows of the dataframe after cleaning = {cleaned_df.shape[0]} rows.")
     print(f"Percentual variation of the number of rows = {(df.shape[0] - cleaned_df.shape[0])/(df.shape[0]) * 100} %\n")
     print("Check the 10 first rows of the cleaned dataframe:\n")
+    print(cleaned_df.head(10))
+    
+    return cleaned_df
+
+
+def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True):
+    
+    # Check DataCamp course Dealing with Missing Data in Python
+    # https://app.datacamp.com/learn/courses/dealing-with-missing-data-in-python
+    
+    # This function handles only one column by call, whereas handle_missing_values can process the whole
+    # dataframe at once.
+    # The strategies used for handling missing values is different here. You can use the function to
+    # process data that does not come from time series, but only plot the graphs for time series data.
+    
+    # This function is more indicated for dealing with missing values on time series data than handle_missing_values.
+    # This function will search for the best imputer for a given column.
+    # It can process both numerical and categorical columns.
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from scipy.stats import linregress
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import OrdinalEncoder
+    from fancyimpute import KNN, IterativeImputer
+    
+    # column_to_fill: string (in quotes) indicating the column with missing values to fill.
+    # e.g. if column_to_fill = 'col1', imputations will be performed on column 'col1'.
+    
+    # timestamp_tag_column = None. string containing the name of the column with the timestamp. 
+    # If timestamp_tag_column is None, the index will be used for testing different imputations.
+    # be the time series reference. declare as a string under quotes. This is the column from 
+    # which we will extract the timestamps or values with temporal information. e.g.
+    # timestamp_tag_column = 'timestamp' will consider the column 'timestamp' a time column.
+    
+    # test_value_to_fill: the function will test the imputation of a constant. Specify this constant here
+    # or the tested constant will be zero. e.g. test_value_to_fill = None will test the imputation of 0.
+    # test_value_to_fill = 10 will test the imputation of value zero.
+    
+    # show_imputation_comparison_plots = True. Keep it True to plot the scatter plot comparison
+    # between imputed and original values, as well as the Kernel density estimate (KDE) plot.
+    # Alternatively, set show_imputation_comparison_plots = False to omit the plots.
+    
+    # The following imputation techniques will be tested, and the best one will be automatically
+    # selected: mean_imputer, median_imputer, mode_imputer, constant_imputer, linear_interpolation,
+    # quadratic_interpolation, cubic_interpolation, nearest_interpolation, bfill_imputation,
+    # ffill_imputation, knn_imputer, mice_imputer (MICE = Multiple Imputations by Chained Equations).
+    
+    # MICE: Performs multiple regressions over random samples of the data; 
+    # Takes the average of multiple regression values; and imputes the missing feature value for the 
+    # data point.
+    # KNN (K-Nearest Neighbor): Selects K nearest or similar data points using all the 
+    # non-missing features. It takes the average of the selected data points to fill in the missing 
+    # feature.
+    # These are Machine Learning techniques to impute missing values.
+    # KNN finds most similar points for imputing.
+    # MICE performs multiple regression for imputing. MICE is a very robust model for imputation.
+    
+    
+    # Set a local copy of df to manipulate.
+    # The methods used in this function can modify the original object itself. So,
+    # here we apply the copy method setting deep = True
+    cleaned_df = df.copy(deep = True)
+    
+    subset_columns_list = [column_to_fill] # only the column indicated.
+    total_columns = 1 # keep the homogeneity with the previous function
+    
+    # Get the list of columns of the dataframe:
+    df_cols = list(cleaned_df.columns)
+    # Get the index j of the column_to_fill:
+    j = df_cols.index(column_to_fill)
+    print(f"Filling missing values on column {column_to_fill}. This is the column with index {j} in the original dataframe.\n")
+
+    # Firstly, let's process the timestamp column and save it as x. 
+    # That is because datetime objects cannot be directly applied to linear regressions and
+    # numeric procedure. We must firstly convert it to an integer scale capable of preserving
+    # the distance relationships.
+   
+    # Check if there is a timestamp_tag_column. If not, make the index the timestamp:
+    if (timestamp_tag_column is None):
+        
+        timestamp_tag_column = column_to_fill + "_index"
+        
+        # Create the x array
+        x = np.array(cleaned_df.index)
+        
+    else:
+        # Run only if there was a timestamp column originally.
+        # sort this dataframe by timestamp_tag_column and column_to_fill:
+        cleaned_df = cleaned_df.sort_values(by = [timestamp_tag_column, column_to_fill], ascending = [True, True])
+        # restart index:
+        cleaned_df = cleaned_df.reset_index(drop = True)
+        
+        # If timestamp_tag_column is an object, the user may be trying to pass a date as x. 
+        # So, let's try to convert it to datetime:
+        if ((cleaned_df[timestamp_tag_column].dtype == 'O') | (cleaned_df[timestamp_tag_column].dtype == 'object')):
+
+            try:
+                cleaned_df[timestamp_tag_column] = (cleaned_df[timestamp_tag_column]).astype('datetime64[ns]')
+                        
+            except:
+                # Simply ignore it
+                pass
+        
+        ts_array = np.array(cleaned_df[timestamp_tag_column])
+        
+        # Check if the elements from array x are np.datetime64 objects. Pick the first
+        # element to check:
+        if (type(ts_array[0]) == np.datetime64):
+            # In this case, performing the linear regression directly in X will
+            # return an error. We must associate a sequential number to each time.
+            # to keep the distance between these integers the same as in the original sequence
+            # let's define a difference of 1 ns as 1. The 1st timestamp will be zero, and the
+            # addition of 1 ns will be an addition of 1 unit. So a timestamp recorded 10 ns
+            # after the time zero will have value 10. At the end, we divide every element by
+            # 10**9, to obtain the correspondent distance in seconds.
+                
+            # start a list for the associated integer timescale. Put the number zero,
+            # associated to the first timestamp:
+            int_timescale = [0]
+                
+            # loop through each element of the array x, starting from index 1:
+            for i in range(1, len(ts_array)):
+                    
+                # calculate the timedelta between x[i] and x[i-1]:
+                # The delta method from the Timedelta class converts the timedelta to
+                # nanoseconds, guaranteeing the internal compatibility:
+                timedelta = pd.Timedelta(ts_array[i] - ts_array[(i-1)]).delta
+                    
+                # Sum this timedelta (integer number of nanoseconds) to the
+                # previous element from int_timescale, and append the result to the list:
+                int_timescale.append((timedelta + int_timescale[(i-1)]))
+                
+            # Now convert the new scale (that preserves the distance between timestamps)
+            # to NumPy array:
+            int_timescale = np.array(int_timescale)
+            
+            # Divide by 10**9 to obtain the distances in seconds, reducing the order of
+            # magnitude of the integer numbers (the division is allowed for arrays).
+            # make it the timestamp array ts_array itself:
+            ts_array = int_timescale / (10**9)
+            # Now, reduce again the order of magnitude through division by (60*60)
+            # It will obtain the ts_array in hour:
+            ts_array = int_timescale / (60*60)
+            
+        # make x the ts_array itself:
+        x = ts_array
+    
+    column_data_type = cleaned_df[column_to_fill].dtype
+    
+    # Pre-process the column if it is categorical
+    if ((column_data_type == 'O') | (column_data_type == 'object')):
+        
+        # Ordinal encoding: let's associate integer sequential numbers to the categorical column
+        # to apply the advanced encoding techniques. Even though the one-hot encoding could perform
+        # the same task and would, in fact, better, since there may be no ordering relation, the
+        # ordinal encoding is simpler and more suitable for this particular task:
+        
+        # Create Ordinal encoder
+        ord_enc = OrdinalEncoder()
+        
+        # Select non-null values of the column in the dataframe:
+        series_on_df = cleaned_df[column_to_fill]
+        series_not_null = series_on_df[series_on_df.notnull()]
+        
+        # Reshape series_not_null to shape (-1, 1)
+        reshaped_vals = series_not_null.values.reshape(-1, 1)
+        
+        # Fit the ordinal encoder to the reshaped column_to_fill values:
+        encoded_vals = ord_enc.fit_transform(reshaped_vals)
+        
+        # Finally, store the values to non-null values of the column in dataframe
+        cleaned_df.loc[series_on_df.notnull(), column_to_fill] = np.squeeze(encoded_vals)
+        
+
+    # Start a list of imputations:
+    list_of_imputations = []
+    
+    subset_from_cleaned_df = cleaned_df.copy(deep = True)
+    subset_from_cleaned_df = subset_from_cleaned_df[subset_columns_list]
+
+    mean_imputer = SimpleImputer(strategy = 'mean')
+    list_of_imputations.append('mean_imputer')
+    
+    # Now, apply the fit_transform method from the imputer to fit it to the indicated column:
+    mean_imputer.fit(subset_from_cleaned_df)
+    # If you wanted to obtain constants for all columns, you should not specify a subset:
+    # imputer.fit_transform(cleaned_df)
+        
+    # create a column on the dataframe as 'mean_imputer':
+    cleaned_df['mean_imputer'] = mean_imputer.transform(subset_from_cleaned_df)
+        
+    # Create the median imputer:
+    median_imputer = SimpleImputer(strategy = 'median')
+    list_of_imputations.append('median_imputer')
+    median_imputer.fit(subset_from_cleaned_df)
+    cleaned_df['median_imputer'] = median_imputer.transform(subset_from_cleaned_df)
+    
+    # Create the mode imputer:
+    mode_imputer = SimpleImputer(strategy = 'most_frequent')
+    list_of_imputations.append('mode_imputer')
+    mode_imputer.fit(subset_from_cleaned_df)
+    cleaned_df['mode_imputer'] = mode_imputer.transform(subset_from_cleaned_df)
+    
+    # Create the constant value imputer:
+    if (test_value_to_fill is None):
+        test_value_to_fill = 0
+    
+    constant_imputer = SimpleImputer(strategy = 'constant', fill_value = test_value_to_fill)
+    list_of_imputations.append('constant_imputer')
+    constant_imputer.fit(subset_from_cleaned_df)
+    cleaned_df['constant_imputer'] = constant_imputer.transform(subset_from_cleaned_df)
+    
+    # Make the linear interpolation imputation:
+    linear_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
+    linear_interpolation_df = linear_interpolation_df.interpolate(method = 'linear')
+    cleaned_df['linear_interpolation'] = linear_interpolation_df[column_to_fill]
+    list_of_imputations.append('linear_interpolation')
+        
+    # Interpolate 2-nd degree polynomial:
+    quadratic_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
+    quadratic_interpolation_df = quadratic_interpolation_df.interpolate(method = 'polynomial', order = 2)
+    cleaned_df['quadratic_interpolation'] = quadratic_interpolation_df[column_to_fill]
+    list_of_imputations.append('quadratic_interpolation')
+        
+    # Interpolate 3-rd degree polynomial:
+    cubic_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
+    cubic_interpolation_df = cubic_interpolation_df.interpolate(method = 'polynomial', order = 3)
+    cleaned_df['cubic_interpolation'] = cubic_interpolation_df[column_to_fill]
+    list_of_imputations.append('cubic_interpolation')
+    
+    # Nearest interpolation
+    # Similar to bfill and ffill, but uses the nearest
+    nearest_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
+    nearest_interpolation_df = nearest_interpolation_df.interpolate(method = 'nearest')
+    cleaned_df['nearest_interpolation'] = nearest_interpolation_df[column_to_fill]
+    list_of_imputations.append('nearest_interpolation')
+    
+    # bfill and ffill:
+    bfill_df = cleaned_df[subset_columns_list].copy(deep = True)
+    ffill_df = cleaned_df[subset_columns_list].copy(deep = True)
+    
+    bfill_df = bfill_df.fillna(method = 'bfill')
+    cleaned_df['bfill_imputation'] = bfill_df[column_to_fill]
+    list_of_imputations.append('bfill_imputation')
+    
+    ffill_df = ffill_df.fillna(method = 'ffill')
+    cleaned_df['ffill_imputation'] = ffill_df[column_to_fill]
+    list_of_imputations.append('ffill_imputation')
+    
+    
+    # Now, we can go to the advanced machine learning techniques:
+    
+    # KNN Imputer:
+    # Initialize KNN
+    knn_imputer = KNN()
+    list_of_imputations.append('knn_imputer')
+    cleaned_df['knn_imputer'] = knn_imputer.fit_transform(subset_from_cleaned_df)
+    
+    # Initialize IterativeImputer
+    mice_imputer = IterativeImputer()
+    list_of_imputations.append('mice_imputer')
+    cleaned_df['mice_imputer'] = mice_imputer.fit_transform(subset_from_cleaned_df)
+    
+    # Now, let's create linear regressions for compare the performance of different
+    # imputation strategies.
+    # Firstly, start a dictionary to store
+    
+    imputation_performance_dict = {}
+
+    # Now, loop through each imputation and calculate the adjusted R²:
+    for imputation in list_of_imputations:
+        
+        y = cleaned_df[imputation]
+        
+        # fit the linear regression
+        slope, intercept, r, p, se = linregress(x, y)
+        
+        # Get the adjusted R² and add it as the key imputation of the dictionary:
+        imputation_performance_dict[imputation] = r**2
+    
+    # Select best R-squared
+    best_imputation = max(imputation_performance_dict, key = imputation_performance_dict.get)
+    print(f"The best imputation strategy for the column {column_to_fill} is {best_imputation}.\n")
+    
+    
+    if (show_imputation_comparison_plots): # run if it is True
+    
+        print("Check the Kernel density estimate (KDE) plot for the different imputations.\n")
+        labels_list = ['baseline\ncomplete_case']
+        y = cleaned_df[column_to_fill]
+        X = cleaned_df[timestamp_tag_column] # not the converted scale
+
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        # Plot graphs of imputed DataFrames and the complete case
+        y.plot(kind = 'kde', c = 'red', linewidth = 3)
+
+        for imputation in list_of_imputations:
+            
+            labels_list.append(imputation)
+            y = cleaned_df[imputation]
+            y.plot(kind = 'kde')
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = 0)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = 0)
+        # XX = 0 DEGREES y_axis (Default)
+
+        ax.set_title("Kernel_density_estimate_plot_for_each_imputation")
+        ax.set_xlabel(column_to_fill)
+        ax.set_ylabel("density")
+
+        ax.grid(True) # show grid or not
+        ax.legend(loc = 'upper left')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+        plt.show()
+        
+        print("\n")
+        print(f"Now, check the original time series compared with the values obtained through {best_imputation}:\n")
+        
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        # Plot the imputed DataFrame in red dotted style
+        selected_imputation = cleaned_df[best_imputation]
+        ax.plot(X, selected_imputation, color = 'red', marker = 'o', linestyle = 'dotted', label = best_imputation)
+        
+        # Plot the original DataFrame with title
+        # Put a degree of transparency (35%) to highlight the imputation.
+        ax.plot(X, y, color = 'darkblue', alpha = 0.65, linestyle = '-', marker = '', label = (column_to_fill + "_original"))
+        
+        plt.xticks(rotation = 70)
+        plt.yticks(rotation = 0)
+        ax.set_title(column_to_fill + "_original_vs_imputations")
+        ax.set_xlabel(timestamp_tag_column)
+        ax.set_ylabel(column_to_fill)
+
+        ax.grid(True) # show grid or not
+        ax.legend(loc = 'upper left')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+        plt.show()
+        print("\n")
+    
+                
+    print(f"Returning a dataframe where {best_imputation} strategy was used for filling missing values in {column_to_fill} column.\n")
+     
+    if (best_imputation == 'mice_imputer'):
+        print("MICE = Multiple Imputations by Chained Equations")
+        print("MICE: Performs multiple regressions over random samples of the data.")
+        print("It takes the average of multiple regression values and imputes the missing feature value for the data point.")
+        print("It is a Machine Learning technique to impute missing values.")
+        print("MICE performs multiple regression for imputing and is a very robust model for imputation.\n")
+    
+    elif (best_imputation == 'knn_imputer'):
+        print("KNN = K-Nearest Neighbor")
+        print("KNN selects K nearest or similar data points using all the non-missing features.")
+        print("It takes the average of the selected data points to fill in the missing feature.")
+        print("It is a Machine Learning technique to impute missing values.")
+        print("KNN finds most similar points for imputing.\n")
+    
+    # Make all rows from the column j equals to the selected imputer:
+    cleaned_df.iloc[:, j] = cleaned_df[best_imputation]
+    # If you wanted to make all rows from all columns equal to the imputer, you should declare:
+    # cleaned_df.iloc[:, :] = imputer
+    
+    # Drop all the columns created for storing different imputers:
+    # These columns were saved in the list list_of_imputations.
+    # Notice that the selected imputations were saved in the original column.
+    cleaned_df = cleaned_df.drop(columns = list_of_imputations)
+    
+    # Finally, let's reverse the ordinal encoding used in the beginning of the code to process object
+    # columns:
+    
+    if ((column_data_type == 'O') | (column_data_type == 'object')):
+        
+        # Firstly, converts the values obtained to closest integer (since we
+        # encoded the categorical values as integers, we cannot reconvert
+        # decimals):
+        
+        cleaned_df.iloc[:, j] = int(np.rint(cleaned_df[column_to_fill]))
+        # We must use the int function to guarantee that the column_to_fill will store an
+        # integer number (we cannot have a fraction of an encoding).
+        # The int function guarantees that the variable will be stored as an integer.
+        # The numpy.rint(a) function rounds elements of the array to the nearest integer.
+        # https://numpy.org/doc/stable/reference/generated/numpy.rint.html
+        # For values exactly halfway between rounded decimal values, 
+        # NumPy rounds to the nearest even value. 
+        # Thus 1.5 and 2.5 round to 2.0; -0.5 and 0.5 round to 0.0; etc.
+        
+        # Select the new values:
+        series_on_df = cleaned_df[column_to_fill]
+        
+        # Reshape series_not_null to shape (-1, 1)
+        reshaped_vals = series_on_df.values.reshape(-1, 1)
+        
+        # Perform inverse transform of the ordinally encoded columns
+        cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped)
+    
+    print("Check the 10 first rows from the original dataframe:\n")
     print(cleaned_df.head(10))
     
     return cleaned_df
