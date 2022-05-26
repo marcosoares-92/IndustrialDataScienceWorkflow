@@ -5110,7 +5110,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 # use forward or backfill
                 cleaned_df = cleaned_df.fillna(method = fill_method)
             
-             elif (fill_method == "nearest"):
+            elif (fill_method == "nearest"):
                 # nearest: applies the 'bfill' or 'ffill', depending if the point
                 # is closes to the previous or to the next non-missing value.
                 # It is a Pandas dataframe interpolation method, not a fillna one.
@@ -5134,7 +5134,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     return cleaned_df
 
 
-def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True):
+def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True):
     
     # Check DataCamp course Dealing with Missing Data in Python
     # https://app.datacamp.com/learn/courses/dealing-with-missing-data-in-python
@@ -5293,17 +5293,20 @@ def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = No
         
         # Select non-null values of the column in the dataframe:
         series_on_df = cleaned_df[column_to_fill]
-        series_not_null = series_on_df[series_on_df.notnull()]
         
-        # Reshape series_not_null to shape (-1, 1)
-        reshaped_vals = series_not_null.values.reshape(-1, 1)
+        # Reshape series_on_df to shape (-1, 1)
+        reshaped_vals = series_on_df.values.reshape(-1, 1)
         
         # Fit the ordinal encoder to the reshaped column_to_fill values:
         encoded_vals = ord_enc.fit_transform(reshaped_vals)
         
         # Finally, store the values to non-null values of the column in dataframe
-        cleaned_df.loc[series_on_df.notnull(), column_to_fill] = np.squeeze(encoded_vals)
-        
+        cleaned_df.iloc[:,j] = encoded_vals
+
+        # Max and minimum of the encoded range
+        max_encoded = max(encoded_vals)
+        min_encoded = min(encoded_vals)
+
 
     # Start a list of imputations:
     list_of_imputations = []
@@ -5416,7 +5419,11 @@ def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = No
     print(f"The best imputation strategy for the column {column_to_fill} is {best_imputation}.\n")
     
     
-    if (show_imputation_comparison_plots): # run if it is True
+    if (show_imputation_comparison_plots & ((column_data_type != 'O') & (column_data_type != 'object'))):
+        
+        # Firstly, converts the values obtained to closest integer (since we
+        # encoded the categorical values as integers, we cannot reconvert
+        # decimals):)): # run if it is True
     
         print("Check the Kernel density estimate (KDE) plot for the different imputations.\n")
         labels_list = ['baseline\ncomplete_case']
@@ -5517,7 +5524,19 @@ def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = No
         # encoded the categorical values as integers, we cannot reconvert
         # decimals):
         
-        cleaned_df.iloc[:, j] = int(np.rint(cleaned_df[column_to_fill]))
+        cleaned_df[column_to_fill] = (np.rint(cleaned_df[column_to_fill]))
+        
+        # If a value is above the max_encoded, make it equals to the maximum.
+        # If it is below the minimum, make it equals to the minimum:
+        for k in range(0, len(cleaned_df)):
+
+          if (cleaned_df.iloc[k,j] > max_encoded):
+            cleaned_df.iloc[k,j] = max_encoded
+          
+          elif (cleaned_df.iloc[k,j] < min_encoded):
+            cleaned_df.iloc[k,j] = min_encoded
+
+        new_series = cleaned_df[column_to_fill]
         # We must use the int function to guarantee that the column_to_fill will store an
         # integer number (we cannot have a fraction of an encoding).
         # The int function guarantees that the variable will be stored as an integer.
@@ -5527,15 +5546,13 @@ def adv_imputation_time_series_na (df, column_to_fill, timestamp_tag_column = No
         # NumPy rounds to the nearest even value. 
         # Thus 1.5 and 2.5 round to 2.0; -0.5 and 0.5 round to 0.0; etc.
         
-        # Select the new values:
-        series_on_df = cleaned_df[column_to_fill]
-        
         # Reshape series_not_null to shape (-1, 1)
-        reshaped_vals = series_on_df.values.reshape(-1, 1)
+        reshaped_vals = new_series.values.reshape(-1, 1)
         
         # Perform inverse transform of the ordinally encoded columns
-        cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped)
-    
+        cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped_vals)
+
+
     print("Check the 10 first rows from the original dataframe:\n")
     print(cleaned_df.head(10))
     
@@ -8823,4 +8840,204 @@ def col_filter_rename (df, cols_list, mode = 'filter'):
         print("Enter a valid mode: \'filter\' or \'rename\'.")
     
     return DATASET
+
+
+def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
+    
+    import numpy as np
+    import pandas as pd
+    
+    #### WARNING: This function will eliminate rows where the selected variables present 
+    #### values lower or equal to zero (condition for the logarithm to be applied).
+    
+    # subset = None
+    # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+    # columns names for the transformation to be applied. For instance:
+    # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+    # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+    # Declaring the full list of columns is equivalent to setting subset = None.
+    
+    # create_new_columns = True
+    # Alternatively, set create_new_columns = True to store the transformed data into new
+    # columns. Or set create_new_columns = False to overwrite the existing columns
+    
+    #new_columns_suffix = "_log"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_columns_suffix. Then, if the original
+    # column was "column1" and the suffix is "_log", the new column will be named as
+    # "collumn1_log".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Start a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+    
+    # Check if a subset was defined. If so, make columns_list = subset 
+    if not (subset is None):
+        
+        columns_list = subset
+    
+    else:
+        #There is no declared subset. Then, make columns_list equals to the list of
+        # numeric columns of the dataframe.
+        columns_list = list(DATASET.columns)
+        
+    # Let's check if there are categorical columns in columns_list. Only numerical
+    # columns should remain
+    # Start a support list:
+    support_list = []
+    
+    # Loop through each column in columns_list:
+    for column in columns_list:
+        
+        # Check the Pandas series (column) data type:
+        column_type = DATASET[column].dtype
+            
+        # If it is not categorical (object), append it to the support list:
+        if ((column_type != 'O') | (column_type != 'object')):
+                
+            support_list.append(column)
+    
+    # Finally, make the columns_list support_list itself:
+    columns_list = support_list
+    
+    #Loop through each column to apply the transform:
+    for column in columns_list:
+        #access each element in the list column_list. The element is named 'column'.
+        
+        #boolean filter to check if the entry is higher than zero, condition for the log
+        # to be applied
+        boolean_filter = (DATASET[column] > 0)
+        #This filter is equals True only for the rows where the column is higher than zero.
+        
+        #Apply the boolean filter to the dataframe, removing the entries where the column
+        # cannot be log transformed.
+        # The boolean_filter selects only the rows for which the filter values are True.
+        DATASET = DATASET[boolean_filter]
+        
+        #Check if a new column will be created, or if the original column should be
+        # substituted.
+        if (create_new_columns == True):
+            # Create a new column.
+            
+            # The new column name will be set as column + new_columns_suffix
+            new_column_name = column + new_columns_suffix
+        
+        else:
+            # Overwrite the existing column. Simply set new_column_name as the value 'column'
+            new_column_name = column
+        
+        # Calculate the column value as the log transform of the original series (column)
+        DATASET[new_column_name] = np.log(DATASET[column])
+    
+    # Reset the index:
+    DATASET.reset_index(drop = True)
+    
+    print("The columns were successfully log-transformed. Check the 10 first rows of the new dataset:\n")
+    print(DATASET.head(10))
+    
+    return DATASET
+
+    # One curve derived from the normal is the log-normal.
+    # If the values Y follow a log-normal distribution, their log follow a normal.
+    # A log normal curve resembles a normal, but with skewness (distortion); 
+    # and kurtosis (long-tail).
+
+    # Applying the log is a methodology for normalizing the variables: 
+    # the sample space gets shrinkled after the transformation, making the data more 
+    # adequate for being processed by Machine Learning algorithms. Preferentially apply 
+    # the transformation to the whole dataset, so that all variables will be of same order 
+    # of magnitude.
+    # Obviously, it is not necessary for variables ranging from -100 to 100 in numerical 
+    # value, where most outputs from the log transformation are.
+
+
+def reverse_log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_originalScale"):
+    
+    import numpy as np
+    import pandas as pd
+    
+    #### WARNING: This function will eliminate rows where the selected variables present 
+    #### values lower or equal to zero (condition for the logarithm to be applied).
+    
+    # subset = None
+    # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+    # columns names for the transformation to be applied. For instance:
+    # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+    # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+    # Declaring the full list of columns is equivalent to setting subset = None.
+    
+    # create_new_columns = True
+    # Alternatively, set create_new_columns = True to store the transformed data into new
+    # columns. Or set create_new_columns = False to overwrite the existing columns
+    
+    #new_columns_suffix = "_log"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_columns_suffix. Then, if the original
+    # column was "column1" and the suffix is "_originalScale", the new column will be named 
+    # as "collumn1_originalScale".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Start a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+    
+    # Check if a subset was defined. If so, make columns_list = subset 
+    if not (subset is None):
+        
+        columns_list = subset
+    
+    else:
+        #There is no declared subset. Then, make columns_list equals to the list of
+        # numeric columns of the dataframe.
+        columns_list = list(DATASET.columns)
+        
+    # Let's check if there are categorical columns in columns_list. Only numerical
+    # columns should remain
+    # Start a support list:
+    support_list = []
+    
+    # Loop through each column in columns_list:
+    for column in columns_list:
+        
+        # Check the Pandas series (column) data type:
+        column_type = DATASET[column].dtype
+            
+        # If it is not categorical (object), append it to the support list:
+        if ((column_type != 'O') | (column_type != 'object')):
+                
+            support_list.append(column)
+    
+    # Finally, make the columns_list support_list itself:
+    columns_list = support_list
+    
+    #Loop through each column to apply the transform:
+    for column in columns_list:
+        #access each element in the list column_list. The element is named 'column'.
+        
+        # The exponential transformation can be applied to zero and negative values,
+        # so we remove the boolean filter.
+        
+        #Check if a new column will be created, or if the original column should be
+        # substituted.
+        if (create_new_columns == True):
+            # Create a new column.
+            
+            # The new column name will be set as column + new_columns_suffix
+            new_column_name = column + new_columns_suffix
+        
+        else:
+            # Overwrite the existing column. Simply set new_column_name as the value 'column'
+            new_column_name = column
+        
+        # Calculate the column value as the log transform of the original series (column)
+        DATASET[new_column_name] = np.exp(DATASET[column])
+    
+    print("The log_transform was successfully reversed through the exponential transformation. Check the 10 first rows of the new dataset:\n")
+    print(DATASET.head(10))
+    
+    return DATASET
+
 
