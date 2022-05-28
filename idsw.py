@@ -9041,3 +9041,668 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, new_col
     return DATASET
 
 
+def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', lambda_boxcox = None, suffix = '_BoxCoxTransf', specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}):
+    
+    import numpy as np
+    import pandas as pd
+    from statsmodels.stats import diagnostic
+    from scipy import stats
+    
+    # This function will process a single column column_to_transform 
+    # of the dataframe df per call.
+    
+    # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.boxcox.html
+    ## Box-Cox transform is given by:
+    ## y = (x**lmbda - 1) / lmbda,  for lmbda != 0
+    ## log(x),                  for lmbda = 0
+    
+    # column_to_transform must be a string with the name of the column.
+    # e.g. column_to_transform = 'column1' to transform a column named as 'column1'
+    
+    # mode = 'calculate_and_apply'
+    # Aternatively, mode = 'calculate_and_apply' to calculate lambda and apply Box-Cox
+    # transform; mode = 'apply_only' to apply the transform for a known lambda.
+    # To 'apply_only', lambda_box must be provided.
+    
+    # lambda_boxcox must be a float value. e.g. lamda_boxcox = 1.7
+    # If you calculated lambda from the function box_cox_transform and saved the
+    # transformation data summary dictionary as data_sum_dict, simply set:
+    # lambda_boxcox = data_sum_dict['lambda_boxcox']
+    # This will access the value on the key 'lambda_boxcox' of the dictionary, which
+    # contains the lambda. 
+    
+    # Analogously, spec_lim_dict['Inf_spec_lim_transf'] access
+    # the inferior specification limit transformed; and spec_lim_dict['Sup_spec_lim_transf'] 
+    # access the superior specification limit transformed.
+    
+    # If lambda_boxcox is None, 
+    # the mode will be automatically set as 'calculate_and_apply'.
+    
+    # suffix: string (inside quotes).
+    # How the transformed column will be identified in the returned data_transformed_df.
+    # If y_label = 'Y' and suffix = '_BoxCoxTransf', the transformed column will be
+    # identified as 'Y_BoxCoxTransf'.
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name
+    
+    # specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}
+    # If there are specification limits, input them in this dictionary. Do not modify the keys,
+    # simply substitute None by the lower and/or the upper specification.
+    # e.g. Suppose you have a tank that cannot have more than 10 L. So:
+    # specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': 10}, there is only
+    # an upper specification equals to 10 (do not add units);
+    # Suppose a temperature cannot be lower than 10 ºC, but there is no upper specification. So,
+    # specification_limits = {'lower_spec_lim': 10, 'upper_spec_lim': None}. Finally, suppose
+    # a liquid which pH must be between 6.8 and 7.2:
+    # specification_limits = {'lower_spec_lim': 6.8, 'upper_spec_lim': 7.2}
+    
+    if not (suffix is None):
+        #only if a suffix was declared
+        #concatenate the column name to the suffix
+        new_col = column_to_transform + suffix
+    
+    else:
+        #concatenate the column name to the standard '_BoxCoxTransf' suffix
+        new_col = column_to_transform + '_BoxCoxTransf'
+    
+    boolean_check = (mode != 'calculate_and_apply') & (mode != 'apply_only')
+    # & is the 'and' operator. != is the 'is different from' operator.
+    #Check if neither 'calculate_and_apply' nor 'apply_only' were selected
+    
+    if ((lambda_boxcox is None) & (mode == 'apply_only')):
+        print("Invalid value set for \'lambda_boxcox'\. Setting mode to \'calculate_and_apply\'.")
+        mode = 'calculate_and_apply'
+    
+    elif (boolean_check == True):
+        print("Invalid value set for \'mode'\. Setting mode to \'calculate_and_apply\'.")
+        mode = 'calculate_and_apply'
+    
+    
+    # Start a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+    
+    print("Box-Cox transformation must be applied only to values higher than zero.")
+    print("That is because it is a logarithmic transformation.")
+    print(f"So, filtering out all values from {column_to_transform} lower than or equal to zero.\n")
+    DATASET = DATASET[DATASET[column_to_transform] > 0]
+    DATASET = DATASET.reset_index(drop = True)
+    
+    y = DATASET[column_to_transform]
+    
+    
+    if (mode == 'calculate_and_apply'):
+        # Calculate lambda_boxcox
+        lambda_boxcox = stats.boxcox_normmax(y, method = 'pearsonr')
+        #calcula o lambda da transformacao box-cox utilizando o metodo da maxima verossimilhanca
+        #por meio da maximizacao do coeficiente de correlacao de pearson da funcao
+        #y = boxcox(x), onde boxcox representa a transformacao
+    
+    # For other cases, we will apply the lambda_boxcox set as the function parameter.
+
+    #Calculo da variavel transformada
+    y_transform = stats.boxcox(y, lmbda = lambda_boxcox, alpha = None)
+    #Calculo da transformada
+    
+    DATASET[new_col] = y_transform
+    #dataframe contendo os dados transformados
+    
+    print("Data successfully transformed. Check the 10 first transformed rows:\n")
+    print(DATASET.head(10))
+    print("\n") #line break
+    
+    # Start a dictionary to store the summary results of the transform and the normality
+    # tests:
+    data_sum_dict = {'lambda_boxcox': lambda_boxcox}
+    
+    # Test normality of the transformed variable:
+    # Scipy.stats’ normality test
+    # It is based on D’Agostino and Pearson’s test that combines 
+    # skew and kurtosis to produce an omnibus test of normality.
+    _, scipystats_test_pval = stats.normaltest(y_transform) 
+    # add this test result to the dictionary:
+    data_sum_dict['dagostino_pearson_p_val'] = scipystats_test_pval
+            
+    # Scipy.stats’ Shapiro-Wilk test
+    shapiro_test = stats.shapiro(y_transform)
+    data_sum_dict['shapiro_wilk_p_val'] = shapiro_test[1]
+    
+    # Lilliefors’ normality test
+    lilliefors_test = diagnostic.kstest_normal(y_transform, dist = 'norm', pvalmethod = 'table')
+    data_sum_dict['lilliefors_p_val'] = lilliefors_test[1]
+    
+    # Anderson-Darling normality test
+    ad_test = diagnostic.normal_ad(y_transform, axis = 0)
+    data_sum_dict['anderson_darling_p_val'] = ad_test[1]
+     
+    print("Box-Cox Transformation Summary:\n")
+    print(data_sum_dict)
+    print("\n") #line break
+    
+    if not ((specification_limits['lower_spec_lim'] is None) & (specification_limits['upper_spec_lim'] is None)):
+        # Convert it to a list of specs:
+        list_of_specs = []
+        
+        if not (specification_limits['lower_spec_lim'] is None):
+            
+            if (specification_limits['lower_spec_lim'] <= 0):
+                print("Box-Cox transform can only be applied to values higher than zero. So, ignoring the lower specification.\n")
+            
+            else:
+                list_of_specs.append(specification_limits['lower_spec_lim'])
+        
+        if not (specification_limits['upper_spec_lim'] is None):
+            
+            if (specification_limits['upper_spec_lim'] <= 0):
+                print("Box-Cox transform can only be applied to values higher than zero. So, ignoring the upper specification.\n")
+            
+            else:
+                list_of_specs.append(specification_limits['upper_spec_lim'])
+        
+        # Notice that the list may have 1 or 2 elements.
+        
+        # Convert the list of specifications into a NumPy array:
+        spec_lim_array = np.array(list_of_specs)
+        
+        # If the array has a single element, we cannot apply stats method. So, let's transform
+        # manually:
+        ## y = (x**lmbda - 1) / lmbda,  for lmbda != 0
+        ## log(x),                  for lmbda = 0
+        if (lambda_boxcox == 0):
+            
+            spec_lim_array = np.log(spec_lim_array)
+        
+        else:
+            spec_lim_array = ((spec_lim_array**lambda_boxcox) - 1)/(lambda_boxcox)
+        
+        # Start a dictionary to store the transformed limits:
+        spec_lim_dict = {}
+        
+        if not (specification_limits['lower_spec_lim'] is None):
+            # First element of the array is the lower specification. Add it to the
+            # dictionary:
+            spec_lim_dict['lower_spec_lim_transf'] = spec_lim_array[0]
+            
+            if not (specification_limits['upper_spec_lim'] is None):
+                # Second element of the array is the upper specification. Add it to the
+                # dictionary:
+                spec_lim_dict['upper_spec_lim_transf'] = spec_lim_array[1]
+        
+        else:
+            # The array contains only one element, which is the upper specification. Add
+            # it to the dictionary:
+            spec_lim_dict['upper_spec_lim_transf'] = spec_lim_array[0]
+        
+        print("New specification limits successfully obtained:\n")
+        print(spec_lim_dict)
+        
+        # Add spec_lim_dict as a new element from data_sum_dict:
+        data_sum_dict['spec_lim_dict'] = spec_lim_dict
+    
+    
+    return DATASET, data_sum_dict
+
+
+def reverse_box_cox (df, column_to_transform, lambda_boxcox, suffix = '_ReversedBoxCox'):
+    
+    import numpy as np
+    import pandas as pd
+    
+    # This function will process a single column column_to_transform 
+    # of the dataframe df per call.
+    
+    # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.boxcox.html
+    ## Box-Cox transform is given by:
+    ## y = (x**lmbda - 1) / lmbda,  for lmbda != 0
+    ## log(x),                  for lmbda = 0
+    
+    # column_to_transform must be a string with the name of the column.
+    # e.g. column_to_transform = 'column1' to transform a column named as 'column1'
+    
+    # lambda_boxcox must be a float value. e.g. lamda_boxcox = 1.7
+    # If you calculated lambda from the function box_cox_transform and saved the
+    # transformation data summary dictionary as data_sum_dict, simply set:
+    # lambda_boxcox = data_sum_dict['lambda_boxcox']
+    # This will access the value on the key 'lambda_boxcox' of the dictionary, which
+    # contains the lambda. 
+    
+    # Analogously, spec_lim_dict['Inf_spec_lim_transf'] access
+    # the inferior specification limit transformed; and spec_lim_dict['Sup_spec_lim_transf'] 
+    # access the superior specification limit transformed.
+    
+    #suffix: string (inside quotes).
+    # How the transformed column will be identified in the returned data_transformed_df.
+    # If y_label = 'Y' and suffix = '_ReversedBoxCox', the transformed column will be
+    # identified as '_ReversedBoxCox'.
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name
+    
+    
+    # Start a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+
+    y = DATASET[column_to_transform]
+    
+    if (lambda_boxcox == 0):
+        #ytransf = np.log(y), according to Box-Cox definition. Then
+        #y_retransform = np.exp(y)
+        #In the case of this function, ytransf is passed as the argument y.
+        y_transform = np.exp(y)
+    
+    else:
+        #apply Box-Cox function:
+        #y_transf = (y**lmbda - 1) / lmbda. Then,
+        #y_retransf ** (lmbda) = (y_transf * lmbda) + 1
+        #y_retransf = ((y_transf * lmbda) + 1) ** (1/lmbda), where ** is the potentiation
+        #In the case of this function, ytransf is passed as the argument y.
+        y_transform = ((y * lambda_boxcox) + 1) ** (1/lambda_boxcox)
+    
+    if not (suffix is None):
+        #only if a suffix was declared
+        #concatenate the column name to the suffix
+        new_col = column_to_transform + suffix
+    
+    else:
+        #concatenate the column name to the standard '_ReversedBoxCox' suffix
+        new_col = column_to_transform + '_ReversedBoxCox'
+    
+    DATASET[new_col] = y_transform
+    #dataframe contendo os dados transformados
+    
+    print("Data successfully retransformed. Check the 10 first retransformed rows:\n")
+    print(DATASET.head(10))
+    print("\n") #line break
+ 
+    return DATASET
+
+
+def OneHotEncode_df (df, subset_of_features_to_be_encoded):
+
+    import pandas as pd
+    from sklearn.preprocessing import OneHotEncoder
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
+    
+    # df: the whole dataframe to be processed.
+    
+    # subset_of_features_to_be_encoded: list of strings (inside quotes), 
+    # containing the names of the columns with the categorical variables that will be 
+    # encoded. If a single column will be encoded, declare this parameter as list with
+    # only one element e.g.subset_of_features_to_be_encoded = ["column1"] 
+    # will analyze the column named as 'column1'; 
+    # subset_of_features_to_be_encoded = ["col1", 'col2', 'col3'] will analyze 3 columns
+    # with categorical variables: 'col1', 'col2', and 'col3'.
+    
+    #Start an encoding list empty (it will be a JSON object):
+    encoding_list = []
+    
+    # Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+    
+    #loop through each column of the subset:
+    for column in subset_of_features_to_be_encoded:
+        
+        # Start two empty dictionaries:
+        encoding_dict = {}
+        nested_dict = {}
+        
+        # Add the column to encoding_dict as the key 'column':
+        encoding_dict['column'] = column
+        
+        # Loop through each element (named 'column') of the list of columns to analyze,
+        # subset_of_features_to_be_encoded
+        
+        # We could process the whole subset at once, but it could make us lose information
+        # about the generated columns
+        
+        # set a subset of the dataframe X containing 'column' as the only column:
+        # it will be equivalent to using .reshape(-1,1) to set a 1D-series
+        # or array in the shape for scikit-learn:
+        # For doing so, pass a list of columns for column filtering, containing
+        # the object column as its single element:
+        X  = df[[column]]
+        
+        #Start the OneHotEncoder object:
+        OneHot_enc_obj = OneHotEncoder()
+        
+        #Fit the object to that column:
+        OneHot_enc_obj = OneHot_enc_obj.fit(X)
+        # Get the transformed columns as a SciPy sparse matrix: 
+        transformed_columns = OneHot_enc_obj.transform(X)
+        # Convert the sparse matrix to a NumPy dense array:
+        transformed_columns = transformed_columns.toarray()
+        
+        # Now, let's retrieve the encoding information and save it:
+        # Show encoded categories and store this array. 
+        # It will give the proper columns' names:
+        encoded_columns = OneHot_enc_obj.categories_
+
+        # encoded_columns is an array containing a single element.
+        # This element is an array like:
+        # array(['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6', 'cat7', 'cat8'], dtype=object)
+        # Then, this array is the element of index 0 from the list encoded_columns.
+        # It is represented as encoded_columns[0]
+
+        # Therefore, we actually want the array which is named as encoded_columns[0]
+        # Each element of this array is the name of one of the encoded columns. In the
+        # example above, the element 'cat2' would be accessed as encoded_columns[0][1],
+        # since it is the element of index [1] (second element) from the array 
+        # encoded_columns[0].
+        
+        new_columns = encoded_columns[0]
+        # To identify the column that originated these new columns, we can join the
+        # string column to each element from new_columns:
+        
+        # Update the nested dictionary: store the new_columns as the key 'categories':
+        nested_dict['categories'] = new_columns
+        # Store the encoder object as the key 'OneHot_enc_obj'
+        # Add the encoder object to the dictionary:
+        nested_dict['OneHot_enc_obj'] = OneHot_enc_obj
+        
+        # Store the nested dictionary in the encoding_dict as the key 'OneHot_encoder':
+        encoding_dict['OneHot_encoder'] = nested_dict
+        # Append the encoding_dict as an element from list encoding_list:
+        encoding_list.append(encoding_dict)
+        
+        # Now we saved all encoding information, let's transform the data:
+        
+        # Start a support_list to store the concatenated strings:
+        support_list = []
+        
+        for encoded_col in new_columns:
+            # Use the str attribute to guarantee that the array stores only strings.
+            # Add an underscore "_" to separate the strings and an identifier of the transform:
+            new_column = column + "_" + str(encoded_col) + "_OneHotEnc"
+            # Append it to the support_list:
+            support_list.append(new_column)
+            
+        # Convert the support list to NumPy array, and make new_columns the support list itself:
+        new_columns = np.array(support_list)
+        
+        # Crete a Pandas dataframe from the array transformed_columns:
+        encoded_X_df = pd.DataFrame(transformed_columns)
+        
+        # Modify the name of the columns to make it equal to new_columns:
+        encoded_X_df.columns = new_columns
+        
+        #Inner join the new dataset with the encoded dataset.
+        # Use the index as the key, since indices are necessarily correspondent.
+        # To use join on index, we apply pandas .concat method.
+        # To join on a specific key, we could use pandas .merge method with the arguments
+        # left_on = 'left_key', right_on = 'right_key'; or, if the keys have same name,
+        # on = 'key':
+        # Check Pandas merge and concat documentation:
+        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.merge.html
+        
+        new_df = pd.concat([new_df, encoded_X_df], axis = 1, join = "inner")
+        # When axis = 0, the .concat operation occurs in the row level, so the rows
+        # of the second dataframe are added to the bottom of the first one.
+        # It is the SQL union, and creates a dataframe with more rows, and
+        # total of columns equals to the total of columns of the first dataframe
+        # plus the columns of the second one that were not in the first dataframe.
+        # When axis = 1, the operation occurs in the column level: the two
+        # dataframes are laterally merged using the index as the key, 
+        # preserving all columns from both dataframes. Therefore, the number of
+        # rows will be the total of rows of the dataframe with more entries,
+        # and the total of columns will be the sum of the total of columns of
+        # the first dataframe with the total of columns of the second dataframe.
+        
+        print(f"Successfully encoded column \'{column}\' and merged the encoded columns to the dataframe.")
+        print("Check first 5 rows of the encoded table that was merged:\n")
+        print(encoded_X_df.head())
+        # The default of the head method, when no parameter is printed, is to show 5 rows; if an
+        # integer number Y is passed as argument .head(Y), Pandas shows the first Y-rows.
+        print("\n")
+        
+    print("Finished One-Hot Encoding. Returning the new transformed dataframe; and an encoding list.\n")
+    print("Each element from this list is a dictionary with the original column name as key \'column\', and a nested dictionary as the key \'OneHot_encoder\'.\n")
+    print("In turns, the nested dictionary shows the different categories as key \'categories\' and the encoder object as the key \'OneHot_enc_obj\'.\n")
+    print("Use the encoder object to inverse the One-Hot Encoding in the correspondent function.\n")
+    print(f"For each category in the columns \'{subset_of_features_to_be_encoded}\', a new column has value 1, if it is the actual category of that row; or is 0 if not.\n")
+    print("Check the first 10 rows of the new dataframe:\n")
+    print(new_df.head(10))
+
+    #return the transformed dataframe and the encoding dictionary:
+    return new_df, encoding_list
+
+
+def reverse_OneHotEncode (df, encoding_list):
+
+    import pandas as pd
+    from sklearn.preprocessing import OneHotEncoder
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
+    
+    # df: the whole dataframe to be processed.
+    
+    # encoding_list: list in the same format of the one generated by OneHotEncode_df function:
+    # it must be a list of dictionaries where each dictionary contains two keys:
+    # key 'column': string with the original column name (in quotes); 
+    # key 'OneHot_encoder': this key must store a nested dictionary.
+    # Even though the nested dictionaries generates by the encoding function present
+    # two keys:  'categories', storing an array with the different categories;
+    # and 'OneHot_enc_obj', storing the encoder object, only the key 'OneHot_enc_obj' is required.
+    ## On the other hand, a third key is needed in the nested dictionary:
+    ## key 'encoded_columns': this key must store a list or array with the names of the columns
+    # obtained from Encoding.
+    
+    
+    # Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+    
+    for encoder_dict in encoding_list:
+        
+        try:
+            # Check if the required arguments are present:
+            if ((encoder_dict['column'] is not None) & (encoder_dict['OneHot_encoder']['OneHot_enc_obj'] is not None) & (encoder_dict['OneHot_encoder']['encoded_columns'] is not None)):
+
+                # Access the column name:
+                col_name = encoder_dict['column']
+
+                # Access the nested dictionary:
+                nested_dict = encoder_dict['OneHot_encoder']
+                # Access the encoder object on the dictionary
+                OneHot_enc_obj = nested_dict['OneHot_enc_obj']
+                # Access the list of encoded columns:
+                list_of_encoded_cols = list(nested_dict['encoded_columns'])
+
+                # Get a subset of the encoded columns
+                X = new_df.copy(deep = True)
+                X = X[list_of_encoded_cols]
+
+                # Reverse the encoding:
+                reversed_array = OneHot_enc_obj.inverse_transform(X)
+
+                # Add the reversed array as the column col_name on the dataframe:
+                new_df[col_name] = reversed_array
+                
+                print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
+                print(new_df[[col_name]].head())
+                print("\n")
+            
+        except:
+            print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
+    
+    print("Finished reversing One-Hot Encoding. Returning the new transformed dataframe.")
+    print("Check the first 10 rows of the new dataframe:\n")
+    print(new_df.head(10))
+
+    #return the transformed dataframe:
+    return new_df
+
+
+def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
+
+    # Ordinal encoding: let's associate integer sequential numbers to the categorical column
+    # to apply the advanced encoding techniques. Even though the one-hot encoding could perform
+    # the same task and would, in fact, better, since there may be no ordering relation, the
+    # ordinal encoding is simpler and more suitable for this particular task:    
+    
+    import pandas as pd
+    from sklearn.preprocessing import OrdinalEncoder
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#sklearn.preprocessing.OrdinalEncoder 
+    
+    # df: the whole dataframe to be processed.
+    
+    # subset_of_features_to_be_encoded: list of strings (inside quotes), 
+    # containing the names of the columns with the categorical variables that will be 
+    # encoded. If a single column will be encoded, declare this parameter as list with
+    # only one element e.g.subset_of_features_to_be_encoded = ["column1"] 
+    # will analyze the column named as 'column1'; 
+    # subset_of_features_to_be_encoded = ["col1", 'col2', 'col3'] will analyze 3 columns
+    # with categorical variables: 'col1', 'col2', and 'col3'.
+    
+    #Start an encoding list empty (it will be a JSON object):
+    encoding_list = []
+    
+    # Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+   
+    #loop through each column of the subset:
+    for column in subset_of_features_to_be_encoded:
+        
+        # Start two empty dictionaries:
+        encoding_dict = {}
+        nested_dict = {}
+        
+        # Add the column to encoding_dict as the key 'column':
+        encoding_dict['column'] = column
+        
+        # Loop through each element (named 'column') of the list of columns to analyze,
+        # subset_of_features_to_be_encoded
+        
+        # We could process the whole subset at once, but it could make us lose information
+        # about the generated columns
+        
+        # set a subset of the dataframe X containing 'column' as the only column:
+        # it will be equivalent to using .reshape(-1,1) to set a 1D-series
+        # or array in the shape for scikit-learn:
+        # For doing so, pass a list of columns for column filtering, containing
+        # the object column as its single element:
+        X  = new_df[[column]]
+        
+        #Start the OrdinalEncoder object:
+        ordinal_enc_obj = OrdinalEncoder()
+        
+        # Fit the ordinal encoder to the dataframe X:
+        ordinal_enc_obj = ordinal_enc_obj.fit(X)
+        # Get the transformed dataframe X: 
+        transformed_X = ordinal_enc_obj.transform(X)
+        # transformed_X is an array of arrays like: [[0.], [0.], ..., [8.]]
+        # We want all the values in the first position of the internal arrays:
+        transformed_X = transformed_X[:,0]
+        # Get the encoded series as a NumPy array:
+        encoded_series = np.array(transformed_X)
+        
+        # Get a name for the new encoded column:
+        new_column = column + "_OrdinalEnc"
+        # Add this column to the dataframe:
+        new_df[new_column] = encoded_series
+        
+        # Now, let's retrieve the encoding information and save it:
+        # Show encoded categories and store this array. 
+        # It will give the proper columns' names:
+        encoded_categories = ordinal_enc_obj.categories_
+
+        # encoded_categories is an array of strings containing the information of
+        # encoded categories and their values.
+        
+        # Update the nested dictionary: store the categories as the key 'categories':
+        nested_dict['categories'] = encoded_categories
+        # Store the encoder object as the key 'ordinal_enc_obj'
+        # Add the encoder object to the dictionary:
+        nested_dict['ordinal_enc_obj'] = ordinal_enc_obj
+        
+        # Store the nested dictionary in the encoding_dict as the key 'ordinal_encoder':
+        encoding_dict['ordinal_encoder'] = nested_dict
+        # Append the encoding_dict as an element from list encoding_list:
+        encoding_list.append(encoding_dict)
+        
+        print(f"Successfully encoded column \'{column}\' and added the encoded column to the dataframe.")
+        print("Check first 5 rows of the encoded series that was merged:\n")
+        print(new_df[[new_column]].head())
+        # The default of the head method, when no parameter is printed, is to show 5 rows; if an
+        # integer number Y is passed as argument .head(Y), Pandas shows the first Y-rows.
+        print("\n")
+        
+    print("Finished Ordinal Encoding. Returning the new transformed dataframe; and an encoding list.\n")
+    print("Each element from this list is a dictionary with the original column name as key \'column\', and a nested dictionary as the key \'ordinal_encoder\'.\n")
+    print("In turns, the nested dictionary shows the different categories as key \'categories\' and the encoder object as the key \'ordinal_enc_obj\'.\n")
+    print("Use the encoder object to inverse the Ordinal Encoding in the correspondent function.\n")
+    print("Check the first 10 rows of the new dataframe:\n")
+    print(new_df.head(10))
+
+    #return the transformed dataframe and the encoding dictionary:
+    return new_df, encoding_list
+
+
+def reverse_OrdinalEncode (df, encoding_list):
+
+    import pandas as pd
+    from sklearn.preprocessing import OrdinalEncoder
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#sklearn.preprocessing.OrdinalEncoder
+    
+    # df: the whole dataframe to be processed.
+    
+    # encoding_list: list in the same format of the one generated by OrdinalEncode_df function:
+    # it must be a list of dictionaries where each dictionary contains two keys:
+    # key 'column': string with the original column name (in quotes); 
+    # key 'ordinal_encoder': this key must store a nested dictionary.
+    # Even though the nested dictionaries generates by the encoding function present
+    # two keys:  'categories', storing an array with the different categories;
+    # and 'ordinal_enc_obj', storing the encoder object, only the key 'ordinal_enc_obj' is required.
+    ## On the other hand, a third key is needed in the nested dictionary:
+    ## key 'encoded_column': this key must store a string with the name of the column
+    # obtained from Encoding.
+    
+    
+    # Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+    
+    for encoder_dict in encoding_list:
+        
+        try:
+            # Check if the required arguments are present:
+            if ((encoder_dict['column'] is not None) & (encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None) & (encoder_dict['ordinal_encoder']['encoded_column'] is not None)):
+
+                # Access the column name:
+                col_name = encoder_dict['column']
+
+                # Access the nested dictionary:
+                nested_dict = encoder_dict['ordinal_encoder']
+                # Access the encoder object on the dictionary
+                ordinal_enc_obj = nested_dict['ordinal_enc_obj']
+                # Access the encoded column and save it as a list:
+                list_of_encoded_cols = [nested_dict['encoded_column']]
+                # In OneHotEncoding we have an array of strings. Applying the list
+                # attribute would convert the array to list. Here, in turns, we have a simple
+                # string, which is also an iterable object. Applying the list attribute to a string
+                # creates a list of characters of that string.
+                # So, here we create a list with the string as its single element.
+
+                # Get a subset of the encoded column
+                X = new_df.copy(deep = True)
+                X = X[list_of_encoded_cols]
+
+                # Reverse the encoding:
+                reversed_array = ordinal_enc_obj.inverse_transform(X)
+
+                # Add the reversed array as the column col_name on the dataframe:
+                new_df[col_name] = reversed_array
+                    
+                print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
+                print(new_df[[col_name]].head())
+                print("\n")
+                   
+        except:
+            print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
+    
+    
+    print("Finished reversing Ordinal Encoding. Returning the new transformed dataframe.")
+    print("Check the first 10 rows of the new dataframe:\n")
+    print(new_df.head(10))
+
+    #return the transformed dataframe:
+    return new_df
+
