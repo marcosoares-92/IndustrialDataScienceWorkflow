@@ -9706,3 +9706,900 @@ def reverse_OrdinalEncode (df, encoding_list):
     #return the transformed dataframe:
     return new_df
 
+
+def feature_scaling (df, subset_of_features_to_scale, mode = 'min_max', scale_with_new_params = True, list_of_scaling_params = None, suffix = '_scaled'):
+    
+    import numpy as np
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.preprocessing import MinMaxScaler
+    # Scikit-learn Preprocessing data guide:
+    # https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-scaler
+    # Standard scaler documentation:
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
+    # Min-Max scaler documentation:
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler.set_params
+    
+    ## Machine Learning algorithms are extremely sensitive to scale. 
+    
+    ## This function provides 4 methods (modes) of scaling:
+    ## mode = 'standard': applies the standard scaling, 
+    ##  which creates a new variable with mean = 0; and standard deviation = 1.
+    ##  Each value Y is transformed as Ytransf = (Y - u)/s, where u is the mean 
+    ##  of the training samples, and s is the standard deviation of the training samples.
+    
+    ## mode = 'min_max': applies min-max normalization, with a resultant feature 
+    ## ranging from 0 to 1. each value Y is transformed as 
+    ## Ytransf = (Y - Ymin)/(Ymax - Ymin), where Ymin and Ymax are the minimum and 
+    ## maximum values of Y, respectively.
+    
+    ## mode = 'factor': divides the whole series by a numeric value provided as argument. 
+    ## For a factor F, the new Y values will be Ytransf = Y/F.
+    
+    ## mode = 'normalize_by_maximum' is similar to mode = 'factor', but the factor will be selected
+    # as the maximum value. This mode is available only for scale_with_new_params = True. If
+    # scale_with_new_params = False, you should provide the value of the maximum as a division 'factor'.
+    
+    # df: the whole dataframe to be processed.
+    
+    # subset_of_features_to_be_scaled: list of strings (inside quotes), 
+    # containing the names of the columns with the categorical variables that will be 
+    # encoded. If a single column will be encoded, declare this parameter as list with
+    # only one element e.g.subset_of_features_to_be_scaled = ["column1"] 
+    # will analyze the column named as 'column1'; 
+    # subset_of_features_to_be_scaled = ["col1", 'col2', 'col3'] will analyze 3 columns
+    # with categorical variables: 'col1', 'col2', and 'col3'.
+    
+    # scale_with_new_params = True
+    # Alternatively, set scale_with_new_params = True if you want to calculate a new
+    # scaler for the data; or set scale_with_new_params = False if you want to apply 
+    # parameters previously obtained to the data (i.e., if you want to apply the scaler
+    # previously trained to another set of data; or wants to simply apply again the same
+    # scaler).
+    
+    # list_of_scaling_params:
+    # This variable has effect only when SCALE_WITH_NEW_PARAMS = False
+    ## WARNING: The mode 'factor' demmands the input of the list of factors that will be 
+    # used for normalizing each column. Therefore, it can be used only 
+    # when scale_with_new_params = False.
+    
+    # list_of_scaling_params is a list of dictionaries with the same format of the list returned
+    # from this function. Each dictionary must correspond to one of the features that will be scaled,
+    # but the list do not have to be in the same order of the columns - it will check one of the
+    # dictionary keys.
+    # The first key of the dictionary must be 'column'. This key must store a string with the exact
+    # name of the column that will be scaled.
+    # the second key must be 'scaler'. This key must store a dictionary. The dictionary must store
+    # one of two keys: 'scaler_obj' - sklearn scaler object to be used; or 'scaler_details' - the
+    # numeric parameters for re-calculating the scaler without the object. The key 'scaler_details', 
+    # must contain a nested dictionary. For the mode 'min_max', this dictionary should contain 
+    # two keys: 'min', with the minimum value of the variable, and 'max', with the maximum value. 
+    # For mode 'standard', the keys should be 'mu', with the mean value, and 'sigma', with its 
+    # standard deviation. For the mode 'factor', the key should be 'factor', and should contain the 
+    # factor for division (the scaling value. e.g 'factor': 2.0 will divide the column by 2.0.).
+    # Again, if you want to normalize by the maximum, declare the maximum value as any other factor for
+    # division.
+    # The key 'scaler_details' will not create an object: the transform will be directly performed 
+    # through vectorial operations.
+    
+    # suffix: string (inside quotes).
+    # How the transformed column will be identified in the returned data_transformed_df.
+    # If y_label = 'Y' and suffix = '_scaled', the transformed column will be
+    # identified as '_scaled'.
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name
+      
+    if (suffix is None):
+        #set as the default
+        suffix = '_scaled'
+    
+    #Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+    
+    #Start an scaling list empty (it will be a JSON object):
+    scaling_list = []
+    
+    for column in subset_of_features_to_scale:
+        
+        # Create a dataframe X by subsetting only the analyzed column
+        # it will be equivalent to using .reshape(-1,1) to set a 1D-series
+        # or array in the shape for scikit-learn:
+        # For doing so, pass a list of columns for column filtering, containing
+        # the object column as its single element:
+        X = new_df[[column]]
+        
+        if (scale_with_new_params == False):
+            
+            # Use a previously obtained scaler.
+            # Loop through each element of the list:
+            
+            for scaling_dict in list_of_scaling_params:
+                
+                # check if the dictionary is from that column:
+                if (scaling_dict['column'] == column):
+                    
+                    # We found the correct dictionary. Let's retrieve the information:
+                    # retrieve the nested dictionary:
+                    nested_dict = scaling_dict['scaler']
+                    
+                    # try accessing the scaler object:
+                    try:
+                        scaler = nested_dict['scaler_obj']
+                        #calculate the scaled feature, and store it as new array:
+                        scaled_feature = scaler.transform(X)
+                        
+                        # Add the parameters to the nested dictionary:
+                        nested_dict['scaling_params'] = scaler.get_params(deep = True)
+                        
+                        if (mode == 'standard'):
+                            
+                            nested_dict['scaler_details'] = {
+                                'mu': X[column].mean(),
+                                'sigma': X[column].std()
+                            }
+                        
+                        elif (mode == 'min_max'):
+                            
+                            nested_dict['scaler_details'] = {
+                                'min': X[column].min(),
+                                'max': X[column].max()
+                            }
+                    
+                    except:
+                        
+                        try:
+                            # As last alternative, let's try accessing the scaler details dict
+                            scaler_details = nested_dict['scaler_details']
+                                
+                            if (mode == 'standard'):
+                                
+                                nested_dict['scaling_params'] = 'standard_scaler_manually_defined'
+                                mu = scaler_details['mu']
+                                sigma = scaler_details['sigma']
+                                    
+                                if (sigma != 0):
+                                    scaled_feature = (X - mu)/sigma
+                                else:
+                                    scaled_feature = (X - mu)
+                                
+                            elif (mode == 'min_max'):
+                                    
+                                nested_dict['scaling_params'] = 'min_max_scaler_manually_defined'
+                                minimum = scaler_details['min']
+                                maximum = scaler_details['max']
+                                    
+                                if ((maximum - minimum) != 0):
+                                    scaled_feature = (X - minimum)/(maximum - minimum)
+                                else:
+                                    scaled_feature = X/maximum
+                                
+                            elif (mode == 'factor'):
+                                
+                                nested_dict['scaling_params'] = 'normalization_by_factor'
+                                factor = scaler_details['factor']
+                                scaled_feature = X/(factor)
+                                
+                            else:
+                                print("Select a valid mode: standard, min_max, or factor.\n")
+                                return "error", "error"
+                            
+                        except:
+                                
+                            print(f"No valid scaling dictionary was input for column {column}.\n")
+                            return "error", "error"
+            
+        elif (mode == 'normalize_by_maximum'):
+            
+            #Start an scaling dictionary empty:
+            scaling_dict = {}
+
+            # add the column to the scaling dictionary:
+            scaling_dict['column'] = column
+
+            # Start a nested dictionary:
+            nested_dict = {}
+            
+            factor = X[column].max()
+            scaled_feature = X/(factor)
+            nested_dict['scaling_params'] = 'normalization_by_factor'
+            nested_dict['scaler_details'] = {'factor': factor, 'description': 'division_by_maximum_detected_value'}
+    
+        else:
+            # Create a new scaler:
+            
+            #Start an scaling dictionary empty:
+            scaling_dict = {}
+
+            # add the column to the scaling dictionary:
+            scaling_dict['column'] = column
+            
+            # Start a nested dictionary:
+            nested_dict = {}
+                
+            #start the scaler object:
+            if (mode == 'standard'):
+                
+                scaler = StandardScaler()
+                scaler_details = {'mu': X[column].mean(), 'sigma': X[column].std()}
+
+            elif (mode == 'min_max'):
+                
+                scaler = MinMaxScaler()
+                scaler_details = {'min': X[column].min(), 'max': X[column].max()}
+                
+            # fit the scaler to the column
+            scaler = scaler.fit(X)
+                    
+            # calculate the scaled feature, and store it as new array:
+            scaled_feature = scaler.transform(X)
+            # scaler.inverse_transform(X) would reverse the scaling.
+                
+            # Get the scaling parameters for that column:
+            scaling_params = scaler.get_params(deep = True)
+                    
+            # scaling_params is a dictionary containing the scaling parameters.
+            # Add the scaling parameters to the nested dictionary:
+            nested_dict['scaling_params'] = scaling_params
+                
+            # add the scaler object to the nested dictionary:
+            nested_dict['scaler_obj'] = scaler
+            
+            # Add the scaler_details dictionary:
+            nested_dict['scaler_details'] = scaler_details
+            
+            # Now, all steps are the same for all cases, so we can go back to the main
+            # for loop:
+    
+        # Create the new_column name:
+        new_column = column + suffix
+        # Create the new_column by dividing the previous column by the scaling factor:
+                    
+        # Set the new column as scaled_feature
+        new_df[new_column] = scaled_feature
+                
+        # Add the nested dictionary to the scaling_dict:
+        scaling_dict['scaler'] = nested_dict
+                
+        # Finally, append the scaling_dict to the list scaling_list:
+        scaling_list.append(scaling_dict)
+                    
+        print(f"Successfully scaled column {column}.")
+                
+    print("Successfully scaled the dataframe. Returning the transformed dataframe and the scaling dictionary.")
+    print("Check 10 first rows of the new dataframe:\n")
+    print(new_df.head(10))
+                
+    return new_df, scaling_list
+
+
+def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_params, mode = 'min_max', suffix = '_reverseScaling'):
+    
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.preprocessing import MinMaxScaler
+    # Scikit-learn Preprocessing data guide:
+    # https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-scaler
+    # Standard scaler documentation:
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
+    # Min-Max scaler documentation:
+    # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler.set_params
+    
+    ## mode = 'standard': reverses the standard scaling, 
+    ##  which creates a new variable with mean = 0; and standard deviation = 1.
+    ##  Each value Y is transformed as Ytransf = (Y - u)/s, where u is the mean 
+    ##  of the training samples, and s is the standard deviation of the training samples.
+    
+    ## mode = 'min_max': reverses min-max normalization, with a resultant feature 
+    ## ranging from 0 to 1. each value Y is transformed as 
+    ## Ytransf = (Y - Ymin)/(Ymax - Ymin), where Ymin and Ymax are the minimum and 
+    ## maximum values of Y, respectively.
+    ## mode = 'factor': reverses the division of the whole series by a numeric value 
+    # provided as argument. 
+    ## For a factor F, the new Y transformed values are Ytransf = Y/F.
+    # Notice that if the original mode was 'normalize_by_maximum', then the maximum value used
+    # must be declared as any other factor.
+    
+    # df: the whole dataframe to be processed.
+    
+    # subset_of_features_to_be_scaled: list of strings (inside quotes), 
+    # containing the names of the columns with the categorical variables that will be 
+    # encoded. If a single column will be encoded, declare this parameter as list with
+    # only one element e.g.subset_of_features_to_be_scaled = ["column1"] 
+    # will analyze the column named as 'column1'; 
+    # subset_of_features_to_be_scaled = ["col1", 'col2', 'col3'] will analyze 3 columns
+    # with categorical variables: 'col1', 'col2', and 'col3'.
+    
+    # list_of_scaling_params is a list of dictionaries with the same format of the list returned
+    # from this function. Each dictionary must correspond to one of the features that will be scaled,
+    # but the list do not have to be in the same order of the columns - it will check one of the
+    # dictionary keys.
+    # The first key of the dictionary must be 'column'. This key must store a string with the exact
+    # name of the column that will be scaled.
+    # the second key must be 'scaler'. This key must store a dictionary. The dictionary must store
+    # one of two keys: 'scaler_obj' - sklearn scaler object to be used; or 'scaler_details' - the
+    # numeric parameters for re-calculating the scaler without the object. The key 'scaler_details', 
+    # must contain a nested dictionary. For the mode 'min_max', this dictionary should contain 
+    # two keys: 'min', with the minimum value of the variable, and 'max', with the maximum value. 
+    # For mode 'standard', the keys should be 'mu', with the mean value, and 'sigma', with its 
+    # standard deviation. For the mode 'factor', the key should be 'factor', and should contain the 
+    # factor for division (the scaling value. e.g 'factor': 2.0 will divide the column by 2.0.).
+    # Again, if you want to normalize by the maximum, declare the maximum value as any other factor for
+    # division.
+    # The key 'scaler_details' will not create an object: the transform will be directly performed 
+    # through vectorial operations.
+    
+    # suffix: string (inside quotes).
+    # How the transformed column will be identified in the returned data_transformed_df.
+    # If y_label = 'Y' and suffix = '_reverseScaling', the transformed column will be
+    # identified as '_reverseScaling'.
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name
+      
+    if (suffix is None):
+        #set as the default
+        suffix = '_reverseScaling'
+    
+    #Start a copy of the original dataframe. This copy will be updated to create the new
+    # transformed dataframe. Then, we avoid manipulating the original object.
+    new_df = df.copy(deep = True)
+    
+    #Start an scaling list empty (it will be a JSON object):
+    scaling_list = []
+    
+    # Use a previously obtained scaler:
+    
+    for column in subset_of_features_to_scale:
+        
+        # Create a dataframe X by subsetting only the analyzed column
+        # it will be equivalent to using .reshape(-1,1) to set a 1D-series
+        # or array in the shape for scikit-learn:
+        # For doing so, pass a list of columns for column filtering, containing
+        # the object column as its single element:
+        X = new_df[[column]]
+
+        # Loop through each element of the list:
+            
+        for scaling_dict in list_of_scaling_params:
+                
+            # check if the dictionary is from that column:
+            if (scaling_dict['column'] == column):
+                    
+                # We found the correct dictionary. Let's retrieve the information:
+                # retrieve the nested dictionary:
+                nested_dict = scaling_dict['scaler']
+                    
+                # try accessing the scaler object:
+                try:
+                    scaler = nested_dict['scaler_obj']
+                    #calculate the reversed scaled feature, and store it as new array:
+                    rev_scaled_feature = scaler.inverse_transform(X)
+                        
+                    # Add the parameters to the nested dictionary:
+                    nested_dict['scaling_params'] = scaler.get_params(deep = True)
+                        
+                    if (mode == 'standard'):
+                            
+                        nested_dict['scaler_details'] = {
+                                'mu': rev_scaled_feature.mean(),
+                                'sigma': rev_scaled_feature.std()
+                            }
+                        
+                    elif (mode == 'min_max'):
+                            
+                        nested_dict['scaler_details'] = {
+                                'min': rev_scaled_feature.min(),
+                                'max': rev_scaled_feature.max()
+                            }
+                    
+                except:
+                        
+                    try:
+                        # As last alternative, let's try accessing the scaler details dict
+                        scaler_details = nested_dict['scaler_details']
+                                
+                        if (mode == 'standard'):
+                                
+                            nested_dict['scaling_params'] = 'standard_scaler_manually_defined'
+                            mu = scaler_details['mu']
+                            sigma = scaler_details['sigma']
+                                    
+                            if (sigma != 0):
+                                # scaled_feature = (X - mu)/sigma
+                                rev_scaled_feature = (X * sigma) + mu
+                            else:
+                                # scaled_feature = (X - mu)
+                                rev_scaled_feature = (X + mu)
+                                
+                        elif (mode == 'min_max'):
+                                    
+                            nested_dict['scaling_params'] = 'min_max_scaler_manually_defined'
+                            minimum = scaler_details['min']
+                            maximum = scaler_details['max']
+                                    
+                            if ((maximum - minimum) != 0):
+                                # scaled_feature = (X - minimum)/(maximum - minimum)
+                                rev_scaled_feature = (X * (maximum - minimum)) + minimum
+                            else:
+                                # scaled_feature = X/maximum
+                                rev_scaled_feature = (X * maximum)
+                                
+                        elif (mode == 'factor'):
+                                
+                            nested_dict['scaling_params'] = 'normalization_by_factor'
+                            factor = scaler_details['factor']
+                            # scaled_feature = X/(factor)
+                            rev_scaled_feature = (X * factor)
+                                
+                        else:
+                            print("Select a valid mode: standard, min_max, or factor.\n")
+                            return "error", "error"
+                            
+                    except:
+                                
+                        print(f"No valid scaling dictionary was input for column {column}.\n")
+                        return "error", "error"
+         
+                # Create the new_column name:
+                new_column = column + suffix
+                # Create the new_column by dividing the previous column by the scaling factor:
+
+                # Set the new column as rev_scaled_feature
+                new_df[new_column] = rev_scaled_feature
+
+                # Add the nested dictionary to the scaling_dict:
+                scaling_dict['scaler'] = nested_dict
+
+                # Finally, append the scaling_dict to the list scaling_list:
+                scaling_list.append(scaling_dict)
+
+                print(f"Successfully re-scaled column {column}.")
+                
+    print("Successfully re-scaled the dataframe.")
+    print("Check 10 first rows of the new dataframe:\n")
+    print(new_df.head(10))
+                
+    return new_df, scaling_list
+
+
+def import_export_model_list_dict (action = 'import', objects_manipulated = 'model_only', model_file_name = None, dictionary_or_list_file_name = None, directory_path = '', model_type = 'keras', dict_or_list_to_export = None, model_to_export = None, use_colab_memory = False):
+    
+    import os
+    import pickle as pkl
+    import dill
+    import tensorflow as tf
+    from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
+    from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, MinMaxScaler
+    from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
+    from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+    from sklearn.neural_network import MLPRegressor, MLPClassifier
+    from xgboost import XGBRegressor, XGBClassifier
+    
+    # action = 'import' for importing a model and/or a dictionary;
+    # action = 'export' for exporting a model and/or a dictionary.
+    
+    # objects_manipulated = 'model_only' if only a model will be manipulated.
+    # objects_manipulated = 'dict_or_list_only' if only a dictionary or list will be manipulated.
+    # objects_manipulated = 'model_and_dict' if both a model and a dictionary will be
+    # manipulated.
+    
+    # model_file_name: string with the name of the file containing the model (for 'import');
+    # or of the name that the exported file will have (for 'export')
+    # e.g. model_file_name = 'model'
+    # WARNING: Do not add the file extension.
+    # Keep it in quotes. Keep model_file_name = None if no model will be manipulated.
+    
+    # dictionary_or_list_file_name: string with the name of the file containing the dictionary 
+    # (for 'import');
+    # or of the name that the exported file will have (for 'export')
+    # e.g. dictionary_or_list_file_name = 'history_dict'
+    # WARNING: Do not add the file extension.
+    # Keep it in quotes. Keep dictionary_or_list_file_name = None if no 
+    # dictionary or list will be manipulated.
+    
+    # DIRECTORY_PATH: path of the directory where the model will be saved,
+    # or from which the model will be retrieved. If no value is provided,
+    # the DIRECTORY_PATH will be the root: "/"
+    # Notice that the model and the dictionary must be stored in the same path.
+    # If a model and a dictionary will be exported, they will be stored in the same
+    # DIRECTORY_PATH.
+    
+    # model_type: This parameter has effect only when a model will be manipulated.
+    # model_type: 'keras' for deep learning keras/ tensorflow models with extension .h5
+    # model_type = 'sklearn' for models from scikit-learn (non-deep learning)
+    # model_type = 'xgb_regressor' for XGBoost regression models (non-deep learning)
+    # model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
+    # model_type = 'arima' for ARIMA model (Statsmodels)
+    
+    # dict_or_list_to_export and model_to_export: 
+    # These two parameters have effect only when ACTION == 'export'. In this case, they
+    # must be declared. If ACTION == 'export', keep:
+    # dict_or_list_to_export = None, 
+    # model_to_export = None
+    # If one of these objects will be exported, substitute None by the name of the object
+    # e.g. if your model is stored in the global memory as 'keras_model' declare:
+    # model_to_export = keras_model. Notice that it must be declared without quotes, since
+    # it is not a string, but an object.
+    # For exporting a dictionary named as 'dict':
+    # dict_or_list_to_export = dict
+    
+    # use_colab_memory: this parameter has only effect when using Google Colab (or it will
+    # raise an error). Set as use_colab_memory = True if you want to use the instant memory
+    # from Google Colaboratory: you will update or download the file and it will be available
+    # only during the time when the kernel is running. It will be excluded when the kernel
+    # dies, for instance, when you close the notebook.
+    
+    # If action == 'export' and use_colab_memory == True, then the file will be downloaded
+    # to your computer (running the cell will start the download).
+    
+    # Check the directory path
+    if (directory_path is None):
+        # set as the root (empty string):
+        directory_path = ""
+        
+        
+    bool_check1 = (objects_manipulated != 'model_only')
+    # bool_check1 == True if a dictionary will be manipulated
+    
+    bool_check2 = (objects_manipulated != 'dict_or_list_only')
+    # bool_check1 == True if a dictionary will be manipulated
+    
+    if (bool_check1 == True):
+        #manipulate a dictionary
+        
+        if (dictionary_or_list_file_name is None):
+            print("Please, enter a name for the dictionary or list.")
+            return "error1"
+        
+        else:
+            # Create the file path for the dictionary:
+            dict_path = os.path.join(directory_path, dictionary_or_list_file_name)
+            # Extract the file extension
+            dict_extension = 'pkl'
+            #concatenate:
+            dict_path = dict_path + "." + dict_extension
+            
+    
+    if (bool_check2 == True):
+        #manipulate a model
+        
+        if (model_file_name is None):
+            print("Please, enter a name for the model.")
+            return "error1"
+        
+        else:
+            # Create the file path for the dictionary:
+            model_path = os.path.join(directory_path, model_file_name)
+            # Extract the file extension
+            
+            #check model_type:
+            if (model_type == 'keras'):
+                model_extension = 'h5'
+            
+            elif (model_type == 'sklearn'):
+                model_extension = 'dill'
+                #it could be 'pkl', though
+            
+            elif (model_type == 'xgb_regressor'):
+                model_extension = 'json'
+                #it could be 'ubj', though
+            
+            elif (model_type == 'xgb_classifier'):
+                model_extension = 'json'
+                #it could be 'ubj', though
+            
+            elif (model_tyoe == 'arima'):
+                model_extension = 'pkl'
+            
+            else:
+                print("Enter a valid model_type: keras, sklearn_xgb, or arima.")
+                return "error2"
+            
+            #concatenate:
+            model_path = model_path +  "." + model_extension
+            
+    # Now we have the full paths for the dictionary and for the model.
+    
+    if (action == 'import'):
+        
+        if (use_colab_memory == True):
+             
+            from google.colab import files
+            # google.colab library must be imported only in case 
+            # it is going to be used, for avoiding 
+            # AWS compatibility issues.
+            
+            print("Click on the button for file selection and select the files from your machine that will be uploaded in the Colab environment.")
+            print("Warning: the files will be removed from Colab memory after the Kernel dies or after the notebook is closed.")
+            # this functionality requires the previous declaration:
+            ## from google.colab import files
+            colab_files_dict = files.upload()
+            # The files are stored into a dictionary called colab_files_dict where the keys
+            # are the names of the files and the values are the files themselves.
+            ## e.g. if you upload a single file named "dictionary.pkl", the dictionary will be
+            ## colab_files_dict = {'dictionary.pkl': file}, where file is actually a big string
+            ## representing the contents of the file. The length of this value is the size of the
+            ## uploaded file, in bytes.
+            ## To access the file is like accessing a value from a dictionary: 
+            ## d = {'key1': 'val1'}, d['key1'] == 'val1'
+            ## we simply declare the key inside brackets and quotes, the same way we would do for
+            ## accessing the column of a dataframe.
+            ## In this example, colab_files_dict['dictionary.pkl'] access the content of the 
+            ## .pkl file, and len(colab_files_dict['dictionary.pkl']) is the size of the .pkl
+            ## file in bytes.
+            ## To check the dictionary keys, apply the method .keys() to the dictionary (with empty
+            ## parentheses): colab_files_dict.keys()
+            
+            for key in colab_files_dict.keys():
+                #loop through each element of the list of keys of the dictionary
+                # (list colab_files_dict.keys()). Each element is named 'key'
+                print(f"User uploaded file {key} with length {len(colab_files_dict[key])} bytes.")
+                # The key is the name of the file, and the length of the value
+                ## correspondent to the key is the file's size in bytes.
+                ## Notice that the content of the uploaded object must be passed 
+                ## as argument for a proper function to be interpreted. 
+                ## For instance, the content of a xlsx file should be passed as
+                ## argument for Pandas .read_excel function; the pkl file must be passed as
+                ## argument for pickle.
+                ## e.g., if you uploaded 'table.xlsx' and stored it into colab_files_dict you should
+                ## declare df = pd.read_excel(colab_files_dict['table.xlsx']) to obtain a dataframe
+                ## df from the uploaded table. Notice that is the value, not the key, that is the
+                ## argument.
+        
+        if (bool_check1 == True):
+            #manipulate a dictionary
+            if (use_colab_memory == True):
+                key = dictionary_file_name + "." + dict_extension
+                #Use the key to access the file content, and pass the file content
+                # to pickle:
+                with open(colab_files_dict[key], 'rb') as opened_file:
+            
+                    imported_dict = pkl.load(opened_file)
+                    # The structure imported_dict = pkl.load(open(colab_files_dict[key], 'rb')) relies 
+                    # on the GC to close the file. That's not a good idea: If someone doesn't use 
+                    # CPython the garbage collector might not be using refcounting (which collects 
+                    # unreferenced objects immediately) but e.g. collect garbage only after some time.
+                    # Since file handles are closed when the associated object is garbage collected or 
+                    # closed explicitly (.close() or .__exit__() from a context manager) the file 
+                    # will remain open until the GC kicks in.
+                    # Using 'with' ensures the file is closed as soon as the block is left - even if 
+                    # an exception happens inside that block, so it should always be preferred for any 
+                    # real application.
+                    # source: https://stackoverflow.com/questions/39447362/equivalent-ways-to-json-load-a-file-in-python
+
+                print(f"Dictionary or list {key} successfully imported to Colab environment.")
+            
+            else:
+                #standard method
+                with open(dict_path, 'rb') as opened_file:
+            
+                    imported_dict = pkl.load(opened_file)
+                
+                # 'rb' stands for read binary (read mode). For writing mode, 'wb', 'write binary'
+                print(f"Dictionary or list successfully imported from {dict_path}.")
+                
+        if (bool_check2 == True):
+            #manipulate a model
+            # select the proper model
+        
+            if (model_type == 'keras'):
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    model = tf.keras.models.load_model(colab_files_dict[key])
+                    print(f"Keras/TensorFlow model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    # We previously declared:
+                    # from keras.models import load_model
+                    model = tf.keras.models.load_model(model_path)
+                    print(f"Keras/TensorFlow model successfully imported from {model_path}.")
+
+            elif (model_type == 'sklearn'):
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    
+                    with open(colab_files_dict[key], 'rb') as opened_file:
+            
+                        model = dill.load(opened_file)
+                    
+                    print(f"Scikit-learn model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    with open(model_path, 'rb') as opened_file:
+            
+                        model = dill.load(opened_file)
+                
+                    print(f"Scikit-learn model successfully imported from {model_path}.")
+                    # For loading a pickle model:
+                    ## model = pkl.load(open(model_path, 'rb'))
+                    # 'rb' stands for read binary (read mode). For writing mode, 'wb', 'write binary'
+
+            elif (model_type == 'xgb_regressor'):
+                
+                # Create an instance (object) from the class XGBRegressor:
+                
+                model = XGBRegressor()
+                # Now we can apply the load_model method from this class:
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    model = model.load_model(colab_files_dict[key])
+                    print(f"XGBoost regression model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    model = model.load_model(model_path)
+                    print(f"XGBoost regression model successfully imported from {model_path}.")
+                    # model.load_model("model.json") or model.load_model("model.ubj")
+                    # .load_model is a method from xgboost object
+            
+            elif (model_type == 'xgb_classifier'):
+
+                # Create an instance (object) from the class XGBClassifier:
+
+                model = XGBClassifier()
+                # Now we can apply the load_model method from this class:
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    model = model.load_model(colab_files_dict[key])
+                    print(f"XGBoost classification model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    model = model.load_model(model_path)
+                    print(f"XGBoost classification model successfully imported from {model_path}.")
+                    # model.load_model("model.json") or model.load_model("model.ubj")
+                    # .load_model is a method from xgboost object
+
+            elif (model_type == 'arima'):
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    model = ARIMAResults.load(colab_files_dict[key])
+                    print(f"ARIMA model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    # We previously declared:
+                    # from statsmodels.tsa.arima.model import ARIMAResults
+                    model = ARIMAResults.load(model_path)
+                    print(f"ARIMA model successfully imported from {model_path}.")
+            
+            if (objects_manipulated == 'model_only'):
+                # only the model should be returned
+                return model
+            
+            elif (objects_manipulated == 'dict_only'):
+                # only the dictionary should be returned:
+                return imported_dict
+            
+            else:
+                # Both objects are returned:
+                return model, imported_dict
+
+    
+    elif (action == 'export'):
+        
+        #Let's export the models or dictionary:
+        if (use_colab_memory == True):
+            
+            from google.colab import files
+            # google.colab library must be imported only in case 
+            # it is going to be used, for avoiding 
+            # AWS compatibility issues.
+            
+            print("The files will be downloaded to your computer.")
+        
+        if (bool_check1 == True):
+            #manipulate a dictionary
+            if (use_colab_memory == True):
+                ## Download the dictionary
+                key = dictionary_or_list_file_name + "." + dict_extension
+                
+                with open(key, 'wb') as opened_file:
+            
+                    pkl.dump(dict_or_list_to_export, opened_file)
+                
+                # this functionality requires the previous declaration:
+                ## from google.colab import files
+                files.download(key)
+                
+                print(f"Dictionary or list {key} successfully downloaded from Colab environment.")
+            
+            else:
+                #standard method 
+                with open(dict_path, 'wb') as opened_file:
+            
+                    pkl.dump(dict_or_list_to_export, opened_file)
+                
+                #to save the file, the mode must be set as 'wb' (write binary)
+                print(f"Dictionary or list successfully exported as {dict_path}.")
+                
+        if (bool_check2 == True):
+            #manipulate a model
+            # select the proper model
+        
+            if (model_type == 'keras'):
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    key = model_file_name + "." + model_extension
+                    model_to_export.save(key)
+                    files.download(key)
+                    print(f"Keras/TensorFlow model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    model_to_export.save(model_path)
+                    print(f"Keras/TensorFlow model successfully exported as {model_path}.")
+
+            elif (model_type == 'sklearn'):
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    key = model_file_name + "." + model_extension
+                    
+                    with open(key, 'wb') as opened_file:
+
+                        dill.dump(model_to_export, opened_file)
+                    
+                    #to save the file, the mode must be set as 'wb' (write binary)
+                    files.download(key)
+                    print(f"Scikit-learn model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    with open(model_path, 'wb') as opened_file:
+
+                        dill.dump(model_to_export, opened_file)
+                    
+                    print(f"Scikit-learn model successfully exported as {model_path}.")
+                    # For exporting a pickle model:
+                    ## pkl.dump(model_to_export, open(model_path, 'wb'))
+            
+            elif ((model_type == 'xgb_regressor')|(model_type == 'xgb_classifier')):
+                # In both cases, the XGBoost object is already loaded in global
+                # context memory. So there is already the object for using the
+                # save_model method, available for both classes (XGBRegressor and
+                # XGBClassifier).
+                # We can simply check if it is one type OR the other, since the
+                # method is the same:
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    key = model_file_name + "." + model_extension
+                    model_to_export.save_model(key)
+                    files.download(key)
+                    print(f"XGBoost model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    model_to_export.save_model(model_path)
+                    print(f"XGBoost model successfully exported as {model_path}.")
+                    # For exporting a pickle model:
+                    ## pkl.dump(model_to_export, open(model_path, 'wb'))
+            
+            elif (model_type == 'arima'):
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    key = model_file_name + "." + model_extension
+                    model_to_export.save(key)
+                    files.download(key)
+                    print(f"ARIMA model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    model_to_export.save(model_path)
+                    print(f"ARIMA model successfully exported as {model_path}.")
+        
+        print("Export of files completed.")
+    
+    else:
+        print("Enter a valid action, import or export.")
+
