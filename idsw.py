@@ -10603,3 +10603,1138 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     else:
         print("Enter a valid action, import or export.")
 
+
+def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import statsmodels.api as sm
+    
+    # df: the whole dataframe to be processed.
+    
+    #column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    #number_of_lags: integer value. e.g. number_of_lags = 50
+    # represents how much lags will be tested, and the length of the horizontal axis.
+    
+    # Set a copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    #Define the series to be analyzed:
+    y = DATASET[column_to_analyze]
+    
+    #Create the figure:
+    fig = plt.figure(figsize = (12, 8)) 
+    ax1 = fig.add_subplot(211)
+    #ax1.set_xlabel("Lags")
+    ax1.set_ylabel("Autocorrelation_Function_ACF")
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    ax1.grid(grid)
+    
+    fig = sm.graphics.tsa.plot_acf(y.values.squeeze(), lags = number_of_lags, ax = ax1, color = 'darkblue')
+    ax2 = fig.add_subplot(212)
+    fig = sm.graphics.tsa.plot_pacf(y, lags = number_of_lags, ax = ax2, color = 'darkblue', method = 'ywm')
+    ax2.set_xlabel("Lags")
+    ax2.set_ylabel("Partial_Autocorrelation_Function_PACF")
+        
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    ax2.grid(grid)
+        
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "lag_diagnosis"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+    #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    #Print background and interpretation of the graphic:
+    print("\n") #line break
+    print("Use this plot to define the parameters (p, q) for testing ARIMA and ARMA models.\n")
+    print("p defines the order of the autoregressive part (AR) of the time series.")
+    print("p = lags correspondent to the spikes of PACF plot (2nd plot) that are outside the error (blue region).\n")
+    print("For instance, if there are spikes in both lag = 1 and lag = 2, then p = 2, or p = 1\n")
+    print("q defines the order of the moving average part (MA) of the time series.")
+    print("q = lags correspondent to the spikes of ACF plot that are outside blue region.\n")
+    print("For instance, if all spikes until lag = 6 are outside the blue region, then q = 1, 2, 3, 4, 5, 6.\n")
+    print("WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.")
+    print("For lag = 0, the correlation and partial correlation coefficients are always equal to 1, because the data is always perfectly correlated to itself.") 
+    print("Therefore, ignore the first spikes (lag = 0) from ACF and PACF plots.")
+
+
+def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import statsmodels.api as sm
+    from statsmodels.tsa.stattools import adfuller
+    
+    #df: the whole dataframe to be processed.
+    
+    #column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    #max_tested_d: differential order (integer value)
+    #change the integer if you want to test other cases. By default, max_tested_d = 2, meaning
+    # that the values d = 0, 1, and 2 will be tested.
+    # If max_tested_d = 1, d = 0 and 1 will be tested.
+    # If max_tested_d = 3, d = 0, 1, 2, and 3 will be tested, and so on.
+    
+    #column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # CONFIDENCE_LEVEL = 0.95 = 95% confidence
+    # Set CONFIDENCE_LEVEL = 0.90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce CONFIDENCE_LEVEL 
+    # to get less restrictive results.
+    
+    #number_of_lags: integer value. e.g. number_of_lags = 50
+    # represents how much lags will be tested, and the length of the horizontal axis.
+    
+    
+    # Set a copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    #Define the series to be analyzed:
+    time_series = DATASET[column_to_analyze]
+    
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+    
+    #Create the figure:
+    # Original Series
+    fig, axes = plt.subplots((max_tested_d + 1), 2, sharex = True, figsize = (12, 8)) 
+    # sharex = share axis X
+    # number of subplots equals to the total of orders tested (in this case, 2)
+    # If max_tested_d = 2, we must have a subplot for d = 0, d = 1 and d = 2, i.e.,
+    # wer need 3 subplots = max_tested_d + 1
+    axes[0, 0].plot(time_series, color = 'darkblue', alpha = OPACITY); axes[0, 0].set_title('Original Series')
+    sm.graphics.tsa.plot_acf(time_series, lags = number_of_lags, ax = axes[0, 1], color = 'darkblue', alpha = 0.30)
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    axes[0, 0].grid(grid)
+    
+    # Create a subplot for each possible 'd'.
+    # Notice that d = 0 was already tested.
+    for i in range(1, (max_tested_d + 1)):
+        # This loop goes from i = 1 to i = (max_tested_d + 1) - 1 = max_tested_d.
+        # If max_tested_d = 2, this loop goes from i = 1 to i = 2.
+        # If only one value was declared in range(X), then the loop would start from 0.
+        
+        # Difference the time series:
+        time_series = time_series.diff()
+        
+        #the indexing of the list d goes from zero to len(d) - 1
+        # 1st Differencing
+        axes[i, 0].plot(time_series, color = 'darkblue', alpha = OPACITY); axes[i, 0].set_title('%d Order Differencing' %(i))
+        sm.graphics.tsa.plot_acf(time_series.diff().dropna(), lags = number_of_lags, ax = axes[i, 1], color = 'darkblue', alpha = 0.30)
+                
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+
+        axes[i, 0].grid(grid)
+    
+        print('ADF Statistic for %d Order Differencing' %(i))
+        result = adfuller(time_series.dropna())
+        print('ADF Statistic: %f' % result[0])
+        print('p-value: %f' % result[1])
+        print("Null-hypothesis: the process is non-stationary. p-value represents this probability.")
+
+        if (result[1] < (1-confidence_level)):
+            print("For a %.2f confidence level, the %d Order Difference is stationary." %(confidence_level, i))
+            print("You may select d = %d\n" %(i))
+
+        else:
+            print("For a %.2f confidence level, the %d Order Difference is non-stationary.\n" %(confidence_level, i))
+        
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "test_d_parameters"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+    #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    print("\n")
+    print("d = differentiation order for making the process stationary.\n")
+    print("If d = N, then we have to make N successive differentiations.")
+    print("A differentiation consists on substracting a signal Si from its previous signal Si-1.\n")
+    print("Example: 1st-order differentiating consists on taking the differences on the original time series.")
+    print("The 2nd-order, in turns, consists in differentiating the 1st-order differentiation series.")
+
+
+def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    # https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMAResults.html#statsmodels.tsa.arima.model.ARIMAResults
+    # https://www.statsmodels.org/stable/examples/notebooks/generated/tsa_arma_1.html?highlight=statsmodels%20graphics%20tsaplots%20plot_predict
+    
+    ## d = 0 corresponds to the ARMA model
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import statsmodels as sm
+    from statsmodels.graphics.tsaplots import plot_predict
+    #this model is present only in the most recent versions of statsmodels
+
+    from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
+    
+    #df: the whole dataframe to be processed.
+    
+    #column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # timestamp_tag_column = None - keep it as None if you do not want to inform the timestamps
+    # Alternatively, declare a string (inside quotes), 
+    # containing the name of the column containing the time information. 
+    # e.g. timestamp_tag_column = "DATE" will take the timestamps from column 'DATE'.
+    # If no column is provided, the index in the dataframe will be used.
+    
+    #p_vals: list of integers correspondent to the lags (spikes) in the PACF plot.
+    # From function lag_diagnosis
+    #q_vals: list of integers correspondent to the lags (spikes) in ACF plot
+    # From function lag_diagnosis
+    #d = difference for making the process stationary
+    # From function test_d_parameters
+    
+    ## WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.
+    ## For lag = 0, the correlation and partial correlation coefficients 
+    ## are always equal to 1, because the data is perfectly correlated to itself. 
+    ## Therefore, ignore the first spikes (lag = 0) of ACF and PACF plots.
+    
+    ALPHA = 1 - confidence_level
+    # CONFIDENCE_LEVEL = 0.95 = 95% confidence
+    # Set CONFIDENCE_LEVEL = 0.90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce CONFIDENCE_LEVEL 
+    # to get less restrictive results.
+    
+    # Set a copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    #x: timestamp or index series, if no timestamp is provided:
+    if (timestamp_tag_column is None):
+        #Use the indices of the dataframe
+        x = DATASET.index
+    
+    else:
+        #Use the timestamp properly converted to datetime (as in the graphics functions):
+        x = (DATASET[timestamp_tag_column]).astype('datetime64[ns]')
+        DATASET[timestamp_tag_column] = x
+        # To pass the date to ARIMA model, we must specify it as the index, and also pass the
+        # start and end dates
+        DATASET = DATASET.set_index(timestamp_tag_column)
+    
+    #y: tested variable series
+    y = DATASET[column_to_analyze]
+    
+    # date to start the plot (the second element from series x - we will ignore the first one):
+    start_date = x[1]
+    # last date to plot (last element from the series)
+    end_date = x[(len(x) - 1)]
+    print(f"ARIMA model from date (or measurement) = {start_date}; to date (or measurement) = {end_date}.\n")
+    
+    #calculate the first aic and bic
+    #first argument = time series y
+    
+    returned_p = p_vals[0]
+    returned_q = q_vals[0]
+    returned_d = d
+    #use the d-value selected in the non-stationary analysis.
+    #set the integration in 
+    #at this moment, the function simply returns the first elements.
+    
+    ARIMA_model = ARIMA(y, order = (returned_p, returned_d, returned_q))
+
+    #order = (p, d, q) - these are the parameters of the autoregression (p = 2), 
+    #integration (d = parameter selected in previous analysis), and
+    #moving average (q = 1, 2, 3, 4, 5, etc)
+
+    ARIMA_Results = ARIMA_model.fit()
+    aic_val = ARIMA_Results.aic
+    #AIC value for the first combination.
+    bic_val = ARIMA_Results.bic
+    #BIC value for the first combination, to start the loops.
+    
+    # Mean absolute error:
+    mae = ARIMA_Results.mae
+    # log likelihood calculated:
+    loglikelihood = ARIMA_Results.llf
+    
+    returned_ARIMA_Results = ARIMA_Results
+    #returned object
+    
+    for p in p_vals:
+        #test each possible value for p (each d, p combination)
+        #each p in p_vals list is used.
+        for q in q_vals:
+            #test each possible value for q (each p, d, q combination)
+            #each q in q_vals list is used.
+                
+            ARIMA_model = ARIMA(y, order = (p, returned_d, q))
+            ARIMA_Results = ARIMA_model.fit()
+            aic_tested = ARIMA_Results.aic
+            bic_tested = ARIMA_Results.bic
+            mae_tested = ARIMA_Results.mae
+            loglikelihood_tested = ARIMA_Results.llf
+            
+            if ((mae_tested < mae) & (abs(loglikelihood_tested) > abs(loglikelihood))):
+                
+                # Check if the absolute error was reduced and the likelihood was increased
+                
+                #if better parameters were found, they should be used
+                #update AIC, BIC; the p, d, q returned values;
+                #and the ARIMA_Results from the ARIMA:
+                aic_val = aic_tested
+                bic_val = bic_tested
+                mae = mae_tested
+                loglikelihood = loglikelihood_tested
+                returned_p = p
+
+                returned_q = q
+                #return the Statsmodels object:
+                returned_ARIMA_Results = ARIMA_Results
+    
+    #Create a dictionary containing the best parameters and the metrics AIC and BIC
+    arima_summ_dict = {"p": returned_p, "d": returned_d, "q": returned_q,
+                   "AIC": returned_ARIMA_Results.aic, "BIC": returned_ARIMA_Results.bic,
+                    "MAE": returned_ARIMA_Results.mae, "log_likelihood": returned_ARIMA_Results.llf}
+    
+    #Show ARIMA results:
+    print(returned_ARIMA_Results.summary())
+    print("\n")
+    #Break the line and show the combination
+    print("Best combination found: (p, d, q) = (%d, %d, %d)\n" %(returned_p, returned_d, returned_q))
+    #Break the line and print the next indication:
+    print(f"Time series and {confidence_level * 100} percent Confidence interval:\n")
+    #Break the line and print the ARIMA graphic:
+    
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+    
+    #Start the figure:
+    fig, ax = plt.subplots(figsize = (12, 8))
+    # Add line of the actual values:
+    ax.plot(x, y, linestyle = '-', marker = '', color = 'darkblue', label = column_to_analyze)
+    # Use the name of the analyzed column as the label
+    fig = plot_predict(returned_ARIMA_Results, start = start_date, end = end_date,  ax = ax, alpha = ALPHA)
+    ## https://www.statsmodels.org/v0.12.2/generated/statsmodels.tsa.arima_model.ARIMAResults.plot_predict.html
+    # ax = ax to plot the arima on the original plot of the time series
+    # start = x[1]: starts the ARIMA graphic from the second point of the series x
+    # if x is the index, then it will be from the second x; if x is a time series, then
+    # x[1] will be the second timestamp
+    #We defined the start in x[1], instead of index = 0, because the Confidence Interval for the 
+    #first point is very larger than the others (there is perfect autocorrelation for lag = 0). 
+    #Therefore, it would have resulted in the need for using a very broader y-scale, what
+    #would compromise the visualization.
+    # We could set another index or even a timestamp to start:
+    # start=pd.to_datetime('1998-01-01')
+    
+    ax.set_alpha(OPACITY)
+    
+    if not (plot_title is None):
+        #graphic's title
+        ax.set_title(plot_title)
+    
+    else:
+        #set a default title:
+        ax.set_title("ARIMA_model")
+    
+    if not (horizontal_axis_title is None):
+        #X-axis title
+        ax.set_xlabel(horizontal_axis_title)
+    
+    else:
+        #set a default title:
+        ax.set_xlabel("Time")
+    
+    if not (vertical_axis_title is None):
+        #Y-axis title
+        ax.set_ylabel(vertical_axis_title)
+    
+    else:
+        #set a default title:
+        ax.set_ylabel(column_to_analyze)
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 70 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    ax.grid(grid)
+    ax.legend(loc = "upper left")
+    
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "arima_model"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+    #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    # Get dataframe with the predictions and confidence intervals
+    arima_predictions = returned_ARIMA_Results.get_prediction(start = x[0], end = None, dynamic = False, full_results = True, alpha = ALPHA)
+    # Here, we started in start = x[0] to obtain a correspondent full dataset, and did not set an end.
+    # The start can be an integer representing the index of the data in the dataframe,
+    # or a timestamp. Check:
+    # https://www.statsmodels.org/devel/generated/statsmodels.tsa.arima.model.ARIMAResults.get_prediction.html#statsmodels.tsa.arima.model.ARIMAResults.get_prediction
+    # Again, no matter if x is an index or a time series, x[0] starts from the first element
+    # You could set another index or a oparticular timestamp to start, like:
+    # start=pd.to_datetime('1998-01-01')
+    # The dynamic = False argument ensures that we produce one-step ahead forecasts, 
+    # meaning that forecasts at each point are generated using the full history up 
+    # to that point.
+    predicted_mean_vals = arima_predictions.predicted_mean
+    predicted_conf_intervals = arima_predictions.conf_int(alpha = ALPHA)
+    # predicted_conf_intervals has two columns: first one is the inferior confidence limit
+    # second one is the superior confidence limit
+    # each column from this dataframe gets a name derived from the name of the original series.
+    # So, let's rename them:
+    predicted_conf_intervals.columns = ['lower_cl', 'upper_cl']
+    
+    # let's create a copy of the dataframe to be returned with the new information:
+    # This will avoid manipulating the df:
+    arima_df = DATASET.copy(deep = True)
+    # This DATASET already contains the timestamp column as the index, so it is adequate for
+    # obtaining predictions associated to the correct time values.
+    
+    #create a column for the predictions:
+    arima_df['arima_predictions'] = predicted_mean_vals
+    
+    #create a column for the inferior (lower) confidence interval.
+    # Copy all the rows from the column 0 of predicted_conf_intervals
+    arima_df['lower_cl'] = predicted_conf_intervals['lower_cl']
+    
+    #create a column for the superior (upper) confidence interval.
+    # Copy all the rows from the column 1 of predicted_conf_intervals
+    arima_df['upper_cl'] = predicted_conf_intervals['upper_cl']
+    
+    # Let's turn again the timestamps into a column, restart the indices and re-order the columns,
+    # so that the last column will be the response, followed by ARIMA predictions
+    
+    ordered_columns_list = []
+    
+    if (timestamp_tag_column is not None):
+        #Use the indices of the dataframe
+        ordered_columns_list.append(timestamp_tag_column)
+        # Create a timestamp_tag_column in the dataframe containing the values in the index:
+        arima_df[timestamp_tag_column] = np.array(arima_df.index)
+        # Reset the indices from the dataframe:
+        arima_df = arima_df.reset_index(drop = True)
+    
+    # create a list of columns with fixed position:
+    fixed_columns_list = [column_to_analyze, 'arima_predictions', 'lower_cl', 'upper_cl']
+    
+    # Now, loop through all the columns:
+    for column in list(arima_df.columns):
+        
+        # If the column is not one from fixed_columns_list, and it is not on ordered_columns_list
+        # yet, add it to ordered_columns_list (timestamp_tag_column may be on the list):
+        if ((column not in fixed_columns_list) & (column not in ordered_columns_list)):
+            ordered_columns_list.append(column)
+    
+    # Now, concatenate ordered_columns_list to fixed_columns_list. 
+    # If a = ['a', 'b'] and b = ['c', 'd'], a + b = ['a', 'b', 'c', 'd'] and b + a = [ 'c', 'd', 'a', 'b']
+    ordered_columns_list = ordered_columns_list + fixed_columns_list
+    
+    # Finally, select the columns from arima_df passing this list as argument:
+    arima_df = arima_df[ordered_columns_list]
+    print("\n")
+    print("Check the dataframe containing the ARIMA predictions:\n")
+    print(arima_df)
+    
+    print("\n") #line break
+    print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
+    print("For instance: if you observe a very sharp and sudden deviation from the predictive time series, it can be an indicative of incomplete information or outliers presence.\n")
+    print("A famous case is the pandemic data: due to lags or latencies on the time needed for consolidating the information in some places, the data could be incomplete in a given day, leading to a sharp decrease that did not actually occurred.")
+    
+    return returned_ARIMA_Results, arima_summ_dict, arima_df
+
+
+def arima_forecasting (arima_model_object, df = None, column_to_forecast = None, timestamp_tag_column = None, time_unit = None, number_of_periods_to_forecast = 7, confidence_level = 0.95, plot_predicted_time_series = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import statsmodels as sm
+    from statsmodels.graphics.tsaplots import plot_predict
+    #this model is present only in the most recent versions of statsmodels
+
+    from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
+    
+    # arima_model_object : object containing the ARIMA model previously obtained.
+    # e.g. arima_model_object = returned_ARIMA_Results if the model was obtained as returned_ARIMA_Results
+    # do not declare in quotes, since it is an object, not a string.
+    
+    # time_unit: Unit of the new column. If no value is provided, the unit will be considered as nanoseconds. 
+    # Alternatively: keep it None, for the results in nanoseconds, or input time_unit = 
+    # 'year', 'month', 'day', 'hour', 'minute', or 'second' (keep these inside quotes).
+    # It will be the input for the functions CALCULATE_DELAY and ADD_TIMEDELTA.
+    
+    # number_of_periods_to_forecast = 7
+    # integer value representing the total of periods to forecast. The periods will be in the
+    # unit (dimension) of the original dataset. If 1 period = 1 day, 7 periods will represent
+    # seven days.
+    
+    # Keep plot_predicted_time_series = True to see the graphic of the predicted values.
+    # WARNING: This functionality requires that the function scatter_plot_lin_reg is properly
+    # running, since this function will be called.
+    # Other functions required: CALCULATE_DELAY and UNION_DATAFRAMES
+    # Alternatively, set plot_predicted_time_series = True not to show the plot.
+    
+    # df = None, column_to_analyze = None - keep it as None if you do not want to show
+    # the ARIMA predictions combined to the original data; or if you do not want to append
+    # the ARIMA predictions to the original dataframe.
+    # Alternatively, set:
+    # df: the whole dataframe to be processed.
+    
+    # column_to_forecast: string (inside quotes), 
+    # containing the name of the column that will be analyzed.
+    # Keep it as None if the graphic of the predictions will not be shown with the
+    # responses or if the combined dataset will not be returned.
+    # e.g. column_to_forecast = "column1" will analyze and forecast values for 
+    # the column named as 'column1'.
+    
+    # timestamp_tag_column: string (inside quotes), 
+    # containing the name of the column containing timestamps.
+    # Keep it as None if the graphic of the predictions will not be shown with the
+    # responses or if the combined dataset will not be returned.
+    # e.g. timestamp_tag_column = "column1" will analyze the column named as 'column1'.
+    
+    ## ARIMA predictions:
+    ## The .forecast and .predict methods only produce point predictions:
+    ## y_forecast = ARIMA_Results.forecast(7) results in a group of values (7 predictions)
+    ## without the confidence intervals
+    ## On the other hand, the .get_forecast and .get_prediction methods 
+    ## produce full results including prediction intervals.
+
+    ## In our example, we can do:
+    ## forecast = ARIMA_Results.get_forecast(123)
+    ## yhat = forecast.predicted_mean
+    ## yhat_conf_int = forecast.conf_int(alpha=0.05)
+    ## If your data is a Pandas Series, then yhat_conf_int will be a DataFrame with 
+    ## two columns, lower <name> and upper <name>, where <name> is the name of the Pandas 
+    ## Series.
+    ## If your data is a numpy array (or Python list), then yhat_conf_int will be an 
+    ## (n_forecasts, 2) array, where the first column is the lower part of the interval 
+    ## and the second column is the upper part.
+   
+    numeric_data_types = [np.float16, np.float32, np.float64, np.int16, np.int32, np.int64]
+    
+    ALPHA = 1 - confidence_level
+    # CONFIDENCE_LEVEL = 0.95 = 95% confidence
+    # Set CONFIDENCE_LEVEL = 0.90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce CONFIDENCE_LEVEL 
+    # to get less restrictive results.
+    
+    # Calculate the predictions:
+    # It does not depend on the presence of a dataframe df
+    # https://www.statsmodels.org/devel/generated/statsmodels.tsa.arima.model.ARIMAResults.get_forecast.html#statsmodels.tsa.arima.model.ARIMAResults.get_forecast
+    
+    arima_forecasts = arima_model_object.get_forecast(number_of_periods_to_forecast, dynamic = False, full_results = True, alpha = ALPHA)
+    
+    forecast_mean_vals = arima_forecasts.predicted_mean
+    forecast_conf_intervals = arima_forecasts.conf_int(alpha = ALPHA)
+    # forecast_conf_intervals has two columns: first one is the inferior confidence limit
+    # second one is the superior confidence limit
+    # each column from this dataframe gets a name derived from the name of the original series.
+    # So, let's rename them:
+    forecast_conf_intervals.columns = ['lower_cl', 'upper_cl']
+    
+    #create a series for the inferior confidence interval.
+    lower_cl = forecast_conf_intervals['lower_cl'].copy(deep = True)
+    #create a series for the superior confidence interval.
+    upper_cl = forecast_conf_intervals['upper_cl'].copy(deep = True)
+    
+    # If there is no df, we can already obtain a X series, that will be a series of indices
+    # starting from period 1 (the first forecast. Period zero corresponds to the last actual value):
+    if (df is None):
+        
+        x_forecast = []
+        
+        for j in range (1, (number_of_periods_to_forecast + 1)):
+            #Goes from j = 1, the first forecast period; to j = (number_of_periods_to_forecast+1)-1
+            # = number_of_periods_to_forecast, which must be the last forecast.
+            x_forecast.append(j)
+        
+        # Now, create the dictionary of forecasts:
+        forecast_dict = {
+            
+            "x": x_forecast,
+            "forecast_mean_vals": forecast_mean_vals,
+            "lower_cl": lower_cl,
+            "upper_cl": upper_cl,
+            'source': 'forecast'
+        }
+        
+        # Convert it to a dataframe:
+        forecast_df = pd.DataFrame(data = forecast_dict)
+        x_forecast_series = forecast_df['x']
+        y_forecast_series = forecast_df['forecast_mean_vals']
+        lcl_series = forecast_df['lower_cl']
+        ucl_series = forecast_df['upper_cl']
+    
+    
+    # If there is a dataframe df, we must combine the original data from df
+    # with the new predictions:
+    else:
+        
+        # Start a dataset copy to manipulate:
+        DATASET = df.copy(deep = True)
+        
+        # Create a column with a label indicating that the data in DATASET (before concatenation 
+        # with predictions) is from the original dataframe:
+        DATASET['source'] = 'input_dataframe'
+        # In turns, The source column in the dataframe from the forecasts will 
+        # be labelled with the string 'forecast'
+        
+        # Check if a column_to_forecast was indicated in the input dataframe:
+        if not (column_to_forecast is None):
+            
+            # If there is a response column indicated, then the forecast column of the 
+            # generated predictions must be stored in a column with the exact same name, so that
+            # the columns can be correctly appended
+            y_forecast_label = column_to_forecast
+            # Also, create a separate series for the original data, that will be used for
+            # differentiating between data and forecasts on the plot:
+            y_original_series = DATASET[column_to_forecast].copy(deep = True)
+        
+        # If no column was indicated, set a default column name for the forecasts:
+        else:
+            # Set the default name:
+            y_forecast_label = "y_forecast"
+        
+        
+        # Check if a timestamp_tag_column was input. If not, use the indices themselves as times.
+        # Create a new standard name for the column in forecasts:
+        if (timestamp_tag_column is None):
+            
+            # Let's set an index series as the index of the dataframe:
+            DATASET['index_series'] = DATASET.index
+            # Check if this series contains an object. If it has, then, user set the timestamps
+            # as the indices
+            index_series_type = DATASET['index_series'].dtype
+            
+            # If it is an object, the user may be trying to pass the date as index. 
+            # So, let's try to convert it to datetime:
+            if ((index_series_type not in numeric_data_types) | (index_series_type == 'O') | (index_series_type == 'object')):
+                  
+                try:
+                    DATASET['index_series'] = (DATASET['index_series']).astype('datetime64[ns]')
+                    
+                    # Rename column 'index_series':
+                    # https://www.statology.org/pandas-rename-columns/
+                    DATASET.rename(columns = {'index_series': 'timestamp'}, inplace = True)
+                    # Set 'timestamp' as the timestamp_tag_column:
+                    timestamp_tag_column = 'timestamp'
+                    
+                except:
+                    # A variable that is not neither numeric nor date was passed. Reset the index:
+                    DATASET = DATASET.reset_index(drop = True)
+                    # Update the index series
+                    DATASET['index_series'] = DATASET.index
+                    
+            # Now, try to manipulate the 'index_series'. An exception will be raised in case
+            # the name was changed because the index contains a timestamp
+            try:
+                
+                # convert the 'index_series' to the default name for column X:
+                x_forecast_label  = "x_forecast"
+                DATASET.rename(columns = {'index_series': x_forecast_label}, inplace = True)
+                x_original_series = DATASET[x_forecast_label].copy(deep = True)
+            
+                # Let's create the series for forecasted X. Simply add more values to x
+                # until reaching the number_of_periods_to_forecast:
+            
+                # Get the value of the last X of the dataframe
+                # index start from zero, so the last one is length - 1
+                last_x = x_original_series[(len(x_original_series) - 1)]
+
+                #Start the list
+                x_forecast = []
+
+                #Append its first value: last X plus 1 period
+                x_forecast.append(last_x + 1)
+            
+                j = 1
+                while (j < number_of_periods_to_forecast):
+                    #Last cycle occurs when j == number_of_periods_to_forecast - 1
+                    # Since indexing starts from zero, there will be number_of_periods_to_forecast
+                    # elements in the list.
+                    # Also, we already added the first period, so we are starting from the 2nd
+                    # forecast period, j = 1.
+                    x_forecast.append((x_forecast[(j - 1)] + 1))
+
+                    #Go to next iteration:
+                    j = j + 1
+                
+                # Now, x_forecast stores the next indices for the situation where no timestamp
+                # was provided initially.
+            
+            except:
+                #simply pass
+                pass
+        
+        
+        # Again, check if timestamp_tag_column is None. It may have changed, since we created a value
+        # for the case where a timestamp is in the index. So, we will not use else: the else would
+        # ignore the modification in the first if:
+        
+        if not (timestamp_tag_column is None):
+            # Use the timestamp properly converted to datetime (as in the graphics functions).
+            # The labels must be the same for when the dataframes are merged.
+            x_forecast_label  = timestamp_tag_column
+            
+            # Check if it is an object or is not a numeric variable (e.g. if it is a timestamp):
+            if ((DATASET[timestamp_tag_column].dtype not in numeric_data_types) | (DATASET[timestamp_tag_column].dtype == 'O') | (DATASET[timestamp_tag_column].dtype == 'object')):
+                
+                # Try to convert it to np.datetime64
+                try:
+
+                    DATASET[timestamp_tag_column] = (DATASET[timestamp_tag_column]).astype('datetime64[ns]')
+                
+                except:
+                    pass
+                
+            # Now, timestamp is either a numeric column or a datetime column.
+            # Again, create a separate series for the original data, that will be used for
+            # differentiating between data and forecasts on the plot:
+            x_original_series = DATASET[timestamp_tag_column].copy(deep = True)
+            
+            # Get the last X of the dataframe
+            # index start from zero, so the last one is length - 1
+            last_x = x_original_series[(len(x_original_series) - 1)]
+            
+            # Check the case where it is a timestamp:
+            if (type(x_original_series[0]) == np.datetime64):
+                
+                # Let's obtain the mean value of the timedeltas between each measurement:
+                TIMESTAMP_TAG_COLUMN = timestamp_tag_column
+                NEW_TIMEDELTA_COLUMN_NAME = None
+                RETURNED_TIMEDELTA_UNIT = time_unit
+                # If it is none, the value will be returned in nanoseconds.
+                # keep it None, for the results in nanoseconds
+                RETURN_AVG_DELAY = True
+                _, avg_delay = CALCULATE_DELAY (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
+                # The underscore indicates that we will not keep the returned dataframe
+                # only the average time delay in nanoseconds.
+                print("\n")
+                print(f"Average delay on the original time series, used for obtaining times of predicted values = {avg_delay}.\n")
+
+                # Now, avg_delay stores the mean time difference between successive measurements from the
+                # original dataset.
+            
+                # Now, let's create the prediction timestamps, by adding the avg_delay to
+                # the last X.
+                # Firstly, convert last_x to a Pandas timestamp, so that we can add a pandas
+                # timedelta:
+                last_x = pd.Timestamp(last_x, unit = 'ns')
+            
+                # Now, let's create a pandas timedelta object correspondent to avg_delay
+                # 1. Check units:
+                if (time_unit is None):
+                    time_unit = 'ns'
+            
+                # Notice that CALCULATE_DELAY and ADD_TIMEDELTA update the unit for us, but
+                # such functions deal with a dataframe, not with a single value. So, we are
+                # using a small piece from ADD_TIMEDELTA function to operate with a single
+                # timestamp.
+
+                #2. Create the pandas timedelta object:
+                timedelta = pd.Timedelta(avg_delay, time_unit)
+            
+                #3. Let's create the values of timestamps correspondent to the forecast
+                x_forecast = []
+                # The number of elements of this list is number_of_periods_to_forecast
+                # if number_of_periods_to_forecast, we will forecast a single period further,
+                # then we need to sum timedelta once. If number_of_periods_to_forecast = 3,
+                # we will sum timedelta 3 times, and so on.
+            
+                # Append the first element (last element + timedelta) - first value forecast
+                x_forecast.append((last_x + timedelta))
+            
+                j = 1
+                while (j < number_of_periods_to_forecast):
+                    #Last cycle occurs when j == number_of_periods_to_forecast - 1
+                    # Since indexing starts from zero, there will be number_of_periods_to_forecast
+                    # elements in the list.
+                    # Also, we already added the first period, so we are starting from the 2nd
+                    # forecast period, j = 1.
+
+                    # append the previous element + timedelta.
+                    # If j = 1, (j - 1) = 0, the first element
+                    x_forecast.append((x_forecast[(j - 1)] + timedelta))
+                
+                    #Go to next iteration:
+                    j = j + 1
+        
+                # Now, x_forecast stores the values of timestamps correspondent to
+                # the forecasts.
+                # Convert x_forecast to Pandas Series, so that it will be possible to perform vectorial
+                # operations:
+                x_forecast = pd.Series(x_forecast)
+                # Convert it to datetime64:
+                x_forecast = (x_forecast).astype('datetime64[ns]')
+            
+            else:
+                # We have a numerical variable used as time. We have to calculate the average 'delay' between
+                # Successive values. For that, we can again use Pandas.diff method, which may be applied to
+                # Series or DataFrames
+                # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.diff.html
+                # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.diff.html#pandas.Series.diff
+                
+                x_diff_series = x_original_series.copy(deep = True)
+                x_diff_series = x_diff_series.diff(periods = 1)
+                # periods - int, default 1 - Periods to shift for calculating difference, accepts negative values.
+                
+                # Now, get the average delay as the mean value from series x_diff_series:
+                avg_delay = x_diff_series.mean()
+                print("\n")
+                print(f"Average delay on the original time series, used for obtaining times of predicted values = {avg_delay}.\n")
+                
+                # Let's create the values of times correspondent to the forecast
+                x_forecast = []
+                # The number of elements of this list is number_of_periods_to_forecast
+                # if number_of_periods_to_forecast, we will forecast a single period further,
+                # then we need to sum timedelta once. If number_of_periods_to_forecast = 3,
+                # we will sum timedelta 3 times, and so on.
+            
+                # Append the first element (last element + avg_delay) - first value forecast
+                x_forecast.append((last_x + avg_delay))
+            
+                j = 1
+                while (j < number_of_periods_to_forecast):
+                    #Last cycle occurs when j == number_of_periods_to_forecast - 1
+                    # Since indexing starts from zero, there will be number_of_periods_to_forecast
+                    # elements in the list.
+                    # Also, we already added the first period, so we are starting from the 2nd
+                    # forecast period, j = 1.
+
+                    # append the previous element + timedelta.
+                    # If j = 1, (j - 1) = 0, the first element
+                    x_forecast.append((x_forecast[(j - 1)] + avg_delay))
+                
+                    #Go to next iteration:
+                    j = j + 1
+                
+        # Notice that all these steps are possible only when the timestamps were
+        # given, and so they should not be executed if the values are not provided.
+        
+        
+        # Now, steps are the same for all cases where there is a dataframe (Main Else node that we are evaluating): 
+        # create the dictionary of forecasts:
+        forecast_dict = {
+
+            x_forecast_label: x_forecast,
+            y_forecast_label: forecast_mean_vals,
+            "lower_cl": lower_cl,
+            "upper_cl": upper_cl,
+            'source': 'forecast'
+        }
+
+        # Convert it to a dataframe:
+        forecast_df = pd.DataFrame(data = forecast_dict)
+        x_forecast_series = forecast_df[x_forecast_label]
+        y_forecast_series = forecast_df[y_forecast_label]
+        lcl_series = forecast_df['lower_cl']
+        ucl_series = forecast_df['upper_cl']
+
+        # Now, let's concatenate the new dataframe to the old one.
+        # The use of the variables 'source', x_ and y_forecast_label guarantees that the new
+        # columns have the same name as the ones of the original dataframe, so that
+        # the concatenation is performed correctly.
+
+        # Now, merge the dataframes:
+        LIST_OF_DATAFRAMES = [DATASET, forecast_df]
+        IGNORE_INDEX_ON_UNION = True
+        SORT_VALUES_ON_UNION = True
+        UNION_JOIN_TYPE = None
+        forecast_df = UNION_DATAFRAMES (list_of_dataframes = LIST_OF_DATAFRAMES, ignore_index_on_union = IGNORE_INDEX_ON_UNION, sort_values_on_union = SORT_VALUES_ON_UNION, union_join_type = UNION_JOIN_TYPE)
+        
+        # Full series, with input data and forecasts:
+        x = forecast_df[x_forecast_label]
+        y = forecast_df[y_forecast_label]
+        
+        # Now, let's re-order the dataframe, putting the x_forecast_label as the first column
+        # and y_forecast_label: forecast_mean_vals, "lower_cl", "upper_cl", and 'source'
+        # as the last ones.
+        
+        # Set a list of the last columns (fixed positions):
+        fixed_columns_list = [y_forecast_label, 'lower_cl', 'upper_cl', 'source']
+        
+        # Start the list with only x_forecast_label:
+        ordered_columns_list = [x_forecast_label]
+        
+        # Now, loop through all the columns:
+        for column in list(forecast_df.columns):
+
+            # If the column is not one from fixed_columns_list, and it is not on ordered_columns_list
+            # yet, add it to ordered_columns_list (timestamp_tag_column may be on the list):
+            if ((column not in fixed_columns_list) & (column not in ordered_columns_list)):
+                ordered_columns_list.append(column)
+        
+        # Now, concatenate ordered_columns_list to fixed_columns_list. 
+        # If a = ['a', 'b'] and b = ['c', 'd'], a + b = ['a', 'b', 'c', 'd'] and b + a = [ 'c', 'd', 'a', 'b']
+        ordered_columns_list = ordered_columns_list + fixed_columns_list
+        
+        # Finally, pass ordered_columns_list as argument for column filtering and re-order:
+        forecast_df = forecast_df[ordered_columns_list]
+
+        
+    # We are finally in the general case, after obtaining the dataframe through all possible ways:
+    print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
+    print(forecast_df.tail(10))
+    
+    # Now, let's create the graphics
+    if (plot_predicted_time_series == True):
+        
+        LINE_STYLE = '-'
+        MARKER = ''
+        
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = f"ARIMA_forecasts"
+
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            if (timestamp_tag_column is None):
+                horizontal_axis_title = "timestamp"
+            else:
+                horizontal_axis_title = timestamp_tag_column
+
+        if (vertical_axis_title is None):
+            if (column_to_forecast is None):
+                vertical_axis_title = "time_series"
+            else:
+                vertical_axis_title = column_to_forecast
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        if ((df is not None) & ((column_to_forecast is not None))):
+            
+            # Plot the original data series:
+            ax.plot(x, y, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = OPACITY, label = 'input_dataframe')
+        
+        # Plot the predictions (completely opaque, so that the input data series will not be
+        # visible)
+        ax.plot(x_forecast_series, y_forecast_series, linestyle = LINE_STYLE, marker = MARKER, color = 'red', alpha = 1.0, label = 'forecast')
+        
+        # Plot the confidence limits:
+        ax.plot(x_forecast_series, lcl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'lower_confidence_limit')
+        ax.plot(x_forecast_series, ucl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'upper_confidence_limit')    
+        # Now we finished plotting all of the series, we can set the general configuration:
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+
+        ax.grid(grid) # show grid or not
+        ax.legend()
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "arima_forecast"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+    
+    print("\nARIMA Forecasting completed.\n")
+    
+    return forecast_df
+
