@@ -11008,7 +11008,7 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     #Break the line and show the combination
     print("Best combination found: (p, d, q) = (%d, %d, %d)\n" %(returned_p, returned_d, returned_q))
     #Break the line and print the next indication:
-    print(f"Time series and {confidence_level * 100} percent Confidence interval:\n")
+    print(f"Time series, values predicted by the model, and the correspondent {confidence_level * 100}% Confidence interval for the predictions:\n")
     #Break the line and print the ARIMA graphic:
     
     # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
@@ -11188,6 +11188,11 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
     print("For instance: if you observe a very sharp and sudden deviation from the predictive time series, it can be an indicative of incomplete information or outliers presence.\n")
     print("A famous case is the pandemic data: due to lags or latencies on the time needed for consolidating the information in some places, the data could be incomplete in a given day, leading to a sharp decrease that did not actually occurred.")
+    
+    print("\n")
+    print("REMEMBER: q represents the moving average (MA) part of the time series.")
+    print(f"Then, it is interesting to group the time series {column_to_analyze} by each q = {returned_q} periods when modelling or analyzing it.")
+    print("For that, you can use moving window or rolling functions.\n")
     
     return returned_ARIMA_Results, arima_summ_dict, arima_df
 
@@ -11737,4 +11742,183 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
     print("\nARIMA Forecasting completed.\n")
     
     return forecast_df
+
+
+def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', min_periods_required = None, window_center = False, window_type = None, window_on = None, row_accross = 'rows', how_to_close_window = None, drop_missing_values = True):
+    
+    import numpy as np
+    import pandas as pd
+    
+    # Check Pandas rolling statistics documentation:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/window.html#window-generic
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.diff.html
+    
+    ## df: the whole dataframe to be processed.
+    
+    # window_statistics = 'mean', 'std', 'sum', or 'difference'
+    # 'difference' will perform the first discrete difference of element: Yn - Yn-1
+    
+    # window_size: integer value or offset time.
+    # Manipulate parameter window of the .rolling method; or the parameter
+    # periods of the .diff method.
+    # window = window_size; or periods = window_size.
+    # Size of the moving window. If an integer, the fixed number of observations 
+    # used for each window. If an offset, the time period of each window. 
+    # Each window will be a variable sized based on the observations included in the 
+    # time-period. This is only valid for datetime-like indexes. 
+    
+    # min_periods_required = None. Alternatively, set as an integer value.
+    # Manipulate parameter min_periods of .rolling method
+    # min_periods = min_periods_required
+    # Minimum number of observations in window required to have a value; otherwise, 
+    # result is np.nan. For a window that is specified by an offset, min_periods will 
+    # default to 1. For a window that is specified by an integer, min_periods will default 
+    # to the size of the window.
+    
+    # window_center = False.
+    # Manipulate parameter center of .rolling method
+    # center = window_center
+    # If False, set the window labels as the right edge of the window index.
+    # If True, set the window labels as the center of the window index.
+    
+    # window_type = None
+    # Manipulate parameter win_type of .rolling method
+    # win_type = window_type
+    # If None, all points are evenly weighted. If a string, it must be a valid 
+    # scipy.signal window function:
+    # https://docs.scipy.org/doc/scipy/reference/signal.windows.html#module-scipy.signal.windows
+    # Certain Scipy window types require additional parameters to be passed in the 
+    # aggregation function. The additional parameters must match the keywords specified 
+    # in the Scipy window type method signature.
+    
+    # window_on = None
+    # Manipulate parameter on of .rolling method
+    # on = window_on
+    # string; For a DataFrame, a column label or Index level on which to calculate 
+    # the rolling window, rather than the DataFrame’s index. Provided integer column is 
+    # ignored and excluded from result since an integer index is not used to calculate 
+    # the rolling window.
+    
+    # row_accross = 'rows'. Alternatively, row_accross = 'columns'
+    # manipulate the parameter axis of .rolling method:
+    # if row_accross = 'rows', axis = 0; if row_accross = 'columns', axis = 1.
+    # If axis = 0 or 'index', roll across the rows.
+    # If 1 or 'columns', roll across the columns.
+    
+    # how_to_close_window = None
+    # Manipulate parameter closed of .rolling method
+    # closed = how_to_close_window
+    # String: If 'right', the first point in the window is excluded from calculations.
+    # If 'left', the last point in the window is excluded from calculations.
+    # If 'both', the no points in the window are excluded from calculations.
+    # If 'neither', the first and last points in the window are excluded from calculations.
+    # Default None ('right').
+    
+    # drop_missing_values = True will remove all missing values created by the methods (all
+    # rows containing missing values). 
+    # If drop_missing_values = False, the positions containing NAs will be kept.
+    
+    DATASET = df.copy(deep = True)
+    WINDOW = window_size
+    MIN_PERIODS = min_periods_required
+    CENTER = window_center
+    WIN_TYPE = window_type
+    ON = window_on
+    
+    numeric_data_types = [np.float16, np.float32, np.float64, np.int16, np.int32, np.int64]
+    
+    # Variable to map if the timestamp was correctly parsed. It will be set of True
+    # only when it happens:
+    date_parser_marker = False
+    
+    try:
+        if (type(DATASET[ON][0]) not in numeric_data_types):
+            # Try to Parse the date:
+            try:
+                
+                DATASET[ON] = (DATASET[ON]).astype('datetime64[ns]')
+                # Change the value of the marker to map that the date was correctly parsed:
+                date_parser_marker = True
+                print(f"Column {ON} successfully converted to numpy.datetime64[ns].\n")     
+            
+            except:
+                pass
+    except:
+        pass
+    
+    
+    if (row_accross == 'columns'):
+        
+        AXIS = 1
+    
+    else:
+        # 'rows' or an invalid value was set, so set to 'rows' (Axis = 0)
+        AXIS = 0
+    
+    CLOSED = how_to_close_window
+    
+    # Now all the parameters for the rolling method are set. Calculate the dataframe
+    # for the selected statistic:
+    
+    if (window_statistics == 'mean'):
+        
+        rolling_window_df = DATASET.rolling(window = WINDOW, min_periods = MIN_PERIODS, center = CENTER, win_type = WIN_TYPE, on = ON, axis = AXIS, closed = CLOSED).mean()
+        print(f"Calculated rolling mean for a window size of {WINDOW}. Returning the rolling \'mean\' dataframe.\n")
+    
+    elif (window_statistics == 'std'):
+        
+        rolling_window_df = DATASET.rolling(window = WINDOW, min_periods = MIN_PERIODS, center = CENTER, win_type = WIN_TYPE, on = ON, axis = AXIS, closed = CLOSED).std()
+        print(f"Calculated rolling standard deviation for a window size of {WINDOW}. Returning the rolling \'std\' dataframe.\n")
+    
+    elif (window_statistics == 'sum'):
+        
+        rolling_window_df = DATASET.rolling(window = WINDOW, min_periods = MIN_PERIODS, center = CENTER, win_type = WIN_TYPE, on = ON, axis = AXIS, closed = CLOSED).sum()
+        print(f"Calculated rolling sum for a window size of {WINDOW}. Returning the rolling \'sum\' dataframe.\n")
+    
+    elif (window_statistics == 'difference'):
+        
+        # Create a list of the columns that can be differentiated and of those that cannot be.
+        diff_columns = []
+        excluded_columns = []
+        for column in list(DATASET.columns):
+            
+            if (type(DATASET[column][0]) in numeric_data_types):
+                diff_columns.append(column)
+            
+            else:
+                
+                if ((column == ON) & (date_parser_marker == True)):
+                    # This is the column we converted to date. Set it as the index.
+                    # It will allow us to calculate the differences without losing this
+                    # information
+                    DATASET = DATASET.set_index(column)
+                
+                else:
+                    excluded_columns.append(column)
+        
+        # Select only the columns in diff_columns:
+        DATASET= DATASET[diff_columns]
+        
+        if (len(excluded_columns) > 0):
+            print(f"It is not possible to calculate the differences for columns in {excluded_columns}, so they were removed.\n")
+        
+        rolling_window_df = DATASET.diff(periods = WINDOW, axis = AXIS)
+        print(f"Calculated discrete differences ({WINDOW} periods). Returning the differentiated dataframe.\n")
+    
+    else:
+        print("Please, select a valid rolling window function: \'mean\', \'std\', \'sum\', or \'difference\'.")
+        return "error"
+    
+    # drop missing values generated:
+    if (drop_missing_values):
+        # Run of it is True
+        rolling_window_df.dropna(axis = 0, how = 'any', inplace = True)
+        rolling_window_df.reset_index(drop = True, inplace = True)
+    
+    print("Check the rolling dataframe:\n")
+    print(rolling_window_df)
+        
+    return rolling_window_df
+
 
