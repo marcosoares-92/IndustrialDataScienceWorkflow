@@ -6604,15 +6604,16 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             print("Please, input a valid column name as column_with_response_var_y.\n")
             list_of_dictionaries_with_series_to_analyze = []
         
-        elif (column_with_labels is None):
-            
-            print("Please, input a valid column name as column_with_labels.\n")
-            list_of_dictionaries_with_series_to_analyze = []
-        
         else:
             
             # set a local copy of the dataframe:
             DATASET = df.copy(deep = True)
+            
+            if (column_with_labels is None):
+            
+                print("Using the whole series (column) for correlation.\n")
+                column_with_labels = 'whole_series_' + column_with_response_var_y
+                DATASET[column_with_labels] = column_with_labels
             
             # sort DATASET; by column_with_predict_var_x; by column column_with_labels
             # and by column_with_response_var_y, all in Ascending order
@@ -6778,14 +6779,22 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
         
         # Loop through each dictionary (element) on the list list_of_dictionaries_with_series_to_analyze:
         for dictionary in list_of_dictionaries_with_series_to_analyze:
-                
+            
+            x_is_datetime = False
+            # boolean that will map if x is a datetime or not. Only change to True when it is.
+            
             # Access keys 'x' and 'y' to retrieve the arrays.
             x = dictionary['x']
             y = dictionary['y']
             
             # Check if the elements from array x are np.datetime64 objects. Pick the first
             # element to check:
+            
             if (type(x[0]) == np.datetime64):
+                
+                x_is_datetime = True
+                
+            if (x_is_datetime):
                 # In this case, performing the linear regression directly in X will
                 # return an error. We must associate a sequential number to each time.
                 # to keep the distance between these integers the same as in the original sequence
@@ -6857,7 +6866,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # Notice that again we cannot apply the equation directly to a timestamp.
             # So once again we will apply the integer scale to obtain the predictions
             # if we are dealing with datetime objects:
-            if (type(x[0]) == np.datetime64):
+            if (x_is_datetime):
                 y_pred_lin_reg = ((lin_reg).intercept) + ((lin_reg).slope) * (int_timescale)
             
             else:
@@ -6868,16 +6877,24 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # Add this array to the dictionary with the key 'y_pred_lin_reg':
             dictionary['y_pred_lin_reg'] = y_pred_lin_reg
             
-            if (type(x[0]) == np.datetime64):
+            if (x_is_datetime):
             
                 print("For performing the linear regression, a sequence of floats proportional to the timestamps was created. In this sequence, check on the returned object a dictionary containing the timestamps and the correspondent integers, that keeps the distance proportion between successive timestamps. The sequence was created by calculating the timedeltas as an integer number of nanoseconds, which were converted to seconds. The first timestamp was considered time = 0.")
                 print("Notice that the regression equation is based on the use of this sequence of floats as X.\n")
+                
+                dictionary['warning'] = "x is a numeric scale that was obtained from datetimes, preserving the distance relationships. It was obtained for allowing the polynomial fitting."
+                dictionary['numeric_to_datetime_correlation'] = {
+                    
+                    'x = 0': x[0],
+                    f'x = {max(int_timescale)}': x[(len(x) - 1)]
+                    
+                }
                 
                 dictionary['sequence_of_floats_correspondent_to_timestamps'] = {
                                                                                 'original_timestamps': x,
                                                                                 'sequence_of_floats': int_timescale
                                                                                 }
-            
+                
             # Finally, append this dictionary to list support_list:
             list_of_dictionaries_with_series_and_predictions.append(dictionary)
         
@@ -6992,7 +7009,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 # Plot the linear regression using the same color.
                 # Access the array of fitted Y's in the dictionary:
                 Y_PRED = dictionary['y_pred_lin_reg']
-                Y_PRED_LABEL = 'lin_reg_' + LABEL
+                Y_PRED_LABEL = 'lin_reg_' + str(LABEL) # for the case where label is numeric
                 
                 ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
 
@@ -7069,6 +7086,658 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 print(dictionary['r2_lin_reg'])
                 print("\n")
          
+        
+        return list_of_dictionaries_with_series_and_predictions
+
+
+def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_var_x = None, column_with_response_var_y = None, column_with_labels = None, list_of_dictionaries_with_series_to_analyze = [{'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}], polynomial_degree = 6, calculate_roots = False, calculate_derivative = False, calculate_integral = False, x_axis_rotation = 70, y_axis_rotation = 0, show_polynomial_reg = True, grid = True, add_splines_lines = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import random
+    # Python Random documentation:
+    # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
+    import numpy as np
+    from numpy.polynomial.polynomial import Polynomial
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    
+    # Check numpy.polynomial class API documentation for other polynomials 
+    # (chebyshev, legendre, hermite, etc):
+    # https://numpy.org/doc/stable/reference/routines.polynomials.package.html#module-numpy.polynomial
+    
+    # df: the whole dataframe to be processed.
+    
+    # data_in_same_column = False: set as True if all the values to plot are in a same column.
+    # If data_in_same_column = True, you must specify the dataframe containing the data as df;
+    # the column containing the predict variable (X) as column_with_predict_var_x; the column 
+    # containing the responses to plot (Y) as column_with_response_var_y; and the column 
+    # containing the labels (subgroup) indication as column_with_labels. 
+    # df is an object, so do not declare it in quotes. The other three arguments (columns' names) 
+    # are strings, so declare in quotes. 
+    
+    # Example: suppose you have a dataframe saved as dataset, and two groups A and B to compare. 
+    # All the results for both groups are in a column named 'results', wich will be plot against
+    # the time, saved as 'time' (X = 'time'; Y = 'results'). If the result is for
+    # an entry from group A, then a column named 'group' has the value 'A'. If it is for group B,
+    # column 'group' shows the value 'B'. In this example:
+    # data_in_same_column = True,
+    # df = dataset,
+    # column_with_predict_var_x = 'time',
+    # column_with_response_var_y = 'results', 
+    # column_with_labels = 'group'
+    # If you want to declare a list of dictionaries, keep data_in_same_column = False and keep
+    # df = None (the other arguments may be set as None, but it is not mandatory: 
+    # column_with_predict_var_x = None, column_with_response_var_y = None, column_with_labels = None).
+    
+
+    # Parameter to input when DATA_IN_SAME_COLUMN = False:
+    # list_of_dictionaries_with_series_to_analyze: if data is already converted to series, lists
+    # or arrays, provide them as a list of dictionaries. It must be declared as a list, in brackets,
+    # even if there is a single dictionary.
+    # Use always the same keys: 'x' for the X-series (predict variables); 'y' for the Y-series
+    # (response variables); and 'lab' for the labels. If you do not want to declare a series, simply
+    # keep as None, but do not remove or rename a key (ALWAYS USE THE KEYS SHOWN AS MODEL).
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to plot more series.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'x': x_series, 'y': y_series, 'lab': label}, where x_series, y_series and label
+    # represents the series and label of the added dictionary (you can pass 'lab': None, but if 
+    # 'x' or 'y' are None, the new dictionary will be ignored).
+    
+    # Examples:
+    # list_of_dictionaries_with_series_to_analyze = 
+    # [{'x': DATASET['X'], 'y': DATASET['Y'], 'lab': 'label'}]
+    # will plot a single variable. In turns:
+    # list_of_dictionaries_with_series_to_analyze = 
+    # [{'x': DATASET['X'], 'y': DATASET['Y1'], 'lab': 'label'}, {'x': DATASET['X'], 'y': DATASET['Y2'], 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}]
+    # will plot two series, Y1 x X and Y2 x X.
+    # Notice that all dictionaries where 'x' or 'y' are None are automatically ignored.
+    # If None is provided to 'lab', an automatic label will be generated.
+    
+    # polynomial_degree = integer value representing the degree of the fitted polynomial.
+    
+    # calculate_derivative = False. Alternatively, set as True to calculate the derivative of the
+    #  fitted polynomial and add it as a column of the dataframe.
+    
+    # calculate_integral = False. Alternatively, set as True to calculate the integral of the
+    #  fitted polynomial and add it as a column of the dataframe.
+    
+    # calculate_roots = False.  Alternatively, set as True to calculate the roots of the
+    #  fitted polynomial and return them as a NumPy array.
+    
+    if (data_in_same_column == True):
+        
+        if (df is None):
+            
+            print("Please, input a valid dataframe as df.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+            # The code will check the size of this list on the next block.
+            # If it is zero, code is simply interrupted.
+            # Instead of returning an error, we use this code structure that can be applied
+            # on other graphic functions that do not return a summary (and so we should not
+            # return a value like 'error' to interrupt the function).
+        
+        elif (column_with_predict_var_x is None):
+            
+            print("Please, input a valid column name as column_with_predict_var_x.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+           
+        elif (column_with_response_var_y is None):
+            
+            print("Please, input a valid column name as column_with_response_var_y.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+        
+        else:
+            
+            # set a local copy of the dataframe:
+            DATASET = df.copy(deep = True)
+            
+            if (column_with_labels is None):
+            
+                print("Using the whole series (column) for correlation.\n")
+                column_with_labels = 'whole_series_' + column_with_response_var_y
+                DATASET[column_with_labels] = column_with_labels
+            
+            # sort DATASET; by column_with_predict_var_x; by column column_with_labels
+            # and by column_with_response_var_y, all in Ascending order
+            # Since we sort by label (group), it is easier to separate the groups.
+            DATASET = DATASET.sort_values(by = [column_with_predict_var_x, column_with_labels, column_with_response_var_y], ascending = [True, True, True])
+            
+            # Reset indices:
+            DATASET = DATASET.reset_index(drop = True)
+            
+            # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
+            # So, let's try to convert it to datetime:
+            if (((DATASET[column_with_predict_var_x]).dtype == 'O') | ((DATASET[column_with_predict_var_x]).dtype == 'object')):
+                  
+                try:
+                    DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
+                    print("Variable X successfully converted to datetime64[ns].\n")
+                    
+                except:
+                    # Simply ignore it
+                    pass
+            
+            # Get a series of unique values of the labels, and save it as a list using the
+            # list attribute:
+            unique_labels = list(DATASET[column_with_labels].unique())
+            print(f"{len(unique_labels)} different labels detected: {unique_labels}.\n")
+            
+            # Start a list to store the dictionaries containing the keys:
+            # 'x': list of predict variables; 'y': list of responses; 'lab': the label (group)
+            list_of_dictionaries_with_series_to_analyze = []
+            
+            # Loop through each possible label:
+            for lab in unique_labels:
+                # loop through each element from the list unique_labels, referred as lab
+                
+                # Set a filter for the dataset, to select only rows correspondent to that
+                # label:
+                boolean_filter = (DATASET[column_with_labels] == lab)
+                
+                # Create a copy of the dataset, with entries selected by that filter:
+                ds_copy = (DATASET[boolean_filter]).copy(deep = True)
+                # Sort again by X and Y, to guarantee the results are in order:
+                ds_copy = ds_copy.sort_values(by = [column_with_predict_var_x, column_with_response_var_y], ascending = [True, True])
+                # Restart the index of the copy:
+                ds_copy = ds_copy.reset_index(drop = True)
+                
+                # Re-extract the X and Y series and convert them to NumPy arrays 
+                # (these arrays will be important later in the function):
+                x = np.array(ds_copy[column_with_predict_var_x])
+                y = np.array(ds_copy[column_with_response_var_y])
+            
+                # Then, create the dictionary:
+                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                
+                # Now, append dict_of_values to list_of_dictionaries_with_series_to_analyze:
+                list_of_dictionaries_with_series_to_analyze.append(dict_of_values)
+                
+            # Now, we have a list of dictionaries with the same format of the input list.
+            
+    else:
+        
+        # The user input a list_of_dictionaries_with_series_to_analyze
+        # Create a support list:
+        support_list = []
+        
+        # Loop through each element on the list list_of_dictionaries_with_series_to_analyze:
+        
+        for i in range (0, len(list_of_dictionaries_with_series_to_analyze)):
+            # from i = 0 to i = len(list_of_dictionaries_with_series_to_analyze) - 1, index of the
+            # last element from the list
+            
+            # pick the i-th dictionary from the list:
+            dictionary = list_of_dictionaries_with_series_to_analyze[i]
+            
+            # access 'x', 'y', and 'lab' keys from the dictionary:
+            x = dictionary['x']
+            y = dictionary['y']
+            lab = dictionary['lab']
+            # Remember that all this variables are series from a dataframe, so we can apply
+            # the astype function:
+            # https://www.askpython.com/python/built-in-methods/python-astype?msclkid=8f3de8afd0d411ec86a9c1a1e290f37c
+            
+            # check if at least x and y are not None:
+            if ((x is not None) & (y is not None)):
+                
+                # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
+                # So, let's try to convert it to datetime:
+                
+                if ((x.dtype == 'O') | (x.dtype == 'object')):
+
+                    try:
+                        x = (x).astype('datetime64[ns]')
+                        x_is_datetime = True
+                        print(f"Variable X from {i}-th dictionary successfully converted to datetime64[ns].\n")
+
+                    except:
+                        # Simply ignore it
+                        pass
+                
+                # Possibly, x and y are not ordered. Firstly, let's merge them into a temporary
+                # dataframe to be able to order them together.
+                # Use the 'list' attribute to guarantee that x and y were read as lists. These lists
+                # are the values for a dictionary passed as argument for the constructor of the
+                # temporary dataframe. When using the list attribute, we make the series independent
+                # from its origin, even if it was created from a Pandas dataframe. Then, we have a
+                # completely independent dataframe that may be manipulated and sorted, without worrying
+                # that it may modify its origin:
+                
+                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
+                # sort this dataframe by 'x' and 'y':
+                temp_df = temp_df.sort_values(by = ['x', 'y'], ascending = [True, True])
+                # restart index:
+                temp_df = temp_df.reset_index(drop = True)
+                
+                # Re-extract the X and Y series and convert them to NumPy arrays 
+                # (these arrays will be important later in the function):
+                x = np.array(temp_df['x'])
+                y = np.array(temp_df['y'])
+                
+                # check if lab is None:
+                if (lab is None):
+                    # input a default label.
+                    # Use the str attribute to convert the integer to string, allowing it
+                    # to be concatenated
+                    lab = "X" + str(i) + "_x_" + "Y" + str(i)
+                    
+                # Then, create the dictionary:
+                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                
+                # Now, append dict_of_values to support list:
+                support_list.append(dict_of_values)
+            
+        # Now, support_list contains only the dictionaries with valid entries, as well
+        # as labels for each collection of data. The values are independent from their origin,
+        # and now they are ordered and in the same format of the data extracted directly from
+        # the dataframe.
+        # So, make the list_of_dictionaries_with_series_to_analyze the support_list itself:
+        list_of_dictionaries_with_series_to_analyze = support_list
+        print(f"{len(list_of_dictionaries_with_series_to_analyze)} valid series input.\n")
+
+        
+    # Now that both methods of input resulted in the same format of list, we can process both
+    # with the same code.
+    
+    # Each dictionary in list_of_dictionaries_with_series_to_analyze represents a series to
+    # plot. So, the total of series to plot is:
+    total_of_series = len(list_of_dictionaries_with_series_to_analyze)
+            
+    if (total_of_series <= 0):
+        
+        print("No valid series to fit. Please, provide valid arguments.\n")
+        return "error" 
+        # we return the value because this function always returns an object.
+        # In other functions, this return would be omitted.
+    
+    else:
+        
+        # Continue to plotting and calculating the fitting.
+        # Notice that we sorted the all the lists after they were separated and before
+        # adding them to dictionaries. Also, the timestamps were converted to datetime64 variables
+        
+        # Now we pre-processed the data, we can obtain a final list of dictionaries, containing
+        # the linear regression information (it will be plotted only if the user asked to). Start
+        # a list to store all predictions:
+        list_of_dictionaries_with_series_and_predictions = []
+        
+        # Loop through each dictionary (element) on the list list_of_dictionaries_with_series_to_analyze:
+        for dictionary in list_of_dictionaries_with_series_to_analyze:
+            
+            x_is_datetime = False
+            # boolean that will map if x is a datetime or not. Only change to True when it is.
+            
+            # Access keys 'x' and 'y' to retrieve the arrays.
+            x = dictionary['x']
+            y = dictionary['y']
+            lab = dictionary['lab']
+            
+            # Check if the elements from array x are np.datetime64 objects. Pick the first
+            # element to check:
+            
+            if (type(x[0]) == np.datetime64):
+                
+                x_is_datetime = True
+            
+            if (x_is_datetime):
+                # In this case, performing the linear regression directly in X will
+                # return an error. We must associate a sequential number to each time.
+                # to keep the distance between these integers the same as in the original sequence
+                # let's define a difference of 1 ns as 1. The 1st timestamp will be zero, and the
+                # addition of 1 ns will be an addition of 1 unit. So a timestamp recorded 10 ns
+                # after the time zero will have value 10. At the end, we divide every element by
+                # 10**9, to obtain the correspondent distance in seconds.
+                
+                # start a list for the associated integer timescale. Put the number zero,
+                # associated to the first timestamp:
+                int_timescale = [0]
+                
+                # loop through each element of the array x, starting from index 1:
+                for i in range(1, len(x)):
+                    
+                    # calculate the timedelta between x[i] and x[i-1]:
+                    # The delta method from the Timedelta class converts the timedelta to
+                    # nanoseconds, guaranteeing the internal compatibility:
+                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).delta
+                    
+                    # Sum this timedelta (integer number of nanoseconds) to the
+                    # previous element from int_timescale, and append the result to the list:
+                    int_timescale.append((timedelta + int_timescale[(i-1)]))
+                
+                # Now convert the new scale (that preserves the distance between timestamps)
+                # to NumPy array:
+                int_timescale = np.array(int_timescale)
+                
+                # Divide by 10**9 to obtain the distances in seconds, reducing the order of
+                # magnitude of the integer numbers (the division is allowed for arrays)
+                int_timescale = int_timescale / (10**9)
+                
+                # Finally, use this timescale to obtain the polynomial fit;
+                # Use the method .fit, passing X, Y, and degree as coefficients
+                # to fit the polynomial to data:
+                # Perform the least squares fit to data:
+                #create an instance (object) named 'pol' from the class Polynomial:
+                fitted_pol = Polynomial.fit(int_timescale, y, deg = polynomial_degree, full = False)
+                
+            
+            else:
+                # Obtain the polynomial fitting object directly from x. Since x is not a
+                # datetime object, we can calculate the regression directly on it:
+                fitted_pol = Polynomial.fit(x, y, deg = polynomial_degree, full = False)
+   
+            # when full = True, the [resid, rank, sv, rcond] list is returned
+            # check: https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.fit.html#numpy.polynomial.polynomial.Polynomial.fit
+
+            # This method returned a series named 'fitted_pol', with the values of Y predicted by the
+            # polynomial fitting. Now add it to the dictionary as fitted_polynomial_series:
+            dictionary['fitted_polynomial'] = fitted_pol
+            print(f"{polynomial_degree} degree polynomial successfully fitted to data using the least squares method. The fitting Y ({lab}) values were added to the dataframe as the column \'fitted_polynomial\'.")    
+            
+            # Get the polynomial coefficients array:
+            if (x_is_datetime):
+                coeff_array = Polynomial.fit(int_timescale, y, deg = polynomial_degree, full = False).coef
+            
+            else:
+                coeff_array = Polynomial.fit(x, y, deg = polynomial_degree, full = False).coef
+            
+            # Create a coefficient dictionary:
+            coeff_dict = {}
+            # Loop through each element from the array, and append it to the dictionary:
+            full_polynomial_format = "a0"
+            
+            for i in range(1, len(coeff_array)):
+                
+                    full_polynomial_format = full_polynomial_format + " + a" + str(i) + "*x" + str(i)
+            
+            coeff_dict['full_polynomial_format'] = full_polynomial_format
+            
+            for i in range(0, len(coeff_array)):
+                
+                # Create a key for the element i:
+                dict_key = "a" + str(i)
+                # Store the correspondent element on the array:
+                coeff_dict[dict_key] = coeff_array[i]
+            
+            if (x_is_datetime):
+                
+                coeff_dict['warning'] = "x is a numeric scale that was obtained from datetimes, preserving the distance relationships. It was obtained for allowing the polynomial fitting."
+                coeff_dict['numeric_to_datetime_correlation'] = {
+                    
+                    'x = 0': x[0],
+                    f'x = {max(int_timescale)}': x[(len(x) - 1)]
+                    
+                }
+                
+                coeff_dict['sequence_of_floats_correspondent_to_timestamps'] = {
+                                                                                'original_timestamps': x,
+                                                                                'sequence_of_floats': int_timescale
+                                                                                }
+            
+            print("Polynomial summary:\n")
+            print(f"Polynomial format = {full_polynomial_format}\n")
+            print("Polynomial coefficients:")
+            
+            for i in range(0, len(coeff_array)):
+                print(f"{str('a') + str(i)} = {coeff_array[i]}")
+            
+            print(f"Fitted polynomial = {dictionary['fitted_polynomial']}")
+            print("\n")
+            
+            if (x_is_datetime):
+                print(coeff_dict['warning'])
+                print(coeff_dict['numeric_to_datetime_correlation'])
+                print("\n")
+            
+            # Add it to the main dictionary:
+            dictionary['fitted_polynomial_coefficients'] = coeff_dict
+            
+            # Now, calculate the fitted series. Start a Pandas series as a copy from y:
+            fitted_series = y.copy()
+            # Make it zero:
+            fitted_series = 0
+            
+            # Now loop through the polynomial coefficients: ai*(x**i):
+            for i in range(0, len(coeff_array)):
+                
+                if (x_is_datetime):
+                    
+                    fitted_series = (coeff_array[i])*(int_timescale**(i))
+                
+                else:
+                    fitted_series = (coeff_array[i])*(x**(i))
+            
+            # Add the series to the dictionary:
+            dictionary['fitted_polynomial_series'] = fitted_series
+            
+            
+            if (calculate_derivative == True):
+        
+                # Calculate the derivative of the polynomial:
+                if (x_is_datetime):
+                    pol_deriv = Polynomial.fit(int_timescale, y, deg = polynomial_degree, full = False).deriv(m = 1)
+                
+                else:
+                    pol_deriv = Polynomial.fit(x, y, deg = polynomial_degree, full = False).deriv(m = 1)
+                # m (integer): order of the derivative. If m = 2, the second order is returned.
+                # This method returns a series. Check:
+                # https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.deriv.html#numpy.polynomial.polynomial.Polynomial.deriv
+
+                #Add pol_deriv series as a new key from the dictionary:
+                dictionary['fitted_polynomial_derivative'] = pol_deriv
+                print("1st Order derivative of the polynomial successfully calculated and added to the dictionary as the key \'fitted_polynomial_derivative\'.\n")
+
+            if (calculate_integral == True):
+
+                # Calculate the integral of the polynomial:
+                if (x_is_datetime):
+                    pol_integral = Polynomial.fit(int_timescale, y, deg = polynomial_degree, full = False).integ(m = 1)
+                
+                else:
+                    pol_integral = Polynomial.fit(x, y, deg = polynomial_degree, full = False).integ(m = 1)
+                # m (integer): The number of integrations to perform.
+                # This method returns a series. Check:
+                # https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.integ.html#numpy.polynomial.polynomial.Polynomial.integ
+
+                #Add pol_deriv series as a new key from the dictionary:
+                dictionary['fitted_polynomial_integral'] = pol_integral
+                print("Integral of the polynomial successfully calculated and added to the dictionary as the key \'fitted_polynomial_integral\'.\n")
+
+            if (calculate_roots == True):
+
+                # Calculate the roots of the polynomial:
+                if (x_is_datetime):
+                    roots_array = Polynomial.fit(int_timescale, y, deg = polynomial_degree, full = False).roots()
+                
+                else:
+                    roots_array = Polynomial.fit(x, y, deg = polynomial_degree, full = False).roots()
+                # This method returns an array with the polynomial roots. Check:
+                # https://numpy.org/doc/stable/reference/generated/numpy.polynomial.polynomial.Polynomial.roots.html#numpy.polynomial.polynomial.Polynomial.roots
+
+                #Add it as the key polynomial_roots:
+                dictionary['polynomial_roots'] = roots_array
+                print(f"Roots of the polynomial: {roots_array}.\n")
+                print("Roots added to the dictionary as the key \'polynomial_roots\'.\n")
+
+            # Finally, append this dictionary to list support_list:
+            list_of_dictionaries_with_series_and_predictions.append(dictionary)
+        
+        print("Returning a list of dictionaries. Each one contains the arrays of valid series and labels, as well as the regression statistics obtained.\n")
+        
+        # Now we finished the loop, list_of_dictionaries_with_series_and_predictions 
+        # contains all series converted to NumPy arrays, with timestamps parsed as datetimes, 
+        # and all the information regarding the linear regression, including the predicted 
+        # values for plotting.
+        # This list will be the object returned at the end of the function. Since it is an
+        # JSON-formatted list, we can use the function json_obj_to_pandas_dataframe to convert
+        # it to a Pandas dataframe.
+        
+        # Now, we can plot the figure.
+        # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
+        # so that one series do not completely block the visualization of the other.
+        
+        # Let's retrieve the list of Matplotlib CSS colors:
+        css4 = mcolors.CSS4_COLORS
+        # css4 is a dictionary of colors: {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7', ...}
+        # Each key of this dictionary is a color name to be passed as argument color on the plot
+        # function. So let's retrieve the array of keys, and use the list attribute to convert this
+        # array to a list of colors:
+        list_of_colors = list(css4.keys())
+        
+        # In 11 May 2022, this list of colors had 148 different elements
+        # Since this list is in alphabetic order, let's create a random order for the colors.
+        
+        # Function random.sample(input_sequence, number_of_samples): 
+        # this function creates a list containing a total of elements equals to the parameter 
+        # "number_of_samples", which must be an integer.
+        # This list is obtained by ramdomly selecting a total of "number_of_samples" elements from the
+        # list "input_sequence" passed as parameter.
+        
+        # Function random.choices(input_sequence, k = number_of_samples):
+        # similarly, randomly select k elements from the sequence input_sequence. This function is
+        # newer than random.sample
+        # Since we want to simply randomly sort the sequence, we can pass k = len(input_sequence)
+        # to obtain the randomly sorted sequence:
+        list_of_colors = random.choices(list_of_colors, k = len(list_of_colors))
+        # Now, we have a random list of colors to use for plotting the charts
+        
+        if (add_splines_lines == True):
+            LINE_STYLE = '-'
+
+        else:
+            LINE_STYLE = ''
+        
+        # Matplotlib linestyle:
+        # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
+        
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = f"Y_x_X"
+
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = "X"
+
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "Y"
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+
+        i = 0 # Restart counting for the loop of colors
+        
+        # Loop through each dictionary from list_of_dictionaries_with_series_and_predictions:
+        for dictionary in list_of_dictionaries_with_series_and_predictions:
+            
+            # Try selecting a color from list_of_colors:
+            try:
+                
+                COLOR = list_of_colors[i]
+                # Go to the next element i, so that the next plot will use a different color:
+                i = i + 1
+            
+            except IndexError:
+                
+                # This error will be raised if list index is out of range, 
+                # i.e. if i >= len(list_of_colors) - we used all colors from the list (at least 148).
+                # So, return the index to zero to restart the colors from the beginning:
+                i = 0
+                COLOR = list_of_colors[i]
+                i = i + 1
+            
+            # Access the arrays and label from the dictionary:
+            X = dictionary['x']
+            Y = dictionary['y']
+            LABEL = dictionary['lab']
+            
+            # Scatter plot:
+            ax.plot(X, Y, linestyle = LINE_STYLE, marker = "o", color = COLOR, alpha = OPACITY, label = LABEL)
+            # Axes.plot documentation:
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            
+            # x and y are positional arguments: they are specified by their position in function
+            # call, not by an argument name like 'marker'.
+            
+            # Matplotlib markers:
+            # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+            
+            if (show_polynomial_reg == True):
+                
+                # Plot the linear regression using the same color.
+                # Access the array of fitted Y's in the dictionary:
+                Y_PRED = dictionary['fitted_polynomial_series']
+                Y_PRED_LABEL = 'fitted_pol_' + str(LABEL) # for the case where label is numeric
+                
+                ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
+
+        # Now we finished plotting all of the series, we can set the general configuration:
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+        
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = 'upper left')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "polynomial_fitting"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
         
         return list_of_dictionaries_with_series_and_predictions
 
@@ -7167,15 +7836,16 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             print("Please, input a valid column name as column_with_response_var_y.\n")
             list_of_dictionaries_with_series_to_analyze = []
         
-        elif (column_with_labels is None):
-            
-            print("Please, input a valid column name as column_with_labels.\n")
-            list_of_dictionaries_with_series_to_analyze = []
-        
         else:
             
             # set a local copy of the dataframe:
             DATASET = df.copy(deep = True)
+            
+            if (column_with_labels is None):
+            
+                print("Using the whole series (column) for correlation.\n")
+                column_with_labels = 'whole_series_' + column_with_response_var_y
+                DATASET[column_with_labels] = column_with_labels
             
             # sort DATASET; by column_with_predict_var_x; by column column_with_labels
             # and by column_with_response_var_y, all in Ascending order
@@ -8842,6 +9512,375 @@ def col_filter_rename (df, cols_list, mode = 'filter'):
     return DATASET
 
 
+def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, method = 'trim', substring_to_eliminate = None, create_new_column = True, new_column_suffix = "_trim"):
+    
+    import numpy as np
+    import pandas as pd
+    
+    # column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # new_variable_type = None. String (in quotes) that represents a given data type for the column
+    # after transformation. Set:
+    # - new_variable_type = 'int' to convert the column to integer type after the transform;
+    # - new_variable_type = 'float' to convert the column to float (decimal number);
+    # - new_variable_type = 'datetime' to convert it to date or timestamp;
+    # - new_variable_type = 'category' to convert it to Pandas categorical variable.
+    
+    # method = 'trim' will eliminate trailing and leading white spaces from the strings in
+    # column_to_analyze.
+    # method = 'substring' will eliminate a defined trailing and leading substring from
+    # column_to_analyze.
+    
+    # substring_to_eliminate = None. Set as a string (in quotes) if method = 'substring'.
+    # e.g. suppose column_to_analyze contains time information: each string ends in " min":
+    # "1 min", "2 min", "3 min", etc. If substring_to_eliminate = " min", this portion will be
+    # eliminated, resulting in: "1", "2", "3", etc. If new_variable_type = None, these values will
+    # continue to be strings. By setting new_variable_type = 'int' or 'float', the series will be
+    # converted to a numeric type.
+    
+    # create_new_column = True
+    # Alternatively, set create_new_column = True to store the transformed data into a new
+    # column. Or set create_new_column = False to overwrite the existing column.
+    
+    # new_column_suffix = "_trim"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_column_suffix. Then, if the original
+    # column was "column1" and the suffix is "_trim", the new column will be named as
+    # "column1_trim".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Set a local copy of dataframe to manipulate
+    DATASET = df.copy(deep = True)
+    new_series = DATASET[column_to_analyze].copy()
+    
+    if (method == 'substring'):
+        
+        if (substring_to_eliminate is None):
+            
+            method = 'trim'
+            print("No valid substring input. Modifying method to \'trim\'.\n")
+    
+    if (method == 'substring'):
+        
+        print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+        # For manipulating strings, call the str attribute and, then, the method to be applied:
+        new_series = new_series.str.strip(substring_to_eliminate)
+    
+    else:
+        
+        new_series = new_series.str.strip()
+    
+    # Check if a the series type should be modified:
+    if (new_variable_type is not None):
+        
+        if (new_variable_type == 'int'):
+
+            new_type = np.int64
+
+        elif (new_variable_type == 'float'):
+            
+            new_type = np.float64
+        
+        elif (new_variable_type == 'datetime'):
+            
+            new_type = np.datetime64
+        
+        elif (new_variable_type == 'category'):
+            
+            new_type = new_variable_type
+        
+        # Try converting the type:
+        try:
+            new_series = new_series.astype(new_type)
+            print(f"Successfully converted the series to the type {new_variable_type}.\n")
+        
+        except:
+            pass
+
+    if (create_new_column):
+        
+        if (new_column_suffix is None):
+            new_column_suffix = "_trim"
+                
+        new_column_name = column_to_analyze + new_column_suffix
+        DATASET[new_column_name] = new_series
+            
+    else:
+        
+        DATASET[column_to_analyze] = new_series
+    
+    # Now, we are in the main code.
+    print("Finished removing leading and trailing spaces or characters (substrings).")
+    print("Check the 10 first elements from the series:\n")
+    print(new_series.head(10))
+    
+    return DATASET
+
+
+def capitalize_or_lower_string_case (df, column_to_analyze, method = 'lowercase', create_new_column = True, new_column_suffix = "_homogenized"):
+     
+    import numpy as np
+    import pandas as pd
+    
+    # column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # method = 'capitalize' will capitalize all letters from the input string 
+    # (turn them to upper case).
+    # method = 'lowercase' will make the opposite: turn all letters to lower case.
+    # e.g. suppose column_to_analyze contains strings such as 'String One', 'STRING 2',  and
+    # 'string3'. If method = 'capitalize', the output will contain the strings: 
+    # 'STRING ONE', 'STRING 2', 'STRING3'. If method = 'lowercase', the outputs will be:
+    # 'string one', 'string 2', 'string3'.
+    
+    # create_new_column = True
+    # Alternatively, set create_new_columns = True to store the transformed data into a new
+    # column. Or set create_new_column = False to overwrite the existing column.
+    
+    # new_column_suffix = "_homogenized"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_column_suffix. Then, if the original
+    # column was "column1" and the suffix is "_homogenized", the new column will be named as
+    # "column1_homogenized".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Set a local copy of dataframe to manipulate
+    DATASET = df.copy(deep = True)
+    new_series = DATASET[column_to_analyze].copy()
+    
+    if (method == 'capitalize'):
+        
+        print("Capitalizing the string (moving all characters to upper case).\n")
+        # For manipulating strings, call the str attribute and, then, the method to be applied:
+        new_series = new_series.str.upper()
+    
+    else:
+        
+        print("Lowering the string case (moving all characters to lower case).\n")
+        new_series = new_series.str.lower()
+        
+    if (create_new_column):
+        
+        if (new_column_suffix is None):
+            new_column_suffix = "_homogenized"
+                
+        new_column_name = column_to_analyze + new_column_suffix
+        DATASET[new_column_name] = new_series
+            
+    else:
+        
+        DATASET[column_to_analyze] = new_series
+    
+    # Now, we are in the main code.
+    print(f"Finished homogenizing the string case of {column_to_analyze}, giving value consistency.")
+    print("Check the 10 first elements from the series:\n")
+    print(new_series.head(10))
+    
+    return DATASET
+
+
+def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, new_substring_for_replacement = '', create_new_column = True, new_column_suffix = "_substringReplaced"):
+     
+    import numpy as np
+    import pandas as pd
+    
+    # column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # substring_to_be_replaced = None; new_substring_for_replacement = ''. 
+    # Strings (in quotes): when the sequence of characters substring_to_be_replaced was
+    # found in the strings from column_to_analyze, it will be substituted by the substring
+    # new_substring_for_replacement. If None is provided to one of these substring arguments,
+    # it will be substituted by the empty string: ''
+    # e.g. suppose column_to_analyze contains the following strings, with a spelling error:
+    # "my collumn 1", 'his collumn 2', 'her column 3'. We may correct this error by setting:
+    # substring_to_be_replaced = 'collumn' and new_substring_for_replacement = 'column'. The
+    # function will search for the wrong group of characters and, if it finds it, will substitute
+    # by the correct sequence: "my column 1", 'his column 2', 'her column 3'.
+    
+    # create_new_column = True
+    # Alternatively, set create_new_columns = True to store the transformed data into a new
+    # column. Or set create_new_column = False to overwrite the existing column.
+    
+    # new_column_suffix = "_substringReplaced"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_column_suffix. Then, if the original
+    # column was "column1" and the suffix is "_substringReplaced", the new column will be named as
+    # "column1_substringReplaced".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Set a local copy of dataframe to manipulate
+    DATASET = df.copy(deep = True)
+    new_series = DATASET[column_to_analyze].copy()
+    
+    print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+        
+    # If one of the input substrings is None, make it the empty string:
+    if (substring_to_be_replaced is None):
+        substring_to_be_replaced = ''
+    
+    if (new_substring_for_replacement is None):
+        new_substring_for_replacement = ''
+    
+    # For manipulating strings, call the str attribute and, then, the method to be applied:
+    new_series = new_series.str.replace(substring_to_be_replaced, new_substring_for_replacement)
+        
+    if (create_new_column):
+        
+        if (new_column_suffix is None):
+            new_column_suffix = "_substringReplaced"
+                
+        new_column_name = column_to_analyze + new_column_suffix
+        DATASET[new_column_name] = new_series
+            
+    else:
+        
+        DATASET[column_to_analyze] = new_series
+    
+    # Now, we are in the main code.
+    print(f"Finished replacing the substring {substring_to_be_replaced} by {new_substring_for_replacement}.")
+    print("Check the 10 first elements from the series:\n")
+    print(new_series.head(10))
+    
+    return DATASET
+
+
+def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_strings_and_replacements = [{'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}], create_new_column = True, new_column_suffix = "_substringReplaced"):
+     
+    import numpy as np
+    import pandas as pd
+    
+    # column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # list_of_dictionaries_with_original_strings_and_replacements = 
+    # [{'original_string': None, 'new_string': None}]
+    # This is a list of dictionaries, where each dictionary contains two key-value pairs:
+    # the first one contains the original string; and the second one contains the new string
+    # that will substitute the original one. The function will loop through all dictionaries in
+    # this list, access the values of the keys 'original_string', and search these values on the strings
+    # in column_to_analyze. When the value is found, it will be replaced (switched) by the correspondent
+    # value in key 'new_string'.
+    
+    # The object list_of_dictionaries_with_original_strings_and_replacements must be declared as a list, 
+    # in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'original_string' for the original strings to search on the column 
+    # column_to_analyze; and 'new_string', for the strings that will replace the original ones.
+    # Notice that this function will not search for substrings: it will substitute a value only when
+    # there is perfect correspondence between the string in 'column_to_analyze' and 'original_string'.
+    
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to replace more
+    # values.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'original_string': original_str, 'new_string': new_str}, 
+    # where  original_str and new_str represent the strings for searching and replacement 
+    # (If one of the keys contains None, the new dictionary will be ignored).
+    
+    # Example:
+    # Suppose the column_to_analyze contains the values 'sunday', 'monday', 'tuesday', 'wednesday',
+    # 'thursday', 'friday', 'saturday', but you want to obtain data labelled as 'weekend' or 'weekday'.
+    # Set: list_of_dictionaries_with_original_strings_and_replacements = 
+    # [{'original_string': 'sunday', 'new_string': 'weekend'},
+    # {'original_string': 'saturday', 'new_string': 'weekend'},
+    # {'original_string': 'monday', 'new_string': 'weekday'},
+    # {'original_string': 'tuesday', 'new_string': 'weekday'},
+    # {'original_string': 'wednesday', 'new_string': 'weekday'},
+    # {'original_string': 'thursday', 'new_string': 'weekday'},
+    # {'original_string': 'friday', 'new_string': 'weekday'}]
+    
+    # create_new_column = True
+    # Alternatively, set create_new_columns = True to store the transformed data into a new
+    # column. Or set create_new_column = False to overwrite the existing column.
+    
+    # new_column_suffix = "_substringReplaced"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_columns_suffix. Then, if the original
+    # column was "column1" and the suffix is "_substringReplaced", the new column will be named as
+    # "column1_substringReplaced".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    # Set a local copy of dataframe to manipulate
+    DATASET = df.copy(deep = True)
+    new_series = DATASET[column_to_analyze].copy()
+    
+    print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+     
+    # Create the mapping dictionary for the str.replace method:
+    mapping_dict = {}
+    # The key of the mapping dict must be an string, whereas the value must be the new string
+    # that will replace it.
+        
+    # Loop through each element on the list list_of_dictionaries_with_original_strings_and_replacements:
+    
+    for i in range (0, len(list_of_dictionaries_with_original_strings_and_replacements)):
+        # from i = 0 to i = len(list_of_dictionaries_with_original_strings_and_replacements) - 1, index of the
+        # last element from the list
+            
+        # pick the i-th dictionary from the list:
+        dictionary = list_of_dictionaries_with_original_strings_and_replacements[i]
+            
+        # access 'original_string' and 'new_string' keys from the dictionary:
+        original_string = dictionary['original_string']
+        new_string = dictionary['new_string']
+        
+        # check if they are not None:
+        if ((original_string is not None) & (new_string is not None)):
+            
+            # add them to the mapping dictionary, using the original_string as key and
+            # new_string as the correspondent value:
+            mapping_dict[original_string] = new_string
+    
+    # Now, the input list was converted into a dictionary with the correct format for the method.
+    # Check if there is at least one key in the dictionary:
+    if (len(mapping_dict) > 0):
+        # len of a dictionary returns the amount of key:value pairs stored. If nothing is stored,
+        # len = 0. dictionary.keys() method (no arguments in parentheses) returns an array containing
+        # the keys; whereas dictionary.values() method returns the arrays of the values.
+        
+        new_series = new_series.replace(mapping_dict)
+        # For replacing the whole strings using a mapping dictionary, do not call the str
+        # attribute
+    
+        if (create_new_column):
+            
+            if (new_column_suffix is None):
+                new_column_suffix = "_substringReplaced"
+
+            new_column_name = column_to_analyze + new_column_suffix
+            DATASET[new_column_name] = new_series
+            
+        else:
+
+            DATASET[column_to_analyze] = new_series
+
+        # Now, we are in the main code.
+        print(f"Finished replacing the substrings accordingly to the mapping: {mapping_dict}.")
+        print("Check the 10 first elements from the series:\n")
+        print(new_series.head(10))
+
+        return DATASET
+    
+    else:
+        print("Input at least one dictionary containing a pair of original string, in the key \'original_string\', and the correspondent new string as key \'new_string\'.")
+        print("The dictionaries must be elements from the list list_of_dictionaries_with_original_strings_and_replacements.\n")
+        
+        return "error"
+
+
 def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
     
     import numpy as np
@@ -8861,11 +9900,11 @@ def log_transform (df, subset = None, create_new_columns = True, new_columns_suf
     # Alternatively, set create_new_columns = True to store the transformed data into new
     # columns. Or set create_new_columns = False to overwrite the existing columns
     
-    #new_columns_suffix = "_log"
+    # new_columns_suffix = "_log"
     # This value has effect only if create_new_column = True.
     # The new column name will be set as column + new_columns_suffix. Then, if the original
     # column was "column1" and the suffix is "_log", the new column will be named as
-    # "collumn1_log".
+    # "column1_log".
     # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
     # start the suffix with "_" to separate it from the original name.
     
@@ -8972,11 +10011,11 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, new_col
     # Alternatively, set create_new_columns = True to store the transformed data into new
     # columns. Or set create_new_columns = False to overwrite the existing columns
     
-    #new_columns_suffix = "_log"
+    # new_columns_suffix = "_originalScale"
     # This value has effect only if create_new_column = True.
     # The new column name will be set as column + new_columns_suffix. Then, if the original
     # column was "column1" and the suffix is "_originalScale", the new column will be named 
-    # as "collumn1_originalScale".
+    # as "column1_originalScale".
     # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
     # start the suffix with "_" to separate it from the original name.
     
@@ -11912,13 +12951,301 @@ def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', mi
     
     # drop missing values generated:
     if (drop_missing_values):
-        # Run of it is True
+        # Run of it is True. Do not reset index for mode 'difference'.
+        # In this mode, the index was set as the date.
         rolling_window_df.dropna(axis = 0, how = 'any', inplace = True)
-        rolling_window_df.reset_index(drop = True, inplace = True)
+        
+        if (window_statistics != 'difference'):
+            rolling_window_df.reset_index(drop = True, inplace = True)
     
     print("Check the rolling dataframe:\n")
     print(rolling_window_df)
         
     return rolling_window_df
 
+
+def seasonal_decomposition (df, response_column_to_analyze, column_with_timestamps = None, decomposition_mode = "additive", maximum_number_of_cycles_or_periods_to_test = 100, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import statsmodels as sm
+    from statsmodels.tsa.seasonal import DecomposeResult
+    from statsmodels.tsa.seasonal import seasonal_decompose
+    
+    #Check seasonal_decompose and DecomposeResult documentations:
+    # https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html
+    # https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.DecomposeResult.html#statsmodels.tsa.seasonal.DecomposeResult
+    # seasonal_decompose results in an object from class DecomposeResult.
+    # Check the documentation of the .plot method for DecomposeResult objects:
+    # https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.DecomposeResult.plot.html#statsmodels.tsa.seasonal.DecomposeResult.plot
+    
+    #number_of_periods_to_forecast = 7
+    # integer value representing the total of periods to forecast. The periods will be in the
+    # unit (dimension) of the original dataset. If 1 period = 1 day, 7 periods will represent
+    # seven days.
+    
+    # df: the whole dataframe to be processed.
+    
+    # response_column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed.
+    # e.g. response_column_to_analyze = "column1" will analyze the column named as 'column1'.
+    # WARNING: This must be the response variable
+    
+    # column_with_timestamps: string (inside quotes), 
+    # containing the name of the column containing timestamps.
+    # Keep it as None if you want to set the index as the time.
+    # e.g. response_column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = integer (minimum value is 2) representing
+    # the total of cycles or periods that may be present on time series. The function will loop through
+    # 2 to MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST to find the number that minimizes the sum of
+    # modules (absolute values) of the residues.
+    # e.g. MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = 4 will test 2, 3 and 4 cycles on the time series.
+
+    # decomposition_mode = "additive" - manipulate the parameter 'model' from seasonal_decompose.
+    # model = decomposition_mode
+    # Alternatively, set decomposition_mode = "multiplicative" for decomposing as a multiplicative time series.
+    
+    ## 'additive' model: An additive model suggests that the components are added together as: 
+    ## y(t) = Level + Trend + Seasonality + Noise
+    ## An additive model is linear where changes over time are consistently made by the same amount. A linear trend is 
+    ## a straight line. A linear seasonality has the same frequency (width of cycles) and amplitude (height of cycles).
+    
+    ## 'multiplicative' model: A multiplicative model suggests that the components are multiplied together as:
+    ## y(t) = Level * Trend * Seasonality * Noise
+    ## A multiplicative model is nonlinear, such as quadratic or exponential. Changes increase or decrease over time.
+    ## A nonlinear trend is a curved line. A non-linear seasonality has an increasing or decreasing frequency 
+    ## and/or amplitude over time.
+    # https://machinelearningmastery.com/decompose-time-series-data-trend-seasonality/#:~:text=The%20statsmodels%20library%20provides%20an%20implementation%20of%20the,careful%20to%20be%20critical%20when%20interpreting%20the%20result.
+    
+    
+    # Set a local copy of the dataframe to manipulate?
+    DATASET = df.copy(deep = True)
+    
+    #Check if there is a column with the timestamps:
+    if not (column_with_timestamps is None):
+        
+        DATASET = DATASET.sort_values(by = column_with_timestamps)
+        
+        x = DATASET[column_with_timestamps].copy()
+        
+        # try to convert it to datetime:
+        try:
+            x = x.astype(np.datetime64)
+        
+        except:
+            pass
+        
+        # Set it as index to include it in the seasonal decomposition model:
+        DATASET = DATASET.set_index(column_with_timestamps)
+    
+    else:
+        #the index will be used to plot the charts:
+        x = DATASET.index
+        
+    # Extract the time series from the dataframe:
+    Y = DATASET[response_column_to_analyze]
+    
+    # Set the parameters for modelling:
+    MODEL = decomposition_mode
+    MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = maximum_number_of_cycles_or_periods_to_test
+    
+    # Check if the arguments are valid:
+    if MODEL not in ["additive", "multiplicative"]:
+        # set model as 'additive'
+        MODEL = "additive"
+    
+    print(f"Testing {MODEL} model for seasonal decomposition.\n")
+    
+    try:
+        MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = int(MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST)
+        # If it is lower than 2, make it equals to 2:
+        if (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST < 2):
+            MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = 2
+        
+        print(f"Testing the presence of until {MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST} periods or cycles in the time series.\n")
+    
+    except:
+        print("Input a valid MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST. It must be an integer higher or equal to 2, representing the maximum possible number of cycles or periods present in time series.\n")
+        return "error"
+    
+    # Now, let's loop through the possible number of cycles and periods:
+    # Start a dictionary to store the number of cycles and the correspondent sum of 
+    # absolute values of the residues:
+    residues_dict = {}
+    
+    for TOTAL_OF_CYCLES in range (2, (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST + 1)):
+        
+        # TOTAL_OF_CYCLES is an integer looping from TOTAL_OF_CYCLES = 2 to
+        # TOTAL_OF_CYCLES = (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST + 1) - 1 = (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST)
+        
+        try:
+        
+            # Start an instance (object) from class DecomposeResult
+            # Set this object as the resultant from seasonal_decompose
+            decompose_res_obj = seasonal_decompose(Y, model = MODEL, period = TOTAL_OF_CYCLES, two_sided = True)
+            # decompose_res_obj is an instance (object) from class DecomposeResult
+
+            # Get the array of the residues. Convert it to NumPy array to guarantee the vectorial operations:
+            residues_array = np.array(decompose_res_obj.resid)
+            # Convert the values in the array to the absolute values:
+            residues_array = abs(residues_array)
+            # Get the sum of the absolute residues:
+            sum_of_abs_residues = np.sum(residues_array)
+
+            # Store it in the dictionary (value correspondent to the key TOTAL_OF_CYCLES):
+            residues_dict[TOTAL_OF_CYCLES] = sum_of_abs_residues
+        
+        except:
+            # There are no sufficient measurements to test this total of cycles
+            pass
+    
+    # get the list of dictionary's values:
+    dict_vals = list(residues_dict.values())
+    # Get the minimum value on the list:
+    minimum_residue = min(dict_vals)
+    # Get the index of minimum_residue on the list:
+    minimum_residue_index = dict_vals.index(minimum_residue)
+    
+    # Now, retrieve OPTIMAL_TOTAL_CYCLES. It will be the value with index minimum_residue_index
+    # in the list of keys:
+    list_of_keys = list(residues_dict.keys())
+    OPTIMAL_TOTAL_CYCLES = list_of_keys[minimum_residue_index]
+    
+    print(f"Number of total cycles or periods in time series: {OPTIMAL_TOTAL_CYCLES}.\n")
+    
+    # Start an instance (object) from class DecomposeResult
+    # Set this object as the resultant from seasonal_decompose
+    decompose_res_obj = seasonal_decompose(Y, model = MODEL, period = OPTIMAL_TOTAL_CYCLES, two_sided = True)
+    # decompose_res_obj is an instance (object) from class DecomposeResult
+    
+    # Create a dictionary with the resultants from the seasonal decompose:
+    # These resultants are obtained as attributes of the decompose_res_obj
+    
+    number_of_observations_used = decompose_res_obj.nobs
+    print(f"Seasonal decomposition concluded using {number_of_observations_used} observations.")
+    
+    decompose_dict = {
+        
+        'timestamp': x,
+        "observed_data": decompose_res_obj.observed,
+        "seasonal_component": decompose_res_obj.seasonal,
+        "trend_component": decompose_res_obj.trend,
+        "residuals": decompose_res_obj.resid
+    }
+    
+    # Convert it into a returned dataframe:
+    seasonal_decompose_df = pd.DataFrame(data = decompose_dict)
+    
+    print("Check the first 10 rows of the seasonal decompose dataframe obtained:\n")
+    print(seasonal_decompose_df.head(10))
+    print("\n") # line break
+    print(f"Check the time series decomposition graphics for the {MODEL} model:\n")
+    
+    # Plot parameters:
+    x = decompose_dict['timestamp']
+    y1 = decompose_dict['observed_data']
+    lab1 = "observed_data"
+    y2 = decompose_dict['seasonal_component']
+    lab2 = 'seasonal_component'
+    y3 = decompose_dict['trend_component']
+    lab3 = 'trend_component'
+    y4 = decompose_dict['residuals']
+    lab4 = 'residuals'
+    
+    plot_title = "seasonal_decomposition_for_" + response_column_to_analyze
+    
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+    
+    # Now, let's obtain the graphic:
+    # Create the figure:
+    fig, ax = plt.subplots(4, 1, sharex = True, figsize = (12, 8)) 
+    # sharex = share axis X
+    # number of subplots equals to the total of series to plot (in this case, 4)
+    
+    ax[0].plot(x, y1, linestyle = '-', marker = '', color = 'darkblue', alpha = OPACITY, label = lab1)
+    # Set title only for this subplot:
+    ax[0].set_title(plot_title)
+    ax[0].grid(grid)
+    ax[0].legend(loc = 'upper right')
+    # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+    # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+    # https://www.statology.org/matplotlib-legend-position/
+    
+    ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'red', alpha = OPACITY, label = lab2)
+    # Add the y-title only for this subplot:
+    ax[1].set_ylabel(response_column_to_analyze)
+    ax[1].grid(grid)
+    ax[1].legend(loc = 'upper right')
+    
+    ax[2].plot(x, y3, linestyle = '-', marker = '', color = 'darkgreen', alpha = OPACITY, label = lab3)
+    ax[2].grid(grid)
+    ax[2].legend(loc = 'upper right')
+    
+    ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'crimson', alpha = OPACITY, label = lab4)
+    # Add an horizontal line in y = zero:
+    ax[3].axhline(0, color = 'black', linestyle = 'dashed')
+    # Set the x label only for this subplot
+    ax[3].set_xlabel('timestamp')
+    ax[3].grid(grid)
+    ax[3].legend(loc = 'upper right')
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "seasonal_decomposition"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    #Finally, return the full dataframe:
+    print("The full dataframe obtained from the decomposition was returned as seasonal_decompose_df.")
+    
+    return seasonal_decompose_df
 
