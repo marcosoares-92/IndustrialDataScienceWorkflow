@@ -11327,7 +11327,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                 model_extension = 'json'
                 #it could be 'ubj', though
             
-            elif (model_tyoe == 'arima'):
+            elif (model_type == 'arima'):
                 model_extension = 'pkl'
             
             else:
@@ -13175,7 +13175,7 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
     # https://www.statology.org/matplotlib-legend-position/
     
-    ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'red', alpha = OPACITY, label = lab2)
+    ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'crimson', alpha = OPACITY, label = lab2)
     # Add the y-title only for this subplot:
     ax[1].set_ylabel(response_column_to_analyze)
     ax[1].grid(grid)
@@ -13185,9 +13185,9 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     ax[2].grid(grid)
     ax[2].legend(loc = 'upper right')
     
-    ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'crimson', alpha = OPACITY, label = lab4)
+    ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'red', alpha = OPACITY, label = lab4)
     # Add an horizontal line in y = zero:
-    ax[3].axhline(0, color = 'black', linestyle = 'dashed')
+    ax[3].axhline(0, color = 'black', linestyle = 'dashed', alpha = OPACITY)
     # Set the x label only for this subplot
     ax[3].set_xlabel('timestamp')
     ax[3].grid(grid)
