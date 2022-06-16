@@ -1343,6 +1343,114 @@ def export_pd_dataframe_as_csv (dataframe_obj_to_be_exported, new_file_name_with
     print("Warning: if there was a file in this file path, it was replaced by the exported dataframe.")
 
 
+def APPLY_ROW_FILTERS_LIST (df, list_of_row_filters):
+    
+    import numpy as np
+    import pandas as pd
+    
+    print("Warning: this function filter the rows and results into a smaller dataset, since it removes the non-selected entries.")
+    print("If you want to pass a filter to simply label the selected rows, use the function LABEL_DATAFRAME_SUBSETS, which do not eliminate entries from the dataframe.")
+    
+    # This function applies filters to the dataframe and remove the non-selected entries.
+    
+    # df: dataframe to be analyzed.
+    
+    ## define the filters and only them define the filters list
+    # EXAMPLES OF BOOLEAN FILTERS TO COMPOSE THE LIST
+    # boolean_filter1 = ((None) & (None)) 
+    # (condition1 AND (&) condition2)
+    # boolean_filter2 = ((None) | (None)) 
+    # condition1 OR (|) condition2
+    
+    # boolean filters result into boolean values True or False.
+
+    ## Examples of filters:
+    ## filter1 = (condition 1) & (condition 2)
+    ## filter1 = (df['column1'] > = 0) & (df['column2']) < 0)
+    ## filter2 = (condition)
+    ## filter2 = (df['column3'] <= 2.5)
+    ## filter3 = (df['column4'] > 10.7)
+    ## filter3 = (condition 1) | (condition 2)
+    ## filter3 = (df['column5'] != 'string1') | (df['column5'] == 'string2')
+
+    ## comparative operators: > (higher); >= (higher or equal); < (lower); 
+    ## <= (lower or equal); == (equal); != (different)
+
+    ## concatenation operators: & (and): the filter is True only if the 
+    ## two conditions concatenated through & are True
+    ## | (or): the filter is True if at least one of the two conditions concatenated
+    ## through | are True.
+    ## ~ (not): inverts the boolean, i.e., True becomes False, and False becomes True. 
+
+    ## separate conditions with parentheses. Use parentheses to define a order
+    ## of definition of the conditions:
+    ## filter = ((condition1) & (condition2)) | (condition3)
+    ## Here, firstly ((condition1) & (condition2)) = subfilter is evaluated. 
+    ## Then, the resultant (subfilter) | (condition3) is evaluated.
+
+    ## Pandas .isin method: you can also use this method to filter rows belonging to
+    ## a given subset (the row that is in the subset is selected). The syntax is:
+    ## is_black_or_brown = dogs["color"].isin(["Black", "Brown"])
+    ## or: filter = (dataframe_column_series).isin([value1, value2, ...])
+    # The negative of this condition may be acessed with ~ operator:
+    ##  filter = ~(dataframe_column_series).isin([value1, value2, ...])
+    ## Also, you may use isna() method as filter for missing values:
+    ## filter = (dataframe_column_series).isna()
+    ## or, for not missing: ~(dataframe_column_series).isna()
+    
+    # list_of_row_filters: list of boolean filters to be applied to the dataframe
+    # e.g. list_of_row_filters = [filter1]
+    # applies a single filter saved as filter 1. Notice: even if there is a single
+    # boolean filter, it must be declared inside brackets, as a single-element list.
+    # That is because the function will loop through the list of filters.
+    # list_of_row_filters = [filter1, filter2, filter3, filter4]
+    # will apply, in sequence, 4 filters: filter1, filter2, filter3, and filter4.
+    # Notice that the filters must be declared in the order you want to apply them.
+    
+    
+    # Set a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+    
+    # Get the original index and convert it to a list
+    original_index = list(DATASET.index)
+    
+    # Loop through the filters list, applying the filters sequentially:
+    # Each element of the list is identified as 'boolean_filter'
+    
+    if (len(list_of_row_filters) > 0):
+        
+        # Start a list of indices that were removed. That is because we must
+        # remove these elements from the boolean filter series before filtering, avoiding
+        # the index mismatch.
+        removed_indices = []
+        
+        # Now, loop through other rows in the list_of_row_filters:
+        for boolean_series in list_of_row_filters:
+            
+            if (len(removed_indices) > 0):
+                # Drop rows in list removed_indices. Set inplace = True to remove by simply applying
+                # the method:
+                # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.drop.html
+                boolean_series.drop(labels = removed_indices, axis = 0, inplace = True)
+            
+            # Apply the filter:
+            DATASET = DATASET[boolean_series]
+            
+            # Finally, let's update the list of removed indices:
+            for index in original_index:
+                if ((index not in list(DATASET.index)) & (index not in removed_indices)):
+                    removed_indices.append(index)
+    
+    
+    # Reset index:
+    DATASET = DATASET.reset_index(drop = True)
+    
+    print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
+    print(DATASET.head(10))
+    
+    return DATASET
+
+
 def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
     
     #WARNING: Only two dataframes can be merged on each call of the function.
@@ -1558,6 +1666,310 @@ def MERGE_AND_SORT_DATAFRAMES (df_left, df_right, left_key, right_key, how_to_jo
     return merged_df
 
 
+def RECORD_LINKAGE (df_left, df_right, columns_to_block_as_basis_for_comparison = {'left_df_column': None, 'right_df_column': None}, columns_where_exact_matches_are_required = [{'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}], columns_where_similar_strings_should_be_found = [{'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}, {'left_df_column': None, 'right_df_column': None}], threshold_for_percent_of_similarity = 80.0):
+    
+    #WARNING: Only two dataframes can be merged on each call of the function.
+    
+    import numpy as np
+    import pandas as pd
+    import recordlinkage
+    
+    # Record linkage is the act of linking data from different sources regarding the same entity.
+    # Generally, we clean two or more DataFrames, generate pairs of potentially matching records, 
+    # score these pairs according to string similarity and other similarity metrics, and link them.
+    # Example: we may want to merge data from different clients using the address as key, but there may
+    # be differences on the format used for registering the addresses.
+    
+    # df_left: dataframe to be joined as the left one.
+    
+    # df_right: dataframe to be joined as the right one
+    
+    # columns_to_block_as_basis_for_comparison = {'left_df_column': None, 'right_df_column': None}
+    # Dictionary of strings, in quotes. Do not change the keys. If a pair of columns should be
+    # blocked for being used as basis for merging declare here: in 'left_df_column', input the name
+    # of the column of the left dataframe. In right_df_column, input the name of the column on the right
+    # dataframe.
+    # We first want to generate pairs between both DataFrames. Ideally, we want to generate all
+    # possible pairs between our DataFrames.
+    # But, if we had big DataFrames, it is possible that we ende up having to generate millions, 
+    # if not billions of pairs. It would not prove scalable and could seriously hamper development time.
+    
+    # This is where we apply what we call blocking, which creates pairs based on a matching column, 
+    # reducing the number of possible pairs.
+    
+    # threshold_for_percent_of_similarity = 80.0 - 0.0% means no similarity and 100% means equal strings.
+    # The threshold_for_percent_of_similarity is the minimum similarity calculated from the
+    # Levenshtein (minimum edit) distance algorithm. This distance represents the minimum number of
+    # insertion, substitution or deletion of characters operations that are needed for making two
+    # strings equal.
+    
+    # columns_where_exact_matches_are_required = [{'left_df_column': None, 'right_df_column': None}]
+    # columns_where_similar_strings_should_be_found = [{'left_df_column': None, 'right_df_column': None}]
+    
+    # Both of these arguments have the same structure. The single difference is that
+    # columns_where_exact_matches_are_required is referent to a group of columns (or a single column)
+    # where we require perfect correspondence between the dataframes, i.e., where no differences are
+    # tolerated. Example: the month and day numbers must be precisely the same.
+    # columns_where_similar_strings_should_be_found, in turns, is referent to the columns where there
+    # is no rigid standard in the dataset, so similar values should be merged as long as the similarity
+    # is equal or higher than threshold_for_percent_of_similarity.
+    
+    # Let's check the structure for these arguments, using columns_where_similar_strings_should_be_found
+    # as example. All instructions are valid for columns_where_exact_matches_are_required.
+    
+    # columns_where_similar_strings_should_be_found =
+    # [{'left_df_column': None, 'right_df_column': None}]
+    # This is a list of dictionaries, where each dictionary contains two key-value pairs:
+    # the first one contains the column name on the left dataframe; and the second one contains the 
+    # correspondent column on the right dataframe.
+    # The function will loop through all dictionaries in
+    # this list, access the values of the key 'left_df_column' to retrieve a column to analyze in the left 
+    # dataframe; and access access the key 'righ_df_column' to obtain the correspondent column in the right
+    # dataframe. Then, it will look for potential matches.
+    # For columns_where_exact_matches_are_required, only columns with perfect correspondence will be
+    # retrieved. For columns_where_similar_strings_should_be_found, when the algorithm finds a correspondence
+    # that satisfies the threshold criterium, it will assign it as a match. 
+    # For instance, suppose you have a word written in too many ways, in a column named 'continent' that
+    # should be used as key: "EU" , "eur" , "Europ" , "Europa" , "Erope" , "Evropa" ...
+    # Since they have sufficient similarity, they will be assigned as matching.
+    
+    # The objects columns_where_similar_strings_should_be_found and
+    # columns_where_exact_matches_are_required must be declared as lists, 
+    # in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'left_df_column' and 'right_df_column'.
+    # Notice that this function performs fuzzy matching, so it MAY SEARCH substrings and strings
+    # written with different cases (upper or lower) when this portions or modifications make the
+    # strings sufficiently similar to each other.
+    
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to replace more
+    # values.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'left_df_column': df_left_column, 'right_df_column': df_right_column}, 
+    # where df_left_column and df_right_column represent the strings for searching and replacement 
+    # (If the key contains None, the new dictionary will be ignored).
+    
+    
+    print("Record linkage attempts to join data sources that have similarly fuzzy duplicate values.")
+    print("The object is to end up with a final DataFrame with no duplicates by using string similarity.\n")
+    
+    # Create dataframe local copies to manipulate, avoiding that Pandas operates on
+    # the original objects; or that Pandas tries to set values on slices or copies,
+    # resulting in unpredictable results.
+    # Use the copy method to effectively create a second object with the same properties
+    # of the input parameters, but completely independent from it.
+    DF_LEFT = df_left.copy(deep = True)
+    DF_RIGHT = df_right.copy(deep = True)
+    
+    # If an invalid value was set for threshold_for_percent_of_similarity, correct it to 80% standard:
+                
+    if(threshold_for_percent_of_similarity is None):
+        threshold_for_percent_of_similarity = 80.0
+                
+    if((threshold_for_percent_of_similarity == np.nan) | (threshold_for_percent_of_similarity < 0)):
+        threshold_for_percent_of_similarity = 80.0
+    
+    # Convert the threshold for fraction (as required by recordlinkage) and save it as THRESHOLD:
+    THRESHOLD = threshold_for_percent_of_similarity/100
+    
+    # Before finding the pairs, let's check if the column names on the lists of dictionaries are
+    # the same. If they are not, let's rename the right dataframe columns so that they are equal to
+    # the left one.
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rename.html
+    
+    # Start a list of valid columns for exact matches:
+    valid_columns_exact_matches = []
+    
+    for dictionary in columns_where_exact_matches_are_required:
+        
+        # Access elements on keys 'left_df_column' and 'right_df_column':
+        left_df_column = dictionary['left_df_column']
+        right_df_column = dictionary['right_df_column']
+        
+        # Check if no key is None:
+        if ((left_df_column is not None) & (right_df_column is not None)):
+            
+            # If right_df_column is different from left_df_column, rename them to
+            # make them equal:
+            if (left_df_column != right_df_column):
+                
+                DF_RIGHT.rename(columns = {right_df_column: left_df_column}, inplace = True)
+            
+            # Add the column to the validated list:
+            valid_columns_exact_matches.append(left_df_column)
+    
+    # Repeat the procedure for the other list:
+    # Start a list of valid columns for similar strings:
+    valid_columns_similar_str = []
+    for dictionary in columns_where_similar_strings_should_be_found:
+        
+        # Access elements on keys 'left_df_column' and 'right_df_column':
+        left_df_column = dictionary['left_df_column']
+        right_df_column = dictionary['right_df_column']
+        
+        # Check if no key is None:
+        if ((left_df_column is not None) & (right_df_column is not None)):
+            
+            # If right_df_column is different from left_df_column, rename them to
+            # make them equal:
+            if (left_df_column != right_df_column):
+                
+                DF_RIGHT.rename(columns = {right_df_column: left_df_column}, inplace = True)         
+            
+            # Add the column to the validated list:
+            valid_columns_similar_str.append(left_df_column)
+   
+    # Now, we can create the objects for linkage:
+    
+    # Create an indexer object and find possible pairs:
+    indexer = recordlinkage.Index()
+    
+    left_block = columns_to_block_as_basis_for_comparison['left_df_column']
+    
+    # Check if left_block is in one of the validated columns list. If it is, right_block
+    # may have been renamed, and has the same label left_block:
+    if ((left_block in valid_columns_exact_matches) | (left_block in valid_columns_similar_str)):
+        
+        right_block = left_block
+    
+    else:
+        # right_block was not evaluated yet
+        right_block = columns_to_block_as_basis_for_comparison['right_df_column']
+    
+    if ((left_block is not None) & (right_block is not None)):
+        # If they are different, make them equal:
+        if (left_block != right_block):
+                
+            DF_RIGHT.rename(columns = {right_block: left_block}, inplace = True)
+        
+        # block pairing in this column:
+        indexer.block(left_block)
+    
+    elif (left_block is not None):
+        # Try accessing this column on right dataframe:
+        try:
+            column_block = DF_RIGHT[left_block]
+            # If no exception was raised, the column is actually present:
+            indexer.block(left_block)
+        except:
+            pass
+    
+    elif (right_block is not None):
+       # Try accessing this column on left dataframe:
+        try:
+            column_block = DF_LEFT[right_block]
+            # If no exception was raised, the column is actually present:
+            indexer.block(right_block)
+        except:
+            pass
+    
+    # Now that the columns were renaimed, we can generate the pairs from the object indexer:
+    # Generate pairs
+    pairs = indexer.index(DF_LEFT, DF_RIGHT)
+    # The resulting object, is a pandas multi index object containing pairs of row indices from both 
+    # DataFrames, i.e., it is an array containing possible pairs of indices that makes it much easier 
+    # to subset DataFrames on.
+    
+    # Comparing the DataFrames
+    # Since we've already generated our pairs, it's time to find potential matches. 
+    # We first start by creating a comparison object using the recordlinkage dot compare function. 
+    # This is similar to the indexing object we created while generating pairs, but this one is 
+    # responsible for assigning different comparison procedures for pairs. 
+    # Let's say there are columns for which we want exact matches between the pairs. To do that, 
+    # we use the exact method. It takes in the column name in question for each DataFrame, 
+    # and a label argument which lets us set the column name in the resulting DataFrame. 
+    # Now in order to compute string similarities between pairs of rows for columns that have 
+    # fuzzy values, we use the dot string method, which also takes in the column names in question, 
+    # the similarity cutoff point in the threshold argument, which takes in a value between 0 and 1.
+    # Finally to compute the matches, we use the compute function, which takes in the possible pairs, 
+    # and the two DataFrames in question. Note that you need to always have the same order of DataFrames
+    # when inserting them as arguments when generating pairs, comparing between columns, 
+    # and computing comparisons.
+    
+    # Create a comparison object
+    comp_cl = recordlinkage.Compare()
+    
+    # Create a counter for assessing the total number of valid columns being analyzed:
+    column_counter = len(valid_columns_exact_matches) + len(valid_columns_similar_str)
+    
+    # Find exact matches for the columns in the list columns_where_exact_matches_are_required.
+    # Loop through all elements from the list:
+    
+    for valid_column in valid_columns_exact_matches:
+            
+        # set column as the label for merged column:
+        LABEL = valid_column
+            
+        # Find the exact matches:
+        comp_cl.exact(valid_column, valid_column, label = LABEL)
+ 
+    # Now, let's repeat the procedure for the columns where we will look for similar strings
+    # for fuzzy matching. These columns were indicated in columns_where_similar_strings_should_be_found.
+    # So, loop through all elements from this list:
+    for valid_column in valid_columns_similar_str:
+        
+        # set column as the label for merged column:
+        LABEL = valid_column
+            
+        # Find similar matches:
+        comp_cl.string(valid_column, valid_column, label = LABEL, threshold = THRESHOLD) 
+
+    # Now, compute the comparison of the pairs by using the .compute() method of comp_cl,
+    # i.e, get potential matches:
+    potential_matches = comp_cl.compute(pairs, DF_LEFT, DF_RIGHT)
+    # potential_matches is a multi index DataFrame, where the first index is the row index from 
+    # the first DataFrame (left), and the second index is a list of all row indices in the right dataframe. 
+    # The columns are the columns being compared, with values being 1 for a match, and 0 for not a match.
+    
+    # The columns of our potential matches are the columns we chose to link both DataFrames on, 
+    # where the value is 1 for a match, and 0 otherwise.
+    # The first step in linking DataFrames, is to isolate the potentially matching pairs to the ones 
+    # we're pretty sure of. We can do it by subsetting the rows where the row sum is above a certain 
+    # number of columns: column_counter - 1 (i.e., where the match occurs for all columns, or do not
+    # happen for a single column).
+    # Isolate potential matches with row sum >=column_counter - 1
+    matches = potential_matches[potential_matches.sum(axis = 1) >= (column_counter - 1)]
+    
+    # matches is row indices between DF_LEFT and DF_RIGHT that are most likely duplicates. 
+    # Our next step is to extract the one of the index columns, and subsetting its associated 
+    # DataFrame to filter for duplicates.
+    
+    # Get values of second column index of matches (i.e., indices for DF_RIGHT only).
+    # We can access a DataFrame's index using the index attribute. Since this is a multi index 
+    # DataFrame, it returns a multi index object containing pairs of row indices from DF_LEFT and 
+    # DF_RIGHT respectively. We want to extract all DF_RIGHT indices, so we chain it with the 
+    # get_level_values method, which takes in which column index we want to extract its values. 
+    # We can either input the index column's name, or its order, which is in this case 1.
+    matching_indices = matches.index.get_level_values(1)
+
+    # Subset DF_RIGHT on non-duplicate values (i.e., removing the duplicates 
+    # selected as matching_indices).
+    # To find the duplicates in DF_RIGHTDF_RIGHT, we can simply subset on all indices of DF_RIGHT, 
+    # with the ones found through record linkage. 
+    # You can choose to examine them further for similarity with their duplicates in DF_LEFT, 
+    # but if you're sure of your analysis, you can go ahead and find the non duplicates with 
+    # the exact same line of code, except by adding a tilde at the beginning of your subset. 
+    non_dup = DF_RIGHT[~DF_RIGHT.index.isin(matching_indices)]
+    # ~ is the not (invert) operator: 
+    # https://stackoverflow.com/questions/21415661/logical-operators-for-boolean-indexing-in-pandas
+    
+    # Append non_dup to DF_LEFT.
+    # Now that you have your non duplicates, all you need is a simple append 
+    # using the DataFrame append method of DF_LEFT, and you have your linked Data.
+    merged_df = pd.concat([DF_LEFT, DF_RIGHT], axis = 0)
+    
+    # Now, reset index positions:
+    merged_df = merged_df.reset_index(drop = True)
+    
+    # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
+    # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
+    # new dataframe:
+    print("Dataframe successfully merged. Check its 10 first rows:\n")
+    print(merged_df.head(10))
+    
+    return merged_df
+
+
 def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_on_union = True, sort_values_on_union = True, union_join_type = None):
     
     import pandas as pd
@@ -1692,42 +2104,95 @@ def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_
     return concat_df
 
 
-def df_gen_charac (df):
+def df_general_characterization (df):
     
     import pandas as pd
-    
-    print("Dataframe 10 first rows:")
-    print(df.head(10))
-    
-    #Line break before next information:
+
+    # Set a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+
+    # Show dataframe's header
+    print("Dataframe\'s 10 first rows:\n")
+    print(DATASET.head(10))
+
+    # Show dataframe's tail:
+    # Line break before next information:
     print("\n")
-    df_shape  = df.shape
-    print(f"Dataframe shape (rows, columns) = {df_shape}.")
+    print("Dataframe\'s 10 last rows:\n")
+    print(DATASET.tail(10))
     
-    #Line break before next information:
+    # Show dataframe's shape:
+    # Line break before next information:
     print("\n")
-    df_columns_list = df.columns
-    print(f"Dataframe columns list = {df_columns_list}.")
+    df_shape  = DATASET.shape
+    print("Dataframe\'s shape = (number of rows, number of columns) =\n")
+    print(df_shape)
     
-    #Line break before next information:
+    # Show dataframe's columns:
+    # Line break before next information:
     print("\n")
-    df_dtypes = df.dtypes
-    print("Dataframe variables types:")
+    df_columns_array = DATASET.columns
+    print("Dataframe\'s columns =\n")
+    print(df_columns_array)
+    
+    # Show dataframe's columns types:
+    # Line break before next information:
+    print("\n")
+    df_dtypes = DATASET.dtypes
+    # Now, the df_dtypes seroes has the original columns set as index, but this index has no name.
+    # Let's rename it using the .rename method from Pandas Index object:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Index.rename.html#pandas.Index.rename
+    # To access the Index object, we call the index attribute from Pandas dataframe.
+    # By setting inplace = True, we modify the object inplace, by simply calling the method:
+    df_dtypes.index.rename(name = 'dataframe_column', inplace = True)
+    # Let's also modify the series label or name:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.rename.html
+    df_dtypes.rename('dtype_series', inplace = True)
+    print("Dataframe\'s variables types:\n")
     print(df_dtypes)
     
-    #Line break before next information:
+    # Show dataframe's general statistics for numerical variables:
+    # Line break before next information:
     print("\n")
-    df_general_statistics = df.describe()
-    print("Dataframe general statistics (numerical variables):")
+    df_general_statistics = DATASET.describe()
+    print("Dataframe\'s general (summary) statistics for numeric variables:\n")
     print(df_general_statistics)
     
-    #Line break before next information:
+    # Show total of missing values for each variable:
+    # Line break before next information:
     print("\n")
-    df_missing_values = df.isna().sum()
-    print("Total of missing values for each feature:")
+    total_of_missing_values_series = DATASET.isna().sum()
+    # This is a series which uses the original column names as index
+    proportion_of_missing_values_series = DATASET.isna().mean()
+    percent_of_missing_values_series = proportion_of_missing_values_series * 100
+    missingness_dict = {'count_of_missing_values': total_of_missing_values_series,
+                       'proportion_of_missing_values': proportion_of_missing_values_series,
+                       'percent_of_missing_values': percent_of_missing_values_series}
+    
+    df_missing_values = pd.DataFrame(data = missingness_dict)
+    # Now, the dataframe has the original columns set as index, but this index has no name.
+    # Let's rename it using the .rename method from Pandas Index object:
+    df_missing_values.index.rename(name = 'dataframe_column', inplace = True)
+    
+    # Create a one row dataframe with the missingness for the whole dataframe:
+    # Pass the scalars as single-element lists or arrays:
+    one_row_data = {'dataframe_column': ['missingness_accross_rows'],
+                    'count_of_missing_values': [len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any'))],
+                    'proportion_of_missing_values': [(len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any')))/(len(DATASET))],
+                    'percent_of_missing_values': [(len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any')))/(len(DATASET))*100]
+                    }
+    one_row_df = pd.DataFrame(data = one_row_data)
+    one_row_df.set_index('dataframe_column', inplace = True)
+    
+    # Append this one_row_df to df_missing_values:
+    df_missing_values = pd.concat([df_missing_values, one_row_df])
+    
+    print("Missing values on each feature; and missingness considering all rows from the dataframe:")
+    print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
+
     print(df_missing_values)
     
-    return df_shape, df_columns_list, df_dtypes, df_general_statistics, df_missing_values
+    return df_shape, df_columns_array, df_dtypes, df_general_statistics, df_missing_values
 
 
 def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_index_list = None, reset_index_after_drop = True):
@@ -2380,8 +2845,16 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # In this function, we do not convert the Timestamp to a datetime64 object.
     # That is because the Grouper class specifically requires a Pandas Timestamp
     # object to group the dataframes.
+
+    if (list_of_categorical_columns is None):
+        # Set it as an empty list (length = 0):
+        list_of_categorical_columns = []
     
-    if ((list_of_categorical_columns is not None) & (len(list_of_categorical_columns) > 0)):
+    elif (list_of_categorical_columns == np.nan):
+        list_of_categorical_columns = []
+    
+    
+    if (len(list_of_categorical_columns) > 0):
         
         # Let's prepare another copy of the dataframe before it gets manipulated:
         
@@ -2474,7 +2947,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     
     ## Check if there is a list of categorical features. If there is, run the next block of code:
     
-    if ((list_of_categorical_columns is not None) & (len(list_of_categorical_columns) > 0)):
+    if (len(list_of_categorical_columns) > 0):
         # There are categorical columns to aggregate too - the list is not empty
         # Consider: a = np.array(['a', 'a', 'b'])
         # The stats.mode function stats.mode(a) returns an array as: 
@@ -4221,6 +4694,9 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     print("There is a relationship between missingness and its values, missing or non-missing.")
     print("Example: in our class of students, it is Sally\'s birthday. Sally and many of her friends are absent to attend her birthday party. This is not at all random as Sally and only her friends are absent.\n")
     
+    # set a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+    
     # Start the agg_dict, a dictionary that correlates the input aggregate_time_in_terms_of to
     # the correspondent argument that must be passed to the matrix method:
     agg_dict = {
@@ -4238,27 +4714,52 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
         # access the frequency in the dictionary
         frequency = agg_dict[aggregate_time_in_terms_of] 
     
-    df_length = len(df)
-    print(f"Total of rows of the dataframe = {df_length}\n")
+    df_length = len(DATASET)
+    print(f"Count of rows from the dataframe =\n")
+    print(df_length)
+    print("\n")
 
-    total_of_missing_values = df.isna().sum()
-    print("Total of missing values for each feature:\n")
-    print(total_of_missing_values)
-    print("\n") # line_break
+    # Show total of missing values for each variable:
+    total_of_missing_values_series = DATASET.isna().sum()
+    # This is a series which uses the original column names as index
+    proportion_of_missing_values_series = DATASET.isna().mean()
+    percent_of_missing_values_series = proportion_of_missing_values_series * 100
+    missingness_dict = {'count_of_missing_values': total_of_missing_values_series,
+                       'proportion_of_missing_values': proportion_of_missing_values_series,
+                       'percent_of_missing_values': percent_of_missing_values_series}
     
-    percent_of_missing_values = (df.isna().mean()) * 100
-    print("Percent (%) of missing values for each feature:\n")
-    print(percent_of_missing_values)
+    df_missing_values = pd.DataFrame(data = missingness_dict)
+    # Now, the dataframe has the original columns set as index, but this index has no name.
+    # Let's rename it using the .rename method from Pandas Index object:
+    df_missing_values.index.rename(name = 'dataframe_column', inplace = True)
+    
+    # Create a one row dataframe with the missingness for the whole dataframe:
+    # Pass the scalars as single-element lists or arrays:
+    one_row_data = {'dataframe_column': ['missingness_accross_rows'],
+                    'count_of_missing_values': [len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any'))],
+                    'proportion_of_missing_values': [(len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any')))/(len(DATASET))],
+                    'percent_of_missing_values': [(len(DATASET) - len(DATASET.copy(deep = True).dropna(how = 'any')))/(len(DATASET))*100]
+                    }
+    one_row_df = pd.DataFrame(data = one_row_data)
+    one_row_df.set_index('dataframe_column', inplace = True)
+    
+    # Append this one_row_df to df_missing_values:
+    df_missing_values = pd.concat([df_missing_values, one_row_df])
+    
+    print("Missing values on each feature; and missingness considering all rows from the dataframe:")
+    print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
+
+    print(df_missing_values)
     print("\n") # line_break
     
     print("Bar chart of the missing values - Nullity bar:\n")
-    msno.bar(df)
+    msno.bar(DATASET)
     plt.show()
     print("\n")
     print("The nullity bar allows us to visualize the completeness of the dataframe.\n")
     
     print("Nullity Matrix: distribution of missing values through the dataframe:\n")
-    msno.matrix(df)
+    msno.matrix(DATASET)
     plt.show()
     print("\n")
     
@@ -4270,12 +4771,12 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
                 
                 if not (aggregate_time_in_terms_of is None):
                     print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(df.loc[slice_time_window_from:slice_time_window_to], freq = frequency)
+                    msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to], freq = frequency)
                     
                 else:
                     # do not aggregate:
                     print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(df.loc[slice_time_window_from:slice_time_window_to])
+                    msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to])
                 
                 plt.show()
                 print("\n")
@@ -4287,12 +4788,12 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
             
                 if not (aggregate_time_in_terms_of is None):
                     print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(df.loc[slice_time_window_from:], freq = frequency)
+                    msno.matrix(DATASET.loc[slice_time_window_from:], freq = frequency)
                 
                 else:
                     # do not aggregate:
                     print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(df.loc[slice_time_window_from:])
+                    msno.matrix(DATASET.loc[slice_time_window_from:])
         
                 plt.show()
                 print("\n")
@@ -4306,12 +4807,12 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
             
                 if not (aggregate_time_in_terms_of is None):
                     print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(df.loc[:slice_time_window_to], freq = frequency)
+                    msno.matrix(DATASET.loc[:slice_time_window_to], freq = frequency)
                 
                 else:
                     # do not aggregate:
                     print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(df.loc[:slice_time_window_to])
+                    msno.matrix(DATASET.loc[:slice_time_window_to])
                 
                 plt.show()
                 print("\n")
@@ -4320,7 +4821,7 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
         # Both slice limits are not. Let's check if we have to aggregate the dataframe:
         if not (aggregate_time_in_terms_of is None):
                 print("Nullity matrix for the selected aggregation frequency:\n")
-                msno.matrix(df, freq = frequency)
+                msno.matrix(DATASET, freq = frequency)
                 plt.show()
                 print("\n")
     
@@ -4338,7 +4839,7 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     print("This correlation is easily observable by sorting the dataframe in terms of A or B before obtaining the matrix.\n")
     
     print("Missingness Heatmap:\n")
-    msno.heatmap(df)
+    msno.heatmap(DATASET)
     plt.show()
     print("\n")
     
@@ -4354,7 +4855,7 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     print("Missingness in very small number may be considered completely random, and missing values can be eliminated.\n")
     
     print("Missingness Dendrogram:\n")
-    msno.dendrogram(df)
+    msno.dendrogram(DATASET)
     plt.show()
     print("\n")
     
@@ -4364,7 +4865,7 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     print("Cluster leaves which are linked together at a distance of zero fully predict one another\'s presence.")
     print("In other words, when two variables are grouped together in the dendogram, one variable might always be empty while another is filled (the presence of one explains the missingness of the other), or they might always both be filled or both empty, and so on (the missingness of one explains the missigness of the other).\n")
     
-    return total_of_missing_values, percent_of_missing_values
+    return df_missing_values
 
 
 def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_analyze, column_to_compare_with, show_interpreted_example = False, grid = True, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -6329,7 +6830,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
             # Here, the x axis must be the cum_pct value, and the Y
             # axis must be categories (it must be correspondent to the
             # bar chart)
-            ax2.plot(cum_pct, categories, '-ro', color = 'red', label = "cumulative\npercent")
+            ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
             #.plot(x, y, ...)
             ax2.tick_params('x', color = 'red')
             ax2.set_xlabel("Cumulative Percent (%)", color = 'red')
@@ -6365,7 +6866,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
             
             # Create the twin plot for the cumulative percent:
             ax2 = ax1.twinx()
-            ax2.plot(categories, cum_pct, '-ro', color = 'red', label = "cumulative\npercent")
+            ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
             #.plot(x, y, ...)
             ax2.tick_params('y', color = 'red')
             ax2.set_ylabel("Cumulative Percent (%)", color = 'red', rotation = 270)
@@ -9462,16 +9963,23 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
     return list_of_dicts
 
 
-def col_filter_rename (df, cols_list, mode = 'filter'):
+def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_columns'):
     
+    import numpy as np
     import pandas as pd
     
-    # mode = 'filter' for filtering only the list of columns passed as cols_list;
-    # mode = 'rename' for renaming the columns with the names passed as cols_list.
+    # MODE = 'select_or_order_columns' for filtering only the list of columns passed as columns_list,
+    # and setting a new column order. In this mode, you can pass the columns in any order: 
+    # the order of elements on the list will be the new order of columns.
+
+    # MODE = 'rename_columns' for renaming the columns with the names passed as columns_list. In this
+    # mode, the list must have same length and same order of the columns of the dataframe. That is because
+    # the columns will sequentially receive the names in the list. So, a mismatching of positions
+    # will result into columns with incorrect names.
     
-    # cols_list = list of strings containing the names (headers) of the columns to select
+    # columns_list = list of strings containing the names (headers) of the columns to select
     # (filter); or to be set as the new columns' names, according to the selected mode.
-    # For instance: cols_list = ['col1', 'col2', 'col3'] will 
+    # For instance: columns_list = ['col1', 'col2', 'col3'] will 
     # select columns 'col1', 'col2', and 'col3' (or rename the columns with these names). 
     # Declare the names inside quotes.
     
@@ -9480,35 +9988,211 @@ def col_filter_rename (df, cols_list, mode = 'filter'):
     
     print(f"Original columns in the dataframe:\n{DATASET.columns}")
     
-    if (mode == 'filter'):
+    if ((columns_list is None) | (columns_list == np.nan)):
+        # empty list
+        columns_list = []
+    
+    if (len(columns_list) == 0):
+        print("Please, input a valid list of columns.\n")
+        return DATASET
+    
+    if (mode == 'select_or_order_columns'):
         
         #filter the dataframe so that it will contain only the cols_list.
-        DATASET = DATASET[cols_list]
+        DATASET = DATASET[columns_list]
         print("Dataframe filtered according to the list provided.")
         print("Check the new dataframe:\n")
         print(DATASET)
         
-    elif (mode == 'rename'):
+    elif (mode == 'rename_columns'):
         
         # Check if the number of columns of the dataset is equal to the number of elements
         # of the new list. It will avoid raising an exception error.
-        boolean_filter = (len(cols_list) == len(DATASET.columns))
+        boolean_filter = (len(columns_list) == len(DATASET.columns))
         
         if (boolean_filter == False):
             #Impossible to rename, number of elements are different.
-            print("The number of columns of the dataframe is different from the number of elements of the list. Please, provide a list with number of elements equals to the number of columns.")
+            print("The number of columns of the dataframe is different from the number of elements of the list. Please, provide a list with number of elements equals to the number of columns.\n")
+            return DATASET
         
         else:
             #Same number of elements, so that we can update the columns' names.
-            DATASET.columns = cols_list
+            DATASET.columns = columns_list
             print("Dataframe columns renamed according to the list provided.")
             print("Warning: the substitution is element-wise: the first element of the list is now the name of the first column, and so on, ..., so that the last element is the name of the last column.")
             print("Check the new dataframe:\n")
             print(DATASET)
         
     else:
-        print("Enter a valid mode: \'filter\' or \'rename\'.")
+        print("Enter a valid mode: \'select_or_order_columns\' or \'rename_columns\'.")
+        return DATASET
     
+    return DATASET
+
+
+def rename_or_clean_columns_labels (df, mode = 'set_new_names', substring_to_be_replaced = ' ', new_substring_for_replacement = '_', trailing_substring = None, list_of_columns_labels = [{'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}]):
+    
+    import numpy as np
+    import pandas as pd
+    # Pandas .rename method:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rename.html
+    
+    # mode = 'set_new_names' will change the columns according to the specifications in
+    # list_of_columns_labels.
+    
+    # list_of_columns_labels = [{'column_name': None, 'new_column_name': None}]
+    # This is a list of dictionaries, where each dictionary contains two key-value pairs:
+    # the first one contains the original column name; and the second one contains the new name
+    # that will substitute the original one. The function will loop through all dictionaries in
+    # this list, access the values of the keys 'column_name', and it will be replaced (switched) 
+    # by the correspondent value in key 'new_column_name'.
+    
+    # The object list_of_columns_labels must be declared as a list, 
+    # in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'column_name' for the original label; 
+    # and 'new_column_name', for the correspondent new label.
+    # Notice that this function will not search substrings: it will substitute a value only when
+    # there is perfect correspondence between the string in 'column_name' and one of the columns
+    # labels. So, the cases (upper or lower) must be the same.
+    
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to replace more
+    # values.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'column_name': original_col, 'new_column_name': new_col}, 
+    # where original_col and new_col represent the strings for searching and replacement 
+    # (If one of the keys contains None, the new dictionary will be ignored).
+    # Example: list_of_columns_labels = [{'column_name': 'col1', 'new_column_name': 'col'}] will
+    # rename 'col1' as 'col'.
+    
+    
+    # mode = 'capitalize_columns' will capitalize all columns names (i.e., they will be put in
+    # upper case). e.g. a column named 'column' will be renamed as 'COLUMN'
+    
+    # mode = 'lowercase_columns' will lower the case of all columns names. e.g. a column named
+    # 'COLUMN' will be renamed as 'column'.
+    
+    # mode = 'replace_substring' will search on the columns names (strings) for the 
+    # substring_to_be_replaced (which may be a character or a string); and will replace it by 
+    # new_substring_for_replacement (which again may be either a character or a string). 
+    # Numbers (integers or floats) will be automatically converted into strings.
+    # As an example, consider the default situation where we search for a whitespace ' ' 
+    # and replace it by underscore '_': 
+    # substring_to_be_replaced = ' ', new_substring_for_replacement = '_'  
+    # In this case, a column named 'new column' will be renamed as 'new_column'.
+    
+    # mode = 'trim' will remove all trailing or leading whitespaces from column names.
+    # e.g. a column named as ' col1 ' will be renamed as 'col1'; 'col2 ' will be renamed as
+    # 'col2'; and ' col3' will be renamed as 'col3'.
+    
+    # mode = 'eliminate_trailing_characters' will eliminate a defined trailing and leading 
+    # substring from the columns' names. 
+    # The substring must be indicated as trailing_substring, and its default, when no value
+    # is provided, is equivalent to mode = 'trim' (eliminate white spaces). 
+    # e.g., if trailing_substring = '_test' and you have a column named 'col_test', it will be 
+    # renamed as 'col'.
+    
+    
+    # Set a local copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    # Guarantee that the columns were read as strings:
+    DATASET.columns = (DATASET.columns).astype(str)
+    # dataframe.columns is a Pandas Index object, so it has the dtype attribute as other Pandas
+    # objects. So, we can use the astype method to set its type as str or 'object' (or "O").
+    # Notice that there are situations with int Index, when integers are used as column names or
+    # as row indices. So, this portion guarantees that we can call the str attribute to apply string
+    # methods.
+    
+    if (mode == 'set_new_names'):
+        
+        # Start a mapping dictionary:
+        mapping_dict = {}
+        # This dictionary will be in the format required by .rename method: old column name as key,
+        # and new name as value.
+
+        # Loop through each element from list_of_columns_labels:
+        for dictionary in list_of_columns_labels:
+
+            # Access the values in keys:
+            column_name = dictionary['column_name']
+            new_column_name = dictionary['new_column_name']
+
+            # Check if neither is None:
+            if ((column_name is not None) & (new_column_name is not None)):
+                
+                # Guarantee that both were read as strings:
+                column_name = str(column_name)
+                new_column_name = str(new_column_name)
+
+                # Add it to the mapping dictionary setting column_name as key, and the new name as the
+                # value:
+                mapping_dict[column_name] = new_column_name
+
+        # Now, the dictionary is in the correct format for the method. Let's apply it:
+        DATASET.rename(columns = mapping_dict, inplace = True)
+    
+    elif (mode == 'capitalize_columns'):
+        
+        DATASET.rename(str.upper, axis = 'columns', inplace = True)
+    
+    elif (mode == 'lowercase_columns'):
+        
+        DATASET.rename(str.lower, axis = 'columns', inplace = True)
+    
+    elif (mode == 'replace_substring'):
+        
+        if (substring_to_be_replaced is None):
+            # set as the default (whitespace):
+            substring_to_be_replaced = ' '
+        
+        if (new_substring_for_replacement is None):
+            # set as the default (underscore):
+            new_substring_for_replacement = '_'
+        
+        # Apply the str attribute to guarantee that numbers were read as strings:
+        substring_to_be_replaced = str(substring_to_be_replaced)
+        new_substring_for_replacement = str(new_substring_for_replacement)
+        # Replace the substrings in the columns' names:
+        substring_replaced_series = (pd.Series(DATASET.columns)).str.replace(substring_to_be_replaced, new_substring_for_replacement)
+        # The Index object is not callable, and applying the str attribute to a np.array or to a list
+        # will result in a single string concatenating all elements from the array. So, we convert
+        # the columns index to a pandas series for performing a element-wise string replacement.
+        
+        # Now, convert the columns to the series with the replaced substrings:
+        DATASET.columns = substring_replaced_series
+        
+    elif (mode == 'trim'):
+        # Use the strip method from str attribute with no argument, correspondening to the
+        # Trim function.
+        DATASET.rename(str.strip, axis = 'columns', inplace = True)
+    
+    elif (mode == 'eliminate_trailing_characters'):
+        
+        if ((trailing_substring is None) | (trailing_substring == np.nan)):
+            # Apply the str.strip() with no arguments:
+            DATASET.rename(str.strip, axis = 'columns', inplace = True)
+        
+        else:
+            # Apply the str attribute to guarantee that numbers were read as strings:
+            trailing_substring = str(trailing_substring)
+
+            # Apply the strip method:
+            stripped_series = (pd.Series(DATASET.columns)).str.strip(trailing_substring)
+            # The Index object is not callable, and applying the str attribute to a np.array or to a list
+            # will result in a single string concatenating all elements from the array. So, we convert
+            # the columns index to a pandas series for performing a element-wise string replacement.
+
+            # Now, convert the columns to the series with the stripped strings:
+            DATASET.columns = stripped_series
+    
+    else:
+        print("Select a valid mode: \'set_new_names\', \'capitalize_columns\', \'lowercase_columns\', \'replace_substrings\', \'trim\', or \'eliminate_trailing_characters\'.\n")
+        return "error"
+    
+    print("Finished renaming dataframe columns.")
+    print("Check the new dataframe:\n")
+    print(DATASET)
+        
     return DATASET
 
 
@@ -9555,6 +10239,8 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
     
     # Set a local copy of dataframe to manipulate
     DATASET = df.copy(deep = True)
+    # Guarantee that the column to analyze was read as string:
+    DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
     if (method == 'substring'):
@@ -9653,6 +10339,8 @@ def capitalize_or_lower_string_case (df, column_to_analyze, method = 'lowercase'
     
     # Set a local copy of dataframe to manipulate
     DATASET = df.copy(deep = True)
+    # Guarantee that the column to analyze was read as string:
+    DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
     if (method == 'capitalize'):
@@ -9721,6 +10409,8 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
     
     # Set a local copy of dataframe to manipulate
     DATASET = df.copy(deep = True)
+    # Guarantee that the column to analyze was read as string:
+    DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
     print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
@@ -9731,6 +10421,11 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
     
     if (new_substring_for_replacement is None):
         new_substring_for_replacement = ''
+    
+    # Guarantee that both were read as strings (they may have been improperly read as 
+    # integers or floats):
+    substring_to_be_replaced = str(substring_to_be_replaced)
+    new_substring_for_replacement = str(new_substring_for_replacement)
     
     # For manipulating strings, call the str attribute and, then, the method to be applied:
     new_series = new_series.str.replace(substring_to_be_replaced, new_substring_for_replacement)
@@ -9755,7 +10450,7 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
     return DATASET
 
 
-def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_strings_and_replacements = [{'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}], create_new_column = True, new_column_suffix = "_substringReplaced"):
+def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_strings_and_replacements = [{'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}], create_new_column = True, new_column_suffix = "_stringReplaced"):
      
     import numpy as np
     import pandas as pd
@@ -9777,15 +10472,16 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
     # in brackets, even if there is a single dictionary.
     # Use always the same keys: 'original_string' for the original strings to search on the column 
     # column_to_analyze; and 'new_string', for the strings that will replace the original ones.
-    # Notice that this function will not search for substrings: it will substitute a value only when
+    # Notice that this function will not search substrings: it will substitute a value only when
     # there is perfect correspondence between the string in 'column_to_analyze' and 'original_string'.
+    # So, the cases (upper or lower) must be the same.
     
     # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
     # and you can also add more elements (dictionaries) to the lists, if you need to replace more
     # values.
     # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
     # same keys: {'original_string': original_str, 'new_string': new_str}, 
-    # where  original_str and new_str represent the strings for searching and replacement 
+    # where original_str and new_str represent the strings for searching and replacement 
     # (If one of the keys contains None, the new dictionary will be ignored).
     
     # Example:
@@ -9804,17 +10500,19 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
     # Alternatively, set create_new_columns = True to store the transformed data into a new
     # column. Or set create_new_column = False to overwrite the existing column.
     
-    # new_column_suffix = "_substringReplaced"
+    # new_column_suffix = "_stringReplaced"
     # This value has effect only if create_new_column = True.
     # The new column name will be set as column + new_columns_suffix. Then, if the original
-    # column was "column1" and the suffix is "_substringReplaced", the new column will be named as
-    # "column1_substringReplaced".
+    # column was "column1" and the suffix is "_stringReplaced", the new column will be named as
+    # "column1_stringReplaced".
     # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
     # start the suffix with "_" to separate it from the original name.
     
     
     # Set a local copy of dataframe to manipulate
     DATASET = df.copy(deep = True)
+    # Guarantee that the column to analyze was read as string:
+    DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
     print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
@@ -9839,6 +10537,10 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
         
         # check if they are not None:
         if ((original_string is not None) & (new_string is not None)):
+            
+            #Guarantee that both are read as strings:
+            original_string = str(original_string)
+            new_string = str(new_string)
             
             # add them to the mapping dictionary, using the original_string as key and
             # new_string as the correspondent value:
@@ -9879,6 +10581,198 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
         print("The dictionaries must be elements from the list list_of_dictionaries_with_original_strings_and_replacements.\n")
         
         return "error"
+
+
+def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', threshold_for_percent_of_similarity = 80.0, list_of_dictionaries_with_standard_strings_for_replacement = [{'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}], create_new_column = True, new_column_suffix = "_stringReplaced"):
+    
+    import numpy as np
+    import pandas as pd
+    from fuzzywuzzy import process
+    
+    # column_to_analyze: string (inside quotes), 
+    # containing the name of the column that will be analyzed. 
+    # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
+    
+    # mode = 'find_and_replace' will find similar strings; and switch them by one of the
+    # standard strings if the similarity between them is higher than or equals to the threshold.
+    # Alternatively: mode = 'find' will only find the similar strings by calculating the similarity.
+    
+    # threshold_for_percent_of_similarity = 80.0 - 0.0% means no similarity and 100% means equal strings.
+    # The threshold_for_percent_of_similarity is the minimum similarity calculated from the
+    # Levenshtein (minimum edit) distance algorithm. This distance represents the minimum number of
+    # insertion, substitution or deletion of characters operations that are needed for making two
+    # strings equal.
+    
+    # list_of_dictionaries_with_standard_strings_for_replacement =
+    # [{'standard_string': None}]
+    # This is a list of dictionaries, where each dictionary contains a single key-value pair:
+    # the key must be always 'standard_string', and the value will be one of the standard strings 
+    # for replacement: if a given string on the column_to_analyze presents a similarity with one 
+    # of the standard string equals or higher than the threshold_for_percent_of_similarity, it will be
+    # substituted by this standard string.
+    # For instance, suppose you have a word written in too many ways, making it difficult to use
+    # the function switch_strings: "EU" , "eur" , "Europ" , "Europa" , "Erope" , "Evropa" ...
+    # You can use this function to search strings similar to "Europe" and replace them.
+    
+    # The function will loop through all dictionaries in
+    # this list, access the values of the keys 'standard_string', and search these values on the strings
+    # in column_to_analyze. When the value is found, it will be replaced (switched) if the similarity
+    # is sufficiently high.
+    
+    # The object list_of_dictionaries_with_standard_strings_for_replacement must be declared as a list, 
+    # in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'standard_string'.
+    # Notice that this function performs fuzzy matching, so it MAY SEARCH substrings and strings
+    # written with different cases (upper or lower) when this portions or modifications make the
+    # strings sufficiently similar to each other.
+    
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to replace more
+    # values.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same key: {'standard_string': other_std_str}, 
+    # where other_std_str represents the string for searching and replacement 
+    # (If the key contains None, the new dictionary will be ignored).
+    
+    # Example:
+    # Suppose the column_to_analyze contains the values 'California', 'Cali', 'Calefornia', 
+    # 'Calefornie', 'Californie', 'Calfornia', 'Calefernia', 'New York', 'New York City', 
+    # but you want to obtain data labelled as the state 'California' or 'New York'.
+    # Set: list_of_dictionaries_with_standard_strings_for_replacement = 
+    # [{'standard_string': 'California'},
+    # {'standard_string': 'New York'}]
+    
+    # ATTENTION: It is advisable for previously searching the similarity to find the best similarity
+    # threshold; set it as high as possible, avoiding incorrect substitutions in a gray area; and then
+    # perform the replacement. It will avoid the repetition of original incorrect strings in the
+    # output dataset, as well as wrong replacement (replacement by one of the standard strings which
+    # is not the correct one).
+    
+    # create_new_column = True
+    # Alternatively, set create_new_columns = True to store the transformed data into a new
+    # column. Or set create_new_column = False to overwrite the existing column.
+    
+    # new_column_suffix = "_stringReplaced"
+    # This value has effect only if create_new_column = True.
+    # The new column name will be set as column + new_columns_suffix. Then, if the original
+    # column was "column1" and the suffix is "_stringReplaced", the new column will be named as
+    # "column1_stringReplaced".
+    # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+    # start the suffix with "_" to separate it from the original name.
+    
+    
+    print("Performing fuzzy replacement based on the Levenshtein (minimum edit) distance algorithm.")
+    print("This distance represents the minimum number of insertion, substitution or deletion of characters operations that are needed for making two strings equal.\n")
+    
+    print("This means that substrings or different cases (upper or higher) may be searched and replaced, as long as the similarity threshold is reached.\n")
+    
+    print("ATTENTION!\n")
+    print("It is advisable for previously searching the similarity to find the best similarity threshold.")
+    print("Set the threshold as high as possible, and only then perform the replacement.")
+    print("It will avoid the repetition of original incorrect strings in the output dataset, as well as wrong replacement (replacement by one of the standard strings which is not the correct one.\n")
+    
+    # Set a local copy of dataframe to manipulate
+    DATASET = df.copy(deep = True)
+    # Guarantee that the column to analyze was read as string:
+    DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
+    new_series = DATASET[column_to_analyze].copy()
+
+    # Get the unique values present in column_to_analyze:
+    unique_types = new_series.unique()
+    
+    # Create the summary_list:
+    summary_list = []
+        
+    # Loop through each element on the list list_of_dictionaries_with_original_strings_and_replacements:
+    
+    for i in range (0, len(list_of_dictionaries_with_standard_strings_for_replacement)):
+        # from i = 0 to i = len(list_of_dictionaries_with_standard_strings_for_replacement) - 1, index of the
+        # last element from the list
+            
+        # pick the i-th dictionary from the list:
+        dictionary = list_of_dictionaries_with_standard_strings_for_replacement[i]
+            
+        # access 'standard_string' key from the dictionary:
+        standard_string = dictionary['standard_string']
+        
+        # check if it is not None:
+        if (standard_string is not None):
+            
+            # Guarantee that it was read as a string:
+            standard_string = str(standard_string)
+            
+            # Calculate the similarity between each one of the unique_types and standard_string:
+            similarity_list = process.extract(standard_string, unique_types, limit = len(unique_types))
+            
+            # Add the similarity list to the dictionary:
+            dictionary['similarity_list'] = similarity_list
+            # This is a list of tuples with the format (tested_string, percent_of_similarity_with_standard_string)
+            # e.g. ('asiane', 92) for checking similarity with string 'asian'
+            
+            if (mode == 'find_and_replace'):
+                
+                # If an invalid value was set for threshold_for_percent_of_similarity, correct it to 80% standard:
+                
+                if(threshold_for_percent_of_similarity is None):
+                    threshold_for_percent_of_similarity = 80.0
+                
+                if((threshold_for_percent_of_similarity == np.nan) | (threshold_for_percent_of_similarity < 0)):
+                    threshold_for_percent_of_similarity = 80.0
+                
+                list_of_replacements = []
+                # Let's replace the matches in the series by the standard_string:
+                # Iterate through the list of matches
+                for match in similarity_list:
+                    # Check whether the similarity score is greater than or equal to threshold_for_percent_of_similarity.
+                    # The similarity score is the second element (index 1) from the tuples:
+                    if (match[1] >= threshold_for_percent_of_similarity):
+                        # If it is, select all rows where the column_to_analyze is spelled as
+                        # match[0] (1st Tuple element), and set it to standard_string:
+                        boolean_filter = (new_series == match[0])
+                        new_series.loc[boolean_filter] = standard_string
+                        print(f"Found {match[1]}% of similarity between {match[0]} and {standard_string}.")
+                        print(f"Then, {match[0]} was replaced by {standard_string}.\n")
+                        
+                        # Add match to the list of replacements:
+                        list_of_replacements.append(match)
+                
+                # Add the list_of_replacements to the dictionary, if its length is higher than zero:
+                if (len(list_of_replacements) > 0):
+                    dictionary['list_of_replacements_by_std_str'] = list_of_replacements
+            
+            # Add the dictionary to the summary_list:
+            summary_list.append(dictionary)
+      
+    # Now, let's replace the original column or create a new one if mode was set as replace:
+    if (mode == 'find_and_replace'):
+    
+        if (create_new_column):
+            
+            if (new_column_suffix is None):
+                new_column_suffix = "_substringReplaced"
+
+            new_column_name = column_to_analyze + new_column_suffix
+            DATASET[new_column_name] = new_series
+            
+        else:
+
+            DATASET[column_to_analyze] = new_series
+
+        # Now, we are in the main code.
+        print(f"Finished replacing the strings by the provided standards. Returning the new dataset and a summary list.")
+        print("In summary_list, you can check the calculated similarities in keys \'similarity_list\' from the dictionaries.")
+        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key  \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+        print("Check the 10 first elements from the new series, with strings replaced:\n")
+        print(new_series.head(10))
+    
+    else:
+        
+        print("Finished mapping similarities. Returning the original dataset and a summary list")
+        print("Check the similarities below, in keys \'similarity_list\' from the dictionaries.")
+        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key  \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+        print(summary_list)
+    
+    return DATASET, summary_list
 
 
 def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
