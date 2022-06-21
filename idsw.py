@@ -2433,51 +2433,48 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
         cols_to_check = support_list
     
     
-    # Let's look for rows to eliminate. Firstly, we need a list of the indices of columns that
-    # will be analyzed:
-    cols_indices = []
-    
-    for j in range(len(DATASET.columns)):
-        # j goes from 0 to len(DATASET.columns) - 1, index of the last column
-        if (DATASET.columns[j] in cols_to_check):
-            
-            cols_indices.append(j)
-    
-    # Now, cols_indices contains only the indices of columns to be analyzed, so we can use the
-    # .iloc method to analyze a value:
-    
-    # Now, loop through all rows from the dataset:
+    # Let's look for rows to eliminate.
+    # Get a copy of dataset containing only the columns to check:
+    df_copy = DATASET[cols_to_check].copy(deep = True)
+    # It will reduce the size of the datasets analyzed by the rows checking procedure,
+    # reducing computational cost.
     
     for i in range (len(DATASET)):
         # i goes from 0 to len(DATASET) - 1, index of the last row
         
-        boolean_check = True
+        # Create a sliced dataframe, containing only the row being analyzed:
+        # Slice a dataframe: df[i:j]
+        # Slice the dataframe, getting only row i to row (j-1)
         
-        # Check all columns correspondent to row i:
-        for j in cols_indices:
-            
-            # Loops through all values in the list of columns
-            checked_val = DATASET.iloc[i,j]
-            # Depending on the type of variable, the following error may be raised:
-            # func 'isnan' not supported for the input types, and the inputs could not be safely coerced 
-            # to any supported types according to the casting rule ''safe''
-            # To avoid it, we can set the variable as a string using the str attribute and check if
-            # the value is not neither 'nan' nor 'NaN'. That is because pandas will automatically convert
-            # identified null values to np.nan
-            
-            if ((checked_val is not None) & (str(checked_val) != 'NaN') & (str(checked_val) != 'nan')):
-                # If one of these conditions is true, the value is None, 'NaN' or 'nan'
-                # so this condition does not run.
-                # It runs if at least one value is not a missing value
-                boolean_check = False
-            
-        # boolean_check = True if all columns contain missing values for that row;
-        # If at least one value is present, then boolean_check = False
+        # Set slicing limits:
+        j = i + 1
+        # df[i:j] will include row i to row j - 1 = 
+        # (i + 1) - 1 = i
+        # Then, by summing 1 we guarantee that the row passed as
+        # i will be actually included.
+        # e.g. the slice of only the first line must be df[0:1]
+        # there must be a difference of 1 to include 1 line.
+
+        # Now, slice the dataframe from line of index i to
+        # line j-1, where line (j-1) is the last one included:
+        sliced_df = df_copy[i:j].copy(deep = True)
         
-        if (boolean_check): # only runs if it is True
-            # append the row to the list of rows to delete:
+        # Now, create a series containing of NAs for the single-row dataframe:
+        na_series = sliced_df.isna().sum()
+        # sliced_df.isna() would be a Pandas dataframe of Boolean values, True if
+        # the value is missing in sliced_df; and False in case it is present. So,
+        # na_series is a Pandas Series containing the columns names as index, and
+        # the total of missing values per column as value.
+        # Since the dataframe sliced_df contains a single row, each index (column)
+        # presents a value 1 if the column is missing; or 0 if the value is present.
+        
+        # Then, if the whole series is missing, the sum of all elements from na_series
+        # will be the length of cols_to_check list:
+        if (na_series.sum() == len(cols_to_check)):
             
-                rows_to_del.append(i)
+            # Add the row to the list of rows to delete:
+            rows_to_del.append(i)
+    
     
     # Now, rows_to_del contains the indices of all rows that should be deleted
     
@@ -2668,7 +2665,7 @@ def characterize_categorical_variables (df, categorical_variables_list):
     return cat_vars_summary
 
 
-def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag_column, grouping_frequency_unit = 'day', number_of_periods_to_group = 1, aggregate_function = 'mean', start_time = None, offset_time = None):
+def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to_aggregate = None, grouping_frequency_unit = 'day', number_of_periods_to_group = 1, aggregate_function = 'mean', start_time = None, offset_time = None, add_suffix_to_aggregated_col = True, suffix = None):
     
     import numpy as np
     import pandas as pd
@@ -2676,28 +2673,20 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # numpy has no function mode, but scipy's stats module has.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html?msclkid=ccd9aaf2cb1b11ecb57c6f4b3e03a341
     
-    
-    ### WARNING: At least one numeric variable must be present for this function to run. If there are
-    # no numeric variables, start one by declaring and running df['numeric_col'] = 0. This will create
-    # a numeric column named 'numeric_col' where all values are zero.
-    
-    # list_of_categorical_columns: list of strings containing the categorical variables.
-    # Declare as a list even if there is a single categorical variable:
-    # e.g. list_of_categorical_columns = ['var1'] if there is only a variable 'var1' which is
-    # categorical
-    # list_of_categorical_columns = ['var1', 'var2', 'var3'] if 'var1', 'var2', and 'var3' are
-    # categorical.
-    # Set list_of_categorical_columns = None if there are no categorical columns to aggregate.
-    
-    print("WARNING: If you do not specify the categorical variables as the list \'list_of_categorical_columns\', they will be all lost in the final dataframe.\n")
-    print("This function will process all numeric variables automatically, but the categorical (object) ones will be removed if they are not specified.\n")
-    print("The categorical variables will be grouped in terms of mode, i.e., as the most common value observed during the aggregated time period. This is the maximum of the statistical distribution of that variable.\n")
+    print("WARNING: The categorical variables will be grouped in terms of mode, i.e., as the most common value observed during the aggregated time period. This is the maximum of the statistical distribution of that variable.\n")
      
     # df - dataframe/table containing the data to be grouped
     
     # timestamp_tag_colum: name (header) of the column containing the
-    
     # timestamps for grouping the data.
+    
+    # subset_of_columns_to_aggregate: list of strings (inside quotes) containing the names 
+    # of the columns that will be aggregated. Use this argument if you want to aggregate only a subset,
+    # not the whole dataframe. Declare as a list even if there is a single column to group by.
+    # e.g. subset_of_columns_to_aggregate = ["response_feature"] will return the column 
+    # 'response_feature' grouped. subset_of_columns_to_aggregate = ["col1", 'col2'] will return columns
+    # 'col1' and 'col2' grouped.
+    # If you want to aggregate the whole subset, keep subset_of_columns_to_aggregate = None.
     
     # grouping_frequency_unit: the frequency of aggregation. The possible values are:
     
@@ -2742,7 +2731,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
         #Concatenate the strings:
         FREQ = number_of_periods_to_group + frq_unit
         #Expected output be like '2D' for a 2-days grouping
-        
+    
     # aggregate_function: Pandas aggregation method: 'mean', 'median', 'std', 'sum', 'min'
     # 'max', 'count', etc. The default is 'mean'. Then, if no aggregate is provided, 
     # the mean will be calculated.
@@ -2764,7 +2753,6 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
         'geometric_std': stats.gstd,
         'interquartile_range': stats.iqr,
         'mean_standard_error': stats.sem,
-        'entropy': stats.entropy
         
     }
     # scipy.stats Summary statistics:
@@ -2817,7 +2805,6 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # of the input parameters, but completely independent from it.
     df_copy = df.copy(deep = True)
     
-    
     # 1. Start a list to store the Pandas timestamps:
     timestamp_list = []
     
@@ -2845,109 +2832,125 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
     # In this function, we do not convert the Timestamp to a datetime64 object.
     # That is because the Grouper class specifically requires a Pandas Timestamp
     # object to group the dataframes.
-
-    if (list_of_categorical_columns is None):
-        # Set it as an empty list (length = 0):
-        list_of_categorical_columns = []
     
-    elif (list_of_categorical_columns == np.nan):
-        list_of_categorical_columns = []
+    # Get the list of columns:
+    cols_list = list(df_copy.columns)
     
+    if (subset_of_columns_to_aggregate is not None):
+        
+        # cols_list will be the subset list:
+        cols_list = subset_of_columns_to_aggregate
     
-    if (len(list_of_categorical_columns) > 0):
-        
-        # Let's prepare another copy of the dataframe before it gets manipulated:
-        
-        # 1. Subset the dataframe to contain only the timestamps and the categorical columns.
-        # For this, create a list with 'timestamp_obj' and append each element from the list
-        # of categorical columns to this list. Save it as subset_list:
-        
-        subset_list = ['timestamp_obj'] 
-        
-        for cat_var in list_of_categorical_columns:
-            subset_list.append(cat_var)
+    # Start a list of numerical columns, and a list of categorical columns, containing only the
+    # column for aggregation as the first element:
+    numeric_list = ['timestamp_obj']
+    categorical_list = ['timestamp_obj']
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
-        # 2. Subset df_copy and save it as grouped_df_categorical:
-        grouped_df_categorical = df_copy[subset_list]
+    # Loop through all valid columns (cols_list)
+    for column in cols_list:
+        
+        # Check if the column is neither in numeric_list nor in
+        # categorical_list yet:
+        if ((column not in numeric_list) & (column not in categorical_list) & (column != timestamp_tag_column)):
+            # Notice that, since we already selected the 'timestamp_obj', we remove the original timestamps.
+            column_data_type = df_copy[column].dtype
+            
+            if (column_data_type not in numeric_dtypes):
+                
+                # Append to categorical columns list:
+                categorical_list.append(column)
+            
+            else:
+                # Append to numerical columns list:
+                numeric_list.append(column)
+    
+    # Create variables to map if both are present.
+    is_categorical = 0
+    is_numeric = 0
+    
+    # Create two subsets:
+    if (len(categorical_list) > 1):
+        
+        # Has at least one column plus the variable_to_group_by:
+        df_categorical = df_copy.copy(deep = True)
+        df_categorical = df_categorical[categorical_list]
+        is_categorical = 1
+    
+    if (len(numeric_list) > 1):
+        
+        df_numeric = df_copy.copy(deep = True)
+        df_numeric = df_numeric[numeric_list]
+        is_numeric = 1
+    
+    # Notice that the variables is_numeric and is_categorical have value 1 only when the subsets
+    # are present.
+    is_cat_num = is_categorical + is_numeric
+    # is_cat_num = 0 if no valid dataset was input.
+    # is_cat_num = 2 if both subsets are present.
         
     
-    # Let's try to group the dataframe and save it as grouped_df
-    try:
+    # Let's try to group the df_numeric dataframe.
+    if (is_numeric == 1):
         
         if (start_time is not None):
 
-            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(aggregate_function)
 
         elif (offset_time is not None):
 
-            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(aggregate_function)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            grouped_df = df_copy.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(aggregate_function)
-
-        print (f"Numerical variables of the dataframe grouped by every {number_of_periods_to_group} {frq_unit}.")
-    
-    
-        #The parameter 'key' of the Grouper class must be the name (string) of a column
-        # of the dataframe
-        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Grouper.html
-
-        #The objects 'timestamp_obj' are now the index from grouped_df dataframe
-        #Let's store them as a column and restart the index:
-        #1. Copy the index to a new column:
-        grouped_df['Timestamp_grouped'] = grouped_df.index
-
-        #2. Reset the index:
-        grouped_df = grouped_df.reset_index(drop = True)
-
-        #3. 'pandas.Timestamp_grouped' is now the last column. Let's create a list of the
-        # reordered columns, starting from 'pandas.Timestamp_grouped'
-
-        reordered_cols_list = ['Timestamp_grouped']
-
-        for i in range((len(grouped_df.columns)-1)):
-
-            #This loop goes from i = 0 to i = (len(grouped_df.columnns)-2)
-            # grouped_df.columnns is a list containing the columns names. Since indexing goes
-            # from 0, the last element is the index i = (len(grouped_df.columnns)-1).
-            # But this last element is 'pandas.Timestamp_grouped', which we used as the
-            # first element of the list reordered_cols_list. Then, we must loop from the
-            # first element of grouped_df.columnns to the element immediately before 'pandas.Timestamp_grouped'.
-            # Then, the last element to be read is (len(grouped_df.columnns)-2)
-            # range (i, j) goes from i to j-1. If only one value is specified, i = 0 and j =
-            # declared value. If you print all i values in range(10), numbers from 0 to 9
-            # will be shown.
-
-            reordered_cols_list.append(grouped_df.columns[i])
-
-        #4. Reorder the dataframe passing the list reordered_cols_list as the column filters
-        # / columns selection list.Notice that df[['col1', 'col2']] = df[list], where list =
-        # ['col1', 'col2']. To select or reorder columns, we pass the list of columns under
-        # brackets as parameter.
-
-        grouped_df = grouped_df[reordered_cols_list]
-
-        # Now, grouped_df contains the grouped numerical features. We must now process the categorical
-        # variables.
-        # Notice that we have the lists:
-        # list_of_categorical_columns: categorical columns on the dataset df_copy
-        # timestamp_list: list of timestamp objects correspondent to the dataset df_copy
-        # grouped_df: dataframe with the aggregated timestamps, which may have been saved as strings,
-        # since they were converted to index.
-    
-    except:
-        # an exception error is returned when trying to use a numeric aggregate such as 'mean'
-        # in a dataframe containing only categorical variables.
-        print("No numeric variables detected to group.\n")
-    
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(aggregate_function)
+            
+        print (f"Numerical variables of the dataframe grouped in terms of {aggregate_function} by every {number_of_periods_to_group} {frq_unit}.\n")
+        
+        # Here, it is not possible to set as_index = False not to set the grouper column as index of the new dataframe.
+        # So, the timestamp becomes the index. Let's create a column 'timestamp_grouped' to store this index:
+        df_numeric['timestamp_grouped'] = df_numeric.index
+        # Reset the index:
+        df_numeric = df_numeric.reset_index(drop = True)
+        
+        # Notice that the timestamp became the last element. So, get a list grouped_num_cols
+        # That is a slice from the list of columns from df_numeric containing all elements except the last one.
+        grouped_num_cols = list(df_numeric.columns)[:-1]
+        # The slice [i:] gets all elements from index i, whereas [:j] get all elements until index j
+        # (but not including j). [:-1] gets all until the last one, [:-2] gets all until the last 2,...
+        
+        # Now concatenate with a list containing only the timestamp to make it the first element:
+        grouped_num_cols = ['timestamp_grouped'] + grouped_num_cols
+        # Select the columns in the new order by passing the list as argument:
+        df_numeric = df_numeric[grouped_num_cols]
+        
+        if (add_suffix_to_aggregated_col == True):
+        
+            # Let's add a suffix. Check if suffix is None. If it is,
+            # set "_" + aggregate_function as suffix:
+            if (suffix is None):
+                numeric_suffix = "_" + aggregate_function
+            
+            else:
+                numeric_suffix = suffix
+            
+            # New columns names:
+            new_num_names = [(name + numeric_suffix) for name in numeric_list]
+            # delete the first value, which is the aggregation column
+            del new_num_names[0]
+            # Concatenate the correct name for the aggregation column:
+            new_num_names = ['timestamp_grouped'] + new_num_names
+            # Set new_num_names as the new columns names:
+            df_numeric.columns = new_num_names
+        
     
     #### LET'S AGGREGATE THE CATEGORICAL VARIABLES
     
     ## Check if there is a list of categorical features. If there is, run the next block of code:
     
-    if (len(list_of_categorical_columns) > 0):
+    if (is_categorical == 1):
         # There are categorical columns to aggregate too - the list is not empty
         # Consider: a = np.array(['a', 'a', 'b'])
         # The stats.mode function stats.mode(a) returns an array as: 
@@ -2976,91 +2979,109 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, list_of_categorical_columns, timestamp_tag
         # The mode is the first element from this array. To access it, we add another index:
         # series[0][0][0]. The result will be: mode_for_that_row
         
-        ## Aggregate the dataframe in terms of mode:
+        ## Aggregate the df_categorical dataframe in terms of mode:
         
         if (start_time is not None):
 
-            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = False, sort = True).agg(stats.mode)
 
         elif (offset_time is not None):
 
-            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = False, sort = True).agg(stats.mode)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            grouped_df_categorical = grouped_df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(stats.mode)
-
-        #The objects 'timestamp_obj' are now the index from grouped_df_categorical dataframe
-        #Let's store them as a column and restart the index:
-        #1. Copy the index to a new column:
-        grouped_df_categorical['Timestamp_grouped'] = grouped_df_categorical.index
-
-        #2. Reset the index:
-        grouped_df_categorical = grouped_df_categorical.reset_index(drop = True)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = False, sort = True).agg(stats.mode)
         
-        # Now, each column from this dataframe is a series where each element is 
-        # an array like ([mode_for_that_row], [X]). We want only the [0][0] element from the series,
-        # which is the mode.
+        print (f"Categorical variables of the dataframe grouped in terms of \'mode\' by every {number_of_periods_to_group} {frq_unit}.\n")
+        print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")
+        
+        # delete the first value from categorical_list, which is 'timestamp_obj':
+        del categorical_list[0]
         
         # Loop through each categorical variable:
-        for cat_var in list_of_categorical_columns:
+        for cat_var in categorical_list:
             
             # save as a series:
-            cat_var_series = grouped_df_categorical[cat_var]
+            cat_var_series = df_categorical[cat_var].copy()
             # Start a list to store only the modes:
             list_of_modes = []
-            
+
             # Now, loop through each row of cat_var_series. Take the element [0][0]
             # and append it to the list_of_modes:
-            
             for i in range(0, len(cat_var_series)):
-                
                 # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
                 # Append the element [0][0] from row [i]
-                
                 try:
                     list_of_modes.append(cat_var_series[i][0][0])
-                
+
                 except IndexError:
                     # This error is generated when trying to access an array storing no values.
                     # (i.e., with missing values). Since there is no dimension, it is not possible
                     # to access the [0][0] position. In this case, simply append the np.nan (missing value):
                     list_of_modes.append(np.nan)
-            
+
             # Now we finished the nested for loop, list_of_modes contain only the modes
-        
+
             # Make the column cat_var the list_of_modes itself:
-            grouped_df_categorical[cat_var] = list_of_modes
+            df_categorical[cat_var] = list_of_modes
+
+        # Again, it is not possible to set as_index = False so, the timestamp becomes the index. 
+        # Let's create a column 'timestamp_grouped' to store this index:
+        df_categorical['timestamp_grouped'] = df_categorical.index
+        # Reset index:
+        df_categorical = df_categorical.reset_index(drop = True)
+        
+        grouped_cat_cols = list(df_categorical.columns)[:-1]
+        grouped_cat_cols = ['timestamp_grouped'] + grouped_cat_cols
+        
+        # Select the columns in the new order by passing the list as argument:
+        df_categorical = df_categorical[grouped_cat_cols]
+        
+        if (add_suffix_to_aggregated_col == True):
+        
+            # Let's add a suffix. Check if suffix is None. If it is,
+            # set "_" + aggregate_function as suffix:
+            if (suffix is None):
+                categorical_suffix = "_mode"
+            
+            else:
+                categorical_suffix = suffix
+            
+            # New columns names:
+            new_cat_names = [(name + categorical_suffix) for name in categorical_list]
+            # Notice that we have already deleted 'timestamp_obj' from categorical_list.
+            # So, concatenate the correct name for the aggregation column:
+            new_cat_names = ['timestamp_grouped'] + new_cat_names
+            # Set new_num_names as the new columns names:
+            df_categorical.columns = new_cat_names   
         
         
-        # Finally, we must merge grouped_df_categorical to grouped_df
+    if (is_cat_num == 2):
+        # Both subsets are present. Remove the column from df_categorical:
+        df_categorical.drop(columns = 'timestamp_grouped', inplace = True)
         
-        try:
-            # Run it if there is a dataframe of aggregated numeric variables to merge with the dataframe
-            # of aggregated categorical variables.
-            SUFFIXES = (('_' + aggregate_function), '_mode') # Case there are duplicated rows
-            grouped_df = pd.merge_ordered(grouped_df, grouped_df_categorical, on = 'Timestamp_grouped', how = 'inner', suffixes = SUFFIXES, fill_method = 'ffill')
-        
-        except:
-            # There is no grouped_df to merge, because there were no numeric variables
-            grouped_df = grouped_df_categorical
-        
-        print(f"Finished grouping the categorical features {list_of_categorical_columns} in terms of mode.")
-        print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")
-        
-        
-    # The next final block runs even if there is no categorical variable:
+        # Concatenate the dataframes in the columns axis (append columns):
+        DATASET = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
     
+    elif (is_categorical == 1):
+        # There is only the categorical subset:
+        DATASET = df_categorical
+    
+    elif (is_numeric == 1):
+        # There is only the numeric subset:
+        DATASET = df_numeric
+        
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframe successfully grouped. Check its 10 first rows (without the categorical/object variables):\n")
-    print(grouped_df.head(10))
+    print(DATASET.head(10))
     
     #Now return the grouped dataframe with the timestamp as the first column:
     
-    return grouped_df
+    return DATASET
 
 
 def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
@@ -3116,35 +3137,82 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
     # "_" sign in the beginning of this string to separate the suffix from
     # the original column name. e.g. if the response variable is 'Y' and
     # suffix = '_agg', the new aggregated column will be named as 'Y_agg'
-    
+        
 
     # Create a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
+    # Get the list of columns:
+    cols_list = list(DATASET.columns)
+    
     if (subset_of_columns_to_aggregate is not None):
         
-        if (variable_to_group_by not in subset_of_columns_to_aggregate):
-            
-            list_with_variable_to_group_by = [variable_to_group_by]
-            
-            # a = ['a', 'b'], b = ['c', 'd']
-            # a + b = ['a', 'b', 'c', 'd'], b + a = ['c', 'd', 'a', 'b']
-            # sum of list: append of one list into the other
-            subset_of_columns_to_aggregate = list_with_variable_to_group_by + subset_of_columns_to_aggregate
-            # now, the first element from the list subset_of_columns_to_aggregate is the aggregation
-            # column. Then, we avoid that the user eliminates this column, resulting in error
-            # when trying to aggregate in terms of variable_to_group_by.
-        
-        # There is a subset of columns.
-        # Select only the columns specified as subset_of_columns_to_aggregate:
-        DATASET = DATASET[subset_of_columns_to_aggregate]
+        # cols_list will be the subset list:
+        cols_list = subset_of_columns_to_aggregate
     
+    # Start a list of numerical columns, and a list of categorical columns, containing only the
+    # column for aggregation as the first element:
+    numeric_list = [variable_to_group_by]
+    categorical_list = [variable_to_group_by]
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
+    # Loop through all valid columns (cols_list)
+    for column in cols_list:
+        
+        # Check if the column is neither in numeric_list nor in
+        # categorical_list yet:
+        if ((column not in numeric_list) & (column not in categorical_list)):
+            
+            column_data_type = DATASET[column].dtype
+            
+            if (column_data_type not in numeric_dtypes):
+                
+                # Append to categorical columns list:
+                categorical_list.append(column)
+            
+            else:
+                # Append to numerical columns list:
+                numeric_list.append(column)
+    
+    # Create variables to map if both are present.
+    is_categorical = 0
+    is_numeric = 0
+    
+    # Before grouping, let's remove the missing values, avoiding the raising of TypeError.
+    # Pandas deprecated the automatic dropna with aggregation:
+    DATASET = DATASET.dropna(axis = 0)
+    # It is important to drop before seggregating the dataframes, so that the rows correspondence
+    # will not be lost:
+    DATASET = DATASET.reset_index(drop = True)
+    
+    # Create two subsets:
+    if (len(categorical_list) > 1):
+        
+        # Has at least one column plus the variable_to_group_by:
+        df_categorical = DATASET.copy(deep = True)
+        df_categorical = df_categorical[categorical_list]
+        is_categorical = 1
+    
+    if (len(numeric_list) > 1):
+        
+        df_numeric = DATASET.copy(deep = True)
+        df_numeric = df_numeric[numeric_list]
+        is_numeric = 1
+        
+    if (return_summary_dataframe):
+        summary_agg_df = DATASET.copy(deep = True)
+        summary_agg_df = summary_agg_df.groupby(by = variable_to_group_by, as_index = False, sort = True).describe()
+            
+    # Notice that the variables is_numeric and is_categorical have value 1 only when the subsets
+    # are present.
+    is_cat_num = is_categorical + is_numeric
+    # is_cat_num = 0 if no valid dataset was input.
+    # is_cat_num = 2 if both subsets are present.
     
     # Before calling the method, we must guarantee that the variables may be
     # used for that aggregate. Some aggregations are permitted only for numeric variables, so calling
     # the method before selecting the variables may raise warnings or errors.
-    
-    
     list_of_aggregates = ['median', 'mean', 'mode', 'sum', 'min', 'max', 'variance',
                           'standard_deviation', 'count', 'cum_sum', 'cum_prod', 'cum_max', 'cum_min',
                           '10_percent_quantile', '20_percent_quantile', '25_percent_quantile', 
@@ -3167,330 +3235,232 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
         aggregate_function = 'mean'
         print("Invalid or no aggregation function input, so using the default \'mean\'.\n")
     
-    # Get dataframe's columns list. Use the list attribute to convert the array to list:
-    df_cols = list(DATASET.columns)
-    
     # Check if a numeric aggregate was selected:
     if (aggregate_function in list_of_numeric_aggregates):
         
-        print("Numeric aggregate selected. So, subsetting dataframe containing only numeric variables.\n")
+        print("Numeric aggregate selected. Categorical variables will be aggregated in terms of mode, the most common value.\n")
         
-        # 1. start a list for the numeric columns:
-        numeric_cols = []
-                
-        # 2. Loop through each column on df_cols. If it is numeric, put it in the correspondent 
-        # list:
-        for column in df_cols:
-            # test each element in the list or array df_cols
-            column_data_type = DATASET[column].dtype
-                    
-            if ((column_data_type != 'O') & (column_data_type != 'object')):
-                        
-                # If the Pandas series was defined as an object, it means it is categorical
-                # (string, date, etc).
-                # Since the column is not an object, append it to the numeric columns list:
-                numeric_cols.append(column)
-        
-        # Now that we have a list of numeric columns, let's subset the dataframe:
-        
-        if (variable_to_group_by not in numeric_cols):
-            
-            list_with_variable_to_group_by = [variable_to_group_by]
-            numeric_cols = list_with_variable_to_group_by + numeric_cols
-            # now, the first element from the list numeric_cols is the aggregation
-            # column. Then, we avoid that the algorithm eliminates this column, if it is
-            # categorical. If so, the code would raise an error, since it would not be possible
-            # to aggregate in terms of variable_to_group_by
-        
-        # 3. Subset the dataframe
-        DATASET = DATASET[numeric_cols]
-        
-        if (return_summary_dataframe == True):
-            # Create another copy of the dataframe to obtain the summary dataframe:
-            # Copy DATASET: If a subset was passed, DATASET was already filtered
-            summary_agg_df = DATASET.copy(deep = True)
-            summary_agg_df = summary_agg_df.groupby(by = variable_to_group_by, as_index = False, sort = True).describe()
-            # The summary should not be used to drop invalid columns. Since it process only
-            # numeric variables, we apply it to the proper subset
-            
+        numeric_aggregate = aggregate_function
+        categorical_aggregate = 'mode'
+    
     else:
-        # It is a categorical variable
         
-        print("Categorical aggregate selected. So, subsetting dataframe containing only categorical variables.\n")
+        print("Categorical aggregate selected. Numeric variables will be aggregated in terms of mean.\n")
         
-        # 1. start a list for the numeric columns:
-        categorical_cols = []
-                
-        # 2. Loop through each column on df_cols. If it is categorical, put it in the correspondent 
-        # list:
-        for column in df_cols:
-            # test each element in the list or array df_cols
-            column_data_type = DATASET[column].dtype
-                    
-            if ((column_data_type == 'O') | (column_data_type == 'object')):
-     
-                # Since the column is an object, append it to the categorical columns list:
-                categorical_cols.append(column)
-        
-        # Now that we have a list of categorical columns, let's subset the dataframe:
-        
-        if (variable_to_group_by not in categorical_cols):
-            
-            list_with_variable_to_group_by = [variable_to_group_by]
-            categorical_cols = list_with_variable_to_group_by + categorical_cols
-            # now, the first element from the list categorical_cols is the aggregation
-            # column. Then, we avoid that the algorithm eliminates this column, if it is
-            # numeric. If so, the code would raise an error, since it would not be possible
-            # to aggregate in terms of variable_to_group_by
-        
-        # 3. Subset the dataframe
-        DATASET = DATASET[categorical_cols]
+        categorical_aggregate = aggregate_function
+        numeric_aggregate = 'mean'
     
-    # Before grouping, let's remove the missing values, avoiding the raising of TypeError.
-    # Pandas deprecated the automatic dropna with aggregation:
-    DATASET = DATASET.dropna(axis = 0)
+    if (is_numeric == 1):
+        # Let's aggregate the numeric subset
     
-    # Groupby according to the selection.
-    # Here, there is a great gain of performance in not using a dictionary of methods:
-    # If using a dictionary of methods, Pandas would calculate the results for each one of the methods.
-    
-    # Pandas groupby method documentation:
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.groupby.html?msclkid=7b3531a6cff211ec9086f4edaddb94ba
-    # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
-    # (default: as_index = True);
-    # dropna = False: do not removes the missing values (default: dropna = True, used here to avoid
-    # compatibility and version issues)
-    
-    if (aggregate_function == 'median'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg('median')
+        if (numeric_aggregate == 'median'):
 
-    elif (aggregate_function == 'mean'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).mean()
-    
-    elif (aggregate_function == 'mode'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.mode)
-    
-    elif (aggregate_function == 'sum'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).sum()
-    
-    elif (aggregate_function == 'count'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).count()
-    
-    elif (aggregate_function == 'min'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).min()
-    
-    elif (aggregate_function == 'max'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).max()
-    
-    elif (aggregate_function == 'variance'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).var()
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg('median')
 
-    elif (aggregate_function == 'standard_deviation'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).std()
-    
-    elif (aggregate_function == 'cum_sum'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).cumsum()
+        elif (numeric_aggregate == 'mean'):
 
-    elif (aggregate_function == 'cum_prod'):
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).mean()
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).cumprod()
-    
-    elif (aggregate_function == 'cum_max'):
+        elif (numeric_aggregate == 'sum'):
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).cummax()
-    
-    elif (aggregate_function == 'cum_min'):
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).sum()
+       
+        elif (numeric_aggregate == 'min'):
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).cummin()
-    
-    elif (aggregate_function == '10_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.10)
-    
-    elif (aggregate_function == '20_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.20)
-    
-    elif (aggregate_function == '25_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.25)
-    
-    elif (aggregate_function == '30_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
-    
-    elif (aggregate_function == '40_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.40)
-    
-    elif (aggregate_function == '50_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.50)
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).min()
 
-    elif (aggregate_function == '60_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.60)
-    
-    elif (aggregate_function == '70_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
+        elif (numeric_aggregate == 'max'):
 
-    elif (aggregate_function == '75_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.75)
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).max()
 
-    elif (aggregate_function == '80_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.80)
-    
-    elif (aggregate_function == '90_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.90)
-    
-    elif (aggregate_function == '95_percent_quantile'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.95)
+        elif (numeric_aggregate == 'variance'):
 
-    elif (aggregate_function == 'kurtosis'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.kurtosis)
-    
-    elif (aggregate_function == 'skew'):
-        
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.skew)
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).var()
 
-    elif (aggregate_function == 'interquartile_range'):
+        elif (numeric_aggregate == 'standard_deviation'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).std()
+
+        elif (numeric_aggregate == 'cum_sum'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cumsum()
+
+        elif (numeric_aggregate == 'cum_prod'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cumprod()
+
+        elif (numeric_aggregate == 'cum_max'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cummax()
+
+        elif (numeric_aggregate == 'cum_min'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cummin()
+
+        elif (numeric_aggregate == '10_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.10)
+
+        elif (numeric_aggregate == '20_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.20)
+
+        elif (numeric_aggregate == '25_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.25)
+
+        elif (numeric_aggregate == '30_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
+
+        elif (numeric_aggregate == '40_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.40)
+
+        elif (numeric_aggregate == '50_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.50)
+
+        elif (numeric_aggregate == '60_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.60)
+
+        elif (numeric_aggregate == '70_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
+
+        elif (numeric_aggregate == '75_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.75)
+
+        elif (numeric_aggregate == '80_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.80)
+
+        elif (numeric_aggregate == '90_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.90)
+
+        elif (numeric_aggregate == '95_percent_quantile'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.95)
+
+        elif (numeric_aggregate == 'kurtosis'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.kurtosis)
+
+        elif (numeric_aggregate == 'skew'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.skew)
+
+        elif (numeric_aggregate == 'interquartile_range'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.iqr)
+
+        elif (numeric_aggregate == 'mean_standard_error'):
+
+            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.sem)
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.iqr)
-    
-    elif (aggregate_function == 'mean_standard_error'):
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.sem)
-    
-    else: # entropy
+        if (add_suffix_to_aggregated_col == True):
         
-        DATASET = DATASET.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.entropy)
-    
-    
-    # Now, update the list of columns:
-    df_cols = list(DATASET.columns)
-    
-    if (add_suffix_to_aggregated_col == True):
-        
-        # Let's add a suffix. Check if suffix is None. If it is,
-        # set "_" + aggregate_function as suffix:
-        if (suffix is None):
-            suffix = "_" + aggregate_function
-    
-    
-    if (aggregate_function == 'mode'):
-        
-        # The columns will be saved as a series of Tuples. Each row contains a tuple like:
-        # ([calculated_mode], [counting_of_occurrences]). We want only the calculated mode.
-        # On the other hand, if we do column[0], we will get the columns first row. So, we have to
-        # go through each column, retrieving only the mode:
-        
-        list_of_new_columns = []
-        
-        for column in (df_cols):
-            
-            # Loop through each column from the dataset
-            if (column == variable_to_group_by):
-                # special case for the column used for grouping.
-                # Simply append this column to a list, without performing any operation
-                list_of_col = [variable_to_group_by]
+            # Let's add a suffix. Check if suffix is None. If it is,
+            # set "_" + aggregate_function as suffix:
+            if (suffix is None):
+                numeric_suffix = "_" + numeric_aggregate
             
             else:
-                
-                if (add_suffix_to_aggregated_col == True):
-                        
-                        new_column_name = column + suffix
-                
-                else:
-                    new_column_name = column + "_mode"
-                    # name for differencing, allowing us to start the variable
-                
-                # start categorical variable as empty string:
-                DATASET[new_column_name] = ''
-                
-                # Retrieve the index j of new_column_name in the list of columns
-                # (use the list attribute to convert the array to list):
-                j = (list(DATASET.columns)).index(new_column_name)
-                
-                # Save the new column on the list of new columns:
-                list_of_new_columns.append(new_column_name)
-                
-                # Now, loop through each row from the dataset:
-                for i in range(0, len(DATASET)):
-                    # i = 0 to i = len(DATASET) - 1
-                    
-                    mode_array = DATASET[column][i]
-                    # mode array is like:
-                    # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                    # To retrieve only the mode, we must access the element [0][0] from this array:
-                    mode = mode_array[0][0]
-                    
-                    # Now, save the mode in the column j (column new_column_name) for the row i:
-                    DATASET.iloc[i, j] = mode
-                
-        # Now, repeat it for each other variable.
-        
-        # Concatenate the list list_of_col with list_of_new_columns
-        # a = ['a', 'b'] , b = ['c', 'd'], a + b = ['a', 'b', 'c', 'd']
-        # b + a = ['c', 'd', 'a', 'b']
-        list_of_new_columns = list_of_col + list_of_new_columns
-        
-        # Subset the dataframe to keep only the columns in list_of_new_columns:
-        DATASET = DATASET[list_of_new_columns]
-        
-        if (add_suffix_to_aggregated_col == False):
+                numeric_suffix = suffix
             
-            # No suffix should be added, i.e., the columns should keep the original names.
-            # The names were saved in the list original_columns
-            DATASET.columns = df_cols
+            # New columns names:
+            new_num_names = [(name + numeric_suffix) for name in numeric_list]
+            # delete the first value, which is the aggregation column
+            del new_num_names[0]
+            # Concatenate the correct name for the aggregation column:
+            new_num_names = [variable_to_group_by] + new_num_names
+            # Set new_num_names as the new columns names:
+            df_numeric.columns = new_num_names
+    
+    if (is_categorical == 1):
+        # Let's aggregate the categorical subset
+
+        if (categorical_aggregate == 'mode'):
+
+            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.mode)
+            
+            # Loop through each categorical variable:
+            for cat_var in categorical_list:
+
+                # save as a series:
+                cat_var_series = df_categorical[cat_var].copy()
+                # Start a list to store only the modes:
+                list_of_modes = []
+
+                # Now, loop through each row of cat_var_series. Take the element [0][0]
+                # and append it to the list_of_modes:
+                for i in range(0, len(cat_var_series)):
+                    # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
+                    # Append the element [0][0] from row [i]
+                    try:
+                        list_of_modes.append(cat_var_series[i][0][0])
+
+                    except IndexError:
+                        # This error is generated when trying to access an array storing no values.
+                        # (i.e., with missing values). Since there is no dimension, it is not possible
+                        # to access the [0][0] position. In this case, simply append the np.nan (missing value):
+                        list_of_modes.append(np.nan)
+
+                # Now we finished the nested for loop, list_of_modes contain only the modes
+
+                # Make the column cat_var the list_of_modes itself:
+                df_categorical[cat_var] = list_of_modes
+
+            
+        elif (categorical_aggregate == 'count'):
+
+            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).count()
+
+        elif (categorical_aggregate == 'entropy'):
+
+            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.entropy)
+            
+        
+        if (add_suffix_to_aggregated_col == True):
+        
+            # Let's add a suffix. Check if suffix is None. If it is,
+            # set "_" + aggregate_function as suffix:
+            if (suffix is None):
+                categorical_suffix = "_" + categorical_aggregate
+            
+            else:
+                categorical_suffix = suffix
+            
+            # New columns names:
+            new_cat_names = [(name + categorical_suffix) for name in categorical_list]
+            # delete the first value, which is the aggregation column
+            del new_cat_names[0]
+            # Concatenate the correct name for the aggregation column:
+            new_cat_names = [variable_to_group_by] + new_cat_names
+            # Set new_num_names as the new columns names:
+            df_categorical.columns = new_cat_names
+     
+    if (is_cat_num == 2):
+        # Both subsets are present. Remove the column from df_categorical:
+        df_categorical.drop(columns = variable_to_group_by, inplace = True)
+        
+        # Concatenate the dataframes in the columns axis (append columns):
+        DATASET = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
+    
+    elif (is_categorical == 1):
+        # There is only the categorical subset:
+        DATASET = df_categorical
+    
+    elif (is_numeric == 1):
+        # There is only the numeric subset:
+        DATASET = df_numeric
     
     else:
-        
-        # default case: one of other aggregate functions was selected
-        # Guarantee that the columns from the aggregated dataset have the correct names
-
-        # Check if add_suffix_to_aggregated_col is True. If it is, we must add a suffix
-        if (add_suffix_to_aggregated_col == True):
-
-            # Now, concatenate the elements from df_cols to the suffix:
-            # Start a support list:
-            support_list = []
-
-            # loop through each column:
-            for column in df_cols:
-
-                if (column == variable_to_group_by):
-                    # simply append the column, without adding a suffix.
-                    # That is because we will not calculate a statistic for this column, since
-                    # it is used to aggregate the others:
-                    support_list.append(column)
-
-                else:
-                    # Concatenate the column to the suffix and append it to support_list:
-                    support_list.append(column + suffix)
-
-            # Now, make the support_list the list of columns itself:
-            df_cols = support_list
-
-            # Now, rename the columns of the aggregated dataset as the list
-            # df_cols:
-            DATASET.columns = df_cols
-    
+        print("No valid dataset provided, so returning the input dataset itself.\n")
     
     # Now, reset index positions:
     DATASET = DATASET.reset_index(drop = True)
