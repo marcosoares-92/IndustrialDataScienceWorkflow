@@ -973,7 +973,7 @@ def export_files_to_s3 (list_of_file_names_with_extensions, directory_of_noteboo
             print(example_code)
 
 
-def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_txt_file_with_json_format = False, how_missing_values_are_registered = None, has_header = True, decimal_separator = '.', txt_csv_col_sep = "comma", sheet_to_load = None, json_record_path = None, json_field_separator = "_", json_metadata_prefix_list = None):
+def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_txt_file_with_json_format = False, how_missing_values_are_registered = None, has_header = True, decimal_separator = '.', txt_csv_col_sep = "comma", load_all_sheets_at_once = False, sheet_to_load = None, json_record_path = None, json_field_separator = "_", json_metadata_prefix_list = None):
     
     # Pandas documentation:
     # pd.read_csv: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -1039,6 +1039,16 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     # txt_csv_col_sep = '\s+'; or txt_csv_col_sep = '\t' (in this last example, the tabulation
     # is used as separator for the columns - '\t' represents the tab character).
     
+    
+    ## Parameters for loading Excel files:
+    
+    # load_all_sheets_at_once = False - This parameter has effect only when for Excel files.
+    # If load_all_sheets_at_once = True, the function will return a list of dictionaries, each
+    # dictionary containing 2 key-value pairs: the first key will be 'sheet', and its
+    # value will be the name (or number) of the table (sheet). The second key will be 'df',
+    # and its value will be the pandas dataframe object obtained from that sheet.
+    # This argument has preference over sheet_to_load. If it is True, all sheets will be loaded.
+    
     # sheet_to_load - This parameter has effect only when for Excel files.
     # keep sheet_to_load = None not to specify a sheet of the file, so that the first sheet
     # will be loaded.
@@ -1047,6 +1057,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     # of the file (index 1); sheet_to_load = "Sheet1" loads a sheet named as "Sheet1".
     # Declare a number to load the sheet with that index, starting from 0; or declare a
     # name to load the sheet with that name.
+    
     
     ## Parameters for loading JSON files:
     
@@ -1201,7 +1212,50 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
         # From version 1.4 (beta, in 10 May 2022), it will be possible to pass the parameter 'decimal' to
         # read_excel function for detecting decimal cases in strings. For numeric variables, it is not needed, though
         
-        if (sheet_to_load is not None):        
+        if (load_all_sheets_at_once == True):
+            
+            # Corresponds to setting sheet_name = None
+            
+            if (has_header == True):
+                
+                xlsx_doc = pd.read_excel(file_path, sheet_name = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                # verbose = True for showing number of NA values placed in non-numeric columns.
+                #  parse_dates = True: try parsing the index; infer_datetime_format = True : If True and parse_dates is enabled, pandas will attempt to infer the format of the datetime strings in 
+                # the columns, and if it can be inferred, switch to a faster method of parsing them. In some cases this can increase the 
+                # parsing speed by 5-10x.
+                
+            else:
+                #No header
+                xlsx_doc = pd.read_excel(file_path, sheet_name = None, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+            
+            # xlsx_doc is a dictionary containing the sheet names as keys, and dataframes as items.
+            # Let's convert it to the desired format.
+            # Dictionary dict, dict.keys() is the array of keys; dict.values() is an array of the values;
+            # and dict.items() is an array of tuples with format ('key', value)
+            
+            # Create a list of returned datasets:
+            list_of_datasets = []
+            
+            # Let's iterate through the array of tuples. The first element returned is the key, and the
+            # second is the value
+            for sheet_name, dataframe in (xlsx_doc.items()):
+                # sheet_name = key; dataframe = value
+                # Define the dictionary with the standard format:
+                df_dict = {'sheet': sheet_name,
+                            'df': dataframe}
+                
+                # Add the dictionary to the list:
+                list_of_datasets.append(df_dict)
+            
+            print(f"A total of {len(list_of_datasets)} dataframes were retrieved from the Excel file.\n")
+            print(f"The dataframes correspond to the following Excel sheets: {list(xlsx_doc.keys())}\n")
+            print("Returning a list of dictionaries. Each dictionary contains the key \'sheet\', with the original sheet name; and the key \'df\', with the Pandas dataframe object obtained.\n")
+            print(f"Check the 10 first rows of the dataframe obtained from the first sheet, named {list_of_datasets[0]['sheet']}:\n")
+            print((list_of_datasets[0]['df']).head(10))
+            
+            return list_of_datasets
+            
+        elif (sheet_to_load is not None):        
         #Case where the user specifies which sheet of the Excel file should be loaded.
             
             if (has_header == True):
@@ -1216,6 +1270,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                 #No header
                 dataset = pd.read_excel(file_path, sheet_name = sheet_to_load, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
                 
+        
         else:
             #No sheet specified
             if (has_header == True):
@@ -5387,106 +5442,102 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 df_cols = cleaned_df.columns
                 
                 # 2. start a list for the numeric and a list for the text (categorical) columns:
-                numeric_cols = []
-                text_cols = []
+                numeric_list = []
+                categorical_list = []
+                # List the possible numeric data types for a Pandas dataframe column:
+                numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
                 
                 # 3. Loop through each column on df_cols, to put it in the correspondent type of column:
                 for column in df_cols:
-                    # test each element in the list or array df_cols
-                    column_data_type = cleaned_df[column].dtype
                     
-                    if ((column_data_type == 'O') | (column_data_type == 'object')):
+                    # Check if the column is neither in numeric_list nor in
+                    # categorical_list yet:
+                    if ((column not in numeric_list) & (column not in categorical_list)):
                         
-                        # The Pandas series was defined as an object, meaning it is categorical
-                        # (string, date, etc).
-                        # Append it to the list text_cols:
-                        text_cols.append(column)
-                    
-                    else:
-                        # The Pandas series is a numeric column: int64, float64,...
-                        # Append it to the numeric_cols list:
-                        numeric_cols.append(column)
+                        column_data_type = cleaned_df[column].dtype
+
+                        if (column_data_type not in numeric_dtypes):
+
+                            # Append to categorical columns list:
+                            categorical_list.append(column)
+
+                        else:
+                            # Append to numerical columns list:
+                            numeric_list.append(column)
                 
-                # Now, we have two subsets (lists) of columns, one for the categoricals, other
+                   
+                # Create variables to map if both are present.
+                is_categorical = 0
+                is_numeric = 0
+
+                # Create two subsets:
+                if (len(categorical_list) > 0):
+
+                    # Has at least one column:
+                    df_categorical = df_copy.copy(deep = True)
+                    df_categorical = df_categorical[categorical_list]
+                    is_categorical = 1
+
+                if (len(numeric_list) > 0):
+
+                    df_numeric = df_copy.copy(deep = True)
+                    df_numeric = df_numeric[numeric_list]
+                    is_numeric = 1
+                
+                # Notice that the variables is_numeric and is_categorical have value 1 only when the subsets
+                # are present.
+                is_cat_num = is_categorical + is_numeric
+                # is_cat_num = 0 if no valid dataset was input.
+                # is_cat_num = 2 if both subsets are present.
+        
+                # Now, we have two subsets , one for the categoricals, other
                 # for the numeric. It will avoid trying to fill categorical columns with the
                 # mean values.
                 
                 if (fill_method == "fill_with_avg_or_mode"):
-                
-                    print("Filling missing values with the average values (numeric variables); or with the modes (categorical variables). The mode is the most commonly observed value of the categorical variable.\n")
-                
-                    # 3. Start an empty list to store all of the average values,
-                    # and a list to store the modes:
-                    avg_list = []
-                    mode_list = []
-
-                    # 3. Loop through each column of numeric_cols.
-                    # Calculate the average value for the series df[column].
-                    # Append this value to avg_list.
-                    for column in numeric_cols:
-                        #check all elements of numeric_cols, named 'column'
-                        # Calculate the average of the series df[column]
-                        # and append it to the avg_list
-                        avg_list.append(cleaned_df[column].mean())    
-                        # Alternatively, one could append np.average(cleaned_df[column])
-
-                    # Now, we have a list containing the average value correspondent
-                    # to each column of the dataframe, named avg_list.
-                    # 4. Create a dictionary informing the columns and the values
-                    # to be input in each column. Each key of the dictionary must be a column.
-                    # The value for that key will be used to fill the correspondent column.
-
-                    # Start the dictionary:
+                    
+                    # Start a filling dictionary:
                     fill_dict = {}
+                    
+                    print("Filling missing values with the average values (numeric variables); or with the modes (categorical variables). The mode is the most commonly observed value of the categorical variable.\n")
+                    
+                    if (is_numeric == 1):
+                        
+                        for column in numeric_list:
+                            
+                            # add column as the key, and the mean as the value:
+                            fill_dict[column] = df_numeric[column].mean()
+                    
+                    if (is_categorical == 1):
+                        
+                        for column in categorical_list:
+                            
+                            mode_array = stats.mode(df_categorical[column])
+                            
+                            # The function stats.mode(X) returns an array as: 
+                            # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
+                            # If we select the first element from this array, stats.mode(X)[0], 
+                            # the function will return an array as array(['a'], dtype='<U1'). 
+                            # We want the first element from this array stats.mode(X)[0][0], 
+                            # which will return a string like 'a':
+                            try:
+                                fill_dict[column] = mode_array[0][0]
 
-                    for i in range (0, len(numeric_cols)):
-                        # i = 0 to i = len(numeric_cols) - 1, index of the last value of the list.
-                        # Apply the update method to include numeric_cols[i] as key and
-                        # avg_list[i] as the value:
-                        fill_dict.update({numeric_cols[i]: avg_list[i]})
-
-                    # 5. Loop through each column of text_cols.
-                    # Calculate the mode for the series df[column].
-                    # Append this value to mode_list.
-                    for column in text_cols:
-                        #check all elements of numeric_cols, named 'column'
-                        # Calculate the average of the series df[column]
-                        # and append it to the mode_list
-
-                        mode_array = stats.mode(cleaned_df[column])
-                        # Here, if we use cleaned_df[column].agg(stats.mode), the function will
-                        # firstly group each element of the series and then calculate the mode,
-                        # resulting in a series of modes. Since each row has only one value,
-                        # This value will be repeated. If we call stats.mode (series), instead,
-                        # we aggregate the whole series in a single mode array.
-
-                        # The function stats.mode(X) returns an array as: 
-                        # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
-                        # If we select the first element from this array, stats.mode(X)[0], 
-                        # the function will return an array as array(['a'], dtype='<U1'). 
-                        # We want the first element from this array stats.mode(X)[0][0], 
-                        # which will return a string like 'a':
-                        try:
-                            mode_list.append(mode_array[0][0])
-
-                        except IndexError:
-                            # This error is generated when trying to access an array storing no values.
-                            # (i.e., with missing values). Since there is no dimension, it is not possible
-                            # to access the [0][0] position. In this case, simply append the np.nan 
-                            # the (missing value):
-                            mode_list.append(np.nan)
-
-                    # Update the dictionary to include the text columns and the correspondent modes,
-                    # keeping the same format. For that, loop through each element of the lists
-                    # text_cols and mode_list:
-                    for i in range (0, len(text_cols)):
-                        # i = 0 to i = len(text_cols) - 1, index of the last value of the list.
-                        # Apply the update method to include text_cols[i] as key and
-                        # mode_list[i] as the value:
-                        fill_dict.update({text_cols[i]: mode_list[i]})
-
-                    # Now, fill_dict is in the correct format for the fillna method:
-                    # 'column' as key; value to fill that column as value.
+                            except IndexError:
+                                # This error is generated when trying to access an array storing no values.
+                                # (i.e., with missing values). Since there is no dimension, it is not possible
+                                # to access the [0][0] position. In this case, simply append the np.nan 
+                                # the (missing value):
+                                fill_dict[column] = np.nan
+                    
+                    # Now, fill_dict contains the mapping of columns (keys) and 
+                    # correspondent values for imputation with the method fillna.
+                    # It is equivalent to use:
+                    # from sklearn.impute import SimpleImputer
+                    # mean_imputer = SimpleImputer(strategy='mean')
+                    # mode_imputer = SimpleImputer(strategy='most_frequent')
+                    # as in the advanced imputation function.
+                        
                     # In fillna documentation, we see that the argument 'value' must have a dictionary
                     # with this particular format as input:
                     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.fillna.html#pandas.DataFrame.fillna
@@ -5498,6 +5549,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     cleaned_df = cleaned_df.fillna(value = fill_dict)
                     # The method will search the column name in fill_dict (key of the dictionary),
                     # and will use the correspondent value (average) to fill the missing values.
+                   
 
                 elif (fill_method == "fill_by_interpolating"):
                     # Pandas interpolate method
@@ -5507,15 +5559,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     
                     # Before subsetting, check if the list is not empty.
                     
-                    if (len(numeric_cols) > 0):
-                        # There are numeric columns to subset.
-                        # Define the subset of numeric varibles.
-                        numeric_subset = cleaned_df.copy(deep = True)
-                        # Select only the numeric variables for this copy:
-                        numeric_subset = numeric_subset[numeric_cols]
-                        # Create a key series from index, which will be used as key for merging the 
-                        # subsets (the correspondent rows necessarily have same index):
-                        numeric_subset['interpolate_key'] = numeric_subset.index
+                    if (is_numeric == 1):
                     
                         if (type(interpolation_order) == int):
                             # an integer number was input
@@ -5523,59 +5567,43 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                             if (interpolation_order > 1):
 
                                 print(f"Performing interpolation of numeric variables with {interpolation_order}-degree polynomial to fill missing values.\n")
-                                numeric_subset = numeric_subset.interpolate(method = 'polynomial', order = interpolation_order)
+                                df_numeric = df_numeric.interpolate(method = 'polynomial', order = interpolation_order)
 
                             else:
                                 # 1st order or invalid order (0 or negative) was used
                                 print("Performing linear interpolation of numeric variables to fill missing values.\n")
-                                numeric_subset = numeric_subset.interpolate(method = 'linear')
+                                df_numeric = df_numeric.interpolate(method = 'linear')
 
                         else:
                             # 'linear', None or invalid text was input:
                             print("Performing linear interpolation of numeric variables to fill missing values.\n")
-                            numeric_subset = numeric_subset.interpolate(method = 'linear')
+                            df_numeric = df_numeric.interpolate(method = 'linear')
                     
                     # Now, we finished the interpolation of the numeric variables. Let's check if
                     # there are categorical variables to forward fill.
-                    if (len(text_cols) > 0):
-                        # There are text columns to subset.
-                        # Define the subset of text varibles.
-                        text_subset = cleaned_df.copy(deep = True)
-                        # Select only the categorical variables:
-                        text_subset = text_subset[text_cols]
-                        # Create a key series from index, which will be used as key for merging the 
-                        # subsets (the correspondent rows necessarily have same index):
-                        text_subset['interpolate_key'] = text_subset.index
+                    if (is_categorical == 1):
                         
                         # Now, fill missing values by forward filling:
                         print("Using forward filling to fill missing values of the categorical variables.\n")
-                        text_subset = text_subset.fillna(method = "ffill")
+                        df_categorical = df_categorical.fillna(method = "ffill")
                     
                     # Now, let's check if there are both a numeric_subset and a text_subset to merge
-                    if ((len(numeric_cols) > 0) & (len(text_cols) > 0)):
-                        # Two subsets were created. Merge them on column key, using 'inner' join
-                        # (perfect correspondence of the indices). Save it on cleaned_df.
-                        # Use the merge method: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.merge.html
-                        cleaned_df = numeric_subset.merge(text_subset, on = 'interpolate_key', how = "inner")
-                        
-                        # Drop the column 'interpolate_key', created only for merging.
-                        # Use the drop method:
-                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
                     
-                    elif (len(numeric_cols) > 0):
-                        # since it did not pass the test for checking if both were present, there
-                        # are only numeric columns. So, make the cleaned_df the numeric_subset itself
-                        # and drop the key column:
-                        cleaned_df = numeric_subset
-                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
+                    if (is_cat_num == 2):
+                        # Both subsets are present.
+                        # Concatenate the dataframes in the columns axis (append columns):
+                        cleaned_df = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
+
+                    elif (is_categorical == 1):
+                        # There is only the categorical subset:
+                        cleaned_df = df_categorical
+
+                    elif (is_numeric == 1):
+                        # There is only the numeric subset:
+                        cleaned_df = df_numeric
                     
-                    elif (len(text_cols) > 0):
-                        # since it did not pass the test for checking if both were present, there
-                        # are only text columns. So, make the cleaned_df the text_subset itself
-                        # and drop the key column:
-                        cleaned_df = text_subset
-                        cleaned_df = cleaned_df.drop(columns = 'interpolate_key')
-                        
+                    else:
+                        print("No valid dataset provided, so returning the input dataset itself.\n")
             
             elif ((fill_method == "ffill") | (fill_method == "bfill")):
                 # use forward or backfill
@@ -11220,6 +11248,7 @@ def reverse_box_cox (df, column_to_transform, lambda_boxcox, suffix = '_Reversed
 
 def OneHotEncode_df (df, subset_of_features_to_be_encoded):
 
+    import numpy as np
     import pandas as pd
     from sklearn.preprocessing import OneHotEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
