@@ -1107,7 +1107,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
         # pandas.read_csv method must be used.
         if (load_txt_file_with_json_format == True):
             
-            print("Reading a txt file containing JSON parsed data. A reading error will be raised if you did not set the JSON parameters.")
+            print("Reading a txt file containing JSON parsed data. A reading error will be raised if you did not set the JSON parameters.\n")
             
             with open(file_path, 'r') as opened_file:
                 # 'r' stands for read mode; 'w' stands for write mode
@@ -1206,7 +1206,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     else:
         # If it is not neither a csv nor a txt file, let's assume it is one of different
         # possible Excel files.
-        print("Excel file inferred. If an error message is shown, check if a valid file extension was used: \'xlsx\', \'xls\', etc.")
+        print("Excel file inferred. If an error message is shown, check if a valid file extension was used: \'xlsx\', \'xls\', etc.\n")
         # For Excel type files, Pandas automatically detects the decimal separator and requires only the parameter parse_dates.
         # Firstly, the argument infer_datetime_format was present on read_excel function, but was removed.
         # From version 1.4 (beta, in 10 May 2022), it will be possible to pass the parameter 'decimal' to
@@ -1247,11 +1247,19 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                 # Add the dictionary to the list:
                 list_of_datasets.append(df_dict)
             
+            print("\n")
             print(f"A total of {len(list_of_datasets)} dataframes were retrieved from the Excel file.\n")
             print(f"The dataframes correspond to the following Excel sheets: {list(xlsx_doc.keys())}\n")
             print("Returning a list of dictionaries. Each dictionary contains the key \'sheet\', with the original sheet name; and the key \'df\', with the Pandas dataframe object obtained.\n")
             print(f"Check the 10 first rows of the dataframe obtained from the first sheet, named {list_of_datasets[0]['sheet']}:\n")
-            print((list_of_datasets[0]['df']).head(10))
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display((list_of_datasets[0]['df']).head(10))
+            
+            except: # regular mode
+                print((list_of_datasets[0]['df']).head(10))
             
             return list_of_datasets
             
@@ -1282,7 +1290,14 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                 dataset = pd.read_excel(file_path, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
                 
     print(f"Dataset extracted from {file_path}. Check the 10 first rows of this dataframe:\n")
-    print(dataset.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(dataset.head(10))
+            
+    except: # regular mode
+        print(dataset.head(10))
     
     return dataset
 
@@ -1359,8 +1374,15 @@ def json_obj_to_pandas_dataframe (json_obj_to_convert, json_obj_type = 'list', j
     
     dataset = json_normalize(json_file, record_path = json_record_path, sep = json_field_separator, meta = json_metadata_prefix_list)
     
-    print(f"JSON object {json_obj_to_convert} converted to a flat dataframe object. Check the 10 first rows of this dataframe:\n")
-    print(dataset.head(10))
+    print(f"JSON object converted to a flat dataframe object. Check the 10 first rows of this dataframe:\n")
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(dataset.head(10))
+            
+    except: # regular mode
+        print(dataset.head(10))
     
     return dataset
 
@@ -1501,7 +1523,14 @@ def APPLY_ROW_FILTERS_LIST (df, list_of_row_filters):
     DATASET = DATASET.reset_index(drop = True)
     
     print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     return DATASET
 
@@ -1605,7 +1634,7 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
     else:
         
         print("You did not enter a valid merge method for this function, \'ordered\' or \'asof\'.")
-        print("Then, applying the conventional Pandas .merge method, followed by .sort_values method.")
+        print("Then, applying the conventional Pandas .merge method, followed by .sort_values method.\n")
         
         #Pandas sort_values method: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.sort_values.html
         
@@ -1620,7 +1649,14 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframe successfully merged. Check its 10 first rows:\n")
-    print(merged_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(merged_df.head(10))
+            
+    except: # regular mode
+        print(merged_df.head(10))
     
     return merged_df
 
@@ -1696,13 +1732,13 @@ def MERGE_AND_SORT_DATAFRAMES (df_left, df_right, left_key, right_key, how_to_jo
         if (column_to_sort is None):
             
             column_to_sort = merged_df.columns[0]
-            print(f"Sorting merged dataframe by its first column = {column_to_sort}")
+            print(f"Sorting merged dataframe by its first column = {column_to_sort}\n")
         
         # check if ascending_sorting is None. If it is, set it as True:
         if (ascending_sorting is None):
             
             ascending_sorting = True
-            print("Sorting merged dataframe in ascending order.")
+            print("Sorting merged dataframe in ascending order.\n")
         
         # Now, sort the dataframe according to the parameters:
         merged_df = merged_df.sort_values(by = column_to_sort, ascending = ascending_sorting)
@@ -1710,13 +1746,20 @@ def MERGE_AND_SORT_DATAFRAMES (df_left, df_right, left_key, right_key, how_to_jo
     
         # Now, reset index positions:
         merged_df = merged_df.reset_index(drop = True)
-        print("Merged dataframe successfully sorted.")
+        print("Merged dataframe successfully sorted.\n")
     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframe successfully merged. Check its 10 first rows:\n")
-    print(merged_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(merged_df.head(10))
+            
+    except: # regular mode
+        print(merged_df.head(10))
     
     return merged_df
 
@@ -2020,7 +2063,14 @@ def RECORD_LINKAGE (df_left, df_right, columns_to_block_as_basis_for_comparison 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframe successfully merged. Check its 10 first rows:\n")
-    print(merged_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(merged_df.head(10))
+            
+    except: # regular mode
+        print(merged_df.head(10))
     
     return merged_df
 
@@ -2129,12 +2179,12 @@ def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_
         # concatenation.
     
     else:
-        print("No valid string was input to what_to_append, so appending rows (vertical append, equivalent to SQL UNION).")
+        print("No valid string was input to what_to_append, so appending rows (vertical append, equivalent to SQL UNION).\n")
         AXIS = 0
     
     if (union_join_type == 'inner'):
         
-        print("Warning: concatenating dataframes using the \'inner\' join method, that removes missing values.")
+        print("Warning: concatenating dataframes using the \'inner\' join method, that removes missing values.\n")
         concat_df = pd.concat(LIST_OF_DATAFRAMES, axis = AXIS, ignore_index = ignore_index_on_union, sort = sort_values_on_union, join = union_join_type)
     
     else:
@@ -2152,7 +2202,14 @@ def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframes successfully concatenated. Check the 10 first rows of new dataframe:\n")
-    print(concat_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(concat_df.head(10))
+            
+    except: # regular mode
+        print(concat_df.head(10))
     
     #Now return the concatenated dataframe:
     
@@ -2168,27 +2225,43 @@ def df_general_characterization (df):
 
     # Show dataframe's header
     print("Dataframe\'s 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
 
     # Show dataframe's tail:
     # Line break before next information:
     print("\n")
     print("Dataframe\'s 10 last rows:\n")
-    print(DATASET.tail(10))
+    try:
+        display(DATASET.tail(10))
+    except:
+        print(DATASET.tail(10))
     
     # Show dataframe's shape:
     # Line break before next information:
     print("\n")
     df_shape  = DATASET.shape
     print("Dataframe\'s shape = (number of rows, number of columns) =\n")
-    print(df_shape)
+    try:
+        display(df_shape)
+    except:
+        print(df_shape)
     
     # Show dataframe's columns:
     # Line break before next information:
     print("\n")
     df_columns_array = DATASET.columns
     print("Dataframe\'s columns =\n")
-    print(df_columns_array)
+    try:
+        display(df_columns_array)
+    except:
+        print(df_columns_array)
     
     # Show dataframe's columns types:
     # Line break before next information:
@@ -2204,14 +2277,20 @@ def df_general_characterization (df):
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.rename.html
     df_dtypes.rename('dtype_series', inplace = True)
     print("Dataframe\'s variables types:\n")
-    print(df_dtypes)
+    try:
+        display(df_dtypes)
+    except:
+        print(df_dtypes)
     
     # Show dataframe's general statistics for numerical variables:
     # Line break before next information:
     print("\n")
     df_general_statistics = DATASET.describe()
     print("Dataframe\'s general (summary) statistics for numeric variables:\n")
-    print(df_general_statistics)
+    try:
+        display(df_general_statistics)
+    except:
+        print(df_general_statistics)
     
     # Show total of missing values for each variable:
     # Line break before next information:
@@ -2244,8 +2323,11 @@ def df_general_characterization (df):
     
     print("Missing values on each feature; and missingness considering all rows from the dataframe:")
     print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
-
-    print(df_missing_values)
+    
+    try:
+        display(df_missing_values)
+    except:
+        print(df_missing_values)
     
     return df_shape, df_columns_array, df_dtypes, df_general_statistics, df_missing_values
 
@@ -2320,7 +2402,14 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
         print("The indices of the dataset were successfully restarted.\n")
     
     print("Check the 10 first rows from the returned dataset:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     return DATASET
 
@@ -2407,7 +2496,14 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
         print("The indices of the dataset were successfully restarted.\n")
     
     print("Check the 10 first rows from the returned dataset:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     return DATASET
 
@@ -2544,7 +2640,14 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
         
         # There were modifications in the dataframe.
         print("Check the first 10 rows of the new returned dataframe:\n")
-        print(DATASET.head(10))
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+
+        except: # regular mode
+            print(DATASET.head(10))
     
     else:
         print("No blank columns or rows were found. Returning the original dataframe.\n")
@@ -2553,18 +2656,17 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     return DATASET
 
 
-def characterize_categorical_variables (df, categorical_variables_list):
+def characterize_categorical_variables (df, timestamp_tag_column = None):
     
     import numpy as np
     import pandas as pd
+    from pandas import json_normalize
     
     # df: dataframe that will be analyzed
     
-    # categorical_variables_list: list of strings containing the categorical variables that
-    # will be characterized. Declare as a list even if it contains a single variable.
-    # e.g. categorical_variables_list = ['cat_var'] will analyze a single variable (column)
-    # named 'cat_var'; categorical_variables_list = ['var1', 'var2', 'var3'] will analyze
-    # 3 columns, named 'var1', 'var2', and 'var3'
+    # timestamp_tag_colum: name (header) of the column containing the
+    # timestamps. Keep timestamp_tag_column = None if the dataframe do not contain
+    # timestamps.
        
             # Encoding syntax:
             # dataset.loc[dataset["CatVar"] == 'Value1', "EncodedColumn"] = 1
@@ -2573,12 +2675,49 @@ def characterize_categorical_variables (df, categorical_variables_list):
             # equality is verified. The .loc method filters the dataframe, accesses the
             # column declared after the comma and inputs the value defined (e.g. value = 1)
     
+    # Set a local copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    # Get the list of columns:
+    cols_list = list(DATASET.columns)
+    
+    # Start a list of categorical columns:
+    categorical_list = []
+    # Start a timestamp list that will be empty if there is no timestamp_tag_column
+    timestamp_list = []
+    if (timestamp_tag_column is not None):
+        timestamp_list.append(timestamp_tag_column)
+    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
+    # Loop through all valid columns (cols_list)
+    for column in cols_list:
+        
+        # Check if the column is neither in timestamp_list nor in
+        # categorical_list yet:
+        
+        if ((column not in categorical_list) & (column not in timestamp_list)):
+            # Notice that, since we already selected the 'timestamp_obj', we remove the original timestamps.
+            column_data_type = df_copy[column].dtype
+            
+            if (column_data_type not in numeric_dtypes):
+                
+                # Append to categorical columns list:
+                categorical_list.append(column)
+    
+    # Subset the dataframe:
+    if (len(categorical_list) > 1):
+        
+        DATASET = DATASET[categorical_list]
+        is_categorical = 1
+    
     # Start a list to store the results:
     summary_list = []
     # It will be a list of dictionaries.
     
     # Loop through all variables on the list:
-    for categorical_var in categorical_variables_list:
+    for categorical_var in categorical_list:
         
         # Get unique vals and respective counts.
 
@@ -2590,18 +2729,18 @@ def characterize_categorical_variables (df, categorical_variables_list):
         unique_vals = []
 
         # Now, check the unique values of the categorical variable:
-        unique_vals_array = df[categorical_var].unique()
+        unique_vals_array = DATASET[categorical_var].unique()
         # unique_vals_array is a NumPy array containing the different values from the categorical variable.
 
         # Total rows:
-        total_rows = len(df)
+        total_rows = len(DATASET)
 
         # Check the total of missing values
         # Set a boolean_filter for checking if the row contains a missing value
-        boolean_filter = df[categorical_var].isna()
+        boolean_filter = DATASET[categorical_var].isna()
 
         # Calculate the total of elements when applying the filter:
-        total_na = len(df[boolean_filter])
+        total_na = len(DATASET[boolean_filter])
 
         # Create a dictionary for the missing values:
         na_dict = {
@@ -2640,9 +2779,9 @@ def characterize_categorical_variables (df, categorical_variables_list):
                 # (only when the value is neither None nor np.nan)
 
                 # create a filter to select only the entries where the column == unique_val:
-                boolean_filter = (df[categorical_var] == unique_val)
+                boolean_filter = (DATASET[categorical_var] == unique_val)
                 # Calculate the total of elements when applying the filter:
-                total_elements = len(df[boolean_filter])
+                total_elements = len(DATASET[boolean_filter])
 
                 # Create a dictionary for these values:
                 # Use the same keys as before:
@@ -2660,8 +2799,8 @@ def characterize_categorical_variables (df, categorical_variables_list):
                 # nested as an element of the dictionary unique_dict
         
         # Nest the unique_vals list as an element of the dictionary unique_dict:
-        # Use the update method, setting 'unique_values' as the key:
-        unique_dict.update({'unique_values': unique_vals})
+        # Set 'unique_values' as the key, and unique_vals as value
+        unique_dict['unique_values'] = unique_vals
         # Notice that unique_vals is a list where each element is a dictionary with information
         # from a given unique value of the variable 'categorical_var' being analyzed.
         
@@ -2697,27 +2836,39 @@ def characterize_categorical_variables (df, categorical_variables_list):
     #                        'unique_values': [...]
     #                       }
     # ]
+ 
+    if (is_categorical == 1):
+        # Notice that, if !=1, the list is empty, so the previous loop is not executed.
+        # Now, call the same methods used in function json_obj_to_dataframe to 
+        # flat the list of dictionaries, if they are present:
+    
+        JSON = summary_list
+        JSON_RECORD_PATH = 'unique_values'
+        JSON_FIELD_SEPARATOR = "_"
+        JSON_METADATA_PREFIX_LIST = ['categorical_variable']
 
-    
-    # Now, call the json_obj_to_dataframe function to flat the list of dictionaries
-    
-    JSON_OBJ_TO_CONVERT = summary_list
-    JSON_OBJ_TYPE = 'list'
-    JSON_RECORD_PATH = 'unique_values'
-    JSON_FIELD_SEPARATOR = "_"
-    JSON_METADATA_PREFIX_LIST = ['categorical_variable']
-    # JSON_METADATA_PREFIX_LIST: list of strings (in quotes). Manipulates the parameter 
-    # 'meta' from json_normalize method. Fields to use as metadata for each record in resulting 
-    # table. Declare here the non-nested fields, i.e., the fields in the principal JSON. They
-    # will be repeated in the rows of the dataframe to give the metadata (context) of the rows.
+        cat_vars_summary = json_normalize(JSON, record_path = JSON_RECORD_PATH, sep = JSON_FIELD_SEPARATOR, meta = JSON_METADATA_PREFIX_LIST)
+        # JSON_METADATA_PREFIX_LIST: list of strings (in quotes). Manipulates the parameter 
+        # 'meta' from json_normalize method. Fields to use as metadata for each record in resulting 
+        # table. Declare here the non-nested fields, i.e., the fields in the principal JSON. They
+        # will be repeated in the rows of the dataframe to give the metadata (context) of the rows.
 
-    cat_vars_summary = json_obj_to_pandas_dataframe (json_obj_to_convert = JSON_OBJ_TO_CONVERT, json_obj_type = JSON_OBJ_TYPE, json_record_path = JSON_RECORD_PATH, json_field_separator = JSON_FIELD_SEPARATOR, json_metadata_prefix_list = JSON_METADATA_PREFIX_LIST)
+        print("\n") # line break
+        print("Finished analyzing the categorical variables. Check the summary dataframe:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(cat_vars_summary)
+
+        except: # regular mode
+            print(cat_vars_summary)
+        
+        return cat_vars_summary
     
-    print("\n") # line break
-    print("Finished analyzing the categorical variables. Check the summary dataframe:\n")
-    print(cat_vars_summary)
-    
-    return cat_vars_summary
+    else:
+        print("The dataframe has no categorical variables to analyze.\n")
+        return "error"
 
 
 def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to_aggregate = None, grouping_frequency_unit = 'day', number_of_periods_to_group = 1, aggregate_function = 'mean', start_time = None, offset_time = None, add_suffix_to_aggregated_col = True, suffix = None):
@@ -2772,7 +2923,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
     
     if (number_of_periods_to_group <= 0):
         
-        print("Invalid number of periods to group. Changing to 1 period.")
+        print("Invalid number of periods to group. Changing to 1 period.\n")
         number_of_periods_to_group = 1
     
     if (number_of_periods_to_group == 1):
@@ -2992,11 +3143,11 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
                 numeric_suffix = suffix
             
             # New columns names:
-            new_num_names = [(name + numeric_suffix) for name in numeric_list]
-            # delete the first value, which is the aggregation column
-            del new_num_names[0]
-            # Concatenate the correct name for the aggregation column:
-            new_num_names = ['timestamp_grouped'] + new_num_names
+            new_num_names = [(str(name) + numeric_suffix) for name in numeric_list]
+            # The str attribute guarantees that the name was read as string
+            # Pick only the values from the second and concatenate the correct name 
+            # for the aggregation column (eliminate the first element from the list):
+            new_num_names = ['timestamp_grouped'] + new_num_names[1:]
             # Set new_num_names as the new columns names:
             df_numeric.columns = new_num_names
         
@@ -3053,6 +3204,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")
         
         # delete the first value from categorical_list, which is 'timestamp_obj':
+        # This step is required for not to calculate the mode of the timestamps in the next loop.
         del categorical_list[0]
         
         # Loop through each categorical variable:
@@ -3105,9 +3257,10 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
                 categorical_suffix = suffix
             
             # New columns names:
-            new_cat_names = [(name + categorical_suffix) for name in categorical_list]
-            # Notice that we have already deleted 'timestamp_obj' from categorical_list.
-            # So, concatenate the correct name for the aggregation column:
+            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list]
+            # Notice that we have already deleted 'timestamp_obj' from categorical_list,
+            # avoiding the calculation of the timestamp modes.
+            # So, now concatenate the correct name for the aggregation column:
             new_cat_names = ['timestamp_grouped'] + new_cat_names
             # Set new_num_names as the new columns names:
             df_categorical.columns = new_cat_names   
@@ -3132,8 +3285,15 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Dataframe successfully grouped. Check its 10 first rows (without the categorical/object variables):\n")
-    print(DATASET.head(10))
     
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
+   
     #Now return the grouped dataframe with the timestamp as the first column:
     
     return DATASET
@@ -3428,11 +3588,11 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                 numeric_suffix = suffix
             
             # New columns names:
-            new_num_names = [(name + numeric_suffix) for name in numeric_list]
-            # delete the first value, which is the aggregation column
-            del new_num_names[0]
-            # Concatenate the correct name for the aggregation column:
-            new_num_names = [variable_to_group_by] + new_num_names
+            new_num_names = [(str(name) + numeric_suffix) for name in numeric_list]
+            # The str attribute guarantees that the name was read as string
+            # Pick only the values from the second and concatenate the correct name 
+            # for the aggregation column (eliminate the first element from the list):
+            new_num_names = [variable_to_group_by] + new_num_names[1:]
             # Set new_num_names as the new columns names:
             df_numeric.columns = new_num_names
     
@@ -3491,11 +3651,11 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                 categorical_suffix = suffix
             
             # New columns names:
-            new_cat_names = [(name + categorical_suffix) for name in categorical_list]
-            # delete the first value, which is the aggregation column
-            del new_cat_names[0]
-            # Concatenate the correct name for the aggregation column:
-            new_cat_names = [variable_to_group_by] + new_cat_names
+            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list]
+            # The str attribute guarantees that the name was read as string
+            # Pick only the values from the second and concatenate the correct name 
+            # for the aggregation column (eliminate the first element from the list):
+            new_cat_names = [variable_to_group_by] + new_cat_names[1:]
             # Set new_num_names as the new columns names:
             df_categorical.columns = new_cat_names
      
@@ -3521,13 +3681,27 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
     DATASET = DATASET.reset_index(drop = True)
     
     print("Dataframe successfully grouped. Check its 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     if (return_summary_dataframe == True):
         
         print("\n")
         print("Check the summary statistics dataframe, that is also being returned:\n")
-        print(summary_agg_df)
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(summary_agg_df)
+
+        except: # regular mode
+            print(summary_agg_df)
         
         return DATASET, summary_agg_df
     
@@ -3678,7 +3852,14 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Timestamp information successfully extracted. Check dataset\'s 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     #Now that the information were retrieved from all Timestamps, return the new
     #dataframe:
@@ -3866,7 +4047,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.")
+        print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
     elif (returned_timedelta_unit == 'month'):
@@ -3890,7 +4071,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in months. Considered 1 month = 30 days.")
+        print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
     elif (returned_timedelta_unit == 'day'):
@@ -3910,7 +4091,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in days.")
+        print("Returned timedelta in days.\n")
         
     
     elif (returned_timedelta_unit == 'hour'):
@@ -3927,7 +4108,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in hours [h].")
+        print("Returned timedelta in hours [h].\n")
     
 
     elif (returned_timedelta_unit == 'minute'):
@@ -3941,7 +4122,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in minutes [min].")
+        print("Returned timedelta in minutes [min].\n")
         
         
     elif (returned_timedelta_unit == 'second'):
@@ -3952,13 +4133,13 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in seconds [s].")
+        print("Returned timedelta in seconds [s].\n")
         
         
     else:
         
         returned_timedelta_unit = 'ns'
-        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).")
+        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).\n")
         
         #In case None unit is provided or a non-valid value or string is provided,
         #The calculus will be in nanoseconds.
@@ -3975,7 +4156,14 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Time delays successfully calculated. Check dataset\'s 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     if (return_avg_delay == True):
         
@@ -3999,7 +4187,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         # Now we calculate the average value:
         avg_delay = np.average(TimedeltaList)
         
-        print(f"Average delay = {avg_delay} {returned_timedelta_unit}")
+        print(f"Average delay = {avg_delay} {returned_timedelta_unit}\n")
         
         # Return the dataframe and the average value:
         return DATASET, avg_delay
@@ -4175,7 +4363,7 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.")
+        print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
     elif (returned_timedelta_unit == 'month'):
@@ -4199,7 +4387,7 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in months. Considered 1 month = 30 days.")
+        print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
     elif (returned_timedelta_unit == 'day'):
@@ -4219,7 +4407,7 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in days.")
+        print("Returned timedelta in days.\n")
         
     
     elif (returned_timedelta_unit == 'hour'):
@@ -4236,7 +4424,7 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in hours [h].")
+        print("Returned timedelta in hours [h].\n")
     
 
     elif (returned_timedelta_unit == 'minute'):
@@ -4250,7 +4438,7 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in minutes [min].")
+        print("Returned timedelta in minutes [min].\n")
         
         
     elif (returned_timedelta_unit == 'second'):
@@ -4261,13 +4449,13 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #The .0 after the numbers guarantees a float division.
         
-        print("Returned timedelta in seconds [s].")
+        print("Returned timedelta in seconds [s].\n")
         
         
     else:
         
         returned_timedelta_unit = 'ns'
-        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).")
+        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).\n")
         
         #In case None unit is provided or a non-valid value or string is provided,
         #The calculus will be in nanoseconds.
@@ -4290,7 +4478,14 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Timedeltas successfully calculated. Check dataset\'s 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     #Finally, return the dataframe with the new column:
     
@@ -4423,7 +4618,14 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
     print("Timedeltas successfully added. Check dataset\'s 10 first rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     #Finally, return the dataframe with the new column:
     
@@ -4651,15 +4853,22 @@ def SLICE_DATAFRAME (df, from_row = 'first_only', to_row = 'only', restart_index
     if (restart_index_of_the_sliced_dataframe == True):
         # Reset the index:
         sliced_df = sliced_df.reset_index(drop = True)
-        print("Index of the returned dataframe was restarted.")
+        print("Index of the returned dataframe was restarted.\n")
     
-    print(f"Returning sliced dataframe, containing {sliced_df.shape[0]} rows and {sliced_df.shape[1]} columns.")
+    print(f"Returning sliced dataframe, containing {sliced_df.shape[0]} rows and {sliced_df.shape[1]} columns.\n")
     # dataframe.shape is a tuple (N, M), where dataframe.shape[0] = N is
     # the number of rows; and dataframe.shape[1] = M is the number of columns
     # of the dataframe
     
     print("Check the dataframe below:\n")
-    print(sliced_df)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(sliced_df)
+            
+    except: # regular mode
+        print(sliced_df)
     
     return sliced_df
 
@@ -4741,7 +4950,14 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     
     df_length = len(DATASET)
     print(f"Count of rows from the dataframe =\n")
-    print(df_length)
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(df_length)
+            
+    except: # regular mode
+        print(df_length)
+    
     print("\n")
 
     # Show total of missing values for each variable:
@@ -4773,8 +4989,11 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     
     print("Missing values on each feature; and missingness considering all rows from the dataframe:")
     print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
-
-    print(df_missing_values)
+    
+    try:
+        display(df_missing_values)    
+    except:
+        print(df_missing_values)
     print("\n") # line_break
     
     print("Bar chart of the missing values - Nullity bar:\n")
@@ -5145,10 +5364,10 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         
         # Download the images to the notebook's workspace:
         # Use the command !wget to download web content:
-        example_na1 = !wget "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na1.PNG"
-        example_na2 = !wget "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na2.PNG"
-        example_na3 = !wget "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na3.PNG"
-        example_na4 = !wget "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na4.PNG"
+        example_na1 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na1.PNG example_na1.png
+        example_na2 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na2.PNG example_na2.png
+        example_na3 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na3.PNG example_na3.png
+        example_na4 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na4.PNG example_na4.png
         # When saving the !wget calls as variables, we silent the verbosity of the Wget GNU.
         # Then, user do not see that a download has been made.
         # To check the help from !wget GNU, type and run a cell with: 
@@ -5616,7 +5835,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 cleaned_df = cleaned_df.interpolate(method = 'nearest')
             
             else:
-                print("No valid filling methodology was selected. Then, filling missing values with 0.")
+                print("No valid filling methodology was selected. Then, filling missing values with 0.\n")
                 cleaned_df = cleaned_df.fillna(0)
         
         
@@ -5628,7 +5847,14 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     print(f"Number of rows of the dataframe after cleaning = {cleaned_df.shape[0]} rows.")
     print(f"Percentual variation of the number of rows = {(df.shape[0] - cleaned_df.shape[0])/(df.shape[0]) * 100} %\n")
     print("Check the 10 first rows of the cleaned dataframe:\n")
-    print(cleaned_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(cleaned_df.head(10))
+            
+    except: # regular mode
+        print(cleaned_df.head(10))
     
     return cleaned_df
 
@@ -6017,7 +6243,10 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     # Finally, let's reverse the ordinal encoding used in the beginning of the code to process object
     # columns:
     
-    if ((column_data_type == 'O') | (column_data_type == 'object')):
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
+    if (column_data_type not in numeric_dtypes):
         
         # Firstly, converts the values obtained to closest integer (since we
         # encoded the categorical values as integers, we cannot reconvert
@@ -6052,8 +6281,14 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
         cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped_vals)
 
 
-    print("Check the 10 first rows from the original dataframe:\n")
-    print(cleaned_df.head(10))
+    print("Check the 10 first rows from the cleaned dataframe:\n")
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(cleaned_df.head(10))
+            
+    except: # regular mode
+        print(cleaned_df.head(10))
     
     return cleaned_df
 
@@ -6207,15 +6442,19 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
                 #Pandas .head(X) method returns the first X rows of the dataframe.
                 # Here, it returns the defined limit of coefficients, set_returned_limit.
                 # The default .head() is X = 5.
-        
-        print(correlation_matrix)
     
     print("ATTENTION: The correlation plots show the linear correlations R², which go from 0 (none correlation) to 1 (perfect correlation). Obviously, the main diagonal always shows R² = 1, since the data is perfectly correlated to itself.\n")
     print("The returned correlation matrix, on the other hand, presents the linear coefficients of correlation R, not R². R values go from -1 (perfect negative correlation) to 1 (perfect positive correlation).\n")
     print("None of these coefficients take non-linear relations and the presence of a multiple linear correlation in account. For these cases, it is necessary to calculate R² adjusted, which takes in account the presence of multiple preditors and non-linearities.\n")
     
     print("Correlation matrix - numeric results:\n")
-    print(correlation_matrix)
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(correlation_matrix)
+            
+    except: # regular mode
+        print(correlation_matrix)
     
     return correlation_matrix
 
@@ -6325,12 +6564,15 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         aggregate_function = 'sum'
         print("Invalid or no aggregation function input, so using the default \'sum\'.\n")
     
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
     # Check if a numeric aggregate was selected:
     if (aggregate_function in list_of_numeric_aggregates):
         
         column_data_type = DATASET[response_var_name].dtype
         
-        if ((column_data_type == 'O') | (column_data_type == 'object')):
+        if (column_data_type not in numeric_dtypes):
             
                 # If the Pandas series was defined as an object, it means it is categorical
                 # (string, date, etc).
@@ -6343,7 +6585,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         column_data_type = DATASET[response_var_name].dtype
         
-        if ((column_data_type != 'O') & (column_data_type != 'object') & (aggregate_function != 'count')):
+        if ((column_data_type in numeric_dtypes) & (aggregate_function != 'count')):
                 # count is the only aggregate for categorical that can be used for numerical variables as well.
                 
                 print("Categorical aggregate selected, but numeric variable indicated as response variable.")
@@ -6481,120 +6723,59 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.entropy)
 
-        
-    if (add_suffix_to_aggregated_col == True):
-        
-        # Let's add a suffix. Check if suffix is None. If it is,
-        # set "_" + aggregate_function as suffix:
-        if (suffix is None):
-            suffix = "_" + aggregate_function
     
     # List of columns of the aggregated dataset:
-    original_columns = list(DATASET.columns) # convert to a list
+    list_of_columns = list(DATASET.columns) # convert to a list
     
+    if (add_suffix_to_aggregated_col == True):
+            
+        if (suffix is None):
+                
+            suffix = "_" + aggregate_function
+            
+        new_columns = [(str(name) + suffix) for name in list_of_columns]
+        # Do not consider the first element, which is the aggregate function with a suffix.
+        # Concatenate the correct name with the columns from the second element of the list:
+        new_columns = [categorical_var_name] + new_columns[1:]
+        # Make it the new columns:
+        DATASET.columns = new_columns
+        # Update the list of columns:
+        list_of_columns = DATASET.columns
     
     if (aggregate_function == 'mode'):
         
-        # The columns will be saved as a series of Tuples. Each row contains a tuple like:
+        # The columns was saved as a series of Tuples. Each row contains a tuple like:
         # ([calculated_mode], [counting_of_occurrences]). We want only the calculated mode.
         # On the other hand, if we do column[0], we will get the columns first row. So, we have to
         # go through each column, retrieving only the mode:
         
-        list_of_new_columns = []
-        
-        for column in (original_columns):
+        # Loop through each column:
+        for column in list_of_columns:
             
-            # Loop through each column from the dataset
-            if (column == categorical_var_name):
-                # special case for the column used for grouping.
-                # Simply append this column to a list, without performing any operation
-                list_of_col = [categorical_var_name]
+            # Save the series as a list:
+            list_of_modes_arrays = list(DATASET[column])
+            # Start a list of modes:
+            list_of_modes = []
             
-            else:
+            # Loop through each element from the list of arrays:
+            for mode_array in list_of_modes_arrays:
+                # mode array is like:
+                # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
+                # To retrieve only the mode, we must access the element [0][0] from this array:
+                try:
+                    list_of_modes.append(mode_array[0][0])
                 
-                if (add_suffix_to_aggregated_col == True):
-                        
-                        new_column_name = column + suffix
-                
-                else:
-                    new_column_name = column + "_mode"
-                    # name for differencing, allowing us to start the variable
-                
-                # start categorical variable as empty string:
-                DATASET[new_column_name] = ''
-                
-                # Retrieve the index j of new_column_name in the list of columns
-                # (use the list attribute to convert the array to list):
-                j = (list(DATASET.columns)).index(new_column_name)
-                
-                # Save the new column on the list of new columns:
-                list_of_new_columns.append(new_column_name)
-                
-                # Now, loop through each row from the dataset:
-                for i in range(0, len(DATASET)):
-                    # i = 0 to i = len(DATASET) - 1
-                    
-                    mode_array = DATASET[column][i]
-                    # mode array is like:
-                    # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                    # To retrieve only the mode, we must access the element [0][0] from this array:
-                    mode = mode_array[0][0]
-                    
-                    # Now, save the mode in the column j (column new_column_name) for the row i:
-                    DATASET.iloc[i, j] = mode
-                
-        # Now, repeat it for each other variable.
-        
-        # Concatenate the list list_of_col with list_of_new_columns
-        # a = ['a', 'b'] , b = ['c', 'd'], a + b = ['a', 'b', 'c', 'd']
-        # b + a = ['c', 'd', 'a', 'b']
-        list_of_new_columns = list_of_col + list_of_new_columns
-        
-        # Subset the dataframe to keep only the columns in list_of_new_columns:
-        DATASET = DATASET[list_of_new_columns]
-        
-        if (add_suffix_to_aggregated_col == False):
+                except IndexError:
+                    # This error is generated when trying to access an array storing no values.
+                    # (i.e., with missing values). Since there is no dimension, it is not possible
+                    # to access the [0][0] position. In this case, simply append the np.nan 
+                    # the (missing value):
+                    list_of_modes.append(np.nan)
             
-            # No suffix should be added, i.e., the columns should keep the original names.
-            # The names were saved in the list original_columns
-            DATASET.columns = original_columns
+            # Make the list of modes the column itself:
+            DATASET[column] = list_of_modes
     
-    
-    else:
-        # default case: one of other aggregate functions was selected
-    
-        # Guarantee that the columns from the aggregated dataset have the correct names
-        # Check if add_suffix_to_aggregated_col is True. If it is, we must add a suffix
-
-        if (add_suffix_to_aggregated_col == True):
-
-            # Let's add a suffix. Check if suffix is None. If it is,
-            # set "_" + aggregate_function as suffix:
-            if (suffix is None):
-                suffix = "_" + aggregate_function
-
-            # Now, concatenate the elements from original_columns to the suffix:
-            # Start a support list:
-            list_of_new_columns = []
-
-            # loop through each column:
-            for column in original_columns:
-
-                if (column == categorical_var_name):
-                    # simply append the column, without adding a suffix.
-                    # That is because we will not calculate a statistic for this column, since
-                    # it is used to aggregate the others:
-                    list_of_new_columns.append(column)
-
-                else:
-                    # Concatenate the column to the suffix and append it to support_list:
-                    list_of_new_columns.append(column + suffix)
-
-            # Now, rename the columns of the aggregated dataset as the list
-            # list_of_new_columns:
-            DATASET.columns = list_of_new_columns
             
-    
     # the name of the response variable is now the second element from the list of column:
     response_var_name = list(DATASET.columns)[1]
     # the categorical variable name was not changed.
@@ -6617,7 +6798,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     
     if (aggregate_function == 'count'):
         
-        # Here, the column represent the counting, no matter the variable set as response.
+        # Here, the column represents the counting, no matter the variable set as response.
         DATASET.columns = [categorical_var_name, 'count_of_entries']
         response_var_name = 'count_of_entries'
     
@@ -6643,7 +6824,14 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         print(f"Successfully calculated cumulative sum and cumulative percent correspondent to the response variable {response_var_name}.")
     
     print("Successfully aggregated and ordered the dataset to plot. Check the 10 first rows of this returned dataset:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     # Check if the total of plotted categories is limited:
     if not (limit_of_plotted_categories is None):
@@ -7001,9 +7189,16 @@ def calculate_cumulative_stats (df, column_to_analyze, cumulative_statistic = 's
         # named as new_cum_stats_col_name
         DATASET[new_cum_stats_col_name] = dict_of_methods[cumulative_statistic]
         
-        print(f"The cumulative {cumulative_statistic} statistic was successfully calculated and added as the column \'{new_cum_stats_col_name}\' of the returned dataframe.")
+        print(f"The cumulative {cumulative_statistic} statistic was successfully calculated and added as the column \'{new_cum_stats_col_name}\' of the returned dataframe.\n")
         print("Check the new dataframe's 10 first rows:\n")
-        print(DATASET.head(10))
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+
+        except: # regular mode
+            print(DATASET.head(10))
         
         return DATASET
 
@@ -7079,6 +7274,9 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
     # Notice that all dictionaries where 'x' or 'y' are None are automatically ignored.
     # If None is provided to 'lab', an automatic label will be generated.
     
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
     if (data_in_same_column == True):
         
         print("Data to be plotted in a same column.\n")
@@ -7124,7 +7322,8 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if (((DATASET[column_with_predict_var_x]).dtype == 'O') | ((DATASET[column_with_predict_var_x]).dtype == 'object')):
+    
+            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
                   
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -7199,7 +7398,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if ((x.dtype == 'O') | (x.dtype == 'object')):
+                if (x.dtype not in numeric_dtypes):
 
                     try:
                         x = (x).astype('datetime64[ns]')
@@ -7576,13 +7775,27 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
         plt.show()
         
         if (show_linear_reg == True):
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+            except:
+                pass
+            
             print("\nLinear regression summaries (equations and R²):\n")
             
             for dictionary in list_of_dictionaries_with_series_and_predictions:
                 
                 print(f"Linear regression summary for {dictionary['lab']}:\n")
-                print(dictionary['lin_reg_equation'])
-                print(dictionary['r2_lin_reg'])
+                
+                try:
+                    display(dictionary['lin_reg_equation'])
+                    display(dictionary['r2_lin_reg'])
+
+                except: # regular mode                  
+                    print(dictionary['lin_reg_equation'])
+                    print(dictionary['r2_lin_reg'])
+                
                 print("\n")
          
         
@@ -7664,6 +7877,10 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
     # calculate_roots = False.  Alternatively, set as True to calculate the roots of the
     #  fitted polynomial and return them as a NumPy array.
     
+    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
     if (data_in_same_column == True):
         
         if (df is None):
@@ -7707,7 +7924,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if (((DATASET[column_with_predict_var_x]).dtype == 'O') | ((DATASET[column_with_predict_var_x]).dtype == 'object')):
+            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
                   
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -7783,7 +8000,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
                 
-                if ((x.dtype == 'O') | (x.dtype == 'object')):
+                if (x.dtype not in numeric_dtypes):
 
                     try:
                         x = (x).astype('datetime64[ns]')
@@ -8311,6 +8528,10 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
     # Notice that all dictionaries where 'x' or 'y' are None are automatically ignored.
     # If None is provided to 'lab', an automatic label will be generated.
     
+    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
     if (data_in_same_column == True):
         
         print("Data to be plotted in a same column.\n")
@@ -8356,7 +8577,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if (((DATASET[column_with_predict_var_x]).dtype == 'O') | ((DATASET[column_with_predict_var_x]).dtype == 'object')):
+            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
                   
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -8431,7 +8652,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
                 
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if ((x.dtype == 'O') | (x.dtype == 'object')):
+                if (x.dtype not in numeric_dtypes):
 
                     try:
                         x = (x).astype('datetime64[ns]')
@@ -8806,43 +9027,49 @@ def histogram (df, column_to_analyze, normal_curve_overlay = True, x_axis_rotati
     OPACITY = 0.95
     
     if (normal_curve_overlay == True):
-        # create lists to store the normal curve. Center the normal curve in the bin
-        # of maximum bar (max probability, which will not be the mean if the curve
-        # is skewed). For normal distributions, this value will be the mean and the median.
         
-        # set the lowest value x used for obtaining the normal curve as bin_of_max_proba - 4*sigma
-        # the highest x will be bin_of_max_proba - 4*sigma
-        # each value will be created by incrementing (0.10)*sigma
-        
-        x = (bin_of_max_proba - (4 * sigma))
-        x_of_normal = [x]
-        
-        while (x < (bin_of_max_proba + (4 * sigma))):
+        if (sigma == 0):
+            print("Impossible to obtain a normal curve overlayed, because the standard deviation is zero.\n")
+            print("The analyzed variable is constant throughout the whole sample space.\n")
             
-            x = x + (0.10)*(sigma)
-            x_of_normal.append(x)
-        
-        # Convert the list to a NumPy array, so that it is possible to perform element-wise
-        # (vectorial) operations:
-        x_of_normal = np.array(x_of_normal)
-        
-        # Create an array of the normal curve y, applying the normal curve equation:
-        # normal curve = 1/(sigma* ((2*pi)**(0.5))) * exp(-((x-mu)**2)/(2*(sigma**2)))
-        # where pi = 3,14...., and exp is the exponential function (base e)
-        # Let's center the normal curve on bin_of_max_proba
-        y_normal = (1 / (sigma* (np.sqrt(2 * (np.pi))))) * (np.exp(-0.5 * (((1 / sigma) * (x_of_normal - bin_of_max_proba)) ** 2)))
-        y_normal = np.array(y_normal)
-        
-        # Pick the maximum value obtained for y_normal:
-        # https://numpy.org/doc/stable/reference/generated/numpy.amax.html#numpy.amax
-        y_normal_max = np.amax(y_normal)
-        
-        # Let's get a correction factor, comparing the maximum of the histogram counting, max_count,
-        # with y_normal_max:
-        correction_factor = max_count/(y_normal_max)
-        
-        # Now, multiply each value of the array y_normal by the correction factor, to adjust the height:
-        y_normal = y_normal * correction_factor
+        else:
+            # create lists to store the normal curve. Center the normal curve in the bin
+            # of maximum bar (max probability, which will not be the mean if the curve
+            # is skewed). For normal distributions, this value will be the mean and the median.
+
+            # set the lowest value x used for obtaining the normal curve as bin_of_max_proba - 4*sigma
+            # the highest x will be bin_of_max_proba - 4*sigma
+            # each value will be created by incrementing (0.10)*sigma
+
+            x = (bin_of_max_proba - (4 * sigma))
+            x_of_normal = [x]
+
+            while (x < (bin_of_max_proba + (4 * sigma))):
+
+                x = x + (0.10)*(sigma)
+                x_of_normal.append(x)
+
+            # Convert the list to a NumPy array, so that it is possible to perform element-wise
+            # (vectorial) operations:
+            x_of_normal = np.array(x_of_normal)
+
+            # Create an array of the normal curve y, applying the normal curve equation:
+            # normal curve = 1/(sigma* ((2*pi)**(0.5))) * exp(-((x-mu)**2)/(2*(sigma**2)))
+            # where pi = 3,14...., and exp is the exponential function (base e)
+            # Let's center the normal curve on bin_of_max_proba
+            y_normal = (1 / (sigma* (np.sqrt(2 * (np.pi))))) * (np.exp(-0.5 * (((1 / sigma) * (x_of_normal - bin_of_max_proba)) ** 2)))
+            y_normal = np.array(y_normal)
+
+            # Pick the maximum value obtained for y_normal:
+            # https://numpy.org/doc/stable/reference/generated/numpy.amax.html#numpy.amax
+            y_normal_max = np.amax(y_normal)
+
+            # Let's get a correction factor, comparing the maximum of the histogram counting, max_count,
+            # with y_normal_max:
+            correction_factor = max_count/(y_normal_max)
+
+            # Now, multiply each value of the array y_normal by the correction factor, to adjust the height:
+            y_normal = y_normal * correction_factor
     
     x_hist = DATASET['bin_center']
     y_hist = DATASET['count']
@@ -8873,7 +9100,7 @@ def histogram (df, column_to_analyze, normal_curve_overlay = True, x_axis_rotati
     ax.bar(x_hist, y_hist, alpha = OPACITY, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
     #ajuste manualmente a largura, width, para deixar as barras mais ou menos proximas
     
-    if (normal_curve_overlay == True):
+    if ((normal_curve_overlay == True) & (sigma > 0)):
     
         # add normal curve
         ax.plot(x_of_normal, y_normal, color = 'red', linestyle = 'dashed', alpha = OPACITY, label = 'Adjusted\nnormal_curve')
@@ -8962,10 +9189,22 @@ def histogram (df, column_to_analyze, normal_curve_overlay = True, x_axis_rotati
     general_stats.set_index(['statistics'], inplace = True)
     
     print("Check the general statistics from the analyzed variable:\n")
-    print(general_stats)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(general_stats)
+            
+    except: # regular mode
+        print(general_stats)
+    
     print("\n")
     print("Check the frequency table:\n")
-    print(DATASET)
+    
+    try:    
+        display(DATASET)    
+    except:
+        print(DATASET)
 
     return general_stats, DATASET
 
@@ -9099,51 +9338,57 @@ def histogram_alternative (df, column_to_analyze, total_of_bins, normal_curve_ov
     OPACITY = 0.95
     
     if (normal_curve_overlay == True):
-        # create lists to store the normal curve. Center the normal curve in the bin
-        # of maximum bar (max probability, which will not be the mean if the curve
-        # is skewed). For normal distributions, this value will be the mean and the median.
         
-        # set the lowest value x used for obtaining the normal curve as center_of_bin_of_max_proba - 4*sigma
-        # the highest x will be center_of_bin_of_max_proba - 4*sigma
-        # each value will be created by incrementing (0.10)*sigma
-        
-        # The arrays created by the plt.hist method present the value of the extreme left 
-        # (the beginning) of the histogram bars, not the bin center. So, let's add half of the bin size
-        # to the bin_of_max_proba, so that the adjusted normal will be positioned on the center of the
-        # bar of maximum probability. We can do it by taking the average between bin_of_max_proba
-        # and the following bin, bin_after_the_max_proba:
-        
-        center_of_bin_of_max_proba = (bin_of_max_proba + bin_after_the_max_proba)/2
-        
-        x = (center_of_bin_of_max_proba - (4 * sigma))
-        x_of_normal = [x]
-        
-        while (x < (center_of_bin_of_max_proba + (4 * sigma))):
+        if (sigma == 0):
+            print("Impossible to obtain a normal curve overlayed, because the standard deviation is zero.\n")
+            print("The analyzed variable is constant throughout the whole sample space.\n")
             
-            x = x + (0.10)*(sigma)
-            x_of_normal.append(x)
-        
-        # Convert the list to a NumPy array, so that it is possible to perform element-wise
-        # (vectorial) operations:
-        x_of_normal = np.array(x_of_normal)
-        
-        # Create an array of the normal curve y, applying the normal curve equation:
-        # normal curve = 1/(sigma* ((2*pi)**(0.5))) * exp(-((x-mu)**2)/(2*(sigma**2)))
-        # where pi = 3,14...., and exp is the exponential function (base e)
-        # Let's center the normal curve on center_of_bin_of_max_proba
-        y_normal = (1 / (sigma* (np.sqrt(2 * (np.pi))))) * (np.exp(-0.5 * (((1 / sigma) * (x_of_normal - center_of_bin_of_max_proba)) ** 2)))
-        y_normal = np.array(y_normal)
-        
-        # Pick the maximum value obtained for y_normal:
-        # https://numpy.org/doc/stable/reference/generated/numpy.amax.html#numpy.amax
-        y_normal_max = np.amax(y_normal)
-        
-        # Let's get a correction factor, comparing the maximum of the histogram counting, max_count,
-        # with y_normal_max:
-        correction_factor = max_count/(y_normal_max)
-        
-        # Now, multiply each value of the array y_normal by the correction factor, to adjust the height:
-        y_normal = y_normal * correction_factor
+        else:
+            # create lists to store the normal curve. Center the normal curve in the bin
+            # of maximum bar (max probability, which will not be the mean if the curve
+            # is skewed). For normal distributions, this value will be the mean and the median.
+
+            # set the lowest value x used for obtaining the normal curve as center_of_bin_of_max_proba - 4*sigma
+            # the highest x will be center_of_bin_of_max_proba - 4*sigma
+            # each value will be created by incrementing (0.10)*sigma
+
+            # The arrays created by the plt.hist method present the value of the extreme left 
+            # (the beginning) of the histogram bars, not the bin center. So, let's add half of the bin size
+            # to the bin_of_max_proba, so that the adjusted normal will be positioned on the center of the
+            # bar of maximum probability. We can do it by taking the average between bin_of_max_proba
+            # and the following bin, bin_after_the_max_proba:
+
+            center_of_bin_of_max_proba = (bin_of_max_proba + bin_after_the_max_proba)/2
+
+            x = (center_of_bin_of_max_proba - (4 * sigma))
+            x_of_normal = [x]
+
+            while (x < (center_of_bin_of_max_proba + (4 * sigma))):
+
+                x = x + (0.10)*(sigma)
+                x_of_normal.append(x)
+
+            # Convert the list to a NumPy array, so that it is possible to perform element-wise
+            # (vectorial) operations:
+            x_of_normal = np.array(x_of_normal)
+
+            # Create an array of the normal curve y, applying the normal curve equation:
+            # normal curve = 1/(sigma* ((2*pi)**(0.5))) * exp(-((x-mu)**2)/(2*(sigma**2)))
+            # where pi = 3,14...., and exp is the exponential function (base e)
+            # Let's center the normal curve on center_of_bin_of_max_proba
+            y_normal = (1 / (sigma* (np.sqrt(2 * (np.pi))))) * (np.exp(-0.5 * (((1 / sigma) * (x_of_normal - center_of_bin_of_max_proba)) ** 2)))
+            y_normal = np.array(y_normal)
+
+            # Pick the maximum value obtained for y_normal:
+            # https://numpy.org/doc/stable/reference/generated/numpy.amax.html#numpy.amax
+            y_normal_max = np.amax(y_normal)
+
+            # Let's get a correction factor, comparing the maximum of the histogram counting, max_count,
+            # with y_normal_max:
+            correction_factor = max_count/(y_normal_max)
+
+            # Now, multiply each value of the array y_normal by the correction factor, to adjust the height:
+            y_normal = y_normal * correction_factor
     
     # values needed for the standard matplotlib barchart:
     #x_hist = DATASET['bin_center']
@@ -9176,7 +9421,7 @@ def histogram_alternative (df, column_to_analyze, total_of_bins, normal_curve_ov
     #ax.bar(x_hist, y_hist, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
     #ajuste manualmente a largura, width, para deixar as barras mais ou menos proximas
     
-    if (normal_curve_overlay == True):
+    if ((normal_curve_overlay == True) & (sigma > 0)):
     
         # add normal curve
         ax.plot(x_of_normal, y_normal, color = 'red', linestyle = 'dashed', alpha = OPACITY, label = 'Adjusted\nnormal_curve')
@@ -9265,10 +9510,22 @@ def histogram_alternative (df, column_to_analyze, total_of_bins, normal_curve_ov
     general_stats.set_index(['statistics'], inplace = True)
     
     print("Check the general statistics from the analyzed variable:\n")
-    print(general_stats)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(general_stats)
+            
+    except: # regular mode
+        print(general_stats)
+    
     print("\n")
     print("Check the frequency table:\n")
-    print(DATASET)
+    
+    try:    
+        display(DATASET)    
+    except:
+        print(DATASET)
 
     return general_stats, DATASET
 
@@ -9951,7 +10208,15 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
     list_of_dicts = support_list
     
     print("General statistics successfully returned in the list \'list_of_dicts\'.\n")
-    print(list_of_dicts)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(list_of_dicts)
+            
+    except: # regular mode
+        print(list_of_dicts)
+    
     print("\n")
     
     print("Note: the obtention of the probability plot specific for each distribution requires shape parameters.")
@@ -9984,7 +10249,7 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
     # Set a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
-    print(f"Original columns in the dataframe:\n{DATASET.columns}")
+    print(f"Original columns in the dataframe:\n{DATASET.columns}\n")
     
     if ((columns_list is None) | (columns_list == np.nan)):
         # empty list
@@ -9998,9 +10263,16 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
         
         #filter the dataframe so that it will contain only the cols_list.
         DATASET = DATASET[columns_list]
-        print("Dataframe filtered according to the list provided.")
+        print("Dataframe filtered according to the list provided.\n")
         print("Check the new dataframe:\n")
-        print(DATASET)
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET)
+
+        except: # regular mode
+            print(DATASET)
         
     elif (mode == 'rename_columns'):
         
@@ -10016,10 +10288,16 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
         else:
             #Same number of elements, so that we can update the columns' names.
             DATASET.columns = columns_list
-            print("Dataframe columns renamed according to the list provided.")
-            print("Warning: the substitution is element-wise: the first element of the list is now the name of the first column, and so on, ..., so that the last element is the name of the last column.")
+            print("Dataframe columns renamed according to the list provided.\n")
+            print("Warning: the substitution is element-wise: the first element of the list is now the name of the first column, and so on, ..., so that the last element is the name of the last column.\n")
             print("Check the new dataframe:\n")
-            print(DATASET)
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(DATASET)
+
+            except: # regular mode
+                print(DATASET)
         
     else:
         print("Enter a valid mode: \'select_or_order_columns\' or \'rename_columns\'.")
@@ -10187,9 +10465,16 @@ def rename_or_clean_columns_labels (df, mode = 'set_new_names', substring_to_be_
         print("Select a valid mode: \'set_new_names\', \'capitalize_columns\', \'lowercase_columns\', \'replace_substrings\', \'trim\', or \'eliminate_trailing_characters\'.\n")
         return "error"
     
-    print("Finished renaming dataframe columns.")
+    print("Finished renaming dataframe columns.\n")
     print("Check the new dataframe:\n")
-    print(DATASET)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET)
+            
+    except: # regular mode
+        print(DATASET)
         
     return DATASET
 
@@ -10300,7 +10585,14 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
     # Now, we are in the main code.
     print("Finished removing leading and trailing spaces or characters (substrings).")
     print("Check the 10 first elements from the series:\n")
-    print(new_series.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_series.head(10))
+            
+    except: # regular mode
+        print(new_series.head(10))
     
     return DATASET
 
@@ -10367,7 +10659,14 @@ def capitalize_or_lower_string_case (df, column_to_analyze, method = 'lowercase'
     # Now, we are in the main code.
     print(f"Finished homogenizing the string case of {column_to_analyze}, giving value consistency.")
     print("Check the 10 first elements from the series:\n")
-    print(new_series.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_series.head(10))
+            
+    except: # regular mode
+        print(new_series.head(10))
     
     return DATASET
 
@@ -10443,7 +10742,14 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
     # Now, we are in the main code.
     print(f"Finished replacing the substring {substring_to_be_replaced} by {new_substring_for_replacement}.")
     print("Check the 10 first elements from the series:\n")
-    print(new_series.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_series.head(10))
+            
+    except: # regular mode
+        print(new_series.head(10))
     
     return DATASET
 
@@ -10570,7 +10876,14 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
         # Now, we are in the main code.
         print(f"Finished replacing the substrings accordingly to the mapping: {mapping_dict}.")
         print("Check the 10 first elements from the series:\n")
-        print(new_series.head(10))
+
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
+
+        except: # regular mode
+            print(new_series.head(10))
 
         return DATASET
     
@@ -10665,8 +10978,8 @@ def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', thr
     print("This means that substrings or different cases (upper or higher) may be searched and replaced, as long as the similarity threshold is reached.\n")
     
     print("ATTENTION!\n")
-    print("It is advisable for previously searching the similarity to find the best similarity threshold.")
-    print("Set the threshold as high as possible, and only then perform the replacement.")
+    print("It is advisable for previously searching the similarity to find the best similarity threshold.\n")
+    print("Set the threshold as high as possible, and only then perform the replacement.\n")
     print("It will avoid the repetition of original incorrect strings in the output dataset, as well as wrong replacement (replacement by one of the standard strings which is not the correct one.\n")
     
     # Set a local copy of dataframe to manipulate
@@ -10757,18 +11070,29 @@ def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', thr
             DATASET[column_to_analyze] = new_series
 
         # Now, we are in the main code.
-        print(f"Finished replacing the strings by the provided standards. Returning the new dataset and a summary list.")
-        print("In summary_list, you can check the calculated similarities in keys \'similarity_list\' from the dictionaries.")
-        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key  \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+        print(f"Finished replacing the strings by the provided standards. Returning the new dataset and a summary list.\n")
+        print("In summary_list, you can check the calculated similarities in keys \'similarity_list\' from the dictionaries.\n")
+        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
         print("Check the 10 first elements from the new series, with strings replaced:\n")
-        print(new_series.head(10))
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
+
+        except: # regular mode
+            print(new_series.head(10))
     
     else:
         
-        print("Finished mapping similarities. Returning the original dataset and a summary list")
-        print("Check the similarities below, in keys \'similarity_list\' from the dictionaries.")
-        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key  \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
-        print(summary_list)
+        print("Finished mapping similarities. Returning the original dataset and a summary list.\n")
+        print("Check the similarities below, in keys \'similarity_list\' from the dictionaries.\n")
+        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+        
+        try:
+            display(summary_list)
+        except:
+            print(summary_list)
     
     return DATASET, summary_list
 
@@ -10818,6 +11142,8 @@ def log_transform (df, subset = None, create_new_columns = True, new_columns_suf
     # columns should remain
     # Start a support list:
     support_list = []
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
     # Loop through each column in columns_list:
     for column in columns_list:
@@ -10826,7 +11152,7 @@ def log_transform (df, subset = None, create_new_columns = True, new_columns_suf
         column_type = DATASET[column].dtype
             
         # If it is not categorical (object), append it to the support list:
-        if ((column_type != 'O') | (column_type != 'object')):
+        if (column_type in numeric_dtypes):
                 
             support_list.append(column)
     
@@ -10866,7 +11192,14 @@ def log_transform (df, subset = None, create_new_columns = True, new_columns_suf
     DATASET.reset_index(drop = True)
     
     print("The columns were successfully log-transformed. Check the 10 first rows of the new dataset:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     return DATASET
 
@@ -10929,7 +11262,9 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, new_col
     # columns should remain
     # Start a support list:
     support_list = []
-    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+
     # Loop through each column in columns_list:
     for column in columns_list:
         
@@ -10937,7 +11272,7 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, new_col
         column_type = DATASET[column].dtype
             
         # If it is not categorical (object), append it to the support list:
-        if ((column_type != 'O') | (column_type != 'object')):
+        if (column_type in numeric_dtypes):
                 
             support_list.append(column)
     
@@ -10967,7 +11302,14 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, new_col
         DATASET[new_column_name] = np.exp(DATASET[column])
     
     print("The log_transform was successfully reversed through the exponential transformation. Check the 10 first rows of the new dataset:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
     
     return DATASET
 
@@ -11041,19 +11383,19 @@ def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', la
     #Check if neither 'calculate_and_apply' nor 'apply_only' were selected
     
     if ((lambda_boxcox is None) & (mode == 'apply_only')):
-        print("Invalid value set for \'lambda_boxcox'\. Setting mode to \'calculate_and_apply\'.")
+        print("Invalid value set for \'lambda_boxcox'\. Setting mode to \'calculate_and_apply\'.\n")
         mode = 'calculate_and_apply'
     
     elif (boolean_check == True):
-        print("Invalid value set for \'mode'\. Setting mode to \'calculate_and_apply\'.")
+        print("Invalid value set for \'mode'\. Setting mode to \'calculate_and_apply\'.\n")
         mode = 'calculate_and_apply'
     
     
     # Start a local copy of the dataframe:
     DATASET = df.copy(deep = True)
     
-    print("Box-Cox transformation must be applied only to values higher than zero.")
-    print("That is because it is a logarithmic transformation.")
+    print("Box-Cox transformation must be applied only to values higher than zero.\n")
+    print("That is because it is a logarithmic transformation.\n")
     print(f"So, filtering out all values from {column_to_transform} lower than or equal to zero.\n")
     DATASET = DATASET[DATASET[column_to_transform] > 0]
     DATASET = DATASET.reset_index(drop = True)
@@ -11078,7 +11420,15 @@ def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', la
     #dataframe contendo os dados transformados
     
     print("Data successfully transformed. Check the 10 first transformed rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
+        
     print("\n") #line break
     
     # Start a dictionary to store the summary results of the transform and the normality
@@ -11106,7 +11456,11 @@ def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', la
     data_sum_dict['anderson_darling_p_val'] = ad_test[1]
      
     print("Box-Cox Transformation Summary:\n")
-    print(data_sum_dict)
+    try:
+        display(data_sum_dict)     
+    except:
+        print(data_sum_dict)
+    
     print("\n") #line break
     
     if not ((specification_limits['lower_spec_lim'] is None) & (specification_limits['upper_spec_lim'] is None)):
@@ -11164,7 +11518,10 @@ def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', la
             spec_lim_dict['upper_spec_lim_transf'] = spec_lim_array[0]
         
         print("New specification limits successfully obtained:\n")
-        print(spec_lim_dict)
+        try:
+            display(spec_lim_dict)     
+        except:
+            print(spec_lim_dict)
         
         # Add spec_lim_dict as a new element from data_sum_dict:
         data_sum_dict['spec_lim_dict'] = spec_lim_dict
@@ -11240,7 +11597,15 @@ def reverse_box_cox (df, column_to_transform, lambda_boxcox, suffix = '_Reversed
     #dataframe contendo os dados transformados
     
     print("Data successfully retransformed. Check the 10 first retransformed rows:\n")
-    print(DATASET.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
+    
     print("\n") #line break
  
     return DATASET
@@ -11269,6 +11634,12 @@ def OneHotEncode_df (df, subset_of_features_to_be_encoded):
     # Start a copy of the original dataframe. This copy will be updated to create the new
     # transformed dataframe. Then, we avoid manipulating the original object.
     new_df = df.copy(deep = True)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display  
+    except:
+        pass
     
     #loop through each column of the subset:
     for column in subset_of_features_to_be_encoded:
@@ -11378,9 +11749,14 @@ def OneHotEncode_df (df, subset_of_features_to_be_encoded):
         # and the total of columns will be the sum of the total of columns of
         # the first dataframe with the total of columns of the second dataframe.
         
-        print(f"Successfully encoded column \'{column}\' and merged the encoded columns to the dataframe.")
+        print(f"Successfully encoded column \'{column}\' and merged the encoded columns to the dataframe.\n")
         print("Check first 5 rows of the encoded table that was merged:\n")
-        print(encoded_X_df.head())
+        
+        try:
+            display(encoded_X_df.head())
+        except: # regular mode
+            print(encoded_X_df.head())
+        
         # The default of the head method, when no parameter is printed, is to show 5 rows; if an
         # integer number Y is passed as argument .head(Y), Pandas shows the first Y-rows.
         print("\n")
@@ -11391,7 +11767,11 @@ def OneHotEncode_df (df, subset_of_features_to_be_encoded):
     print("Use the encoder object to inverse the One-Hot Encoding in the correspondent function.\n")
     print(f"For each category in the columns \'{subset_of_features_to_be_encoded}\', a new column has value 1, if it is the actual category of that row; or is 0 if not.\n")
     print("Check the first 10 rows of the new dataframe:\n")
-    print(new_df.head(10))
+    
+    try:
+        display(new_df.head(10))
+    except:
+        print(new_df.head(10))
 
     #return the transformed dataframe and the encoding dictionary:
     return new_df, encoding_list
@@ -11421,6 +11801,12 @@ def reverse_OneHotEncode (df, encoding_list):
     # transformed dataframe. Then, we avoid manipulating the original object.
     new_df = df.copy(deep = True)
     
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display  
+    except:
+        pass
+    
     for encoder_dict in encoding_list:
         
         try:
@@ -11448,15 +11834,27 @@ def reverse_OneHotEncode (df, encoding_list):
                 new_df[col_name] = reversed_array
                 
                 print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
-                print(new_df[[col_name]].head())
+                
+                try:
+                    display(new_df[[col_name]].head())
+                except:
+                    print(new_df[[col_name]].head())
+                
                 print("\n")
             
         except:
             print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
     
-    print("Finished reversing One-Hot Encoding. Returning the new transformed dataframe.")
+    print("Finished reversing One-Hot Encoding. Returning the new transformed dataframe.\n")
     print("Check the first 10 rows of the new dataframe:\n")
-    print(new_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_df.head(10))
+            
+    except: # regular mode
+        print(new_df.head(10))
 
     #return the transformed dataframe:
     return new_df
@@ -11489,6 +11887,12 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
     # Start a copy of the original dataframe. This copy will be updated to create the new
     # transformed dataframe. Then, we avoid manipulating the original object.
     new_df = df.copy(deep = True)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display  
+    except:
+        pass
    
     #loop through each column of the subset:
     for column in subset_of_features_to_be_encoded:
@@ -11550,9 +11954,14 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
         # Append the encoding_dict as an element from list encoding_list:
         encoding_list.append(encoding_dict)
         
-        print(f"Successfully encoded column \'{column}\' and added the encoded column to the dataframe.")
+        print(f"Successfully encoded column \'{column}\' and added the encoded column to the dataframe.\n")
         print("Check first 5 rows of the encoded series that was merged:\n")
-        print(new_df[[new_column]].head())
+        
+        try:
+            display(new_df[[new_column]].head())
+        except:
+            print(new_df[[new_column]].head())
+        
         # The default of the head method, when no parameter is printed, is to show 5 rows; if an
         # integer number Y is passed as argument .head(Y), Pandas shows the first Y-rows.
         print("\n")
@@ -11562,8 +11971,12 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
     print("In turns, the nested dictionary shows the different categories as key \'categories\' and the encoder object as the key \'ordinal_enc_obj\'.\n")
     print("Use the encoder object to inverse the Ordinal Encoding in the correspondent function.\n")
     print("Check the first 10 rows of the new dataframe:\n")
-    print(new_df.head(10))
-
+    
+    try:
+        display(new_df.head(10))
+    except:
+        print(new_df.head(10))
+    
     #return the transformed dataframe and the encoding dictionary:
     return new_df, encoding_list
 
@@ -11592,6 +12005,12 @@ def reverse_OrdinalEncode (df, encoding_list):
     # transformed dataframe. Then, we avoid manipulating the original object.
     new_df = df.copy(deep = True)
     
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display  
+    except:
+        pass
+   
     for encoder_dict in encoding_list:
         
         try:
@@ -11624,16 +12043,25 @@ def reverse_OrdinalEncode (df, encoding_list):
                 new_df[col_name] = reversed_array
                     
                 print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
-                print(new_df[[col_name]].head())
+                
+                try:
+                    display(new_df[[col_name]].head())
+                except:
+                    print(new_df[[col_name]].head())
+
                 print("\n")
                    
         except:
             print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
     
     
-    print("Finished reversing Ordinal Encoding. Returning the new transformed dataframe.")
+    print("Finished reversing Ordinal Encoding. Returning the new transformed dataframe.\n")
     print("Check the first 10 rows of the new dataframe:\n")
-    print(new_df.head(10))
+    
+    try:
+        display(new_df.head(10))
+    except:
+        print(new_df.head(10))
 
     #return the transformed dataframe:
     return new_df
@@ -11896,12 +12324,19 @@ def feature_scaling (df, subset_of_features_to_scale, mode = 'min_max', scale_wi
         # Finally, append the scaling_dict to the list scaling_list:
         scaling_list.append(scaling_dict)
                     
-        print(f"Successfully scaled column {column}.")
+        print(f"Successfully scaled column {column}.\n")
                 
-    print("Successfully scaled the dataframe. Returning the transformed dataframe and the scaling dictionary.")
+    print("Successfully scaled the dataframe. Returning the transformed dataframe and the scaling dictionary.\n")
     print("Check 10 first rows of the new dataframe:\n")
-    print(new_df.head(10))
-                
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_df.head(10))
+            
+    except: # regular mode
+        print(new_df.head(10))
+ 
     return new_df, scaling_list
 
 
@@ -12085,11 +12520,18 @@ def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_pa
                 # Finally, append the scaling_dict to the list scaling_list:
                 scaling_list.append(scaling_dict)
 
-                print(f"Successfully re-scaled column {column}.")
+                print(f"Successfully re-scaled column {column}.\n")
                 
-    print("Successfully re-scaled the dataframe.")
+    print("Successfully re-scaled the dataframe.\n")
     print("Check 10 first rows of the new dataframe:\n")
-    print(new_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(new_df.head(10))
+            
+    except: # regular mode
+        print(new_df.head(10))
                 
     return new_df, scaling_list
 
@@ -12137,7 +12579,9 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     # DIRECTORY_PATH.
     
     # model_type: This parameter has effect only when a model will be manipulated.
-    # model_type: 'keras' for deep learning keras/ tensorflow models with extension .h5
+    # model_type = 'keras' for deep learning keras/ tensorflow models with extension .h5
+    # model_type = 'tensorflow_lambda' for deep learning tensorflow models containing 
+    # lambda layers. Such models are compressed as tar.gz.
     # model_type = 'sklearn' for models from scikit-learn (non-deep learning)
     # model_type = 'xgb_regressor' for XGBoost regression models (non-deep learning)
     # model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
@@ -12207,6 +12651,9 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             #check model_type:
             if (model_type == 'keras'):
                 model_extension = 'h5'
+            
+            elif (model_type == 'keras_lambda'):
+                model_extension = 'tar.gz'
             
             elif (model_type == 'sklearn'):
                 model_extension = 'dill'
@@ -12327,7 +12774,58 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     # from keras.models import load_model
                     model = tf.keras.models.load_model(model_path)
                     print(f"Keras/TensorFlow model successfully imported from {model_path}.")
-
+            
+            elif (model_type == 'tensorflow_lambda'):
+                
+                if (use_colab_memory == True):
+                    
+                    key = model_file_name + "." + model_extension
+                    
+                    # Try accessing the tar.gz file directly from the environment:
+                    model_path = key
+                    # to access from the dictionary:
+                    # model_path = colab_files_dict[key]
+                    
+                    # Extract to a temporary 'tmp' directory:
+                    try:
+                        # Compress the directory using tar
+                        # https://www.gnu.org/software/tar/manual/tar.html
+                        ! tar --extract --file=model_path --verbose --verbose tmp/
+                    
+                    except:
+                        
+                        from tarfile import TarFile
+                        # pickle, csv, tarfile, and zipfile are on Python standard library
+                        # https://docs.python.org/3/library/tarfile.html
+                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                        tar_file = TarFile.open(model_path, mode = 'r:gz')
+                        tar_file.extractall("tmp/")
+                        tar_file.close()
+                    
+                    model = tf.keras.models.load_model("tmp/saved_model")
+                    print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
+                    
+                else:
+                    #standard method
+                    # Extract to a temporary 'tmp' directory:
+                    try:
+                        # Compress the directory using tar
+                        # https://www.gnu.org/software/tar/manual/tar.html
+                        ! tar --extract --file=model_path --verbose --verbose tmp/
+                    
+                    except:
+                        
+                        from tarfile import TarFile
+                        # pickle, csv, tarfile, and zipfile are on Python standard library
+                        # https://docs.python.org/3/library/tarfile.html
+                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                        tar_file = TarFile.open(model_path, mode = 'r:gz')
+                        tar_file.extractall("tmp/")
+                        tar_file.close()
+                    
+                    model = tf.keras.models.load_model("tmp/saved_model")
+                    print(f"TensorFlow model successfully imported from {model_path}.")
+            
             elif (model_type == 'sklearn'):
                 
                 if (use_colab_memory == True):
@@ -12469,6 +12967,54 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     #standard method
                     model_to_export.save(model_path)
                     print(f"Keras/TensorFlow model successfully exported as {model_path}.")
+            
+            elif (model_type == 'tensorflow_lambda'):
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    
+                    # Save your model in the SavedModel format
+                    model_to_export.save('saved_model/my_model')
+                    
+                    try:
+                        # Compress the directory using tar
+                        # https://www.gnu.org/software/tar/manual/tar.html
+                        ! tar -czvf model_path saved_model/
+                    
+                    except NotFoundError:
+                        
+                        from tarfile import TarFile
+                        # pickle, csv, tarfile, and zipfile are on Python standard library
+                        # https://docs.python.org/3/library/tarfile.html
+                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                        tar_file = TarFile.open(model_path, mode = 'w:gz')
+                        tar_file.add('saved_model/')
+                        tar_file.close()
+                    
+                    key = model_file_name + "." + model_extension
+                    files.download(key)
+                    print(f"TensorFlow model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    # Save your model in the SavedModel format
+                    model_to_export.save('saved_model/my_model')
+                    
+                    try:
+                        # Compress the directory using tar
+                        ! tar -czvf model_path saved_model/
+                    
+                    except NotFoundError:
+                        
+                        from tarfile import TarFile
+                        # pickle, csv, tarfile, and zipfile are on Python standard library
+                        # https://docs.python.org/3/library/tarfile.html
+                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                        tar_file = TarFile.open(model_path, mode = 'w:gz')
+                        tar_file.add('saved_model/')
+                        tar_file.close()
+                        
+                    print(f"TensorFlow model successfully exported as {model_path}.")
 
             elif (model_type == 'sklearn'):
                 
@@ -13114,7 +13660,14 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     arima_df = arima_df[ordered_columns_list]
     print("\n")
     print("Check the dataframe containing the ARIMA predictions:\n")
-    print(arima_df)
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(arima_df)
+            
+    except: # regular mode
+        print(arima_df)
     
     print("\n") #line break
     print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
@@ -13155,9 +13708,6 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
     # seven days.
     
     # Keep plot_predicted_time_series = True to see the graphic of the predicted values.
-    # WARNING: This functionality requires that the function scatter_plot_lin_reg is properly
-    # running, since this function will be called.
-    # Other functions required: CALCULATE_DELAY and UNION_DATAFRAMES
     # Alternatively, set plot_predicted_time_series = True not to show the plot.
     
     # df = None, column_to_analyze = None - keep it as None if you do not want to show
@@ -13561,7 +14111,15 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
         
     # We are finally in the general case, after obtaining the dataframe through all possible ways:
     print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
-    print(forecast_df.tail(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(forecast_df.tail(10))
+            
+    except: # regular mode
+        print(forecast_df.tail(10))
+        
     
     # Now, let's create the graphics
     if (plot_predicted_time_series == True):
@@ -13852,8 +14410,32 @@ def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', mi
             rolling_window_df.reset_index(drop = True, inplace = True)
     
     print("Check the rolling dataframe:\n")
-    print(rolling_window_df)
-        
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(rolling_window_df)
+            
+    except: # regular mode
+        print(rolling_window_df)
+    
+    print('\n')
+    print("ATTENTION: depending on the window size, the windowed dataset may be considerable smaller than the original dataframe, with several missing values indicated by NA.\n")
+    print("For understanding it, consider a dataframe containing daily new cases of an illness, where we want to obtain the 7-day rolling average.")
+    print("Here, we will obtain 6 rows containing only missing values. The reason is that it is not possible to calculate the 7-periods average for the first 6 rows.")
+    print("In the first row, we have only 1 data; in the second row, we have only two, the day and the day before; ..., and so on.")
+    print("We can only calculate a 7-period average from the 7th day, when we have that day and the 6 days before it.")
+    print("Once it is not possible to obtain the rolling statistic for some rows, missing values are generated.")
+    print("So, even if the rolling statistic was calculated for only 2 consecutive periods, there would be a row with missing values, since it is not possible to calculate the window statistic for a single entry.\n")
+    print(f"Naturally, this examples suppose that the user set how_to_close_window = {'right'}, when the first point in the window is excluded from calculations.")
+    print(f"If how_to_close_window = {'left'}, then the last point in the window would be excluded from calculations, so the missing values would appear at the end of the dataset.")
+    print("Even though it is not so intuitive, in this case we would take an entry and the next ones for calculating the statistic. For instance, the 7-day rolling average would be calculated as the average between a day and the next 6 days.")
+    print(f"Finally, if how_to_close_window = {'both'}, we would have a centralized window, where the some of the values come from the times before; and some come from the times after.")
+    print("In this last case, the 7-day rolling average would be calculated as the average between a day; the 3 days before; and the 3 next days.")
+    print("So, missing values would appear in both the beginning and the end of the dataframe.\n")
+    
+    print("For this function, the default is how_to_close_window = {'right'}, i.e., statistics are calculated from the row and the values before it.\n")
+    
     return rolling_window_df
 
 
@@ -14017,7 +14599,7 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     # These resultants are obtained as attributes of the decompose_res_obj
     
     number_of_observations_used = decompose_res_obj.nobs
-    print(f"Seasonal decomposition concluded using {number_of_observations_used} observations.")
+    print(f"Seasonal decomposition concluded using {number_of_observations_used} observations.\n")
     
     decompose_dict = {
         
@@ -14032,7 +14614,15 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     seasonal_decompose_df = pd.DataFrame(data = decompose_dict)
     
     print("Check the first 10 rows of the seasonal decompose dataframe obtained:\n")
-    print(seasonal_decompose_df.head(10))
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(seasonal_decompose_df.head(10))
+            
+    except: # regular mode
+        print(seasonal_decompose_df.head(10))
+    
     print("\n") # line break
     print(f"Check the time series decomposition graphics for the {MODEL} model:\n")
     
