@@ -14732,3 +14732,844 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     
     return seasonal_decompose_df
 
+
+def COLUMN_GENERAL_STATISTICS (df, column_to_analyze):
+    
+    import numpy as np
+    import pandas as pd
+    
+    #df: dataframe to be analyzed.
+    
+    #column_to_analyze: name of the new column. e.g. column_to_analyze = 'col1'
+    # will analyze column named as 'col1'
+    analyzed_series = df[column_to_analyze].copy()
+    #Drop missing values. Dropping them with describe method is deprecated and may raise errors.
+    analyzed_series = analyzed_series.dropna()
+    
+    general_stats = analyzed_series.describe()
+    print(f"General descriptive statistics from variable {column_to_analyze}, ignoring missing values:\n") 
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(general_stats)
+            
+    except: # regular mode
+        print(general_stats)
+    
+    interpretation_df = pd.DataFrame(
+    
+        data = {
+            'statistic': ["count", "mean", "std", "min", "25% = 0.25",
+                         "50% = 0.50", "75% = 0.75", "max"],
+            'interpretation': ["total of values evaluated (number of entries)",
+                               "mean value of the series", "standard deviation of the series",
+                               "minimum value observed",
+                               "1st-quartile: 25% of data <= this value",
+                               "2nd-quartile: 50% of data <= this value", 
+                               "3rd-quartile: 75% of data <= this value",
+                               "maximum value observed"
+                              ]}
+    )
+    interpretation_df.set_index('statistic', inplace = True)
+    
+    print("\n") #line break
+    print("Interpretation (missing values ignored):")
+    
+    try:
+        display(interpretation_df)        
+    except:
+        print(interpretation_df)
+    
+    print("\n")
+    print("ATTENTION: This function shows the general statistics only for numerical variables.")
+    print("The results were returned as the dataframe general_stats.\n")
+    
+    # Return only the dataframe
+    return general_stats
+
+
+def GET_QUANTILES_FOR_COLUMN (df, column_to_analyze):
+    
+    import numpy as np
+    import pandas as pd
+    
+    #df: dataframe to be analyzed.
+    
+    #column_to_analyze: name of the new column. e.g. column_to_analyze = 'col1'
+    # will analyze column named as 'col1'
+    analyzed_series = df[column_to_analyze].copy()
+    #Drop missing values. Dropping them with describe method is deprecated and may raise errors.
+    analyzed_series = analyzed_series.dropna()
+    
+    list_of_quantiles = []
+    list_of_pcts = []
+    list_of_values = []
+    list_of_interpretation = []
+    
+    #First element: minimum
+    list_of_quantiles.append(0.0)
+    list_of_pcts.append(0)
+    list_of_values.append(analyzed_series.min())
+    list_of_interpretation.append(f"minimum {column_to_analyze}")
+    
+    i = 5
+    #Start from the 5% quantile
+    while (i < 100):
+        
+        list_of_quantiles.append(i/100)
+        list_of_pcts.append(i)
+        list_of_values.append(analyzed_series.quantile(i/100))
+        list_of_interpretation.append(f"{i}% of data <= this value")
+        
+        i = i + 5
+    
+    # Last element: maximum value
+    list_of_quantiles.append(1.0)
+    list_of_pcts.append(100)
+    list_of_values.append(analyzed_series.max())
+    list_of_interpretation.append(f"maximum {column_to_analyze}")
+    
+    # Summarize the lists as a dataframe:
+    
+    quantiles_summ_df = pd.DataFrame(data = {"quantile": list_of_quantiles, 
+                                             "%": list_of_pcts,
+                                             column_to_analyze: list_of_values,
+                                             "interpretation": list_of_interpretation})
+    quantiles_summ_df.set_index(['quantile', "%", column_to_analyze], inplace = True)
+    
+    print("Quantiles returned as dataframe quantiles_summ_df. Check it below:\n")
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(quantiles_summ_df)
+            
+    except: # regular mode
+        print(quantiles_summ_df)
+    
+    return quantiles_summ_df
+
+
+def GET_P_PERCENT_QUANTILE_LIM_FOR_COLUMN (df, column_to_analyze, p_percent = 100):
+    
+    import numpy as np
+    import pandas as pd
+    
+    #df: dataframe to be analyzed.
+    
+    #column_to_analyze: name of the new column. e.g. column_to_analyze = 'col1'
+    # will analyze column named as 'col1'
+    
+    # p_percent: float value from 0 to 100 representing the percent of the quantile
+    # if p_percent = 31.2, then 31.2% of the data will fall below the returned value
+    # if p_percent = 75, then 75% of the data will fall below the returned value
+    # if p_percent = 0, the minimum value is returned.
+    # if p_percent = 100, the maximum value is returned.
+    
+    analyzed_series = df[column_to_analyze].copy()
+    #Drop missing values. Dropping them with describe method is deprecated and may raise errors.
+    analyzed_series = analyzed_series.dropna()
+    
+    #convert the quantile to fraction
+    quantile_fraction = p_percent/100.0 #.0 to guarantee a float result
+    
+    if (quantile_fraction < 0):
+        print("Invalid percent value - it cannot be lower than zero.")
+        return "error"
+    
+    elif (quantile_fraction == 0):
+        #get the minimum value
+        quantile_lim = analyzed_series.min()
+        print(f"Minimum value of {column_to_analyze} =")
+        print("%.4f" %(quantile_lim))
+    
+    elif (quantile_fraction == 1):
+        #get the maximum value
+        quantile_lim = analyzed_series.max()
+        print(f"Maximum value of {column_to_analyze} =")
+        print("%.4f" %(quantile_lim))
+        
+    else:
+        #get the quantile
+        quantile_lim = analyzed_series.quantile(quantile_fraction)
+        print(f"{quantile_fraction}-quantile: {p_percent}% of data <=")
+        print("%.4f" %(quantile_lim))
+    
+    return quantile_lim
+
+
+def LABEL_DATAFRAME_SUBSETS (df, list_of_labels = [{'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}]):
+    
+    import numpy as np
+    import pandas as pd
+    
+    print("Attention: this function selects subsets from the dataframe and label them, allowing the seggregation of the data.\n")
+    print("If you want to filter the dataframe to eliminate non-selected rows, use the function APPLY_ROW_FILTERS_LIST\n")
+    
+    ## This function selects subsets of the dataframe by applying a list
+    ## of row filters, and then it labels each one of the filtered subsets.
+    
+    # df: dataframe to be analyzed.
+    
+    # list_of_labels = [{'filter': None, 'value_to_apply': None, 'new_column_name': None}]
+    # list_of_labels is as a list of dictionaries. It must be declared as a list, in brackets,
+    # even if there is a single dictionary.
+    # Use always the same keys: 'filter' for one of the boolean filters that will be applied; 
+    # 'value_to_apply' the value that will be used for labelling that specific subset selected
+    # from the boolean filter (it may be either a string or a value); and
+    # 'new_column_name': a string or variable to be the name of the new column created. If None,
+    # a standard name will be applied.
+    
+    ## ATTENTION: If you want the labels to be applied to a same column, declare the exact same value
+    # for the key 'new_column_name'. Also, if you want the value to be applied to an existing column,
+    # declare the existing column's name in 'new_column_name'.
+    
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to plot more series.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'filter': filter, 'value_to_apply': value, 'new_column_name': name}, where 
+    # filter, value, and name represent the boolean filter, the value for labelling, and the new
+    # column name (you can pass 'value_to_apply': None, 'new_column_name': None, but if 
+    # 'filter' is None, the new dictionary will be ignored).
+    
+    ## define the filters and only them define the filters list
+    # EXAMPLES OF BOOLEAN FILTERS TO COMPOSE THE LIST
+    # boolean_filter1 = ((None) & (None)) 
+    # (condition1 AND (&) condition2)
+    # boolean_filter2 = ((None) | (None)) 
+    # condition1 OR (|) condition2
+    
+    # boolean filters result into boolean values True or False.
+
+    ## Examples of filters:
+    ## filter1 = (condition 1) & (condition 2)
+    ## filter1 = (df['column1'] > = 0) & (df['column2']) < 0)
+    ## filter2 = (condition)
+    ## filter2 = (df['column3'] <= 2.5)
+    ## filter3 = (df['column4'] > 10.7)
+    ## filter3 = (condition 1) | (condition 2)
+    ## filter3 = (df['column5'] != 'string1') | (df['column5'] == 'string2')
+
+    ## comparative operators: > (higher); >= (higher or equal); < (lower); 
+    ## <= (lower or equal); == (equal); != (different)
+
+    ## concatenation operators: & (and): the filter is True only if the 
+    ## two conditions concatenated through & are True
+    ## | (or): the filter is True if at least one of the two conditions concatenated
+    ## through | are True.
+    ## ~ (not): inverts the boolean, i.e., True becomes False, and False becomes True. 
+
+    ## separate conditions with parentheses. Use parentheses to define a order
+    ## of definition of the conditions:
+    ## filter = ((condition1) & (condition2)) | (condition3)
+    ## Here, firstly ((condition1) & (condition2)) = subfilter is evaluated. 
+    ## Then, the resultant (subfilter) | (condition3) is evaluated.
+
+    ## Pandas .isin method: you can also use this method to filter rows belonging to
+    ## a given subset (the row that is in the subset is selected). The syntax is:
+    ## is_black_or_brown = dogs["color"].isin(["Black", "Brown"])
+    ## or: filter = (dataframe_column_series).isin([value1, value2, ...])
+    # The negative of this condition may be acessed with ~ operator:
+    ##  filter = ~(dataframe_column_series).isin([value1, value2, ...])
+    ## Also, you may use isna() method as filter for missing values:
+    ## filter = (dataframe_column_series).isna()
+    ## or, for not missing: ~(dataframe_column_series).isna()
+    
+    # Warning: the sequence of filtering dictionaries must be correspondent to the sequence of labels. 
+    # Rows selected from the first filter are labelled with the first item from the labels
+    # list; rows selected by the 2nd filter are labelled with the 2nd element, and so on.
+    
+    
+    # Set a local copy of the dataframe to manipulate:
+    DATASET = df.copy(deep = True)
+    
+    # Loop through all dictionaries in list_of_labels:
+    for dictionary in list_of_labels:
+        
+        # Check if the 'filter' key is not None:
+        boolean_filter = dictionary['filter']
+        
+        if (boolean_filter is not None):
+            
+            if (dictionary['value_to_apply'] is None):
+                label = np.nan
+            
+            else:
+                label = dictionary['value_to_apply']
+            
+            if (dictionary['new_column_name'] is None):
+                
+                new_column = "labelled_column_" + str(list_of_labels.index(dictionary))
+            
+            else:
+                new_column = str(dictionary['new_column_name'])
+            
+            #Apply the filter to select a group of rows, and apply the correspondent label
+            # to the selected rows
+
+            # syntax: dataset.loc[dataset['column_filtered'] <= 0.87, 'labelled_column'] = 1
+            # which is equivalent to dataset.loc[(filter), 'labelled_column'] = label
+            DATASET.loc[(boolean_filter), new_column] = label
+    
+    # Reset index:
+    DATASET = DATASET.reset_index(drop = True)
+    
+    print("Successfully labelled the dataframe. Check its 10 first rows:\n")
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(DATASET.head(10))
+            
+    except: # regular mode
+        print(DATASET.head(10))
+    
+    return DATASET
+
+
+def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], boxplot_notch = False, boxplot_patch_artist = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+    print ("If an error message is shown, update statsmodels. Declare and run a cell as:")
+    print ("!pip install statsmodels --upgrade\n")
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from statsmodels.stats.oneway import anova_oneway
+        
+    # plot_type = 'box' to plot a boxplot.
+    # plot_type = 'violin' to plot a violinplot.
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
+        
+    # confidence_level_pct = 95 = 95% confidence
+    # It is the percent of confidence for the analysis.
+    # Set confidence_level_pct = 90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce confidence_level_pct
+    # to get less restrictive results.
+    alpha_anova = 1 - (confidence_level_pct/100)
+    
+    # orientation = 'vertical' for vertical plots; 
+    # or orientation = 'horizontal', for horizontal plots.
+    # Manipulate the parameter vert (boolean).
+        
+    # reference_value: keep it as None or add a float value.
+    # This reference value will be shown as a red constant line to be compared
+    # with the plots. e.g. reference_value = 1.0 will plot a red line passing through
+    # VARIABLE_TO_ANALYZE = 1.0
+    
+    # data_in_same_column: set as True if all the values to plot are in a same column.
+    # If data_in_same_column = True, you must specify the dataframe containing the data as df;
+    # the column containing the label or group indication as column_with_labels_or_groups; and the column 
+    # containing the variable to analyze as variable_to_analyze.
+    # If column_with_labels_or_groups is None, the ANOVA analysis will not be performed and 
+    # the plot will be obtained for the whole series.
+    
+    # df is an object, so do not declare it in quotes. The other three arguments (columns' names) 
+    # are strings, so declare in quotes. 
+    
+    # Example: suppose you have a dataframe saved as dataset, and two groups A and B to compare. 
+    # All the results for both groups are in a column named 'results'. If the result is for
+    # an entry from group A, then a column named 'group' has the value 'A'. If it is for group B,
+    # column 'group' shows the value 'B'. In this example:
+    # data_in_same_column = True,
+    # df = dataset,
+    # column_with_labels_or_groups = 'group',
+    # variable_to_analyze = 'results'.
+    # If you want to declare a list of dictionaries, keep data_in_same_column = False and keep
+    # df = None (the other arguments may be set as None, but it is not mandatory: 
+    # column_with_labels_or_groups = None, variable_to_analyze = None).
+    
+
+    # Parameter to input when DATA_IN_SAME_COLUMN = False:
+    # list_of_dictionaries_with_series_to_analyze {'values_to_analyze': None, 'label': None}:
+    # if data is already converted to series, lists or arrays, provide them as a list of dictionaries. 
+    # It must be declared as a list, in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'values_to_analyze' for values that will be analyzed, and 'label' for
+    # the label or group correspondent to the series (may be a number or a string). 
+    # If you do not want to declare a series, simply keep as None, but do not remove or rename a 
+    # key (ALWAYS USE THE KEYS SHOWN AS MODEL).
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to plot more series.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'values_to_analyze': y, 'label': 'series_y'}, where y represents the values
+    # to analyze, and 'series_y' is the label 
+    # (you can pass 'label': None, but if values_to_analyze' is None, the new 
+    # dictionary will be ignored).
+    
+    # Examples:
+    # list_of_dictionaries_with_series_to_analyze = 
+    # [{'values_to_analyze': y, 'label': 0}]
+    # will plot a single variable. In turns:
+    # list_of_dictionaries_with_series_to_analyze = 
+    # [{'values_to_analyze': DATASET['Y1'], 'label': 'label1'}, 
+    # {'values_to_analyze': DATASET['Y2'], 'label': 'label2'}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}]
+    # will plot two series, Y1 and Y2.
+    # Notice that all dictionaries where 'values_to_analyze' is None are automatically ignored.
+    # If None is provided to 'label', an automatic label will be generated.
+            
+    # boxplot_notch = False
+    # Manipulate parameter notch (boolean, default: False) from the boxplot object
+    # Whether to draw a notched boxplot (True), or a rectangular boxplot (False). 
+    # The notches represent the confidence interval (CI) around the median. 
+    # The documentation for bootstrap describes how the locations of the notches are 
+    # computed by default, but their locations may also be overridden by setting the 
+    # conf_intervals parameter.
+            
+    # boxplot_patch_artist = False
+    # Manipulate parameter patch_artist (boolean, default: False)
+    # If False produces boxes with the Line2D artist. Otherwise, boxes are drawn 
+    # with Patch artists.
+    # Check documentation:
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
+    
+    
+    if (data_in_same_column == True):
+        
+        print("Data to be plotted in a same column.\n")
+        
+        if (df is None):
+            
+            print("Please, input a valid dataframe as df.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+            # The code will check the size of this list on the next block.
+            # If it is zero, code is simply interrupted.
+            # Instead of returning an error, we use this code structure that can be applied
+            # on other graphic functions that do not return a summary (and so we should not
+            # return a value like 'error' to interrupt the function).
+        
+        elif (variable_to_analyze is None):
+            
+            print("Please, input a valid column name as variable_to_analyze.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+        
+        else:
+            
+            # set a local copy of the dataframe:
+            DATASET = df.copy(deep = True)
+            
+            if (column_with_labels_or_groups is None):
+            
+                print("Using the whole series (column).\n")
+                column_with_labels_or_groups = 'whole_series_' + variable_to_analyze
+                DATASET[column_with_labels_or_groups] = column_with_labels_or_groups
+            
+            # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
+            # all in Ascending order
+            # Since we sort by label (group), it is easier to separate the groups.
+            DATASET = DATASET.sort_values(by = [column_with_labels_or_groups, variable_to_analyze], ascending = [True, True])
+            
+            # Drop rows containing missing values in column_with_labels_or_groups or variable_to_analyze:
+            DATASET = DATASET.dropna(how = 'any', subset = [column_with_labels_or_groups, variable_to_analyze])
+            
+            # Reset indices:
+            DATASET = DATASET.reset_index(drop = True)
+            
+            # Get a series of unique values of the labels, and save it as a list using the
+            # list attribute:
+            unique_labels = list(DATASET[column_with_labels_or_groups].unique())
+            print(f"{len(unique_labels)} different labels detected: {unique_labels}.\n")
+            
+            # Start a list to store the dictionaries containing the keys:
+            # 'values_to_analyze' and 'label'
+            list_of_dictionaries_with_series_to_analyze = []
+            
+            # Loop through each possible label:
+            for lab in unique_labels:
+                # loop through each element from the list unique_labels, referred as lab
+                
+                # Set a filter for the dataset, to select only rows correspondent to that
+                # label:
+                boolean_filter = (DATASET[column_with_labels_or_groups] == lab)
+                
+                # Create a copy of the dataset, with entries selected by that filter:
+                ds_copy = (DATASET[boolean_filter]).copy(deep = True)
+                # Sort again by X and Y, to guarantee the results are in order:
+                ds_copy = ds_copy.sort_values(by = [column_with_labels_or_groups, variable_to_analyze], ascending = [True, True])
+                # Restart the index of the copy:
+                ds_copy = ds_copy.reset_index(drop = True)
+                
+                # Re-extract the analyzed series and convert it to NumPy array: 
+                # (these arrays will be important later in the function):
+                y = np.array(ds_copy[variable_to_analyze])
+            
+                # Then, create the dictionary:
+                dict_of_values = {'values_to_analyze': y, 'label': lab}
+                
+                # Now, append dict_of_values to list_of_dictionaries_with_series_to_analyze:
+                list_of_dictionaries_with_series_to_analyze.append(dict_of_values)
+                
+            # Now, we have a list of dictionaries with the same format of the input list.
+            
+    else:
+        
+        # The user input a list_of_dictionaries_with_series_to_analyze
+        # Create a support list:
+        support_list = []
+        
+        # Loop through each element on the list list_of_dictionaries_with_series_to_analyze:
+        
+        for i in range (0, len(list_of_dictionaries_with_series_to_analyze)):
+            # from i = 0 to i = len(list_of_dictionaries_with_series_to_analyze) - 1, index of the
+            # last element from the list
+            
+            # pick the i-th dictionary from the list:
+            dictionary = list_of_dictionaries_with_series_to_analyze[i]
+            
+            # access 'values_to_analyze' and 'label' keys from the dictionary:
+            values_to_analyze = dictionary['values_to_analyze']
+            lab = dictionary['label']
+            # Remember that all this variables are series from a dataframe, so we can apply
+            # the astype function:
+            # https://www.askpython.com/python/built-in-methods/python-astype?msclkid=8f3de8afd0d411ec86a9c1a1e290f37c
+            
+            # check if at least values_to_analyze is not None:
+            if (values_to_analyze is not None):
+              
+                # Possibly, series is a not ordered Pandas series, and may contain missing values.
+                # Let's order it and clean it, if it is a Pandas object:
+                try:
+                    # Create a local copy to manipulate
+                    series = values_to_analyze.copy(deep = True)
+                    series = series.sort_values(ascending = True)
+                    series = series.dropna()
+                
+                except:
+                    # It is not a Pandas object. Simply copy to use the same variable name:
+                    series = values_to_analyze
+                
+                # Re-extract Y series and convert it to NumPy array 
+                # (these arrays will be important later in the function):
+                y = np.array(series)
+                
+                # check if label is None:
+                if (label is None):
+                    # input a default label.
+                    # Use the str attribute to convert the integer to string, allowing it
+                    # to be concatenated
+                    lab = "series_" + str(i)
+                    
+                # Then, create the dictionary:
+                dict_of_values = {'values_to_analyze': y, 'label': lab}
+                
+                # Now, append dict_of_values to support list:
+                support_list.append(dict_of_values)
+            
+        # Now, support_list contains only the dictionaries with valid entries, as well
+        # as labels for each collection of data. The values are independent from their origin,
+        # and now they are ordered and in the same format of the data extracted directly from
+        # the dataframe.
+        # So, make the list_of_dictionaries_with_series_to_analyze the support_list itself:
+        list_of_dictionaries_with_series_to_analyze = support_list
+        print(f"{len(list_of_dictionaries_with_series_to_analyze)} valid series input.\n")
+
+        
+    # Now that both methods of input resulted in the same format of list, we can process both
+    # with the same code.
+    
+    # Each dictionary in list_of_dictionaries_with_series_to_analyze represents a series to
+    # plot. So, the total of series to plot is:
+    total_of_series = len(list_of_dictionaries_with_series_to_analyze)
+    
+    if (total_of_series <= 0):
+        
+        print("No valid series to plot. Please, provide valid arguments.\n")
+    
+    else:
+        
+        # For performing the ANOVA, we must store all series into an array of arrays,
+        # and must create a correspondent array of labels: each label will correspond to one
+        # series (one element from the array of arrays).
+        # Create the lists (d represents a dictionary):
+        list_of_arrays = [d['values_to_analyze'] for d in list_of_dictionaries_with_series_to_analyze]
+        list_of_labels = [d['label'] for d in list_of_dictionaries_with_series_to_analyze]
+        
+        # Store the total of valid series:
+        total_series = len(list_of_labels)
+        
+        
+        # If there are 2 or more series to analyze, perform the ANOVA:
+        if (total_series <= 1):
+            print("There is a single valid series, so the analysis of variance (ANOVA) will not be performed.\n")
+            # An empty ANOVA dictionary will be returned:
+            anova_summary_dict = {}
+        
+        else:
+            print(f"Analysis of variance (ANOVA) for the {total_series} detected series:\n")
+            
+            #Now, we can pass the arrays as arguments for the one-way Anova:
+            anova_one_way_summary = anova_oneway(list_of_arrays, groups = list_of_labels, use_var = 'bf', welch_correction = True, trim_frac = 0.01)
+            # When use_var = 'bf', variances are not assumed to be equal across samples.
+            # Check documentation: 
+            # https://www.statsmodels.org/stable/generated/statsmodels.stats.oneway.anova_oneway.html
+
+            # The information is stored in a tuple (f_statistic, p-value)
+            # f_statistic: Test statistic for k-sample mean comparison which is approximately 
+            # F-distributed.
+            # p-value: If use_var="bf", then the p-value is based on corrected degrees of freedom following Mehrotra 1997.
+            f_statistic = anova_one_way_summary[0]
+            p_value = anova_one_way_summary[1]
+            
+            print(f"Probability that the means of the groups are the same = {100*p_value}% (p-value = {p_value})\n")
+            print(f"Calculated F-statistic for the variances = {f_statistic}\n")
+
+            if (p_value <= alpha_anova):
+                print(f"For a confidence level of {confidence_level_pct}%, we can reject the null hypothesis.")
+                print(f"The means are different for a {confidence_level_pct}% confidence level.")
+
+            else:
+                print(f"For a confidence level of {confidence_level_pct}%, we can accept the null hypothesis.")
+                print(f"The means are equal for a {confidence_level_pct}% confidence level.")
+
+            anova_summary_dict = {'F_statistic': f_statistic, 'p_value': p_value}
+
+        
+        # Now, let's obtain the plots:
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        # Manipulate the parameter vert (boolean, default: True)
+        # If True, draws vertical boxes. If False, draw horizontal boxes.
+        if (orientation == 'horizontal'):
+            VERT = False
+            
+            if (horizontal_axis_title is None):
+                # Set horizontal axis title
+                horizontal_axis_title = "analyzed_series"
+
+            if (vertical_axis_title is None):
+                # Set vertical axis title
+                vertical_axis_title = "group_or_label"
+            
+        else:
+            VERT = True
+            
+            if (horizontal_axis_title is None):
+                # Set horizontal axis title
+                horizontal_axis_title = "group_or_label"
+
+            if (vertical_axis_title is None):
+                # Set vertical axis title
+                vertical_axis_title = "analyzed_series"
+            
+        if (boxplot_notch is None):
+            boxplot_notch = False
+            
+        if (boxplot_patch_artist is None):
+            boxplot_patch_artist = False
+        
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = f"{plot_type}_type"
+        
+        # Now, let's obtain the boxplot
+        fig, ax = plt.subplots(figsize = (12, 8))
+        
+        if (plot_type == 'box'):
+            # rectangular box plot
+            # The arrays of each group are the elements of the list humongous_list
+            plot_returned_dict = ax.boxplot(list_of_arrays, labels = list_of_labels, notch = boxplot_notch, vert = VERT, patch_artist = boxplot_patch_artist)
+            
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
+            
+            # plot_returned_dict: A dictionary mapping each component of the boxplot to 
+            # a list of the Line2D instances created. That dictionary has the following keys 
+            # (assuming vertical boxplots):
+            # boxes: the main body of the boxplot showing the quartiles and the median's 
+            # confidence intervals if enabled.
+            # medians: horizontal lines at the median of each box.
+            # whiskers: the vertical lines extending to the most extreme, non-outlier data 
+            # points.
+            # caps: the horizontal lines at the ends of the whiskers.
+            # fliers: points representing data that extend beyond the whiskers (fliers).
+            # means: points or lines representing the means.
+            
+            # boxplot contains only lists (iterable collections) of objects
+            # (matplotlib.lines.Line2D objects):
+            # Each object on the list corresponds to one series being plot. For setting
+            # different colors, the parameters must be different for each object from one list.
+            
+            for whisker in plot_returned_dict['whiskers']:
+                whisker.set_color('crimson')
+                whisker.set_alpha(OPACITY)
+            
+            for cap in plot_returned_dict['caps']:
+                cap.set_color('crimson')
+                cap.set_alpha(OPACITY)
+            
+            for flier in plot_returned_dict['fliers']:
+                flier.set_color('crimson')
+                flier.set_alpha(OPACITY)
+            
+            for mean in plot_returned_dict['means']:
+                mean.set_color('crimson')
+                mean.set_alpha(OPACITY)
+            
+            for median in plot_returned_dict['medians']:
+                median.set_color('crimson')
+                median.set_alpha(OPACITY)
+        
+            for box in plot_returned_dict['boxes']:
+                box.set_color('lightgrey')
+                box.set_alpha(0.5)
+        
+            
+        if (plot_type == 'violin'):
+            # violin plot, estimate of the statistical distribution
+            # The arrays of each group are the elements of the list humongous_list
+            plot_returned_dict = ax.violinplot(list_of_arrays, vert = VERT, showmeans = True, showextrema = True, showmedians = True)
+            
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
+            
+            # plot_returned_dict: A dictionary mapping each component of the violinplot to a list of 
+            # the corresponding collection instances created. The dictionary has the following keys:
+            # bodies: A list of the PolyCollection instances containing the filled area of each 
+            # violin.
+            # cmeans: A LineCollection instance that marks the mean values of each of the violin's 
+            # distribution.
+            # cmins: A LineCollection instance that marks the bottom of each violin's distribution.
+            # cmaxes: A LineCollection instance that marks the top of each violin's distribution.
+            # cbars: A LineCollection instance that marks the centers of each violin's distribution.
+            # cmedians: A LineCollection instance that marks the median values of each of the violin's distribution.
+            # cquantiles: A LineCollection instance created to identify the quantile values of each 
+            # of the violin's distribution.
+
+            # Here, the labels must be defined manually:
+            if (orientation == 'horizontal'):
+                ax.set_yticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+                
+            else:
+                ax.set_xticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+                # np.arange(1, len(list_of_labels) + 1) is the same list of numbers that the violinplot
+                # associates to each sequence.
+            
+            # https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+            
+            # Violinplot contains line objects and lists (iterable collections) of objects
+            # matplotlib.collections.LineCollection objects: not iterable
+            # These are specific from violin plots:
+            plot_returned_dict['cmeans'].set_facecolor('crimson')
+            plot_returned_dict['cmeans'].set_edgecolor('crimson')
+            plot_returned_dict['cmeans'].set_alpha(OPACITY)
+
+            plot_returned_dict['cmedians'].set_facecolor('crimson')
+            plot_returned_dict['cmedians'].set_edgecolor('crimson')
+            plot_returned_dict['cmedians'].set_alpha(OPACITY)
+            
+            plot_returned_dict['cmaxes'].set_facecolor('crimson')
+            plot_returned_dict['cmaxes'].set_edgecolor('crimson')
+            plot_returned_dict['cmaxes'].set_alpha(OPACITY)
+            
+            plot_returned_dict['cmins'].set_facecolor('crimson')
+            plot_returned_dict['cmins'].set_edgecolor('crimson')
+            plot_returned_dict['cmins'].set_alpha(OPACITY)
+            
+            plot_returned_dict['cbars'].set_facecolor('crimson')
+            plot_returned_dict['cbars'].set_edgecolor('crimson')
+            plot_returned_dict['cbars'].set_alpha(OPACITY)
+            
+            # 'bodies': list of matplotlib.collections.PolyCollection objects (iterable)
+            # Each object on the list corresponds to one series being plot. For setting
+            # different colors, the parameters must be different for each object from one list.
+            for body in plot_returned_dict['bodies']:
+                body.set_facecolor('lightgrey')
+                body.set_edgecolor('black')
+                body.set_alpha(0.5)
+        
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+        ax.grid(grid)
+        
+        if (orientation == 'vertical'):
+            # generate vertically-oriented plot
+        
+            if not (reference_value is None):
+                # Add an horizontal reference_line to compare against the boxes:
+                # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                ax.axhline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                # axhline generates an horizontal (h) line on ax
+                
+        else:
+                  
+            if not (reference_value is None):
+                # Add an horizontal reference_line to compare against the boxes:
+                # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                ax.axvline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                # axvline generates a vertical (v) line on ax
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 70 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+            
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = f"{plot_type}_plot"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        
+        plt.show()
+        
+        print("\n") #line break
+        print("Successfully returned 2 dictionaries: anova_summary_dict (dictionary storing ANOVA F-test and p-value); and boxplot_returned_dict (dictionary mapping each component of the boxplot).\n")
+            
+        print("Boxplot interpretation:")
+        print("Boxplot presents the following key visual components:")
+        print("The main box represents the Interquartile Range (IQR). It represents the data that is from quartile Q1 to quartile Q3.")
+        print("Q1 = 1st quartile of the dataset. 25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).")
+        print("Q2 = 2nd quartile of the dataset. 50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).")
+        print("Q3 = 3rd quartile of the dataset. 75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).")
+        print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
+        print("This line represents the median: it is the midpoint of the dataset.")
+        print("There are lines extending beyond the main boxes limits. This lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.")
+        print("The minimum limit of the boxplot is defined as: Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1)")
+        print("The maximum limit of the boxplot is defined as: Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1)")
+        print("Finally, there are isolated points (circles) on the plot.")
+        print("These points lie below the minimum bar, or above the maximum bar line. They are defined as outliers.")
+        # https://nickmccullum.com/python-visualization/boxplot/
+            
+        return anova_summary_dict, plot_returned_dict
+
