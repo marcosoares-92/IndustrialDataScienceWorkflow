@@ -1,4 +1,11 @@
 # FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+# Extract, transform, and load (ETL) data
+
+# Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
+# marcosoares.feq@gmail.com
+# marco.soares@bayer.com
+
+
 def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '', s3_bucket_name = None, s3_obj_prefix = None):
     
     # source = 'google' for mounting the google drive;
@@ -2532,6 +2539,10 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     # Get list of columns from the dataframe:
     df_columns = DATASET.columns
     
+    # Get initial totals of rows or columns:
+    total_rows = len(DATASET)
+    total_cols = len(df_columns)
+    
     # Check if there is a list of columns to ignore:
     if not (list_of_columns_to_ignore is None):
         
@@ -2549,94 +2560,23 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
         # There is no column to ignore, so we must check all columns:
         cols_to_check = df_columns
     
-    # Start a list of columns to eliminate; and a list of rows to eliminate:
-    cols_to_del = []
-    rows_to_del = []
+    # To remove only rows or columns with only missing values, we set how = 'all' in
+    # dropna method:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.dropna.html
     
-    # Firstly, let's check for completely blank columns. If a column from cols_to_check is blank,
-    # append it to the list cols_to_del:
+    # Remove rows that contain only missing values:
     
-    for column in cols_to_check:
-        
-        total_of_na = DATASET[column].isna().sum()
-        # Total of missing values in the dataset for that column
-        
-        if (total_of_na == df_length):
-            # all rows contain missing values:
-            cols_to_del.append(column)
+    DATASET = DATASET.dropna(axis = 0, how = 'all', subset = cols_to_check)
+    print(f"{total_rows - len(DATASET)} rows were completely blank and were removed.\n")
     
-    # check if there is a column to delete. In this case, the length of the list
-    # cols_to_del is higher than zero:
-    if (len(cols_to_del) > 0):
-        
-        DATASET = DATASET.drop(columns = cols_to_del)
-        print(f"The columns {cols_to_del} were completely blank and were removed.\n")
-        
-        # Update the cols_to_check list
-        support_list = []
-        
-        for column in cols_to_check:
-            # loop through all elements named 'column' and check if it satisfies both conditions
-            if (column not in cols_to_del):
-                support_list.append(column)
-        
-        # Make cols_to_check the support_list itself:
-        cols_to_check = support_list
+    # Remove columns that contain only missing values:
+    DATASET = DATASET.dropna(axis = 1, how = 'all', subset = cols_to_check)
+    print(f"{total_cols - len(DATASET.columns)} columns were completely blank and were removed.\n")
     
+    # Now, reset the index:
+    DATASET = DATASET.reset_index(drop = True)
     
-    # Let's look for rows to eliminate.
-    # Get a copy of dataset containing only the columns to check:
-    df_copy = DATASET[cols_to_check].copy(deep = True)
-    # It will reduce the size of the datasets analyzed by the rows checking procedure,
-    # reducing computational cost.
-    
-    for i in range (len(DATASET)):
-        # i goes from 0 to len(DATASET) - 1, index of the last row
-        
-        # Create a sliced dataframe, containing only the row being analyzed:
-        # Slice a dataframe: df[i:j]
-        # Slice the dataframe, getting only row i to row (j-1)
-        
-        # Set slicing limits:
-        j = i + 1
-        # df[i:j] will include row i to row j - 1 = 
-        # (i + 1) - 1 = i
-        # Then, by summing 1 we guarantee that the row passed as
-        # i will be actually included.
-        # e.g. the slice of only the first line must be df[0:1]
-        # there must be a difference of 1 to include 1 line.
-
-        # Now, slice the dataframe from line of index i to
-        # line j-1, where line (j-1) is the last one included:
-        sliced_df = df_copy[i:j].copy(deep = True)
-        
-        # Now, create a series containing of NAs for the single-row dataframe:
-        na_series = sliced_df.isna().sum()
-        # sliced_df.isna() would be a Pandas dataframe of Boolean values, True if
-        # the value is missing in sliced_df; and False in case it is present. So,
-        # na_series is a Pandas Series containing the columns names as index, and
-        # the total of missing values per column as value.
-        # Since the dataframe sliced_df contains a single row, each index (column)
-        # presents a value 1 if the column is missing; or 0 if the value is present.
-        
-        # Then, if the whole series is missing, the sum of all elements from na_series
-        # will be the length of cols_to_check list:
-        if (na_series.sum() == len(cols_to_check)):
-            
-            # Add the row to the list of rows to delete:
-            rows_to_del.append(i)
-    
-    
-    # Now, rows_to_del contains the indices of all rows that should be deleted
-    
-    # If the list is not empty, its lenght is higher than zero. If it is, delete the rows:
-    if (len(rows_to_del) > 0):
-        
-        DATASET = DATASET.drop(rows_to_del)
-        DATASET = DATASET.reset_index(drop = True)
-        print(f"The rows {rows_to_del} were completely blank and were removed. The indices of the dataframe were restarted after that.\n")
-    
-    if ((len(rows_to_del) > 0) | (len(cols_to_del) > 0)):
+    if (((total_rows - len(DATASET)) > 0) | ((total_cols - len(DATASET.columns)) > 0)):
         
         # There were modifications in the dataframe.
         print("Check the first 10 rows of the new returned dataframe:\n")
@@ -2651,7 +2591,6 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     
     else:
         print("No blank columns or rows were found. Returning the original dataframe.\n")
-    
     
     return DATASET
 
@@ -15028,7 +14967,7 @@ def LABEL_DATAFRAME_SUBSETS (df, list_of_labels = [{'filter': None, 'value_to_ap
     return DATASET
 
 
-def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], boxplot_notch = False, boxplot_patch_artist = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
     print ("If an error message is shown, update statsmodels. Declare and run a cell as:")
     print ("!pip install statsmodels --upgrade\n")
@@ -15039,6 +14978,7 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
         
     # plot_type = 'box' to plot a boxplot.
     # plot_type = 'violin' to plot a violinplot.
+    # If plot_type = None, or plot_type = 'only_anova', only the anova analysis will be performed.
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
         
@@ -15107,20 +15047,20 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
     # will plot two series, Y1 and Y2.
     # Notice that all dictionaries where 'values_to_analyze' is None are automatically ignored.
     # If None is provided to 'label', an automatic label will be generated.
-            
-    # boxplot_notch = False
-    # Manipulate parameter notch (boolean, default: False) from the boxplot object
-    # Whether to draw a notched boxplot (True), or a rectangular boxplot (False). 
-    # The notches represent the confidence interval (CI) around the median. 
-    # The documentation for bootstrap describes how the locations of the notches are 
-    # computed by default, but their locations may also be overridden by setting the 
-    # conf_intervals parameter.
-            
-    # boxplot_patch_artist = False
+    
+    ## Parameters with effect only for boxplots (plot_type = 'box'):
+    # obtain_boxplot_with_filled_boxes = True
     # Manipulate parameter patch_artist (boolean, default: False)
-    # If False produces boxes with the Line2D artist. Otherwise, boxes are drawn 
-    # with Patch artists.
-    # Check documentation:
+    # If obtain_boxplot_with_filled_boxes = True, the boxes are created filled. 
+    # If obtain_boxplot_with_filled_boxes = False, only the contour of the boxes are shown
+    # (obtain void white boxes).
+    
+    # obtain_boxplot_with_notched_boxes = False
+    # Manipulate parameter notch (boolean, default: False) from the boxplot object
+    # Whether to draw a notched boxplot (obtain_boxplot_with_notched_boxes = True), 
+    # or a rectangular boxplot (obtain_boxplot_with_notched_boxes = False). 
+    # The notches represent the confidence interval (CI) around the median. 
+     
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
     
     
@@ -15243,7 +15183,7 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
                 y = np.array(series)
                 
                 # check if label is None:
-                if (label is None):
+                if (lab is None):
                     # input a default label.
                     # Use the str attribute to convert the integer to string, allowing it
                     # to be concatenated
@@ -15323,253 +15263,362 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
 
             anova_summary_dict = {'F_statistic': f_statistic, 'p_value': p_value}
 
-        
-        # Now, let's obtain the plots:
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
-        
-        # Manipulate the parameter vert (boolean, default: True)
-        # If True, draws vertical boxes. If False, draw horizontal boxes.
-        if (orientation == 'horizontal'):
-            VERT = False
-            
-            if (horizontal_axis_title is None):
-                # Set horizontal axis title
-                horizontal_axis_title = "analyzed_series"
+        if ((plot_type is not None) & (plot_type != 'only_anova')):
 
-            if (vertical_axis_title is None):
-                # Set vertical axis title
-                vertical_axis_title = "group_or_label"
-            
-        else:
-            VERT = True
-            
-            if (horizontal_axis_title is None):
-                # Set horizontal axis title
-                horizontal_axis_title = "group_or_label"
+            # Now, let's obtain the plots:
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
 
-            if (vertical_axis_title is None):
-                # Set vertical axis title
-                vertical_axis_title = "analyzed_series"
-            
-        if (boxplot_notch is None):
-            boxplot_notch = False
-            
-        if (boxplot_patch_artist is None):
-            boxplot_patch_artist = False
-        
-        if (plot_title is None):
-            # Set graphic title
-            plot_title = f"{plot_type}_type"
-        
-        # Now, let's obtain the boxplot
-        fig, ax = plt.subplots(figsize = (12, 8))
-        
-        if (plot_type == 'box'):
-            # rectangular box plot
-            # The arrays of each group are the elements of the list humongous_list
-            plot_returned_dict = ax.boxplot(list_of_arrays, labels = list_of_labels, notch = boxplot_notch, vert = VERT, patch_artist = boxplot_patch_artist)
-            
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
-            
-            # plot_returned_dict: A dictionary mapping each component of the boxplot to 
-            # a list of the Line2D instances created. That dictionary has the following keys 
-            # (assuming vertical boxplots):
-            # boxes: the main body of the boxplot showing the quartiles and the median's 
-            # confidence intervals if enabled.
-            # medians: horizontal lines at the median of each box.
-            # whiskers: the vertical lines extending to the most extreme, non-outlier data 
-            # points.
-            # caps: the horizontal lines at the ends of the whiskers.
-            # fliers: points representing data that extend beyond the whiskers (fliers).
-            # means: points or lines representing the means.
-            
-            # boxplot contains only lists (iterable collections) of objects
-            # (matplotlib.lines.Line2D objects):
-            # Each object on the list corresponds to one series being plot. For setting
-            # different colors, the parameters must be different for each object from one list.
-            
-            for whisker in plot_returned_dict['whiskers']:
-                whisker.set_color('crimson')
-                whisker.set_alpha(OPACITY)
-            
-            for cap in plot_returned_dict['caps']:
-                cap.set_color('crimson')
-                cap.set_alpha(OPACITY)
-            
-            for flier in plot_returned_dict['fliers']:
-                flier.set_color('crimson')
-                flier.set_alpha(OPACITY)
-            
-            for mean in plot_returned_dict['means']:
-                mean.set_color('crimson')
-                mean.set_alpha(OPACITY)
-            
-            for median in plot_returned_dict['medians']:
-                median.set_color('crimson')
-                median.set_alpha(OPACITY)
-        
-            for box in plot_returned_dict['boxes']:
-                box.set_color('lightgrey')
-                box.set_alpha(0.5)
-        
-            
-        if (plot_type == 'violin'):
-            # violin plot, estimate of the statistical distribution
-            # The arrays of each group are the elements of the list humongous_list
-            plot_returned_dict = ax.violinplot(list_of_arrays, vert = VERT, showmeans = True, showextrema = True, showmedians = True)
-            
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
-            
-            # plot_returned_dict: A dictionary mapping each component of the violinplot to a list of 
-            # the corresponding collection instances created. The dictionary has the following keys:
-            # bodies: A list of the PolyCollection instances containing the filled area of each 
-            # violin.
-            # cmeans: A LineCollection instance that marks the mean values of each of the violin's 
-            # distribution.
-            # cmins: A LineCollection instance that marks the bottom of each violin's distribution.
-            # cmaxes: A LineCollection instance that marks the top of each violin's distribution.
-            # cbars: A LineCollection instance that marks the centers of each violin's distribution.
-            # cmedians: A LineCollection instance that marks the median values of each of the violin's distribution.
-            # cquantiles: A LineCollection instance created to identify the quantile values of each 
-            # of the violin's distribution.
-
-            # Here, the labels must be defined manually:
+            # Manipulate the parameter vert (boolean, default: True)
+            # If True, draws vertical boxes. If False, draw horizontal boxes.
             if (orientation == 'horizontal'):
-                ax.set_yticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
-                
+                VERT = False
+
+                if (horizontal_axis_title is None):
+                    # Set horizontal axis title
+                    horizontal_axis_title = "analyzed_series"
+
+                if (vertical_axis_title is None):
+                    # Set vertical axis title
+                    vertical_axis_title = "group_or_label"
+
             else:
-                ax.set_xticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
-                # np.arange(1, len(list_of_labels) + 1) is the same list of numbers that the violinplot
-                # associates to each sequence.
-            
-            # https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
-            
-            # Violinplot contains line objects and lists (iterable collections) of objects
-            # matplotlib.collections.LineCollection objects: not iterable
-            # These are specific from violin plots:
-            plot_returned_dict['cmeans'].set_facecolor('crimson')
-            plot_returned_dict['cmeans'].set_edgecolor('crimson')
-            plot_returned_dict['cmeans'].set_alpha(OPACITY)
+                VERT = True
 
-            plot_returned_dict['cmedians'].set_facecolor('crimson')
-            plot_returned_dict['cmedians'].set_edgecolor('crimson')
-            plot_returned_dict['cmedians'].set_alpha(OPACITY)
-            
-            plot_returned_dict['cmaxes'].set_facecolor('crimson')
-            plot_returned_dict['cmaxes'].set_edgecolor('crimson')
-            plot_returned_dict['cmaxes'].set_alpha(OPACITY)
-            
-            plot_returned_dict['cmins'].set_facecolor('crimson')
-            plot_returned_dict['cmins'].set_edgecolor('crimson')
-            plot_returned_dict['cmins'].set_alpha(OPACITY)
-            
-            plot_returned_dict['cbars'].set_facecolor('crimson')
-            plot_returned_dict['cbars'].set_edgecolor('crimson')
-            plot_returned_dict['cbars'].set_alpha(OPACITY)
-            
-            # 'bodies': list of matplotlib.collections.PolyCollection objects (iterable)
-            # Each object on the list corresponds to one series being plot. For setting
-            # different colors, the parameters must be different for each object from one list.
-            for body in plot_returned_dict['bodies']:
-                body.set_facecolor('lightgrey')
-                body.set_edgecolor('black')
-                body.set_alpha(0.5)
+                if (horizontal_axis_title is None):
+                    # Set horizontal axis title
+                    horizontal_axis_title = "group_or_label"
+
+                if (vertical_axis_title is None):
+                    # Set vertical axis title
+                    vertical_axis_title = "analyzed_series"
+
+            if (obtain_boxplot_with_filled_boxes is None):
+                obtain_boxplot_with_filled_boxes = True
+
+            if (obtain_boxplot_with_notched_boxes is None):
+                obtain_boxplot_with_notched_boxes = False
+
+            if (plot_title is None):
+                # Set graphic title
+                plot_title = f"{plot_type}_plot"
+
+            # Now, let's obtain the boxplot
+            fig, ax = plt.subplots(figsize = (12, 8))
+
+            if (plot_type == 'box'):
+                # rectangular box plot
+                # The arrays of each group are the elements of the list humongous_list
+                plot_returned_dict = ax.boxplot(list_of_arrays, labels = list_of_labels, notch = obtain_boxplot_with_notched_boxes, vert = VERT, patch_artist = obtain_boxplot_with_filled_boxes)
+
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
+
+                # plot_returned_dict: A dictionary mapping each component of the boxplot to 
+                # a list of the Line2D instances created. That dictionary has the following keys 
+                # (assuming vertical boxplots):
+                # boxes: the main body of the boxplot showing the quartiles and the median's 
+                # confidence intervals if enabled.
+                # medians: horizontal lines at the median of each box.
+                # whiskers: the vertical lines extending to the most extreme, non-outlier data 
+                # points.
+                # caps: the horizontal lines at the ends of the whiskers.
+                # fliers: points representing data that extend beyond the whiskers (fliers).
+                # means: points or lines representing the means.
+
+                # boxplot contains only lists (iterable collections) of objects
+                # (matplotlib.lines.Line2D objects):
+                # Each object on the list corresponds to one series being plot. For setting
+                # different colors, the parameters must be different for each object from one list.
+
+                for whisker in plot_returned_dict['whiskers']:
+                    whisker.set_color('crimson')
+                    whisker.set_alpha(OPACITY)
+
+                for cap in plot_returned_dict['caps']:
+                    cap.set_color('crimson')
+                    cap.set_alpha(OPACITY)
+
+                for flier in plot_returned_dict['fliers']:
+                    flier.set_color('crimson')
+                    flier.set_alpha(OPACITY)
+
+                for mean in plot_returned_dict['means']:
+                    mean.set_color('crimson')
+                    mean.set_alpha(OPACITY)
+
+                for median in plot_returned_dict['medians']:
+                    median.set_color('crimson')
+                    median.set_alpha(OPACITY)
+
+                # Set the boxes configuration for each case, where it should be filled or not:
+                if (obtain_boxplot_with_filled_boxes):
+                    for box in plot_returned_dict['boxes']:
+                        box.set_color('lightgrey')
+                        box.set_alpha(0.5)
+                else: # only the contour of the box
+                    for box in plot_returned_dict['boxes']:
+                        box.set_color('black')
+                        box.set_alpha(1.0)
+
+            if (plot_type == 'violin'):
+                # violin plot, estimate of the statistical distribution
+                # The arrays of each group are the elements of the list humongous_list
+                plot_returned_dict = ax.violinplot(list_of_arrays, vert = VERT, showmeans = True, showextrema = True, showmedians = True)
+
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
+
+                # plot_returned_dict: A dictionary mapping each component of the violinplot to a list of 
+                # the corresponding collection instances created. The dictionary has the following keys:
+                # bodies: A list of the PolyCollection instances containing the filled area of each 
+                # violin.
+                # cmeans: A LineCollection instance that marks the mean values of each of the violin's 
+                # distribution.
+                # cmins: A LineCollection instance that marks the bottom of each violin's distribution.
+                # cmaxes: A LineCollection instance that marks the top of each violin's distribution.
+                # cbars: A LineCollection instance that marks the centers of each violin's distribution.
+                # cmedians: A LineCollection instance that marks the median values of each of the violin's distribution.
+                # cquantiles: A LineCollection instance created to identify the quantile values of each 
+                # of the violin's distribution.
+
+                # Here, the labels must be defined manually:
+                if (orientation == 'horizontal'):
+                    ax.set_yticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+
+                else:
+                    ax.set_xticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+                    # np.arange(1, len(list_of_labels) + 1) is the same list of numbers that the violinplot
+                    # associates to each sequence.
+
+                # https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+
+                # Violinplot contains line objects and lists (iterable collections) of objects
+                # matplotlib.collections.LineCollection objects: not iterable
+                # These are specific from violin plots:
+                plot_returned_dict['cmeans'].set_facecolor('crimson')
+                plot_returned_dict['cmeans'].set_edgecolor('crimson')
+                plot_returned_dict['cmeans'].set_alpha(OPACITY)
+
+                plot_returned_dict['cmedians'].set_facecolor('crimson')
+                plot_returned_dict['cmedians'].set_edgecolor('crimson')
+                plot_returned_dict['cmedians'].set_alpha(OPACITY)
+
+                plot_returned_dict['cmaxes'].set_facecolor('crimson')
+                plot_returned_dict['cmaxes'].set_edgecolor('crimson')
+                plot_returned_dict['cmaxes'].set_alpha(OPACITY)
+
+                plot_returned_dict['cmins'].set_facecolor('crimson')
+                plot_returned_dict['cmins'].set_edgecolor('crimson')
+                plot_returned_dict['cmins'].set_alpha(OPACITY)
+
+                plot_returned_dict['cbars'].set_facecolor('crimson')
+                plot_returned_dict['cbars'].set_edgecolor('crimson')
+                plot_returned_dict['cbars'].set_alpha(OPACITY)
+
+                # 'bodies': list of matplotlib.collections.PolyCollection objects (iterable)
+                # Each object on the list corresponds to one series being plot. For setting
+                # different colors, the parameters must be different for each object from one list.
+                for body in plot_returned_dict['bodies']:
+                    body.set_facecolor('lightgrey')
+                    body.set_edgecolor('black')
+                    body.set_alpha(0.5)
+
+            ax.set_title(plot_title)
+            ax.set_xlabel(horizontal_axis_title)
+            ax.set_ylabel(vertical_axis_title)
+            ax.grid(grid)
+
+            if (orientation == 'vertical'):
+                # generate vertically-oriented plot
+
+                if not (reference_value is None):
+                    # Add an horizontal reference_line to compare against the boxes:
+                    # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                    ax.axhline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                    # axhline generates an horizontal (h) line on ax
+
+            else:
+
+                if not (reference_value is None):
+                    # Add an horizontal reference_line to compare against the boxes:
+                    # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                    ax.axvline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                    # axvline generates a vertical (v) line on ax
+
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 70 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = f"{plot_type}_plot"
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+
+                #Export the file to this new path:
+                # The extension will be automatically added by the savefig method:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                #quality could be set from 1 to 100, where 100 is the best quality
+                #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #transparent = True or False
+                # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            #plt.figure(figsize = (12, 8))
+            #fig.tight_layout()
+
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+
+            plt.show()
         
-        ax.set_title(plot_title)
-        ax.set_xlabel(horizontal_axis_title)
-        ax.set_ylabel(vertical_axis_title)
-        ax.grid(grid)
-        
-        if (orientation == 'vertical'):
-            # generate vertically-oriented plot
-        
-            if not (reference_value is None):
-                # Add an horizontal reference_line to compare against the boxes:
-                # If the boxplot was horizontally-oriented, this line should be vertical instead.
-                ax.axhline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
-                # axhline generates an horizontal (h) line on ax
-                
         else:
-                  
-            if not (reference_value is None):
-                # Add an horizontal reference_line to compare against the boxes:
-                # If the boxplot was horizontally-oriented, this line should be vertical instead.
-                ax.axvline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
-                # axvline generates a vertical (v) line on ax
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 70 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-            
-        if (export_png == True):
-            # Image will be exported
-            import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = f"{plot_type}_plot"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-
-            #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        #plt.figure(figsize = (12, 8))
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        
-        plt.show()
+            print(f"Plot type set as {plot_type}. So, no plot was obtained.\n")
         
         print("\n") #line break
-        print("Successfully returned 2 dictionaries: anova_summary_dict (dictionary storing ANOVA F-test and p-value); and boxplot_returned_dict (dictionary mapping each component of the boxplot).\n")
+        print("Successfully returned 2 dictionaries: anova_summary_dict (dictionary storing ANOVA F-test and p-value); and plot_returned_dict (dictionary mapping each component of the plot).\n")
+        
+        if (plot_type == 'box'):
+        
+            print("Boxplot interpretation:\n")
+            print("Boxplot presents the following key visual components:\n")
             
-        print("Boxplot interpretation:")
-        print("Boxplot presents the following key visual components:")
-        print("The main box represents the Interquartile Range (IQR). It represents the data that is from quartile Q1 to quartile Q3.")
-        print("Q1 = 1st quartile of the dataset. 25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).")
-        print("Q2 = 2nd quartile of the dataset. 50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).")
-        print("Q3 = 3rd quartile of the dataset. 75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).")
-        print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
-        print("This line represents the median: it is the midpoint of the dataset.")
-        print("There are lines extending beyond the main boxes limits. This lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.")
-        print("The minimum limit of the boxplot is defined as: Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1)")
-        print("The maximum limit of the boxplot is defined as: Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1)")
-        print("Finally, there are isolated points (circles) on the plot.")
-        print("These points lie below the minimum bar, or above the maximum bar line. They are defined as outliers.")
-        # https://nickmccullum.com/python-visualization/boxplot/
+            print("Main box")
+            print("The main box represents the Interquartile Range (IQR).")
+            print("It represents the data that is from quartile Q1 to quartile Q3.\n")
+            
+            print("Q1 = 1st quartile of the dataset")
+            print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
+            
+            print("Q2 = 2nd quartile of the dataset")
+            print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
+            
+            print("Q3 = 3rd quartile of the dataset")
+            print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
+            
+            print("Median line")
+            print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
+            print("This line represents the median: it is the midpoint of the dataset.\n")
+            
+            print("Limit lines")      
+            print("There are lines extending beyond the main boxes limits.")
+            print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
+            
+            print("Minimum limit")
+            print("The minimum limit of the boxplot is defined as:")
+            print("Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1)\n")
+            
+            print("Maximum limit")
+            print("The maximum limit of the boxplot is defined as:")
+            print("Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1)\n")
+            
+            print("Outliers")
+            print("Finally, there are isolated points (circles) on the plot.")
+            print("These points lie below the minimum bar, or above the maximum bar line.")
+            print("They are defined as outliers.\n")
+            
+            print("Application of the plot")        
+            print("Like violin plots, box plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.") 
+            print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
+            # https://nickmccullum.com/python-visualization/boxplot/
+        
+        elif (plot_type == 'violin'):
+            
+            print("Violin plot interpretation:\n")
+            
+            print("A violin plot is similar to a box plot, with the addition of a rotated kernel density plot on each side of the violin.\n")
+            print("So, this plot also shows the probability density of the data at different values, usually smoothed by a kernel density estimator.\n")
+            print("Typically a violin plot will include all the data that is in a box plot.\n")
+            print("It includes a filled area extending to represent the entire data range; with lines at the mean, the median, the minimum, and the maximum.\n")
+            
+            print("So, let's firstly check the box plot components.")
+            print("Notice that the interquartile range represented by the main box will not be present.")
+            print("The violin plot replaces this box region by the density distribution itself.\n")
+            
+            print("Main box")
+            print("The main box represents the Interquartile Range (IQR).")
+            print("It represents the data that is from quartile Q1 to quartile Q3.\n")
+            
+            print("Q1 = 1st quartile of the dataset")
+            print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
+            
+            print("Q2 = 2nd quartile of the dataset")
+            print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
+            
+            print("Q3 = 3rd quartile of the dataset")
+            print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
+            
+            print("Median line")
+            print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
+            print("This line represents the median: it is the midpoint of the dataset.\n")
+            
+            print("Limit lines")      
+            print("There are lines extending beyond the main boxes limits.")
+            print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
+            
+            print("Minimum limit")
+            print("The minimum limit of the boxplot is defined as:")
+            print("Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1)\n")
+            
+            print("Maximum limit")
+            print("The maximum limit of the boxplot is defined as:")
+            print("Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1)\n")
+            
+            print("Outliers")
+            print("Finally, there are isolated points (circles) on the box plot.")
+            print("These points lie below the minimum bar, or above the maximum bar line.")
+            print("They are defined as outliers.\n")
+            
+            print("ATTENTION:")
+            print("Since the probability density is shown, these isolated outlier points are not represented in the violin plot.\n")
+            
+            print("Presence on multiple peaks in the violin plot")
+            print("A violin plot is more informative than a plain box plot.")
+            print("While a box plot only shows summary statistics such as mean/median and interquartile ranges, the violin plot shows the full distribution of the data.")
+            print("This difference is particularly useful when the data distribution is multimodal (more than one peak).")
+            print("In this case, a violin plot shows the presence of different peaks, their positions and relative amplitudes.\n")
+            
+            print("Application of the plot")
+            print("Like box plots, violin plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.")
+            print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
+            
+            print("Presence of multiple layers")
+            print("A violin plot can have multiple layers. For instance, the outer shape represents all possible results.")
+            print("The next layer inside might represent the values that occur 95% of the time.")
+            print("The next layer (if it exists) inside might represent the values that occur 50% of the time.\n")
+            
+            print("Alternative to this plot")
+            print("Although more informative than box plots, they are less popular.")
+            print("Because of their unpopularity, they may be harder to understand for readers not familiar with them.")
+            print("In this case, a more accessible alternative is to plot a series of stacked histograms or kernel density distributions (KDE plots).\n")
+            # https://en.wikipedia.org/wiki/Violin_plot#:~:text=A%20violin%20plot%20is%20a%20method%20of%20plotting,values%2C%20usually%20smoothed%20by%20a%20kernel%20density%20estimator.
             
         return anova_summary_dict, plot_returned_dict
 
