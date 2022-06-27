@@ -1585,28 +1585,37 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
     DF_RIGHT = df_right.copy(deep = True)
     
     # Firstly, let's guarantee that the keys were actually read as timestamps of the same type.
-    # We will do that by converting all values to Pandas timestamps.
+    # We will do that by converting all values to np.datetime64. If fails, then
+    # try to convert to Pandas timestamps.
     
-    # 1. Start lists to store the Pandas timestamps:
-    timestamp_list_left = []
-    timestamp_list_right = []
+    # try parsing as np.datetime64:
+    try:
+        DF_LEFT[left_key] = DF_LEFT[left_key].astype(np.datetime64)
+        DF_RIGHT[right_key] = DF_RIGHT[right_key].astype(np.datetime64)
     
-    # 2. Loop through each element of the timestamp columns left_key and right_key, 
-    # and apply the function to guarantee that all elements are Pandas timestamps
+    except:
+        # Try conversion to pd.Timestamp (less efficient, involves looping)
+        # 1. Start lists to store the Pandas timestamps:
+        timestamp_list_left = []
+        timestamp_list_right = []
+
+        # 2. Loop through each element of the timestamp columns left_key and right_key, 
+        # and apply the function to guarantee that all elements are Pandas timestamps
+
+        # left dataframe:
+        for timestamp in DF_LEFT[left_key]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column]
+            timestamp_list_left.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # right dataframe:
+        for timestamp in DF_RIGHT[right_key]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column]
+            timestamp_list_right.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # 3. Set the key columns as the lists of objects converted to Pandas dataframes:
+        DF_LEFT[left_key] = timestamp_list_left
+        DF_RIGHT[right_key] = timestamp_list_right
     
-    # left dataframe:
-    for timestamp in DF_LEFT[left_key]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column]
-        timestamp_list_left.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # right dataframe:
-    for timestamp in DF_RIGHT[right_key]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column]
-        timestamp_list_right.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Set the key columns as the lists of objects converted to Pandas dataframes:
-    DF_LEFT[left_key] = timestamp_list_left
-    DF_RIGHT[right_key] = timestamp_list_right
     
     # Now, even if the dates were read as different types of variables (like string for one
     # and datetime for the other), we converted them to a same type (Pandas timestamp), avoiding
@@ -2543,11 +2552,11 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     total_rows = len(DATASET)
     total_cols = len(df_columns)
     
+    # Get a list containing only columns to check:
+    cols_to_check = []
+    
     # Check if there is a list of columns to ignore:
     if not (list_of_columns_to_ignore is None):
-        
-        # Get a list containing only columns to check:
-        cols_to_check = []
         
         # Append all elements from df_columns that are not in the list
         # to ignore:
@@ -2555,10 +2564,17 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
             # loop through all elements named 'column' and check if it satisfies both conditions
             if (column not in list_of_columns_to_ignore):
                 cols_to_check.append(column)
+        
+        # create a ignored dataframe and a checked df:
+        checked_df = DATASET[cols_to_check].copy(deep = True)
+        # Update total columns:
+        total_cols = len(checked_df.columns)
+        
+        ignored_df = DATASET[list_of_columns_to_ignore].copy(deep = True)
     
     else:
         # There is no column to ignore, so we must check all columns:
-        cols_to_check = df_columns
+        checked_df = DATASET
     
     # To remove only rows or columns with only missing values, we set how = 'all' in
     # dropna method:
@@ -2566,12 +2582,17 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     
     # Remove rows that contain only missing values:
     
-    DATASET = DATASET.dropna(axis = 0, how = 'all', subset = cols_to_check)
-    print(f"{total_rows - len(DATASET)} rows were completely blank and were removed.\n")
+    checked_df = checked_df.dropna(axis = 0, how = 'all')
+    print(f"{total_rows - len(checked_df)} rows were completely blank and were removed.\n")
     
     # Remove columns that contain only missing values:
-    DATASET = DATASET.dropna(axis = 1, how = 'all', subset = cols_to_check)
-    print(f"{total_cols - len(DATASET.columns)} columns were completely blank and were removed.\n")
+    checked_df = checked_df.dropna(axis = 1, how = 'all')
+    print(f"{total_cols - len(checked_df.columns)} columns were completely blank and were removed.\n")
+    
+    # If len(cols_to_check) > 0, merge again the subsets:
+    if (len(cols_to_check) > 0):
+        
+        DATASET = pd.concat([ignored_df, checked_df], axis = 1, join = "inner")
     
     # Now, reset the index:
     DATASET = DATASET.reset_index(drop = True)
@@ -2622,6 +2643,8 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
     
     # Start a list of categorical columns:
     categorical_list = []
+    is_categorical = 0 # start the variable
+    
     # Start a timestamp list that will be empty if there is no timestamp_tag_column
     timestamp_list = []
     if (timestamp_tag_column is not None):
@@ -2638,7 +2661,7 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
         
         if ((column not in categorical_list) & (column not in timestamp_list)):
             # Notice that, since we already selected the 'timestamp_obj', we remove the original timestamps.
-            column_data_type = df_copy[column].dtype
+            column_data_type = DATASET[column].dtype
             
             if (column_data_type not in numeric_dtypes):
                 
@@ -2646,7 +2669,7 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
                 categorical_list.append(column)
     
     # Subset the dataframe:
-    if (len(categorical_list) > 1):
+    if (len(categorical_list) >= 1):
         
         DATASET = DATASET[categorical_list]
         is_categorical = 1
@@ -2950,20 +2973,26 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
     # of the input parameters, but completely independent from it.
     df_copy = df.copy(deep = True)
     
-    # 1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
+    # try parsing as np.datetime64 (more efficient, without loops):
+    try:
+        df_copy['timestamp_obj'] = df_copy[timestamp_tag_column].astype(np.datetime64)
     
-    # 2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in df_copy[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Create a column in the dataframe that will be used as key for the Grouper class
-    # The grouper requires a column in the dataframe - it cannot use a list for that.
-    # Simply copy the list as the new column:
-    df_copy['timestamp_obj'] = timestamp_list
+    except:
+        # Obtain pd.Timestamp objects
+        # 1. Start a list to store the Pandas timestamps:
+        timestamp_list = []
+
+        # 2. Loop through each element of the timestamp column, and apply the function
+        # to guarantee that all elements are Pandas timestamps
+
+        for timestamp in df_copy[timestamp_tag_column]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # 3. Create a column in the dataframe that will be used as key for the Grouper class
+        # The grouper requires a column in the dataframe - it cannot use a list for that.
+        # Simply copy the list as the new column:
+        df_copy['timestamp_obj'] = timestamp_list
     
     # Now we have a list correspondent to timestamp_tag_column, but only with
     # Pandas timestamp objects
@@ -3689,32 +3718,39 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
         
         list_of_new_column_names = list_of_info_to_extract
     
-    # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
-    # This will prevent any compatibility problems.
-    
-    # The pd.Timestamp function can handle a single timestamp per call. Then, we must
-    # loop trough the series, and apply the function to each element.
-    
-    # 1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
-    
-    # 2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in DATASET[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Save the list as the column timestamp_tag_column itself:
-    DATASET[timestamp_tag_column] = timestamp_list
+    # try parsing as np.datetime64 (more efficient, without loops):
+    try:
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        
+        timestamp_list = list(DATASET[timestamp_tag_column])
+        
+    except:
+        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
+        # This will prevent any compatibility problems.
+
+        # The pd.Timestamp function can handle a single timestamp per call. Then, we must
+        # loop trough the series, and apply the function to each element.
+
+        # 1. Start a list to store the Pandas timestamps:
+        timestamp_list = []
+
+        # 2. Loop through each element of the timestamp column, and apply the function
+        # to guarantee that all elements are Pandas timestamps
+
+        for timestamp in DATASET[timestamp_tag_column]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # 3. Save the list as the column timestamp_tag_column itself:
+        DATASET[timestamp_tag_column] = timestamp_list
     
     # 4. Sort the dataframe in ascending order of timestamps:
     DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
     # Reset indices:
     DATASET = DATASET.reset_index(drop = True)
-    
+
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
-    
+
     #Use the extracted_info as key to access the correct command in the dictionary.
     #To access an item from a dictionary d = {'key1': item1, ...}, declare d['key1'],
     #as if you would do to access a column from a dataframe.
@@ -3724,25 +3760,16 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     # extract the information and store it in the correspondent position of the 
     # new_column. Again. The methods can only be applied to a single Timestamp object,
     # not to the series. That is why we must loop through each of them:
-    
-    
+
     # Now, loop through each one of the items from the list 'list_of_info_to_extract'.
     # For each element, we will extract the information indicated by that item.
-    
-    for k in range(0, len(list_of_info_to_extract)):
-        
-        # loops from k = 0, index of the first element from the list list_of_info_to_extract
-        # to k = len(list_of_info_to_extract) - 1, index of the last element of the list
-        
-        # Access the k-th element of the list list_of_info_to_extract:
-        extracted_info = list_of_info_to_extract[k]
-        # The element will be referred as 'extracted_info'
-        
-        # Access the k-th element of the list list_of_new_column_names, which is the
+
+    for extracted_info in list_of_info_to_extract:
+
         # name that the new column should have:
-        new_column_name = list_of_new_column_names[k]
+        new_column_name = extracted_info
         # The element will be referred as 'new_column_name'
-        
+
         #start a list to store the values of the new column
         new_column_vals = []
 
@@ -3784,7 +3811,6 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
                 print("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
 
         # Copy the list 'new_column_vals' to a new column of the dataframe, named 'new_column_name':
-
         DATASET[new_column_name] = new_column_vals
      
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
@@ -3852,42 +3878,38 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
     # of the input parameters, but completely independent from it.
     DATASET = df.copy(deep = True)
     
-    # 1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
-    
-    # 2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in DATASET[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Save the list as the column timestamp_tag_column itself:
-    DATASET[timestamp_tag_column] = timestamp_list
+    # try parsing as np.datetime64 (more efficient, without loops):
+    try:
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        
+        timestamp_list = list(DATASET[timestamp_tag_column])
+        
+    except:
+        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
+        # 1. Start a list to store the Pandas timestamps:
+        timestamp_list = []
+
+        # 2. Loop through each element of the timestamp column, and apply the function
+        # to guarantee that all elements are Pandas timestamps
+
+        for timestamp in DATASET[timestamp_tag_column]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # 3. Save the list as the column timestamp_tag_column itself:
+        DATASET[timestamp_tag_column] = timestamp_list
     
     # 4. Sort the dataframe in ascending order of timestamps:
     DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
     # Reset indices:
     DATASET = DATASET.reset_index(drop = True)
     
-    # Now, let's create a list of the following timestamps
-    following_timestamp = []
-    # Let's skip the index 0, correspondent to the first timestamp:
+    # Now, let's create a list of the following timestamps, starting from the second element
+    # (index 1) of the timestamp_list:
+    following_timestamp = timestamp_list[1:]
+    # Append the last element again, since the last timestamp has no following time yet:
+    following_timestamp = following_timestamp + timestamp_list[-1:]
     
-    for i in range (1, len(timestamp_list)):
-        
-        # this loop goes from i = 1 to i = len(timestamp_list) - 1, the last index
-        # of the list. If we simply declared range (len(timestamp_list)), the loop
-        # will start from 0, the default
-        
-        #append the element from timestamp_list to following_timestamp:
-        following_timestamp.append(timestamp_list[i])
-    
-    # Notice that this list has one element less than the original list, because we started
-    # copying from index 1, not 0. Therefore, let's repeat the last element of timestamp_list:
-    following_timestamp.append(timestamp_list[i])
-    # Notice that, once we did not restarted the variable i, it keeps its last value obtained
-    # during the loop, correspondent to the index of the last element.
     # Now, let's store it into a column (series) of the dataframe:
     timestamp_tag_column2 = timestamp_tag_column + "_delayed"
     DATASET[timestamp_tag_column2] = following_timestamp
@@ -4186,36 +4208,47 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # of the input parameters, but completely independent from it.
     DATASET = df.copy(deep = True)
     
+    # try parsing as np.datetime64 (more efficient, without loops):
+    try:
+        DATASET[timestamp_tag_column1] = DATASET[timestamp_tag_column1].astype(np.datetime64)
+        DATASET[timestamp_tag_column2] = DATASET[timestamp_tag_column2].astype(np.datetime64)
+        
+    except:
+        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.  
+        # 1. Start a list to store the Pandas timestamps:
+        timestamp_list = []
+
+        # 2. Loop through each element of the timestamp column, and apply the function
+        # to guarantee that all elements are Pandas timestamps
+
+        for timestamp in DATASET[timestamp_tag_column1]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        # 3. Create a column in the dataframe that will store the timestamps.
+        # Simply copy the list as the column:
+        DATASET[timestamp_tag_column1] = timestamp_list
+
+        #Repeate these steps for the other column (timestamp_tag_column2):
+        # Restart the list, loop through all the column, and apply the pd.Timestamp function
+        # to each element, individually:
+        timestamp_list = []
+
+        for timestamp in DATASET[timestamp_tag_column2]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column2]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        DATASET[timestamp_tag_column2] = timestamp_list
     
-    # 1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
-    
-    # 2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in DATASET[timestamp_tag_column1]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    # 3. Create a column in the dataframe that will store the timestamps.
-    # Simply copy the list as the column:
-    DATASET[timestamp_tag_column1] = timestamp_list
-    
-    #Repeate these steps for the other column (timestamp_tag_column2):
-    # Restart the list, loop through all the column, and apply the pd.Timestamp function
-    # to each element, individually:
-    timestamp_list = []
-    
-    for timestamp in DATASET[timestamp_tag_column2]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column2]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    DATASET[timestamp_tag_column2] = timestamp_list
+    # 4. Sort the dataframe in ascending order of timestamps:
+    DATASET = DATASET.sort_values(by = [timestamp_tag_column1, timestamp_tag_column2], ascending = [True, True])
+    # Reset indices:
+    DATASET = DATASET.reset_index(drop = True)
     
     # Pandas Timestamps can be subtracted to result into a Pandas Timedelta.
     # We will apply the delta method from Pandas Timedeltas.
     
-    #4. Create a timedelta object as the difference between the timestamps:
+    #5. Create a timedelta object as the difference between the timestamps:
     
     # NOTICE: Even though a list could not be submitted to direct operations like
     # sum, subtraction and multiplication, the series and NumPy arrays can. When we
@@ -4484,19 +4517,25 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # of the input parameters, but completely independent from it.
     DATASET = df.copy(deep = True)
     
-    #1. Start a list to store the Pandas timestamps:
-    timestamp_list = []
-    
-    #2. Loop through each element of the timestamp column, and apply the function
-    # to guarantee that all elements are Pandas timestamps
-    
-    for timestamp in DATASET[timestamp_tag_column]:
-        #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-        timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-    
-    #3. Create a column in the dataframe that will store the timestamps.
-    # Simply copy the list as the column:
-    DATASET[timestamp_tag_column] = timestamp_list
+    # try parsing as np.datetime64 (more efficient, without loops):
+    try:
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        
+    except:
+        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
+        #1. Start a list to store the Pandas timestamps:
+        timestamp_list = []
+
+        #2. Loop through each element of the timestamp column, and apply the function
+        # to guarantee that all elements are Pandas timestamps
+
+        for timestamp in DATASET[timestamp_tag_column]:
+            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
+            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+
+        #3. Create a column in the dataframe that will store the timestamps.
+        # Simply copy the list as the column:
+        DATASET[timestamp_tag_column] = timestamp_list
     
     # The Pandas Timestamp can be directly added to a Pandas Timedelta.
  
@@ -4530,7 +4569,8 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # (subtraction of time).
     
     #Now, add the timedelta to the timestamp, and store it into a proper list/series:
-    new_timestamps = DATASET[timestamp_tag_column] + timedelta
+    new_timestamps = DATASET[timestamp_tag_column].copy()
+    new_timestamps = new_timestamps + timedelta
      
     #Finally, create a column in the dataframe named as new_timestamp_col
     #and store the new timestamps into it
@@ -5298,25 +5338,48 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     if (show_interpreted_example):
         # Run if it is True. Requires TensorFlow to load. Load the extra library only
         # if necessary:
+        from urllib.request import urlretrieve
         from tensorflow.keras.preprocessing.image import img_to_array, load_img
         # img_to_array: convert the image into its numpy array representation
         
         # Download the images to the notebook's workspace:
+        
+        # Alternatively, use "wget GNU" (cannot use as .py file):
         # Use the command !wget to download web content:
-        example_na1 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na1.PNG example_na1.png
-        example_na2 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na2.PNG example_na2.png
-        example_na3 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na3.PNG example_na3.png
-        example_na4 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na4.PNG example_na4.png
+        #example_na1 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na1.PNG example_na1.png
+        #example_na2 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na2.PNG example_na2.png
+        #example_na3 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na3.PNG example_na3.png
+        #example_na4 = !wget --no-check-certificate https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na4.PNG example_na4.png
         # When saving the !wget calls as variables, we silent the verbosity of the Wget GNU.
         # Then, user do not see that a download has been made.
         # To check the help from !wget GNU, type and run a cell with: 
         # ! wget --help
         
+        url1 = "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na1.PNG"
+        url2 = "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na2.PNG"
+        url3 = "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na3.PNG"
+        url4 = "https://github.com/marcosoares-92/img_examples_guides/raw/main/example_na4.PNG"
+        
+        # Create a new folder to store the images, if the folder do not exists:
+        new_dir = "tmp"
+        os.makedirs(new_dir, exist_ok = True)
+        # exist_ok = True creates the directory only if it does not exist.
+        
+        img1 = os.path.join(new_dir, "example_na1.PNG")
+        img2 = os.path.join(new_dir, "example_na2.PNG")
+        img3 = os.path.join(new_dir, "example_na3.PNG")
+        img4 = os.path.join(new_dir, "example_na4.PNG")
+        
+        urlretrieve(url1, img1)
+        urlretrieve(url2, img2)
+        urlretrieve(url3, img3)
+        urlretrieve(url4, img4)
+        
         # Load the images and save them on variables:
-        sample_image1 = load_img("example_na1.PNG")
-        sample_image2 = load_img("example_na2.PNG")
-        sample_image3 = load_img("example_na3.PNG")
-        sample_image4 = load_img("example_na4.PNG")
+        sample_image1 = load_img(img1)
+        sample_image2 = load_img(img2)
+        sample_image3 = load_img(img3)
+        sample_image4 = load_img(img4)
         
         print("\n")
         print("Example of analysis:\n")
@@ -5355,10 +5418,10 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         # Finally, before finishing the function, 
         # delete (remove) the files from the notebook's workspace.
         # The os.remove function deletes a file or directory specified.
-        os.remove("example_na1.PNG")
-        os.remove("example_na2.PNG")
-        os.remove("example_na3.PNG")
-        os.remove("example_na4.PNG")
+        os.remove(img1)
+        os.remove(img2)
+        os.remove(img3)
+        os.remove(img4)
         # Since we are not specifying a sub-directory (folder), files are being deleted from
         # the root, where the ! wget automatically saved them.
 
@@ -12726,20 +12789,20 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     # model_path = colab_files_dict[key]
                     
                     # Extract to a temporary 'tmp' directory:
-                    try:
-                        # Compress the directory using tar
-                        # https://www.gnu.org/software/tar/manual/tar.html
-                        ! tar --extract --file=model_path --verbose --verbose tmp/
+                    #try:
+                    # Compress the directory using tar
+                    # https://www.gnu.org/software/tar/manual/tar.html
+                    #    ! tar --extract --file=model_path --verbose --verbose tmp/
                     
-                    except:
+                    #except:
                         
-                        from tarfile import TarFile
-                        # pickle, csv, tarfile, and zipfile are on Python standard library
-                        # https://docs.python.org/3/library/tarfile.html
-                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                        tar_file = TarFile.open(model_path, mode = 'r:gz')
-                        tar_file.extractall("tmp/")
-                        tar_file.close()
+                    from tarfile import TarFile
+                    # pickle, csv, tarfile, and zipfile are on Python standard library
+                    # https://docs.python.org/3/library/tarfile.html
+                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                    tar_file = TarFile.open(model_path, mode = 'r:gz')
+                    tar_file.extractall("tmp/")
+                    tar_file.close()
                     
                     model = tf.keras.models.load_model("tmp/saved_model")
                     print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
@@ -12747,20 +12810,20 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                 else:
                     #standard method
                     # Extract to a temporary 'tmp' directory:
-                    try:
+                    #try:
                         # Compress the directory using tar
                         # https://www.gnu.org/software/tar/manual/tar.html
-                        ! tar --extract --file=model_path --verbose --verbose tmp/
+                    #    ! tar --extract --file=model_path --verbose --verbose tmp/
                     
-                    except:
+                    #except:
                         
-                        from tarfile import TarFile
-                        # pickle, csv, tarfile, and zipfile are on Python standard library
-                        # https://docs.python.org/3/library/tarfile.html
-                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                        tar_file = TarFile.open(model_path, mode = 'r:gz')
-                        tar_file.extractall("tmp/")
-                        tar_file.close()
+                    from tarfile import TarFile
+                    # pickle, csv, tarfile, and zipfile are on Python standard library
+                    # https://docs.python.org/3/library/tarfile.html
+                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                    tar_file = TarFile.open(model_path, mode = 'r:gz')
+                    tar_file.extractall("tmp/")
+                    tar_file.close()
                     
                     model = tf.keras.models.load_model("tmp/saved_model")
                     print(f"TensorFlow model successfully imported from {model_path}.")
@@ -12915,20 +12978,20 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     # Save your model in the SavedModel format
                     model_to_export.save('saved_model/my_model')
                     
-                    try:
+                    #try:
                         # Compress the directory using tar
                         # https://www.gnu.org/software/tar/manual/tar.html
-                        ! tar -czvf model_path saved_model/
+                    #    ! tar -czvf model_path saved_model/
                     
-                    except NotFoundError:
+                    #except NotFoundError:
                         
-                        from tarfile import TarFile
-                        # pickle, csv, tarfile, and zipfile are on Python standard library
-                        # https://docs.python.org/3/library/tarfile.html
-                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                        tar_file = TarFile.open(model_path, mode = 'w:gz')
-                        tar_file.add('saved_model/')
-                        tar_file.close()
+                    from tarfile import TarFile
+                    # pickle, csv, tarfile, and zipfile are on Python standard library
+                    # https://docs.python.org/3/library/tarfile.html
+                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
+                    tar_file = TarFile.open(model_path, mode = 'w:gz')
+                    tar_file.add('saved_model/')
+                    tar_file.close()
                     
                     key = model_file_name + "." + model_extension
                     files.download(key)
@@ -12939,19 +13002,19 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     # Save your model in the SavedModel format
                     model_to_export.save('saved_model/my_model')
                     
-                    try:
+                    #try:
                         # Compress the directory using tar
-                        ! tar -czvf model_path saved_model/
+                    #    ! tar -czvf model_path saved_model/
                     
-                    except NotFoundError:
+                    #except NotFoundError:
                         
-                        from tarfile import TarFile
+                    from tarfile import TarFile
                         # pickle, csv, tarfile, and zipfile are on Python standard library
                         # https://docs.python.org/3/library/tarfile.html
                         # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                        tar_file = TarFile.open(model_path, mode = 'w:gz')
-                        tar_file.add('saved_model/')
-                        tar_file.close()
+                    tar_file = TarFile.open(model_path, mode = 'w:gz')
+                    tar_file.add('saved_model/')
+                    tar_file.close()
                         
                     print(f"TensorFlow model successfully exported as {model_path}.")
 
