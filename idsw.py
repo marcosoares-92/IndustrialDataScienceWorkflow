@@ -5096,6 +5096,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     import os
     # Two conditions require the os library, so we import it at the beginning of the function,
     # to avoid importing it twice.
+    import shutil # component of the standard library to move or copy files.
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -5132,6 +5133,9 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # In addition to the previous steps of scaling and shifting the dummy values, we'll also have to 
     # create a copy of the DataFrame to fill in dummy values first. Let's now use this function to 
     # create our scatterplot.
+    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
     # define a subfunction for filling the dummy values.
     # In your function definition, set the default value of scaling_factor to be 0.075:
@@ -5174,7 +5178,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
             
             # Check if the column is a text or timestamp. In this case, the type
             # of column will be 'object'
-            if ((col.dtype == 'O') | (col.dtype == 'object')):
+            if (col.dtype not in numeric_dtypes):
                 
                 # Try converting it to a datetime64 object:
                 
@@ -5338,7 +5342,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     if (show_interpreted_example):
         # Run if it is True. Requires TensorFlow to load. Load the extra library only
         # if necessary:
-        from urllib.request import urlretrieve
+        from html2image import Html2Image
         from tensorflow.keras.preprocessing.image import img_to_array, load_img
         # img_to_array: convert the image into its numpy array representation
         
@@ -5365,21 +5369,38 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         os.makedirs(new_dir, exist_ok = True)
         # exist_ok = True creates the directory only if it does not exist.
         
-        img1 = os.path.join(new_dir, "example_na1.PNG")
-        img2 = os.path.join(new_dir, "example_na2.PNG")
-        img3 = os.path.join(new_dir, "example_na3.PNG")
-        img4 = os.path.join(new_dir, "example_na4.PNG")
+        # Instantiate the class Html2Image:
+        html_img = Html2Image()
+        # Download the images:
+        # pypi.org/project/html2image/
+        img1 = html_img.screenshot(url = url1, save_as = "example_na1.PNG", size = (500, 500))
+        img2 = html_img.screenshot(url = url2, save_as = "example_na2.PNG", size = (500, 500))
+        img3 = html_img.screenshot(url = url3, save_as = "example_na3.PNG", size = (500, 500))
+        img4 = html_img.screenshot(url = url4, save_as = "example_na4.PNG", size = (500, 500))
+        # If size is omitted, the image is downloaded in the low-resolution default.
+        # save_as must be a file name, a path is not accepted.
+        # Make the output from the method equals to a variable eliminates its verbosity
         
-        urlretrieve(url1, img1)
-        urlretrieve(url2, img2)
-        urlretrieve(url3, img3)
-        urlretrieve(url4, img4)
+        # Create the new paths for the images:
+        img1_path = os.path.join(new_dir, "example_na1.PNG")
+        img2_path = os.path.join(new_dir, "example_na2.PNG")
+        img3_path = os.path.join(new_dir, "example_na3.PNG")
+        img4_path = os.path.join(new_dir, "example_na4.PNG")
+        
+        # Move the image files to their new paths:
+        # use shutil.move(source, destination) method to move the files:
+        # pynative.com/python-move-files
+        # docs.python.org/3/library/shutil.html
+        shutil.move("example_na1.PNG", img1_path)
+        shutil.move("example_na2.PNG", img2_path)
+        shutil.move("example_na3.PNG", img3_path)
+        shutil.move("example_na4.PNG", img4_path)
         
         # Load the images and save them on variables:
-        sample_image1 = load_img(img1)
-        sample_image2 = load_img(img2)
-        sample_image3 = load_img(img3)
-        sample_image4 = load_img(img4)
+        sample_image1 = load_img(img1_path)
+        sample_image2 = load_img(img2_path)
+        sample_image3 = load_img(img3_path)
+        sample_image4 = load_img(img4_path)
         
         print("\n")
         print("Example of analysis:\n")
@@ -5388,27 +5409,38 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         
         # Image example 1:
         # show image with plt.imshow function:
+        fig = plt.figure(figsize = (12, 8))
         plt.imshow(sample_image1)
+        # If the image is black and white, you can color it with a cmap as 
+        # fig.set_cmap('hot')
+        #set axis off:
+        plt.axis('off')
         plt.show()
         print("\n")
         
         print("The red points along the y-axis are the missing values of \'Serum_Insulin\' plotted against their \'BMI\' values.\n")
         # Image example 2:
         # show image with plt.imshow function:
+        fig = plt.figure(figsize = (12, 8))
         plt.imshow(sample_image2)
+        plt.axis('off')
         plt.show()
         print("\n")
         
         print("Likewise, the points along the x-axis are the missing values of \'BMI\' against their \'Serum_Insulin\' values.\n")
         # show image with plt.imshow function:
+        fig = plt.figure(figsize = (12, 8))
         plt.imshow(sample_image3)
+        plt.axis('off')
         plt.show()
         print("\n")
         
         print("The bottom-left corner represents the missing values of both \'BMI\' and \'Serum_Insulin\'.\n")
         # Image example 4:
         # show image with plt.imshow function:
+        fig = plt.figure(figsize = (12, 8))
         plt.imshow(sample_image4)
+        plt.axis('off')
         plt.show()
         print("\n")
         
@@ -5418,12 +5450,25 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         # Finally, before finishing the function, 
         # delete (remove) the files from the notebook's workspace.
         # The os.remove function deletes a file or directory specified.
-        os.remove(img1)
-        os.remove(img2)
-        os.remove(img3)
-        os.remove(img4)
-        # Since we are not specifying a sub-directory (folder), files are being deleted from
-        # the root, where the ! wget automatically saved them.
+        os.remove(img1_path)
+        os.remove(img2_path)
+        os.remove(img3_path)
+        os.remove(img4_path)
+        
+        # Check if the tmp folder is empty:
+        size = os.path.getsize(new_dir)
+        # os.path.getsize returns the total size in Bytes from a folder or a file.
+        
+        # Get the list of sub-folders, files or subdirectories (the content) from the folder:
+        list_of_contents = os.listdir(new_dir)
+        # doc.python.org/3/library/os.html
+        # It returns a list of strings representing the paths of each file or directory 
+        # in the analyzed folder.
+        
+        # If the size is 0 and the length of the list_of_contents is also zero (i.e., there is no
+        # previous sub-directory created), then remove the directory:
+        if ((size == 0) & (len(list_of_contents) == 0)):
+            os.rmdir(new_dir)
 
 
 def handle_missing_values (df, subset_columns_list = None, drop_missing_val = True, fill_missing_val = False, eliminate_only_completely_empty_rows = False, min_number_of_non_missing_val_for_a_row_to_be_kept = None, value_to_fill = None, fill_method = "fill_with_zeros", interpolation_order = 'linear'):
@@ -15684,4 +15729,2254 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
             # https://en.wikipedia.org/wiki/Violin_plot#:~:text=A%20violin%20plot%20is%20a%20method%20of%20plotting,values%2C%20usually%20smoothed%20by%20a%20kernel%20density%20estimator.
             
         return anova_summary_dict, plot_returned_dict
+
+
+class spc_chart_assistant:
+            
+    # Initialize instance attributes.
+    # define the Class constructor, i.e., how are its objects:
+    def __init__(self, assistant_startup = True, keep_assistant_on = True):
+                
+        import os
+        
+        # If the user passes the argument, use them. Otherwise, use the standard values.
+        # Set the class objects' attributes.
+        # Suppose the object is named assistant. We can access the attribute as:
+        # assistant.assistant_startup, for instance.
+        # So, we can save the variables as objects' attributes.
+        self.assistant_startup = assistant_startup
+        self.keep_assistant_on = keep_assistant_on
+        # Base Github directory containing the assistant images to be downloaded:
+        self.base_git_dir = "https://github.com/marcosoares-92/img_examples_guides/raw/main"
+        # Create a new folder to store the images in local environment, 
+        # if the folder do not exists:
+        self.new_dir = "tmp"
+        
+        os.makedirs(self.new_dir, exist_ok = True)
+        # exist_ok = True creates the directory only if it does not exist.
+        
+        self.last_img_number = 18 # number of the last image on the assistant
+        self.numbers_to_end_assistant = (3, 4, 7, 9, 10, 13, 15, 16, 19, 20, 21, 22)
+        # tuple: cannot be modified
+        # 3: 'g', 4: 't', 7: 'i_mr', 9: 'std_error', 10: '3s', 13: 'x_bar_s'
+        # 15: 'std_error' (grouped), 16: '3s' (grouped), 19: 'p', 20: 'np',
+        # 21: 'c', 22: 'u'
+        self.screen_number = 0 # start as zero
+        self.file_to_fetch = ''
+        self.img_url = ''
+        self.img_local_path = ''
+        # to check the class attributes, use the __dict__ method. Examples:
+        ## object.__dict__ will show all attributes from object
+                
+    # Define the class methods.
+    # All methods must take an object from the class (self) as one of the parameters
+    
+    def download_assistant_imgs (self):
+                
+        import os
+        import shutil # component of the standard library to move or copy files.
+        from html2image import Html2Image
+                
+        # Start the html object
+        html_img = Html2Image()
+                
+        for screen_number in range(0, (self.last_img_number + 1)):
+                
+            # ranges from 0 to (last_img_number + 1) - 1 = last_img_number
+            # convert the screen number to string to create the file name:
+            
+            # Update the attributes:
+            self.file_to_fetch = "cc_s" + str(screen_number) + ".png"
+            self.img_url = os.path.join(self.base_git_dir, self.file_to_fetch)
+            
+            # Download the image:
+            # pypi.org/project/html2image/
+            img = html_img.screenshot(url = self.img_url, save_as = self.file_to_fetch, size = (500, 500))
+            # If size is omitted, the image is downloaded in the low-resolution default.
+            # save_as must be a file name, a path is not accepted.
+            # Make the output from the method equals to a variable eliminates its verbosity
+                    
+            # Create the new path for the image (local environment):
+            self.img_local_path = os.path.join(self.new_dir, self.file_to_fetch)
+            # Move the image files to the new paths:
+            # use shutil.move(source, destination) method to move the files:
+            # pynative.com/python-move-files
+            # docs.python.org/3/library/shutil.html
+            shutil.move(self.file_to_fetch, self.img_local_path)
+            # Notice that file_to_fetch attribute still stores a file name like 'cc_s0.png'
+        
+        # Now, all images for the assistant were downloaded and stored in the temporary
+        # folder. So, let's start the two boolean variables to initiate it and run it:
+        self.assistant_startup = True 
+        # attribute to start the assistant in the first screen
+        self.keep_assistant_on = True
+        # attribute to maintain the assistant working
+        
+        return self
+
+    def delete_assistant_imgs (self):
+                
+        import os
+        # Now, that the user closed the assistant, we can remove the downloaded files 
+        # (delete them) from the notebook's workspace.
+                
+        # The os.remove function deletes a file or directory specified.
+        for screen_number in range(0, (self.last_img_number + 1)):
+                    
+            self.file_to_fetch = "cc_s" + str(screen_number) + ".png"
+            self.img_local_path = os.path.join(self.new_dir, self.file_to_fetch)
+            os.remove(self.img_local_path)
+                
+        # Now that the files were removed, check if the tmp folder is empty:
+        size = os.path.getsize(self.new_dir)
+        # os.path.getsize returns the total size in Bytes from a folder or a file.
+                
+        # Get the list of sub-folders, files or subdirectories (the content) from the folder:
+        list_of_contents = os.listdir(self.new_dir)
+        # doc.python.org/3/library/os.html
+        # It returns a list of strings representing the paths of each file or directory 
+        # in the analyzed folder.
+                
+        # If the size is 0 and the length of the list_of_contents is also zero (i.e., there is no
+        # previous sub-directory created), then remove the directory:
+        if ((size == 0) & (len(list_of_contents) == 0)):
+            
+            os.rmdir(self.new_dir)
+
+    def print_screen_legend (self):
+        
+        if (self.screen_number == 0):
+            
+            print("The control chart is a line graph showing a measure (y-axis) over time (x-axis).")
+            
+            print("In contrast to the run chart, the central line of the control chart represents the (weighted) mean, rather than the median.")
+            print("Additionally, two lines representing the upper and lower control limits are shown.\n")
+            print("The control limits represent the boundaries of the so-called common cause variation, which is inherent to the process.")
+            print("Walther A. Shewhart, who invented the control chart, described two types of variation: chance-cause variation and assignable-cause variation.")
+            print("These were later renamed to common-cause and special-cause variation.\n")
+            
+            print("Common-cause variation:")
+            print("Is present in any process.")
+            print("It is caused by phenomena that are always present within the system.")
+            print("It makes the process predictable (within limits).")
+            print("Common-cause variation is also called random variation or noise.\n")
+                    
+            print("Special-cause variation:")
+            print("Is present in some processes.")
+            print("It is caused by phenomena that are not normally present in the system.")
+            print("It makes the process unpredictable.")
+            print("Special-cause variation is also called non-random variation or signal.\n")
+                    
+            print("It is important to notice that neither common, nor special-cause variation is in itself 'good' or 'bad'.")
+            print("A stable process may function at an unsatisfactory level; and an unstable process may be moving in the right direction.")
+            print("On the other hand, the end goal of improvement is always to achieve a stable process functioning at a satisfactory level.\n")
+                    
+            print("Control chart limits:")
+            print("The control limits, also called sigma limits, are usually placed at ±3 standard deviations from the central line.")
+            print("So, the standard deviation is estimated as the common variation of the process of interest.")
+            print("This variation depends on the theoretical distribution of data.")
+            print("It is a beginner's mistake to simply calculate the standard deviation of all the data points.")
+            print("This procedure would include both the common and special-cause variation in the calculus.")
+            print("Since the calculations of control limits depend on the type of data (distribution), many types of control charts have been developed for specific purposes.")
+        
+        elif (self.screen_number == 1):
+                    
+            print("CHARTS FOR RARE EVENTS\n")
+            print("ATTENTION: Due not previously group data in this case. Since events are rare, they are likely to be eliminated during aggregation.\n")
+                    
+            print("G-chart for units produced between (rare) defectives or defects;")
+            print("or total events between successive rare occurrences:\n")
+            print("When defects or defectives are rare and the subgroups are small, C, U, and P-charts become useless.")
+            print("That is because most subgroups will have no defects.")
+                    
+            print("Example: if 8% of discharged patients have a hospitals-acquired pressure ulcer, and the average weekly number of discharges in a small department is 10, we would, on average, expect to have less than one pressure ulcer per week.")
+            print("Instead, we could plot the number of discharges between each discharge of a patient with one or more pressure ulcers.\n")
+            print("The number of units between defectives is modelled by the geometric distribution.")
+            print("So, the G-control chart plots counting of occurrence by number; time unit; or timestamp.\n")
+                    
+            print("In the example of discharged patients: the indicator is the number of discharges between each of these rare cases.")
+            print("Note that the first patient with pressure ulcer is missing from the chart.")
+            print("It is due to the fact that we do not know how many discharges there had been before the first patient with detected pressure ulcer.\n")
+            print("The central line of the G-chart is the theoretical median of the distribution")
+            print("median = mean × 0.693")
+                    
+            print("Since the geometric distribution is highly skewed, the median is a better representation of the process center.")
+            print("Also, notice that the G-chart rarely has a lower control limit.\n")
+                    
+            print("T-chart for time between successive rare events:\n")
+            print("Like the G-chart, the T-chart is a rare event chart.")
+            print("Instead of displaying the number of cases between events (defectives), this chart represents the time between successive rare events.\n")
+            print("Since time is a continuous variable, the T-chart belongs with the other charts for measure numeric data.")
+            print("Then, T-chart plots the timedelta (e.g. number of days between occurrences) by the measurement, time unit, or timestamp.")
+                
+        elif (self.screen_number == 2):
+            
+            print("A quality characteristic that is measured on a numerical scale is called a variable.")
+            print("Examples: length or width, temperature, and volume.\n")
+            
+            print("The Shewhart control charts are widely used to monitor the mean and variability of variables.")
+            print("On the other hand, many quality characteristics can be expressed in terms of a numerical measurement.")
+                    
+            print("For example: the diameter of a bearing could be measured with a micrometer and expressed in millimeters.\n")
+            print("A single measurable quality characteristic, such as a dimension, weight, or volume, is a variable.")
+            print("Control charts for variables are used extensively, and are one of the primary tools used in the analize and control steps of DMAIC.")
+            
+            print("Many quality characteristics cannot be conveniently represented numerically, though.")
+            print("In such cases, we usually classify each item inspected as either conforming or nonconforming to the specifications on that quality characteristic.")
+            print("The terminology defective or nondefective is often used to identify these two classifications of product.")
+            print("More recently, this terminology conforming and nonconforming has become popular.")        
+            print("Quality characteristics of this type are called attributes.\n")
+            
+            print("Control Charts for Nonconformities (defects):")
+            print("A nonconforming item is a unit of product that does not satisfy one or more of the specifications of that product.")
+            print("Each specific point at which a specification is not satisfied results in a defect or nonconformity.")
+            print("Consequently, a nonconforming item will contain at least one nonconformity.")
+            print("However, depending on their nature and severity, it is quite possible for a unit to contain several nonconformities and not be classified as nonconforming.")
+                    
+            print("Example: suppose we are manufacturing personal computers. Each unit could have one or more very minor flaws in the cabinet finish,")
+            print("but since these flaws do not seriously affect the unit's functional operation, it could be classified as conforming.")
+            print("However, if there are too many of these flaws, the personal computer should be classified as nonconforming,")
+            print("because the flaws would be very noticeable to the customer and might affect the sale of the unit.\n")
+                    
+            print("There are many practical situations in which we prefer to work directly with the number of defects or nonconformities,")
+            print("rather than the fraction nonconforming.")
+            print("These include:")
+            print("1. Number of defective welds in 100 m of oil pipeline.")
+            print("2. Number of broken rivets in an aircraft wing.")
+            print("3. Number of functional defects in an electronic logic device.")
+            print("4. Number of errors on a document, etc.\n")
+                    
+            print("It is possible to develop control charts for either the total number of nonconformities in a unit,")
+            print("or for the average number of nonconformities per unit.\n")
+            print("These control charts usually assume that the occurrence of nonconformities in samples of constant size is well modeled by the Poisson distribution.\n")
+                    
+            print("Essentially, this requires that the number of opportunities or potential locations for nonconformities be infinitely large;")
+            print("and that the probability of occurrence of a nonconformity at any location be small and constant.")
+            print("Furthermore, the inspection unit must be the same for each sample.")
+            print("That is, each inspection unit must always represent an identical area of opportunity for the occurrence of nonconformities.")
+                    
+            print("In addition, we can count nonconformities of several different types on one unit, as long as the above conditions are satisfied for each class of nonconformity.\n")
+            print("In most practical situations, these conditions will not be perfectly satisfied.")
+            print("The number of opportunities for the occurrence of nonconformities may be finite,")
+            print("or the probability of occurrence of nonconformities may not be constant.\n")
+                    
+            print("As long as these departures from the assumptions are not severe,")
+            print("the Poisson model will usually work reasonably well.")
+            print("There are cases, however, in which the Poisson model is completely inappropriate.")
+            print("So, always check carefully the distributions.")
+                    
+            print("If you are not sure, use the estimatives based on more general assumptions, i.e.,")
+            print("The estimative of the natural variation as 3 times the standard deviation;")
+            print("or as 3 times the standard error.\n")
+                    
+            print("Individual samples x Grouped data")
+            print("Often, we collect a batch of samples corresponding to the same conditions, and use aggregation measurements such as mean, sum, or standard deviation to represent them.")
+            print("In this case, we are grouping our data, and not working with individual measurements.")
+            print("In turns, we can collect individual samples: there are no repetitions, only individual measurements corresponding to different conditions.\n")
+            print("Usually, time series data is collected individually: each measurement corresponds to an instant, so it is not possible to collect multiple samples corresponding to the same conditions for further grouping.")
+            print("Example: instant assessment of pH, temperature, pressure, etc.\n")
+            print("Naturally, we can define a time window like a day, and group values on that window.")
+            print("The dynamic of the phenomena should not create significant differences between samples collected for a same window, though.")
+        
+        elif (self.screen_number == 5):
+            
+            print("CHARTS FOR NUMERICAL VARIABLES\n")
+            print("When dealing with a quality characteristic that is a variable, it is usually necessary to monitor both the mean value of the quality characteristic and its variability.")
+            print("The control of the process average or mean quality level is usually done with the control chart for means, or the X-bar control chart.")
+            print("The process variability can be monitored with either a control chart for the standard deviation, called the s control chart, or with a control chart for the range, called an R control chart.\n")
+            
+            print("I and MR charts for individual measurements:")
+            print("ATTENTION: The I-MR chart can only be used for data that follows the normal distribution.")
+            print("That is because the calculus of the control limits are based on the strong hypothesis of normality.")
+            print("If you have individual samples that do not follow the normal curve (like skewed data, or data with high kurtosis);")
+            print("or data with an unknown distribution, select number 8 for using less restrictive hypotheses for the estimative of the natural variation.\n")
+                    
+            print("Example: in healthcare, most quality data are count data.")
+            print("However, from time to time, there are measurement data present.")
+            print("These data are often in the form of physiological parameters or waiting times.")
+            print("e.g. a chart of birth weights from 24 babies.")
+            print("If the birth weights follow the normal, you can use the individuals chart.\n")
+                    
+            print("Actually, there are many situations in which the sample size used for process monitoring is n = 1; that is, the sample consists of an individual unit.")
+            print("Some other examples of these situations are as follows:")
+            print("1. Automated inspection and measurement technology is used, and every unit manufactured is analyzed.")
+            print("So, there is no basis for rational subgrouping.")
+            print("2. Data comes available relatively slowly, and it is inconvenient to allow sample sizes of n > 1 to accumulate before analysis.") 
+            print("The long interval between observations will cause problems with rational subgrouping.")
+            print("This occurs frequently in both manufacturing and non-manufacturing situations.")
+            print("3. Repeat measurements on the process differ only because of laboratory or analysis error, as in many chemical processes.")
+            print("4. Multiple measurements are taken on the same unit of product, such as measuring oxide thickness at several different locations on a wafer in semiconductor manufacturing.")
+            print("5. In process plants, such as papermaking, measurements on some parameter (such as coating thickness across the roll) will differ very little and produce a standard deviation that is much too small if the objective is to control coating thickness along the roll.")
+                    
+            print("In such situations, the control chart for individual units is useful.")
+            print("In many applications of the individuals control chart, we use the moving range two successive observations as the basis of estimating the process variability.\n")
+            print("I-charts are often accompanied by moving range (MR) charts, which show the absolute difference between neighbouring data points.")
+            print("The purpose of the MR chart is to identify sudden changes in the (estimated) within-subgroup variation.")
+            print("If any data point in the MR is above the upper control limit, one should interpret the I-chart very cautiously.\n")
+        
+        elif(self.screen_number == 6):
+                    
+            print("One important difference: numeric variables are representative of continuous data, usually in the form of real numbers (float values).")
+            print("It means that its possible values cannot be counted: there is an infinite number of possible real values.")
+            
+            print("Categoric variables, in turn, are discrete.")        
+            print("It means they can be counted, since there is a finite number of possibilities.")
+            print("Such variables are usually present as strings (texts), or as ordinal (integer) numbers.")
+                    
+            print("If there are only two categories, we have a binary classification.")
+            print("Each category can be reduced to a binary system: or the category is present, or it is not.")
+            print("This is the idea for the One-Hot Encoding.")
+            print("Usually, values in a binary classification are 1 or 0, so that a probability can be easily associated through the sigmoid function.\n")
+                    
+            print("Some examples of quality characteristics that are based on the analysis of attributes:")
+            print("1. Proportion of warped automobile engine connecting rods in a day's production.")
+            print("2. Number of nonfunctional semiconductor chips on a wafer.")
+            print("3. Number of errors or mistakes made in completing a loan application.")
+            print("4. Number of medical errors made in a hospital.\n")
+        
+        elif((self.screen_number == 8) | (self.screen_number == 14)):
+            
+            print("If you have a distribution that is not normal, like distributions with high skewness or high kurtosis,")
+            print("use less restrictive methodologies to estimate the natural variation.\n")
+                    
+            print("You may estimate the natural variation as 3 times the standard error; or as 3 times the standard deviation.")
+            print("The interval will be symmetric around the mean value.\n")
+            print("Recommended: standard error, which normalizes by the total of values.")
+                
+        elif(self.screen_number == 11):
+            
+            print("CHARTS FOR NUMERICAL VARIABLES\n")
+            print("When dealing with a quality characteristic that is a variable, it is usually necessary to monitor both the mean value of the quality characteristic and its variability.")
+            print("The control of the process average or mean quality level is usually done with the control chart for means, or the X-bar control chart.")
+            print("The process variability can be monitored with either a control chart for the standard deviation, called the s control chart, or with a control chart for the range, called an R control chart.\n")
+                    
+            print("X-bar and S charts for average measurements:")
+            print("If there is more than one measurement of a numeric variable in each subgroup,")
+            print("the Xbar and S charts will display the average and the within-subgroup standard deviation, respectively.")
+            print("e.g. a chart of average birth weights per month, for babies born over last year.")
+        
+        elif(self.screen_number == 12):
+            
+            print("CHARTS FOR CATEGORICAL VARIABLES\n")
+            print("There are 4 widely used attributes control charts: P, nP, U, and C.\n")
+                    
+            print("To illustrate them, consider a dataset containing the weekly number of hospital acquired pressure ulcers at a hospital")
+            print("The hospital has 300 patients, with an average length of stay of four days.") 
+            print("Each of the dataframe's 24 rows contains information for one week on: the number of discharges,")
+            print("patient days; pressure ulcers; and number of discharged patients with one or more pressure ulcers.")
+            print("On average, 8% of discharged patients have 1.5 hospital acquired pressure ulcers.\n")
+                    
+            print("Some of the charts for categorical variables are based on the definition of the fraction nonconforming.")
+            print("The fraction nonconforming is defined as the ratio between:")
+            print("the number of nonconforming items in a population; by the total number of items in that population.")
+            print("The items may have several quality characteristics that are examined simultaneously by the inspector.")
+            print("If the item does not conform to the standards of one or more of these characteristics, it is classified as nonconforming.\n")
+                    
+            print("ATTENTION: Although it is customary to work with fraction nonconforming,")
+            print("we could also analyze the fraction conforming just as easily, resulting in a control chart of process yield.")
+            print("Many manufacturing organizations operate a yield-management system at each stage of their manufacturing process,")
+            print("with the first-pass yield tracked on a control chart.\n")
+            
+            print("Traditionally, the term 'defect' has been used to name whatever it is being analyzed through counting with control charts.\n")
+            print("There is a subtle, but important, distinction between:")
+            print("counting defects, e.g. number of pressure ulcers;")
+            print("and counting defectives, e.g. number of patients with one or more pressure ulcers.\n")
+                    
+            print("Defects are expected to reflect the Poisson distribution,")
+            print("while defectives reflect the binomial distribution.\n")
+        
+        elif(self.screen_number == 17):
+                    
+            print("P-charts for proportion of defective units:")
+            print("The first of these relates to the fraction of nonconforming or defective product produced by a manufacturing process, and is called the control chart for fraction nonconforming, or P-chart.")
+            
+            print("The P chart is probably the most common control chart in healthcare.")
+            print("It is used to plot the proportion (or percent) of defective units.")
+            print("e.g. the proportion of patients with one or more pressure ulcers.")
+                    
+            print("As mentioned, defectives are modelled by the binomial distribution.")
+            print("In theory, the P chart is less sensitive to special cause variation than the U chart.")
+            print("That is because it discards information by dichotomising inspection units (patients) in defectives and non-defectives ignoring the fact that a unit may have more than one defect (pressure ulcers).")
+            print("On the other hand, the P chart often communicates better.")
+                    
+            print("For most people, not to mention the press, the percent of harmed patients is easier to grasp than the the rate of pressure ulcers expressed in counts per 1000 patient days.\n")
+            print("The sample fraction nonconforming is defined as the ratio of the number of nonconforming units in the sample D to the sample size n:")
+            print("p = D/n")
+            print("From the binomial distribution, the mean should be estimated as p, and the variance s² as p(1-p)/n.")
+                    
+            print("nP-Charts for number nonconforming:")
+            print("It is also possible to base a control chart on the number nonconforming,")
+            print("rather than on the fraction nonconforming.")
+            print("This is often called as number nonconforming (nP) control chart.\n")
+            
+        elif(self.screen_number == 18):
+            
+            print("C-charts for count of defects:")
+            print("In some situations, it is more convenient to deal with the number of defects or nonconformities observed,")
+            print("rather than the fraction nonconforming.\n")
+            
+            print("So, another type of control chart, called the control chart for nonconformities, or the C chart,")
+            print("is designed to deal with this case.\n")
+                    
+            print("In the hospital example:")
+            print("The correct control chart for the number of pressure ulcers is the C-chart,")
+            print("which is based on the Poisson distribution.\n")
+                    
+            print("As mentioned, DEFECTIVES are modelled by the BINOMIAL distribution, whereas DEFECTS are are modelled by POISSON distribution.\n")
+            
+            print("U-charts for rate of defects:")
+            print("The control chart for nonconformities per unit, or the U-chart, is useful in situations")
+            print("where the average number of nonconformities per unit is a more convenient basis for process control.\n")
+                
+            print("The U-chart is different from the C-chart in that it accounts for variation in the area of opportunity.")
+            print("Examples:")
+            print("1. Number of patients over time.")
+            print("2. Number of patients between units one wishes to compare.")
+            print("3. Number of patient days over time.")
+            print("4. Number of patient days between units one wishes to compare.\n")
+                 
+            print("If there are many more patients in the hospital in the winter than in the summer,")
+            print("the C-chart may falsely detect special cause variation in the raw number of pressure ulcers.\n")
+            
+            print("The U-chart plots the rate of defects.")
+            print("A rate differs from a proportion in that the numerator and the denominator need not be of the same kind,")
+            print("and that the numerator may exceed the denominator.\n")
+                
+            print("For example: the rate of pressure ulcers may be expressed as the number of pressure ulcers per 1000 patient days.\n")
+            print("The larger the numerator, the narrower the control limits.\n")
+            print("So, the main difference between U and C-charts is that U is based on the average number of nonconformities per inspection unit.\n")
+            
+            print("If we find x total nonconformities in a sample of n inspection units,")
+            print("then the average number of nonconformities per inspection unit will be:")
+            print("u = x/n")
+            print("\n")
+               
+    def open_chart_assistant_screen (self):
+                
+        import os
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        from html2image import Html2Image
+        from tensorflow.keras.preprocessing.image import img_to_array, load_img
+        # img_to_array: convert the image into its numpy array representation
+                
+        if (self.assistant_startup): #run if it is True:
+            
+            self.screen_number = 0 # first screen
+        
+        if (self.screen_number not in self.numbers_to_end_assistant):
+            
+            self.print_screen_legend()
+            # Use its own method
+            
+            # Update attributes:
+            self.file_to_fetch = "cc_s" + str(self.screen_number) + ".png"
+            # Obtain the path of the image (local environment):
+            self.img_local_path = os.path.join(self.new_dir, self.file_to_fetch)
+                    
+            # Load the image and save it on variables:
+            assistant_screen = load_img(self.img_local_path)
+                    
+            # show image with plt.imshow function:
+            fig = plt.figure(figsize = (12, 8))
+            plt.imshow(assistant_screen)
+            # If the image is black and white, you can color it with a cmap as fig.set_cmap('hot')
+            
+            #set axis off:
+            plt.axis('off')
+            plt.show()
+            print("\n")
+            
+            # Run again the assistant for next screen (keep assistant on):
+            self.keep_assistant_on = True
+            # In the next round, the assistant should not be restarted:
+            self.assistant_startup = False
+            
+            screen_number = input("Enter the number you wish here (in the right), according to the shown in the image above: ")
+            #convert the screen number to string:
+            screen_number = str(screen_number)        
+            # Strip spaces and format characters (trim):
+            screen_number = screen_number.strip()        
+            # We do not call the str attribute for string variables (only for iterables)
+            # Convert to integer
+            screen_number = int(screen_number)
+            # Update the attribute:
+            self.screen_number = screen_number
+        
+        else:
+            
+            # user selected a value that ends the assistant:
+            self.keep_assistant_on = False
+            self.assistant_startup = False
+        
+        # Return the booleans to the main function:
+        return self
+        
+    def chart_selection (self):
+                
+        # Only if the screen is in the tuple numbers_to_end_assistant:
+        if (self.screen_number in self.numbers_to_end_assistant):
+                    
+            # Variables are created only when requested:
+            rare_events_tuple = (3, 4) # g, t
+            continuous_dist_not_defined_tuple = (9, 10) # std_error, 3std
+            grouped_dist_not_defined_tuple = (15, 16) # std_error, 3std
+            grouped_tuple = (13, 19, 20, 21, 22) # x, p, np, c, u
+            charts_map_dict = {3:'g', 4:'t', 7:'i_mr', 9:'std_error', 10:'3s_as_natural_variation',
+                                13:'xbar_s', 15:'std_error', 16:'3s_as_natural_variation',
+                                19:'p', 20:'np', 21:'c', 22:'u'}
+                    
+            chart_to_use = charts_map_dict[self.screen_number]
+                    
+            # Variable with subgroups, which will be updated if needed:
+            column_with_labels_or_subgroups = None
+                    
+            # Variable for skewed distribution, which will be updated if needed:
+            consider_skewed_dist_when_estimating_with_std = False
+                    
+            column_with_variable_to_be_analyzed = str(input("Enter here (in the right) the name or number of the column (its header) that will be analyzed with the control chart.\nDo not type it in quotes.\nKeep the exact same format of the dataset, with spaces, characters, upper and lower cases, etc (or an error will be raised): "))
+            # Try to convert it to integer, if it is a number:
+            try:
+                # Clean the string:
+                column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed.strip()
+                column_with_variable_to_be_analyzed = int(column_with_variable_to_be_analyzed)
+                    
+            except: # simply pass
+                pass
+                    
+            print("\n")
+            
+            yes_no = str(input("Do your data have a column containing timestamps or time indication (event order)?\nType yes or no, here (in the right).\nDo not type it in quotes: "))
+            yes_no = yes_no.strip()        
+            # convert to full lower case, independently of the user:
+            yes_no = yes_no.lower()
+                    
+            if (yes_no == 'yes'):
+                    
+                print("\n")
+                timestamp_tag_column = str(input("Enter here (in the right) the name or number of the column containing timestamps or time indication (event order).\nDo not type it in quotes.\nKeep the exact same format of the dataset, with spaces, characters, upper and lower cases, etc (or an error will be raised): "))
+                
+                # Try to convert it to integer, if it is a number:
+                try:
+                    timestamp_tag_column = timestamp_tag_column.strip()
+                    timestamp_tag_column = int(timestamp_tag_column)
+                        
+                except: # simply pass
+                    pass
+                    
+            else:
+                timestamp_tag_column = None
+                    
+            yes_no = str(input("Do your data have a column containing event frame indication; indication for separating time windows for comparison analysis;\nstages; events to be analyzed separately; or any other indication for slicing the time axis for comparison of different means, variations, etc?\nType yes or no, here (in the right).\nDo not type it in quotes: "))
+            yes_no = yes_no.strip()
+            yes_no = yes_no.lower()
+                    
+            if (yes_no == 'yes'):
+                        
+                print("\n")
+                column_with_event_frame_indication = str(input("Enter here (in the right) the name or number of the column containing the event frame indication.\nDo not type it in quotes.\nKeep the exact same format of the dataset, with spaces, characters, upper and lower cases, etc (or an error will be raised): "))
+                        
+                # Try to convert it to integer, if it is a number:
+                try:
+                    column_with_event_frame_indication = column_with_event_frame_indication.strip()
+                    column_with_event_frame_indication = int(column_with_event_frame_indication)
+                        
+                except: # simply pass
+                    pass
+            
+            else:
+                column_with_event_frame_indication = None
+                    
+            if (self.screen_number in rare_events_tuple):
+                        
+                print("\n")
+                print(f"How are the rare events represented in the column {column_with_variable_to_be_analyzed}?")
+                print(f"Before obtaining the chart, you must have modified the {column_with_variable_to_be_analyzed} to labe these data.")
+                print("The function cannot work with boolean filters. So, if a value corresponds to a rare event occurrence, modify its value to properly labelling it.")
+                print("You can set a special string or a special numeric value for indicating that a particular row corresponds to a rare event.")
+                print("That is because rare events occurrences must be compared against all other 'regular' events.")
+                print(f"For instance, {column_with_variable_to_be_analyzed} may show a value like 'rare_event', or 'ulcer' (in our example) if it is a rare occurrence.")
+                print("Also, you could input a value extremely high, like 1000000000, or extremely low, like -10000000 for marking the rare events in the column.")
+                print("The chart will be obtained after finding these rare events marks on the column.\n")
+                        
+                rare_event_indication = str(input(f"How are the rare events represented in the column {column_with_variable_to_be_analyzed}?\nEnter here (in the right) the text or number representing a rare event.\nDo not type it in quotes.\nKeep the exact same format of the dataset, with spaces, characters, upper and lower cases, etc (or the rare events will not be localized in the dataset): "))
+                        
+                # Try to convert it to float, if it is a number:
+                try:
+                    column_with_event_frame_indication = column_with_event_frame_indication.strip()
+                    column_with_event_frame_indication = float(column_with_event_frame_indication)
+                
+                except: # simply pass
+                    pass
+                        
+                rare_event_timedelta_unit = str(input(f"What is the usual order of magnitude for the intervals (timedeltas) between rare events?\nEnter here (in the right).\nYou may type: year, month, day, hour, minute, or second.\nDo not type it in quotes: "))
+                rare_event_timedelta_unit = rare_event_timedelta_unit.strip()
+                rare_event_timedelta_unit = rare_event_timedelta_unit.lower()
+                
+                while (rare_event_timedelta_unit not in ['year', 'month', 'day', 'hour', 'minute', 'second']):
+                    
+                    rare_event_timedelta_unit = str(input("Please, enter a valid timedelta unit: year, month, day, hour, minute, or second.\nDo not type it in quotes: "))
+                    rare_event_timedelta_unit = rare_event_timedelta_unit.strip()
+                    rare_event_timedelta_unit = rare_event_timedelta_unit.lower()
+                    
+            else:
+                
+                rare_event_timedelta_unit = None
+                rare_event_indication = None
+                        
+                if ((self.screen_number in grouped_dist_not_defined_tuple) | (self.screen_number in grouped_tuple)):
+                            
+                    print("\n")
+                    column_with_labels_or_subgroups = str(input("Enter here (in the right) the name or number of the column containing the subgroups or samples for aggregating the measurements in terms of mean, standard deviation, etc.\nIt may be a column with indications like 'A', 'B', or 'C'; 'subgroup1',..., 'sample1',..., or an integer like 1, 2, 3,...\nThis column will allow grouping of rows in terms of the correspondent samples.\nDo not type it in quotes.\nKeep the exact same format of the dataset, with spaces, characters, upper and lower cases, etc (or an error will be raised): "))
+                            
+                    # Try to convert it to integer, if it is a number:
+                    try:
+                        column_with_labels_or_subgroups = column_with_labels_or_subgroups.strip()
+                        column_with_labels_or_subgroups = int(column_with_labels_or_subgroups)
+                    
+                    except: # simply pass
+                        pass
+                
+                if ((self.screen_number in grouped_dist_not_defined_tuple) | (self.screen_number in continuous_dist_not_defined_tuple)):
+                            
+                    print("\n")
+                    print("Is data skewed or with high kurtosis? If it is, the median will be used as the central line estimative.")
+                    print("median = mean × 0.693\n")
+                            
+                    yes_no = str(input("Do you want to assume a skewed (or with considerable kurtosis) distribution?\nType yes or no, here (in the right).\nDo not type it in quotes: "))
+                    yes_no = yes_no.strip()
+                    yes_no = yes_no.lower()
+                            
+                    if (yes_no == 'yes'):
+                        
+                        # update the boolean variable
+                        consider_skewed_dist_when_estimating_with_std = True
+                
+                
+            print("Finished mapping the variables for obtaining the control chart plots.")
+            print("If an error is raised; or if the chart is not complete, check if the columns' names inputs are strictly correct.\n")
+            
+            return chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication
+        
+
+def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, add_splines_lines = True, add_scatter_dots = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+     
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    from scipy import stats
+    
+    # matplotlib.colors documentation:
+    # https://matplotlib.org/3.5.0/api/colors_api.html?msclkid=94286fa9d12f11ec94660321f39bf47f
+    
+    # Matplotlib list of colors:
+    # https://matplotlib.org/stable/gallery/color/named_colors.html?msclkid=0bb86abbd12e11ecbeb0a2439e5b0d23
+    # Matplotlib colors tutorial:
+    # https://matplotlib.org/stable/tutorials/colors/colors.html
+    # Matplotlib example of Python code using matplotlib.colors:
+    # https://matplotlib.org/stable/_downloads/0843ee646a32fc214e9f09328c0cd008/colors.py
+    # Same example as Jupyter Notebook:
+    # https://matplotlib.org/stable/_downloads/2a7b13c059456984288f5b84b4b73f45/colors.ipynb
+    
+    # df: dataframe to be analyzed.
+    
+    # timestamp_tag_column: column containing the timescale, that can be expressed as a timestamp, or
+    # as a series of floats or integers, correspondent to the sequence order. 
+    # If timestamp_tag_column = None, the index of the dataframe will be used as timestamp_tag_column.
+    
+    # column_with_variable_to_be_analyzed:  
+    # column_with_labels_or_subgroups = None
+    # column_with_event_frame_indication = None
+    
+    # specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}
+    # If there are specification limits, input them in this dictionary. Do not modify the keys,
+    # simply substitute None by the lower and/or the upper specification.
+    # e.g. Suppose you have a tank that cannot have more than 10 L. So:
+    # specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': 10}, there is only
+    # an upper specification equals to 10 (do not add units);
+    # Suppose a temperature cannot be lower than 10 ºC, but there is no upper specification. So,
+    # specification_limits = {'lower_spec_lim': 10, 'upper_spec_lim': None}. Finally, suppose
+    # a liquid which pH must be between 6.8 and 7.2:
+    # specification_limits = {'lower_spec_lim': 6.8, 'upper_spec_lim': 7.2}
+    
+    # use_spc_chart_assistant = False. Set as True to open the visual flow chart assistant
+    # that will help you select the appropriate parameters; as well as passing the data in the
+    # correct format. If the assistant is open, many of the arguments of the function will be
+    # filled when using it.
+    
+    # chart_to_use = '3s_as_natural_variation', 'std_error', 'i_mr', 'xbar_s', 'np', 'p', 
+    # 'u', 'c', 'g', 't'
+    # 'std_error' stands for standard error = s/(n**0.5), where n is the number of samples (that may
+    # be the number of individual data samples collected). Here, the natural variation will be
+    # calculated as 3 times the standard error.
+    # https://en.wikipedia.org/wiki/Standard_error
+    
+    # consider_skewed_dist_when_estimating_with_std. If False, the central lines will be estimated
+    # as the mean values. If True, they will be estimated with the median, which is a better alternative
+    # for skewed data such as the ones that follow geometric or lognormal distributions
+    # (median = mean × 0.693).
+    
+    # rare_event_indication = None. String (in quotes), float or integer. If you want to analyze a
+    # rare event through 'g' or 't' control charts, this parameter is obbligatory. Also, notice that:
+    # column_with_variable_to_be_analyzed must be the column which contain an indication of the rare
+    # event occurrence, and the rare_event_indication is the value of the column column_with_variable_to_be_analyzed
+    # when a rare event takes place.
+    # For instance, suppose rare_event_indication = 'shutdown'. It means that column column_with_variable_to_be_analyzed
+    # has the value 'shutdown' when the rare event occurs, i.e., for timestamps when the system
+    # system stopped. Other possibilities are rare_event_indication = 0, or rare_event_indication = -1,
+    # indicating that when column_with_variable_to_be_analyzed = 0 (or -1), we know that
+    # a rare event occurred. The most important thing here is that the value given to the rare event
+    # should be assigned only to the rare events.
+    # You do not need to assign values for the other timestamps when no rare event took place. But it is
+    # important to keep all timestamps in the dataframe. That is because the rare events charts will
+    # compare the rare event occurrence against all other dataframes.
+    # If you are not analyzing rare events with g or t charts, keep rare_event_indication = None.
+    
+    # rare_event_timedelta_unit: 'day', 'second', 'nanosecond', 'minute', 'hour',
+    # 'month', 'year' - This is the unit of time that will be used to plot the time interval
+    # (timedelta) between each successive rare event. If None or invalid value used, timedelta
+    # will be given in days.
+    # Notice that this parameter is referrent only to the rare events analysis with G or T charts.
+    # Also, it is valid only the timetag column effectively stores a timestamp.
+    
+    
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+
+    ## CONTROL CHARTS CALCULATION
+    
+    # References: 
+    # Douglas C. Montgomery. Introduction to Statistical Quality Control. 6th Edition. 
+    # John Wiley and Sons, 2009.
+    # Jacob Anhoej. Control Charts with qicharts for R. 2021-04-20. In: https://cran.r-project.org/web/packages/qicharts/vignettes/controlcharts.html
+    
+    # Define a dictionary of constants.
+    # Each key in the dictionary corresponds to a number of samples in a subgroup.
+    # number_of_labels - This variable represents the total of labels or subgroups n. 
+    # If there are multiple labels, this variable will be updated later.
+    def get_constants (number_of_labels):
+        if (number_of_labels < 2):
+            number_of_labels = 2
+        if (number_of_labels <= 25):
+            dict_of_constants = {
+                2: {'A':2.121, 'A2':1.880, 'A3':2.659, 'c4':0.7979, '1/c4':1.2533, 'B3':0, 'B4':3.267, 'B5':0, 'B6':2.606, 'd2':1.128, '1/d2':0.8865, 'd3':0.853, 'D1':0, 'D2':3.686, 'D3':0, 'D4':3.267},
+                3: {'A':1.732, 'A2':1.023, 'A3':1.954, 'c4':0.8862, '1/c4':1.1284, 'B3':0, 'B4':2.568, 'B5':0, 'B6':2.276, 'd2':1.693, '1/d2':0.5907, 'd3':0.888, 'D1':0, 'D2':4.358, 'D3':0, 'D4':2.574},
+                4: {'A':1.500, 'A2':0.729, 'A3':1.628, 'c4':0.9213, '1/c4':1.0854, 'B3':0, 'B4':2.266, 'B5':0, 'B6':2.088, 'd2':2.059, '1/d2':0.4857, 'd3':0.880, 'D1':0, 'D2':4.698, 'D3':0, 'D4':2.282},
+                5: {'A':1.342, 'A2':0.577, 'A3':1.427, 'c4':0.9400, '1/c4':1.0638, 'B3':0, 'B4':2.089, 'B5':0, 'B6':1.964, 'd2':2.326, '1/d2':0.4299, 'd3':0.864, 'D1':0, 'D2':4.918, 'D3':0, 'D4':2.114},
+                6: {'A':1.225, 'A2':0.483, 'A3':1.287, 'c4':0.9515, '1/c4':1.0510, 'B3':0.030, 'B4':1.970, 'B5':0.029, 'B6':1.874, 'd2':2.534, '1/d2':0.3946, 'd3':0.848, 'D1':0, 'D2':5.078, 'D3':0, 'D4':2.004},
+                7: {'A':1.134, 'A2':0.419, 'A3':1.182, 'c4':0.9594, '1/c4':1.0423, 'B3':0.118, 'B4':1.882, 'B5':0.113, 'B6':1.806, 'd2':2.704, '1/d2':0.3698, 'd3':0.833, 'D1':0.204, 'D2':5.204, 'D3':0.076, 'D4':1.924},
+                8: {'A':1.061, 'A2':0.373, 'A3':1.099, 'c4':0.9650, '1/c4':1.0363, 'B3':0.185, 'B4':1.815, 'B5':0.179, 'B6':1.751, 'd2':2.847, '1/d2':0.3512, 'd3':0.820, 'D1':0.388, 'D2':5.306, 'D3':0.136, 'D4':1.864},
+                9: {'A':1.000, 'A2':0.337, 'A3':1.032, 'c4':0.9693, '1/c4':1.0317, 'B3':0.239, 'B4':1.761, 'B5':0.232, 'B6':1.707, 'd2':2.970, '1/d2':0.3367, 'd3':0.808, 'D1':0.547, 'D2':5.393, 'D3':0.184, 'D4':1.816},
+                10: {'A':0.949, 'A2':0.308, 'A3':0.975, 'c4':0.9727, '1/c4':1.0281, 'B3':0.284, 'B4':1.716, 'B5':0.276, 'B6':1.669, 'd2':3.078, '1/d2':0.3249, 'd3':0.797, 'D1':0.687, 'D2':5.469, 'D3':0.223, 'D4':1.777},
+                11: {'A':0.905, 'A2':0.285, 'A3':0.927, 'c4':0.9754, '1/c4':1.0252, 'B3':0.321, 'B4':1.679, 'B5':0.313, 'B6':1.637, 'd2':3.173, '1/d2':0.3152, 'd3':0.787, 'D1':0.811, 'D2':5.535, 'D3':0.256, 'D4':1.744},
+                12: {'A':0.866, 'A2':0.266, 'A3':0.886, 'c4':0.9776, '1/c4':1.0229, 'B3':0.354, 'B4':1.646, 'B5':0.346, 'B6':1.610, 'd2':3.258, '1/d2':0.3069, 'd3':0.778, 'D1':0.922, 'D2':5.594, 'D3':0.283, 'D4':1.717},
+                13: {'A':0.832, 'A2':0.249, 'A3':0.850, 'c4':0.9794, '1/c4':1.0210, 'B3':0.382, 'B4':1.618, 'B5':0.374, 'B6':1.585, 'd2':3.336, '1/d2':0.2998, 'd3':0.770, 'D1':1.025, 'D2':5.647, 'D3':0.307, 'D4':1.693},
+                14: {'A':0.802, 'A2':0.235, 'A3':0.817, 'c4':0.9810, '1/c4':1.0194, 'B3':0.406, 'B4':1.594, 'B5':0.399, 'B6':1.563, 'd2':3.407, '1/d2':0.2935, 'd3':0.763, 'D1':1.118, 'D2':5.696, 'D3':0.328, 'D4':1.672},
+                15: {'A':0.775, 'A2':0.223, 'A3':0.789, 'c4':0.9823, '1/c4':1.0180, 'B3':0.428, 'B4':1.572, 'B5':0.421, 'B6':1.544, 'd2':3.472, '1/d2':0.2880, 'd3':0.756, 'D1':1.203, 'D2':5.741, 'D3':0.347, 'D4':1.653},
+                16: {'A':0.750, 'A2':0.212, 'A3':0.763, 'c4':0.9835, '1/c4':1.0168, 'B3':0.448, 'B4':1.552, 'B5':0.440, 'B6':1.526, 'd2':3.532, '1/d2':0.2831, 'd3':0.750, 'D1':1.282, 'D2':5.782, 'D3':0.363, 'D4':1.637},
+                17: {'A':0.728, 'A2':0.203, 'A3':0.739, 'c4':0.9845, '1/c4':1.0157, 'B3':0.466, 'B4':1.534, 'B5':0.458, 'B6':1.511, 'd2':3.588, '1/d2':0.2787, 'd3':0.744, 'D1':1.356, 'D2':5.820, 'D3':0.378, 'D4':1.622},
+                18: {'A':0.707, 'A2':0.194, 'A3':0.718, 'c4':0.9854, '1/c4':1.0148, 'B3':0.482, 'B4':1.518, 'B5':0.475, 'B6':1.496, 'd2':3.640, '1/d2':0.2747, 'd3':0.739, 'D1':1.424, 'D2':5.856, 'D3':0.391, 'D4':1.608},
+                19: {'A':0.688, 'A2':0.187, 'A3':0.698, 'c4':0.9862, '1/c4':1.0140, 'B3':0.497, 'B4':1.503, 'B5':0.490, 'B6':1.483, 'd2':3.689, '1/d2':0.2711, 'd3':0.734, 'D1':1.487, 'D2':5.891, 'D3':0.403, 'D4':1.597},
+                20: {'A':0.671, 'A2':0.180, 'A3':0.680, 'c4':0.9869, '1/c4':1.0133, 'B3':0.510, 'B4':1.490, 'B5':0.504, 'B6':1.470, 'd2':3.735, '1/d2':0.2677, 'd3':0.729, 'D1':1.549, 'D2':5.921, 'D3':0.415, 'D4':1.585},
+                21: {'A':0.655, 'A2':0.173, 'A3':0.663, 'c4':0.9876, '1/c4':1.0126, 'B3':0.523, 'B4':1.477, 'B5':0.516, 'B6':1.459, 'd2':3.778, '1/d2':0.2647, 'd3':0.724, 'D1':1.605, 'D2':5.951, 'D3':0.425, 'D4':1.575},
+                22: {'A':0.640, 'A2':0.167, 'A3':0.647, 'c4':0.9882, '1/c4':1.0119, 'B3':0.534, 'B4':1.466, 'B5':0.528, 'B6':1.448, 'd2':3.819, '1/d2':0.2618, 'd3':0.720, 'D1':1.659, 'D2':5.979, 'D3':0.434, 'D4':1.566},
+                23: {'A':0.626, 'A2':0.162, 'A3':0.633, 'c4':0.9887, '1/c4':1.0114, 'B3':0.545, 'B4':1.455, 'B5':0.539, 'B6':1.438, 'd2':3.858, '1/d2':0.2592, 'd3':0.716, 'D1':1.710, 'D2':6.006, 'D3':0.443, 'D4':1.557},
+                24: {'A':0.612, 'A2':0.157, 'A3':0.619, 'c4':0.9892, '1/c4':1.0109, 'B3':0.555, 'B4':1.445, 'B5':0.549, 'B6':1.429, 'd2':3.895, '1/d2':0.2567, 'd3':0.712, 'D1':1.759, 'D2':6.031, 'D3':0.451, 'D4':1.548},
+                25: {'A':0.600, 'A2':0.153, 'A3':0.606, 'c4':0.9896, '1/c4':1.0105, 'B3':0.565, 'B4':1.435, 'B5':0.559, 'B6':1.420, 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541},
+            }
+            # Access the key:
+            dict_of_constants = dict_of_constants[number_of_labels]
+        else: #>= 26
+            dict_of_constants = {'A':(3/(number_of_labels**(0.5))), 'A2':0.153, 'A3':3/((4*(number_of_labels-1)/(4*number_of_labels-3))*(number_of_labels**(0.5))), 'c4':(4*(number_of_labels-1)/(4*number_of_labels-3)), '1/c4':1/((4*(number_of_labels-1)/(4*number_of_labels-3))), 'B3':(1-3/(((4*(number_of_labels-1)/(4*number_of_labels-3)))*((2*(number_of_labels-1))**(0.5)))), 'B4':(1+3/(((4*(number_of_labels-1)/(4*number_of_labels-3)))*((2*(number_of_labels-1))**(0.5)))), 'B5':(((4*(number_of_labels-1)/(4*number_of_labels-3)))-3/((2*(number_of_labels-1))**(0.5))), 'B6':(((4*(number_of_labels-1)/(4*number_of_labels-3)))+3/((2*(number_of_labels-1))**(0.5))), 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541}
+        return dict_of_constants
+
+    # CENTER LINE = m (mean)
+    # s = std deviation
+    # General equation of the control limits:
+    # UCL = upper control limit = m + L*s
+    # LCL = lower control limit = m - L*s
+    # where L is a measurement of distance from central line.
+    
+    # for a subgroup of data collected for a continuous variable X:
+    # x_bar_1 = mean value for subgroup 1,..., x_bar_n = mean for subgroup n.
+    # x_bar_bar = (x_bar_1 + ... + x_bar_n)/n
+    
+    # On the other hand, the range R between two collected values is defined as: R = x_max - x_min
+    # If R1, ... Rm are the ranges for m subgroups (which may be of size 2),
+    # we have R_bar = (R1 + R2 + ... + Rm)/m
+    
+    # Analogously, if s_i is the standard deviation for a subgroup i and there are m subgroups:
+    # s_bar = (s_1 +... +s_m)/m
+    
+    ## INDIVIDUAL MEASUREMENTS (Montgomery, pg.259, section 6.4)
+    
+    # For individual measurements, we consider subgroups formed by two consecutive measurements, so
+    # m = 2, and R = abs(x_i - x_(i-1)), where abs function calculates the absolute value of the
+    # difference between two successive subgroups.
+    # UCL =  x_bar_bar + 3*(1/d2)*R_bar
+    # LCL =  x_bar_bar - 3*(1/d2)*R_bar
+    # Center line = x_bar_bar
+    
+    def chart_i_mr (dictionary, column_with_variable_to_be_analyzed):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # X-bar = (sum of measurements)/(number of measurements)
+        # R = Absolute value of [(largest in subgroup) - (lowest in subgroup)]
+        # Individual chart: subgroup = 1
+        # R = Absolute value of [(data) - (next data)]
+        # R-bar = (sum of ranges R)/(number of R values calculated)
+        # Lower control limit (LCL) = X-bar - (2.66)R-bar
+        # Upper control limit (UCL) = X-bar + (2.66)R-bar
+        # loop through each row from df, starting from the second (row 1):    
+        # calculate mR as the difference (Xmax - Xmin) of the difference between
+        # df[column_with_variable_to_be_analyzed] on row i and the row
+        # i-1. Since we do not know, in principle, which one is the maximum, we can use
+        # the max and min functions from Python:
+        # https://www.w3schools.com/python/ref_func_max.asp
+        # https://www.w3schools.com/python/ref_func_min.asp
+        # Also, the moving range here must be calculated as an absolute value
+        # https://www.w3schools.com/python/ref_func_abs.asp
+        moving_range = [abs(max((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)])) - min((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)]))) for i in range (1, len(df))]
+        x_bar_list = [(df[column_with_variable_to_be_analyzed][i] + df[column_with_variable_to_be_analyzed][(i-1)])/2 for i in range (1, len(df))]
+        # These lists were created from index 1. We must add a initial element to
+        # make their sizes equal to the original dataset length
+        # Start the list to store the moving ranges, containing only the number 0
+        # for the moving range (by simple concatenation):
+        moving_range = [0] + moving_range
+        # Start the list that stores the mean values of the 2-elements subgroups
+        # with the first element itself (index 0):
+        x_bar_list = [df[column_with_variable_to_be_analyzed][0]] + x_bar_list
+        # Save the moving ranges as a new column from df (it may be interesting to check it):
+        df['moving_range'] = moving_range
+        # Save x_bar_list as the column to be analyzed:
+        df[column_with_variable_to_be_analyzed] = x_bar_list
+        # Get the mean values from x_bar:
+        x_bar_bar = df[column_with_variable_to_be_analyzed].mean()
+        # Calculate the mean value of the column moving_range, and save it as r_bar:
+        r_bar = df['moving_range'].mean()       
+        # Get the control chart constant A2 from the dictionary, considering n = 2 the
+        # number of elements of each subgroup:
+        dict_to_access = get_constants (number_of_labels = 2)
+        control_chart_constant = dict_to_access['1/d2']
+        control_chart_constant = control_chart_constant * 3
+        # calculate the upper control limit as x_bar + (3/d2)r_bar:
+        upper_cl = x_bar_bar + (control_chart_constant) * (r_bar)
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl 
+        # calculate the lower control limit as x_bar - (3/d2)r_bar:
+        lower_cl = x_bar_bar - (control_chart_constant) * (r_bar)
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = x_bar_bar
+        # Update the dataframe in the dictionary and return it:
+        dictionary['df'] = df
+        return dictionary
+
+    def chart_3s (dictionary, column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std):
+        # access the dataframe:
+        df = dictionary['df']
+        if(consider_skewed_dist_when_estimating_with_std):            
+            # Skewed data. Use the median:
+            center = df[column_with_variable_to_be_analyzed].median()    
+        else:
+            center = dictionary['center']    
+        # calculate the upper control limit as the mean + 3s
+        upper_cl = center + 3 * (dictionary['std'])
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl        
+        # calculate the lower control limit as the mean - 3s:
+        lower_cl = center - 3 * (dictionary['std'])
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = center        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+    
+    def chart_std_error (dictionary, column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std):
+        # access the dataframe:
+        df = dictionary['df']
+        n_samples = df[column_with_variable_to_be_analyzed].count()
+        s = dictionary['std']
+        std_error = s/(n_samples**(0.5))        
+        if(consider_skewed_dist_when_estimating_with_std):      
+            # Skewed data. Use the median:
+            center = df[column_with_variable_to_be_analyzed].median()    
+        else:
+            center = dictionary['center']    
+        # calculate the upper control limit as the mean + 3 std_error
+        upper_cl = center + 3 * (std_error)
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl        
+        # calculate the lower control limit as the mean - 3 std_error:
+        lower_cl = center - 3 * (std_error)
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = center        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+        
+    # CONTROL CHARTS FOR SUBGROUPS 
+    
+    def create_grouped_df (dictionary):
+        # access the dataframe:
+        df = dictionary['df']    
+        # We need to group each dataframe in terms of the subgroups stored in the variable
+        # column_with_labels_or_subgroups.
+        # The catehgorical or datetime columns must be aggregated in terms of mode.
+        # The numeric variables must be aggregated both in terms of mean and in terms of count
+        # (subgroup size)   
+        # 1. Start a list for categorical columns and other for numeric columns:
+        categorical_cols = []
+        numeric_cols = []
+        # Variables to map if there are categorical or numeric variables:
+        is_categorical = 0
+        is_numeric = 0
+        # 2. Loop through each column from the list of columns of the dataframe:
+        for column in list(df.columns):        
+            # check the type of column:
+            column_data_type = df[column].dtype
+            if (column_data_type not in numeric_dtypes):        
+                # If the Pandas series was defined as an object, it means it is categorical
+                # (string, date, etc). Also, this if captures the variables converted to datetime64
+                # Append the column to the list of categorical columns:
+                categorical_cols.append(column)
+            else:
+                # append the column to the list of numeric columns:
+                numeric_cols.append(column)
+            # 3. Check if column_with_labels_or_subgroups is in both lists. 
+            # If it is missing, append it. We need that this column in all subsets for grouping.
+            if not (column_with_labels_or_subgroups in categorical_cols):
+                categorical_cols.append(column_with_labels_or_subgroups)
+            if not (column_with_labels_or_subgroups in numeric_cols):
+                numeric_cols.append(column_with_labels_or_subgroups)
+            if (len(categorical_cols) > 1):
+                # There is at least one column plus column_with_labels_or_subgroups:
+                is_categorical = 1
+            if (len(numeric_cols) > 1):
+                # There is at least one column plus column_with_labels_or_subgroups:
+                is_numeric = 1
+        # 4. Create copies of df, subsetting by type of column
+        # 5. Group the dataframes by column_with_labels_or_subgroups, 
+        # according to the aggregate function:
+        if (is_categorical == 1):
+            df_agg_mode = df.copy(deep = True)
+            df_agg_mode = df_agg_mode[categorical_cols]
+            df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
+            # 6. df_agg_mode processing:
+            # Loop through each column from this dataframe:
+            for col_mode in list(df_agg_mode.columns):        
+                # start a list of modes:
+                list_of_modes = []    
+                # Now, loop through each row from the dataset:
+                for i in range(0, len(df_agg_mode)):
+                    # i = 0 to i = len(df_agg_mode) - 1    
+                    mode_array = df_agg_mode[col_mode][i]    
+                    try:
+                        # try accessing the mode
+                        # mode array is like:
+                        # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
+                        # To retrieve only the mode, we must access the element [0][0] from this array:
+                        mode = mode_array[0][0]
+                    except:
+                        mode = np.nan
+                    # Append it to the list of modes:
+                    list_of_modes.append(mode)
+                # Finally, make the column the list of modes itself:
+                df_agg_mode[col_mode] = list_of_modes    
+                # try to convert to datetime64 (case it is not anymore):
+                try:
+                    df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
+                except:
+                    # simply ignore this step in case it is not possible to parse
+                    # because it is a string:
+                    pass
+        if (is_numeric == 1):
+            df_agg_mean = df.copy(deep = True)
+            df_agg_sum = df.copy(deep = True)
+            df_agg_std = df.copy(deep = True)
+            df_agg_count = df.copy(deep = True)
+            df_agg_mean = df_agg_mean[numeric_cols]
+            df_agg_sum = df_agg_sum[numeric_cols]
+            df_agg_std = df_agg_std[numeric_cols]
+            df_agg_count = df_agg_count[numeric_cols]    
+            df_agg_mean = df_agg_mean.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).mean()
+            df_agg_sum = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).sum()
+            df_agg_std = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).std()
+            df_agg_count = df_agg_count.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).count()
+            # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
+            # (default: as_index = True).
+            # 7. df_agg_count processing:
+            # Here, all original columns contain only the counting of elements in each
+            # label. So, let's select only the columns 'key_for_merging' and column_with_variable_to_be_analyzed:
+            df_agg_count = df_agg_count[[column_with_variable_to_be_analyzed]]
+            # Rename the columns:
+            df_agg_count.columns = ['count_of_elements_by_label']    
+            # Analogously, let's keep only the colums column_with_variable_to_be_analyzed and
+            # 'key_for_merging' from the dataframes df_agg_sum and df_agg_std, and rename them:
+            df_agg_sum = df_agg_sum[[column_with_variable_to_be_analyzed]]
+            df_agg_std = df_agg_std[[column_with_variable_to_be_analyzed]]    
+            df_agg_sum.columns = ['sum_of_values_by_label']
+            df_agg_std.columns = ['std_of_values_by_label']
+        if ((is_categorical + is_numeric) == 2):
+            # Both subsets are present and the column column_with_labels_or_subgroups
+            # is duplicated.
+            # Remove this column from df_agg_mean:
+            df_agg_mean = df_agg_mean.drop(columns = column_with_labels_or_subgroups)
+            # Concatenate all dataframes:
+            df = pd.concat([df_agg_mode, df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")      
+        elif (is_numeric == 1):
+            # Only the numeric dataframes are present. So, concatenate them:
+            df = pd.concat([df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")
+        elif (is_categorical == 1):
+            # There is only the categorical dataframe:
+            df = df_agg_mode
+        df = df.reset_index(drop = True)
+        # Notice that now we have a different mean value: we have a mean value
+        # of the means calculated for each subgroup. So, we must update the
+        # dictionary information:    
+        dictionary['center'] = df[column_with_variable_to_be_analyzed].mean()
+        dictionary['sum'] = df[column_with_variable_to_be_analyzed].sum()
+        dictionary['std'] = df[column_with_variable_to_be_analyzed].std()
+        dictionary['var'] = df[column_with_variable_to_be_analyzed].var()
+        dictionary['count'] = df[column_with_variable_to_be_analyzed].count()
+        dictionary['df'] = df
+        return dictionary
+            
+    # X-bar-S (continuous variables) - (Montgomery, pg.253, section 6.3.1):
+    # For subgroups with m elements:
+    # UCL = x_bar_bar + A3*s_bar
+    # Center line = x_bar_bar
+    # LCL = x_bar_bar - A3*s_bar
+    
+    def chart_x_bar_s (dictionary):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # X-bar = mean =  (sum of measurements)/(subgroup size)
+        # s = standard deviation in each subgroup
+        # s-bar = mean (s) = (sum of all s values)/(number of subgroups)
+        # x-bar-bar = mean (x-bar) = (sum of all x-bar)/(number of subgroups)
+        # Lower control limit (LCL) = X-bar-bar - (A3)(s-bar)
+        # Upper control limit (UCL) = X-bar-bar + (A3)(s-bar)        
+        s = df['std_of_values_by_label']
+        number_of_labels = dictionary['count']
+        s_bar = (s.sum())/(number_of_labels)
+        x_bar_bar = dictionary['center']
+        # Retrieve A3
+        dict_to_access = get_constants (number_of_labels = number_of_labels)
+        control_chart_constant = dict_to_access['A3']
+        # calculate the upper control limit as X-bar-bar + (A3)(s-bar):
+        upper_cl = x_bar_bar + (control_chart_constant) * (s_bar)
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        # calculate the lower control limit as X-bar-bar - (A3)(s-bar):
+        lower_cl = x_bar_bar - (control_chart_constant) * (s_bar)
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = x_bar_bar
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+    
+    # CONTROL CHARTS FOR CATEGORICAL VARIABLES
+    
+    # P-chart - (Montgomery, pg.291, section 7.2.1):
+    # The sample fraction nonconforming is defined as the ratio of the number of nonconforming units 
+    # in the sample D to the sample size n:
+    # p = D/n. For a subgroup i containing n elements: p_i = D_i/n, i = 1,... m subgroups
+    # From the binomial distribution, the mean should be estimated as p, and the variance s² 
+    # as p(1-p)/n. The average of p is:
+    # p_bar = (p_1 + ... + p_m)/m
+    
+    # UCL = p_bar + 3((p_bar(1-p_bar)/n)**(0.5))
+    # Center line = p_bar
+    # LCL = p_bar - 3((p_bar(1-p_bar)/n)**(0.5)), whereas n is the size of a given subgroup
+    # Therefore, the width of control limits here vary with the size of the subgroups (it is
+    # a function of the size of each subgroup)
+    
+    # np-chart - (Montgomery, pg.300, section 7.2.1):
+    # UCL = np + 3((np(1-p))**(0.5))
+    # Center line = np_bar
+    # LCL = np - 3((np(1-p))**(0.5))
+    # where np is the total sum of nonconforming, considering all subgroups, and p is the
+    # propoertion for each individual subgroup, as previously defined.
+    # Then, again the control limits depend on the subgroup (label) size.
+    
+    def chart_p (dictionary):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # p-chart: control chart for proportion of defectives
+        # p = mean =  (sum of measurements)/(subgroup size)
+        # pbar = (sum of subgroup defective counts)/(sum of subgroups sizes)
+        # n = subgroup size
+        # Lower control limit (LCL) = pbar - 3.sqrt((pbar)*(1-pbar)/n)
+        # Upper control limit (UCL) = pbar + 3.sqrt((pbar)*(1-pbar)/n)
+        number_of_labels = dictionary['count']
+        count_per_label = df['count_of_elements_by_label']
+        p_bar = dictionary['center']        
+        # calculate the upper control limit as pbar + 3.sqrt((pbar)*(1-pbar)/n):
+        upper_cl = p_bar + 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        # calculate the lower control limit as pbar - 3.sqrt((pbar)*(1-pbar)/n):
+        lower_cl = p_bar - 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = p_bar
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+
+    def chart_np (dictionary, column_with_variable_to_be_analyzed):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # np-chart: control chart for count of defectives
+        # np = sum = subgroup defective count
+        # npbar = (sum of subgroup defective counts)/(number of subgroups)
+        # n = subgroup size
+        # pbar = npbar/n
+        # Lower control limit (LCL) = np - 3.sqrt((npbar)*(1-p))
+        # Upper control limit (UCL) = np + 3.sqrt((npbar)*(1-p))
+        # available function: **(0.5) - 0.5 power        
+        # Here, the column that we want to evaluate is not the mean, but the sum.
+        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+        # Let's make this column equals to the column of sums:
+        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        number_of_labels = dictionary['count']
+        count_per_label = df['count_of_elements_by_label']
+        sum_p = df['sum_of_values_by_label'].sum() # It is the np, would is already used for NumPy
+        p = (df['sum_of_values_by_label'])/(count_per_label)        
+        # calculate the upper control limit as np + 3.sqrt((np)*(1-p)):
+        upper_cl = np + 3 * (((sum_p)*(1 - p))**(0.5))
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        # calculate the lower control limit as np - 3.sqrt((np)*(1-p)):
+        lower_cl = np - 3 * (((sum_p)*(1 - p))**(0.5))
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = sum_p
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+    
+    # C-chart - (Montgomery, pg.309, section 7.3.1):
+    # In Poisson distribution, mean and variance are both equal to c.
+    # UCL = c_bar + 3(c_bar**(0.5))
+    # Center line = c_bar
+    # LCL = c_bar + 3(c_bar**(0.5))
+    # where c_bar is the mean c among all subgroups (labels)
+    
+    def chart_c (dictionary, column_with_variable_to_be_analyzed):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # c-chart: control chart for counts of occurrences per unit
+        # c = sum = sum of subgroup occurrences
+        # cbar = (sum of subgroup occurrences)/(number of subgroups)
+        # n = subgroup size
+        # Lower control limit (LCL) = cbar - 3.sqrt(cbar)
+        # Upper control limit (UCL) = cbar + 3.sqrt(cbar)
+        # Here, the column that we want to evaluate is not the mean, but the sum.
+        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+        # Let's make this column equals to the column of sums:        
+        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        number_of_labels = dictionary['count']
+        c_bar = (df['sum_of_values_by_label'].sum())/(number_of_labels)        
+        # calculate the upper control limit as cbar + 3.sqrt(cbar):
+        upper_cl = c_bar + 3 * ((c_bar)**(0.5))
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        # calculate the lower control limit as cbar - 3.sqrt(cbar):
+        lower_cl = c_bar - 3 * ((c_bar)**(0.5))
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = c_bar
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+    
+    # U-chart - (Montgomery, pg.314, section 7.3.1):
+    # If we find x total nonconformities in a sample of n inspection units, then the average 
+    # number of nonconformities per inspection unit is: u = x/n
+    # UCL = u_bar + 3((u_bar/n)**(0.5))
+    # Center line = u_bar
+    # LCL = u_bar + 3((u_bar/n)**(0.5))
+    # where u_bar is the mean u among all subgroups (labels), but n is the individual subgroup size,
+    # making the chart limit not-constant depending on the subgroups' sizes
+    
+    def chart_u (dictionary, column_with_variable_to_be_analyzed):
+        # access the dataframe:
+        df = dictionary['df']
+        # CONTROL LIMIT EQUATIONS:
+        # u-chart: control chart for average occurrence per unit
+        # u = mean =  (subgroup count of occurrences)/(subgroup size, in units)
+        # ubar = mean value of u
+        # n = subgroup size
+        # Lower control limit (LCL) = ubar - 3.sqrt(ubar/n)
+        # Upper control limit (UCL) = ubar + 3.sqrt(ubar/n)        
+        number_of_labels = dictionary['count']
+        count_per_label = df['count_of_elements_by_label']
+        u_bar = (df[column_with_variable_to_be_analyzed])/(number_of_labels)        
+        # calculate the upper control limit as ubar + 3.sqrt(ubar/n):
+        upper_cl = u_bar + 3 * ((u_bar/count_per_label)**(0.5))
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        # calculate the lower control limit as ubar - 3.sqrt(ubar/n):
+        lower_cl = u_bar - 3 * ((u_bar/count_per_label)**(0.5))
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        # Add a column with the mean value of the considered interval:
+        df['center'] = u_bar
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        return dictionary
+
+    # RARE EVENTS
+    # ATTENTION: Due not group data in this case. Since events are rare, they are likely to be 
+    # eliminated during aggregation.
+    # Usually, similarly to what is observed for the log-normal, data that follow the geometric
+    # distribution is highly skewed, so the mean is not a good estimator for the central line.
+    # Usually, it is better to apply the median = 0.693 x mean.
+    
+    # G-Chart: counts of total occurences between successive rare events occurences.
+    # https://www.spcforexcel.com/knowledge/attribute-control-charts/g-control-chart
+    # (Montgomery, pg.317, section 7.3.1)
+    
+    # e.g. total of patients between patient with ulcer.
+    # The probability model that they use for the geometric distribution is p(x) = p(1-p)**(x-a)
+    # where a is the known minimum possible number of events.
+    # The number of units between defectives is modelled by the geometric distribution.
+    # So, the G-control chart plots counting of occurrence by number, time unit, or timestamp.
+    # Geometric distribution is highly skewed, thus the median is a better representation of the 
+    # process centre to be used with the runs analysis.
+
+    # Let y = total count of events between successive occurences of the rare event.
+    
+    # g_bar = median(y) = 0.693 x mean(y)
+    # One can estimate the control limits as g_bar + 3(((g_bar)*(g_bar+1))**(0.5)) and
+    # g_bar - 3(((g_bar)*(g_bar+1))**(0.5)), and central line = g_bar.
+    # A better approach takes into account the probabilities associated to the geometric (g)
+    # distribution.
+    
+    # In the probability approach, we start by calculating the value of p, which is an event
+    # probability:
+    # p = (1/(g_bar + 1))*((N-1)/N), where N is the total of individual values of counting between
+    # successive rare events. So, if we have 3 rare events, A, B, and C, we have two values of 
+    # counting between rare events, from A to B, and from B to C. In this case, since we have two
+    # values that follow the G distribution, N = 2.
+    # Let alpha_UCL a constant dependent on the number of sigma limits for the control limits. For
+    # the usual 3 sigma limits, the value of alpha_UCL = 0.00135. With this constant, we can
+    # calculate the control limits and central line
+    
+    # UCL = ((ln(0.00135))/(ln(1 - p))) - 1
+    # Center line = ((ln(0.5))/(ln(1 - p))) - 1
+    # LCL = max(0, (((ln(1 - 0.00135))/(ln(1 - p))) - 1))
+    # where max represent the maximum among the two values in parentheses; and ln is the natural
+    # logarithm (base e), sometimes referred as log (inverse of the exponential): ln(exp(x)) = x
+    # = log(exp(x)) = x
+    
+    # t-chart: timedelta between rare events.
+    # (Montgomery, pg.324, section 7.3.5):
+    # https://www.qimacros.com/control-chart-formulas/t-chart-formula/
+    
+    # But instead of displaying the number of cases between events (defectives) it displays 
+    # the time between events.
+    
+    # Nelson (1994) has suggested solving this problem by transforming the exponential random
+    # variable to a Weibull random variable such that the resulting Weibull distribution is well
+    # approximated by the normal distribution. 
+    # If y represents the original exponential random variable (timedelta between successive rare
+    # event occurence), the appropriate transformation is:
+    # x = y**(1/3.6)= y**(0.2777)
+    # where x is treated as a normal distributed variable, and the control chart for x is the I-MR.
+    # So: 1. transform y into x;
+    # 2. Calculate the control limits for x as if it was a chart for individuals;
+    # reconvert the values to the original scale doing: y = x**(3.6)
+    
+    # We calculate for the transformed values x the moving ranges R and the mean of the 
+    # mean values calculated for the 2-elements consecutive subgroups x_bar_bar, in the exact same way
+    # we would do for any I-MR chart
+    # UCL_transf =  x_bar_bar + 3*(1/d2)*R_bar
+    # LCL_transf =  x_bar_bar - 3*(1/d2)*R_bar
+    # Center line_transf = x_bar_bar
+    
+    # These values are in the transformed scale. So, we must reconvert them to the original scale for
+    # obtaining the control limits and central line:
+    # UCL = (UCL_transf)**(3.6)
+    # LCL = (LCL_transf)**(3.6)
+    # Center line = (Center line_transf)**(3.6)
+    
+    # Notice that this procedure naturally corrects the deviations caused by the skewness of the 
+    # distribution. Actually, log and exponential transforms tend to reduce the skewness and to 
+    # normalize the data.
+    
+    def rare_events_chart (dictionary, column_with_variable_to_be_analyzed, rare_event_indication, rare_event_timedelta_unit, chart_to_use):
+        # access the dataframe:
+        df = dictionary['df']
+        # Filter df to the rare events:
+        rare_events_df = df.copy(deep = True)
+        rare_events_df = rare_events_df[rare_events_df[column_with_variable_to_be_analyzed] == rare_event_indication]
+        # rare_events_df stores only the entries for rare events.
+        # Let's get a list of the indices of these entries (we did not reset the index):
+        rare_events_indices = list(rare_events_df.index)        
+        # Start lists for storing the count of events between the rares and the time between
+        # the rare events. Start both lists from np.nan, since we do not have information of
+        # any rare event before the first one registered (np.nan is float).
+        count_between_rares = [np.nan]
+        timedelta_between_rares = [np.nan]
+        # Check if the times are datetimes or not:
+        column_data_type = df[timestamp_tag_column].dtype        
+        if (column_data_type not in numeric_dtypes):            
+            # It is a datetime. Let's loop between successive indices:
+            if (len(rare_events_indices) > 1):            
+                for i in range(0, (len(rare_events_indices)-1)):
+                    # get the timedelta:
+                    index_i = rare_events_indices[i]
+                    index_i_plus = rare_events_indices[i + 1]        
+                    t_i = pd.Timestamp((df[timestamp_tag_column])[index_i], unit = 'ns')
+                    t_i_plus = pd.Timestamp((df[timestamp_tag_column])[index_i_plus], unit = 'ns')        
+                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)]
+                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    # We sliced the dataframe from index_i + 1 not to include the rare
+                    # event, so we started from the next one. Also, the last element is
+                    # of index index_i_plus - 1, the element before the next rare.
+                    count_between_rares.append(count_between_rares)        
+                    # Calculate the timedelta:
+                    # Convert to an integer representing the total of nanoseconds:
+                    timedelta = pd.Timedelta(t_i_plus - t_i).delta
+                    if (rare_event_timedelta_unit == 'year'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                        #5. Convert it to years. 1 year = 365 days + 6 h = 365 days + 6/24 h/(h/day)
+                        # = (365 + 1/4) days = 365.25 days
+                        timedelta = timedelta / (365.25) #in years
+                        #The .0 after the numbers guarantees a float division.
+                    elif (rare_event_timedelta_unit == 'month'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                        #5. Convert it to months. Consider 1 month = 30 days
+                        timedelta = timedelta / (30.0) #in months
+                        #The .0 after the numbers guarantees a float division.
+                    elif (rare_event_timedelta_unit == 'day'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                    elif (rare_event_timedelta_unit == 'hour'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                    elif (rare_event_timedelta_unit == 'minute'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                    elif (rare_event_timedelta_unit == 'second'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                    else:
+                        timedelta = timedelta # nanoseconds.  
+                    # Append the timedelta to the list:
+                    timedelta_between_rares.append(timedelta)
+            else:
+                # There is a single rare event.
+                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
+                return {}
+        else: 
+            # The column is not a timestamp. Simply subtract the values to calculate the
+            # timedeltas:
+            # It is a datetime. Let's loop between successive indices:
+            if (len(rare_events_indices) > 1):            
+                for i in range(0, (len(rare_events_indices)-1)):
+                    # get the timedelta:
+                    index_i = rare_events_indices[i]
+                    index_i_plus = rare_events_indices[i + 1]
+                    t_i = (df[timestamp_tag_column])[index_i]
+                    t_i_plus = (df[timestamp_tag_column])[index_i_plus]
+                    timedelta = (t_i_plus - t_i)
+                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)] 
+                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    count_between_rares.append(count_between_rares)
+                    timedelta_between_rares.append(timedelta)
+            else:
+                # There is a single rare event.
+                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
+                return {}
+        # Notice that the lists still have one element less than the dataframe of rares.
+        # That is because we do not have data for accounting for the next rare event. So,
+        # append np.nan to both lists:
+        count_between_rares.append(np.nan)
+        timedelta_between_rares.append(np.nan)
+        # Now, lists have the same total elements of the rare_events_df, and can be
+        # added as columns:        
+        # firstly, reset the index:
+        rare_events_df = rare_events_df.reset_index(drop = True)
+        # Add the columns:
+        rare_events_df['count_between_rares'] = count_between_rares
+        rare_events_df['timedelta_between_rares'] = timedelta_between_rares            
+        # Now, make the rares dataframe the df itself:
+        df = rare_events_df        
+        if (chart_to_use == 'g'):            
+            # Here, the column that we want to evaluate is not the mean, but the 'count_between_rares'.
+            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+            # Let's make this column equals to the column 'count_between_rares':
+            df[column_with_variable_to_be_analyzed] = df['count_between_rares']        
+            g_bar = df['count_between_rares'].median()
+            n_samples = df['count_between_rares'].count()
+            p = (1/(g_bar + 1))*((n_samples - 1)/n_samples)
+            # np.log = natural logarithm
+            # https://numpy.org/doc/stable/reference/generated/numpy.log.html
+            center = ((np.log(0.5))/(np.log(1 - p))) - 1        
+            # calculate the upper control limit as log(0.00135)/log(1-p)-1:
+            upper_cl = ((np.log(0.00135))/(np.log(1 - p))) - 1
+            # add a column 'upper_cl' on the dataframe with this value:
+            df['upper_cl'] = upper_cl        
+            # calculate the lower control limit as Max(0, log(1-0.00135)/log(1-p)-1):
+            lower_cl = max(0, ((np.log(1 - 0.00135))/(log(1 - p)) - 1))
+            # add a column 'lower_cl' on the dataframe with this value:
+            df['lower_cl'] = lower_cl        
+            # Add a column with the mean value of the considered interval:
+            df['center'] = center
+            # Update the dataframe in the dictionary:
+            dictionary['df'] = df 
+        elif (chart_to_use == 't'):
+            # Here, the column that we want to evaluate is not the mean, but the 'timedelta_between_rares'.
+            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+            # Let's make this column equals to the column 'timedelta_between_rares':
+            df[column_with_variable_to_be_analyzed] = df['timedelta_between_rares']        
+            # Create the transformed series:
+            # y = df['timedelta_between_rares']
+            # y_transf = y**(1/3.6)
+            y_transf = (df['timedelta_between_rares'])**(1/(3.6))
+            # Now, let's create an I-MR chart for y_transf        
+            moving_range = [abs(max((y_transf[i]), (y_transf[(i-1)])) - min((y_transf[i]), (y_transf[(i-1)]))) for i in range (1, len(y_transf))]
+            y_bar = [(y_transf[i] + y_transf[(i-1)])/2 for i in range (1, len(y_transf))]
+            # These lists were created from index 1. We must add a initial element to
+            # make their sizes equal to the original dataset length
+            # Start the list to store the moving ranges, containing only the number 0
+            # for the moving range (by simple concatenation):
+            moving_range = [0] + moving_range
+            # Start the list that stores the mean values of the 2-elements subgroups
+            # with the first element itself (index 0):  - list y_bar:
+            y_bar = [y_transf[0]] + y_bar
+            # Convert the lists to NumPy arrays, for performing vectorial (element-wise)
+            # operations:
+            moving_range = np.array(moving_range)
+            y_bar = np.array(y_bar)        
+            # Get the mean values from y_bar list and moving_range:
+            # https://numpy.org/doc/stable/reference/generated/numpy.average.html
+            y_bar_bar = np.average(y_bar)
+            r_bar = np.average(moving_range)
+            # Get the control chart constant A2 from the dictionary, considering n = 2 the
+            # number of elements of each subgroup:
+            dict_to_access = get_constants (number_of_labels = 2)
+            control_chart_constant = dict_to_access['1/d2']
+            control_chart_constant = control_chart_constant * 3
+            # calculate the upper control limit as y_bar_bar + (3/d2)r_bar:
+            upper_cl_transf = y_bar_bar + (control_chart_constant) * (r_bar)                
+            # calculate the lower control limit as y_bar_bar - (3/d2)r_bar:
+            lower_cl_transf = y_bar_bar - (control_chart_constant) * (r_bar)        
+            # Notice that these values are for the transformed variables:
+            # y_transf = (df['timedelta_between_rares'])**(1/(3.6))
+            # To reconvert to the correct time scale, we reverse this transform as:
+            # (y_transf)**(3.6)        
+            # add a column 'upper_cl' on the dataframe with upper_cl_transf
+            # converted to the original scale:
+            df['upper_cl'] = (upper_cl_transf)**(3.6)
+            # add a column 'lower_cl' on the dataframe with lower_cl_transf
+            # converted to the original scale:
+            df['lower_cl'] = (lower_cl_transf)**(3.6)
+            # Finally, add the central line by reconverting y_bar_bar to the
+            # original scale:
+            df['center'] = (y_bar_bar)**(3.6)
+            # Notice that this procedure naturally corrects the deviations caused by
+            # the skewness of the distribution. Actually, log and exponential transforms
+            # tend to reduce the skewness and to normalize the data.
+            # Update the dataframe in the dictionary:
+            dictionary['df'] = df
+        return dictionary
+        
+    
+    if (use_spc_chart_assistant == True):
+        
+        # Run if it is True. Requires TensorFlow to load. Load the extra library only
+        # if necessary:
+        # To show the Python class attributes, use the __dict__ method:
+        # http://www.learningaboutelectronics.com/Articles/How-to-display-all-attributes-of-a-class-or-instance-of-a-class-in-Python.php#:~:text=So%20the%20__dict__%20method%20is%20a%20very%20useful,other%20data%20type%20such%20as%20a%20class%20itself.
+
+        # instantiate the object
+        assistant = spc_chart_assistant()
+        # Download the images:
+        assistant = assistant.download_assistant_imgs()
+
+        # Run the assistant:
+        while (assistant.keep_assistant_on == True):
+
+            # Run the wrapped function until the user tells you to stop:
+            # Notice that both variables are True for starting the first loop:
+            assistant = assistant.open_chart_assistant_screen()
+
+        # Delete the images
+        assistant.delete_assistant_imgs()
+        # Select the chart and the parameters:
+        chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication = assistant.chart_selection()
+
+    # Back to the main code, independently on the use of the assistant:    
+    # set a local copy of the dataframe:
+    DATASET = df.copy(deep = True)
+
+    # Start a list unique_labels containing only element 0:
+    unique_labels = [0]
+    # If there is a column of labels or subgroups, this list will be updated. So we can control
+    # the chart selection using the length of this list: if it is higher than 1, we have subgroups,
+    # not individual values.
+
+    if (timestamp_tag_column is None):
+
+        # use the index itself:
+        timestamp_tag_column = 'index'
+        DATASET[timestamp_tag_column] = DATASET.index
+
+    elif (DATASET[timestamp_tag_column].dtype not in numeric_dtypes):
+
+        # The timestamp_tag_column was read as an object, indicating that it is probably a timestamp.
+        # Try to convert it to datetime64:
+        try:
+            DATASET[timestamp_tag_column] = (DATASET[timestamp_tag_column]).astype(np.datetime64)
+            print(f"Variable {timestamp_tag_column} successfully converted to datetime64[ns].\n")
+
+        except:
+            # Simply ignore it
+            pass
+        
+        
+    # Check if there are subgroups or if values are individuals. Also, check if there is no selected
+    # chart:
+    if ((column_with_labels_or_subgroups is None) & (chart_to_use is None)):
+            
+        print("There are only individual observations and no valid chart selected, so using standard error as natural variation (control limits).\n")
+        # values are individual, so set it as so:
+        chart_to_use = 'std_error'
+        
+    elif ((chart_to_use is None) | (chart_to_use not in ['std_error', '3s_as_natural_variation', 'i_mr', 'xbar_s', 'np', 'p', 'u', 'c', 'g', 't'])):
+            
+        print("No valid chart selected, so using standard error as natural variation (control limits).\n")
+        # values are individual, so set it as so:
+        chart_to_use = 'std_error'
+        
+    elif (chart_to_use in ['g', 't']):
+            
+        if (rare_event_timedelta_unit is None):
+            print("No valid timedelta unit provided, so selecting \'day\' for analysis of rare events.\n")
+            rare_event_timedelta_unit = 'day'
+        elif (rare_event_timedelta_unit not in ['day', 'second', 'nanosecond', 'milisecond', 'hour', 'week', 'month', 'year']):
+            print("No valid timedelta unit provided, so selecting \'day\' for analysis of rare events.\n")
+            rare_event_timedelta_unit = 'day'
+            
+        if (rare_event_indication is None):
+            print("No rare event indication provided, so changing the plot to \'std_error\'.\n")
+            chart_to_use = 'std_error'
+                
+    # Now, a valid chart_to_use was selected and is saved as chart_to_use.
+    # We can sort the dataframe according to the columns present:
+          
+    if ((column_with_labels_or_subgroups is not None) & (column_with_event_frame_indication is not None)):
+        # There are time windows to consider and labels.
+        # Update the list of unique labels:
+        unique_labels = list(DATASET[column_with_labels_or_subgroups].unique())
+        
+        # sort DATASET by timestamp_tag_column, column_with_labels_or_subgroups, 
+        # column_with_event_frame_indication, and column_with_variable_to_be_analyzed,
+        # all in Ascending order:
+        DATASET = DATASET.sort_values(by = [timestamp_tag_column, column_with_labels_or_subgroups, column_with_event_frame_indication, column_with_variable_to_be_analyzed], ascending = [True, True, True, True])
+        
+    elif (column_with_event_frame_indication is not None):
+        # We already tested the simultaneous presence of both. So, to reach this condition, 
+        # there is no column_with_labels_or_subgroups, but there is column_with_event_frame_indication
+            
+        # sort DATASET by timestamp_tag_column, column_with_event_frame_indication, 
+        # and column_with_variable_to_be_analyzed, all in Ascending order:
+        DATASET = DATASET.sort_values(by = [timestamp_tag_column, column_with_event_frame_indication, column_with_variable_to_be_analyzed], ascending = [True, True, True])
+        
+    elif (column_with_labels_or_subgroups is not None):
+        # We already tested the simultaneous presence of both. So, to reach this condition, 
+        # there is no column_with_event_frame_indication, but there is column_with_labels_or_subgroups
+        # Update the list of unique labels:
+        unique_labels = list(DATASET[column_with_labels_or_subgroups].unique())
+        
+        # sort DATASET by timestamp_tag_column, column_with_labels_or_subgroups, 
+        # and column_with_variable_to_be_analyzed, all in Ascending order:
+        DATASET = DATASET.sort_values(by = [timestamp_tag_column, column_with_labels_or_subgroups, column_with_variable_to_be_analyzed], ascending = [True, True, True])
+        
+    else:
+        # There is neither column_with_labels_or_subgroups, nor column_with_event_frame_indication
+        # sort DATASET by timestamp_tag_column, and column_with_variable_to_be_analyzed, 
+        # both in Ascending order:
+        DATASET = DATASET.sort_values(by = [timestamp_tag_column, column_with_variable_to_be_analyzed], ascending = [True, True])
+        
+    # Finally, reset indices:
+    DATASET = DATASET.reset_index(drop = True)
+    
+    # Start a list of dictionaries to store the dataframes and subdataframes that will be analyzed:
+    list_of_dictionaries_with_dfs = []
+    # By now, dictionaries will contain a key 'event_frame' storing an integer identifier for the
+    # event frame, starting from 0 (the index of the event in the list of unique event frames), or
+    # zero, for the cases where there is a single event; a key 'df' storing the dataframe object, 
+    # a key 'mean', storing the mean value of column_with_variable_to_be_analyzed; keys 'std' and
+    # 'var', storing the standard deviation and the variance for column_with_variable_to_be_analyzed;
+    # and column 'count', storing the counting of rows. 
+    # After obtaining the control limits, they will also get a key 'list_of_points_out_of_cl'. 
+    # This key will store a list of dictionaries (nested JSON), where each dictionary 
+    # will have two keys, 'x', and 'y', with the coordinates of the point outside control 
+    # limits as the values.
+    
+    if ((column_with_event_frame_indication is not None) & (chart_to_use not in ['g', 't'])):
+        
+        # Get a series of unique values of the event frame indications, and save it as a list 
+        # using the list attribute:
+        unique_event_indication = list(DATASET[column_with_event_frame_indication].unique())
+        
+        print(f"{len(unique_event_indication)} different values of event frame indication detected: {unique_event_indication}.\n")
+        
+        if (len(unique_event_indication) > 0):
+            
+            # There are more than one event frame to consider. Let's loop through the list of
+            # event frame indication, where each element is referred as 'event_frame':
+            for event_frame in unique_event_indication:
+                
+                # Define a boolean filter to select only the rows correspondent to event_frame:
+                boolean_filter = (DATASET[column_with_event_frame_indication] == event_frame)
+                
+                # Create a copy of the dataset, with entries selected by that filter:
+                ds_copy = (DATASET[boolean_filter]).copy(deep = True)
+                # Sort again by timestamp_tag_column and column_with_variable_to_be_analyzed, 
+                # to guarantee the results are in order:
+                ds_copy = ds_copy.sort_values(by = [timestamp_tag_column, column_with_variable_to_be_analyzed], ascending = [True, True])
+                # Restart the index of the copy:
+                ds_copy = ds_copy.reset_index(drop = True)
+                
+                # Store ds_copy in a dictionary of values. Put the index of event_frame
+                # in the list unique_event_indication as the value in key 'event_frame', to numerically
+                # identify the dictionary according to the event frame.
+                # Also, store the 'mean', 'sum,' 'std', 'var', and 'count' aggregates for the column
+                # column_with_variable_to_be_analyzed from ds_copy:
+                
+                dict_of_values = {
+                                    'event_frame': unique_event_indication.index(event_frame),
+                                    'df': ds_copy, 
+                                    'center': ds_copy[column_with_variable_to_be_analyzed].mean(),
+                                    'sum': ds_copy[column_with_variable_to_be_analyzed].sum(),
+                                    'std': ds_copy[column_with_variable_to_be_analyzed].std(),
+                                    'var': ds_copy[column_with_variable_to_be_analyzed].var(),
+                                    'count': ds_copy[column_with_variable_to_be_analyzed].count()
+                                 }
+                
+                # append dict_of_values to the list:
+                list_of_dictionaries_with_dfs.append(dict_of_values)
+                
+                # Now, the loop will pick the next event frame.
+        
+        else:
+            
+            # There is actually a single time window. The only dataframe 
+            # stored in the dictionary is DATASET itself, which is stored with 
+            # the aggregate statistics calculated for the whole dataframe. Since
+            # there is a single dataframe, the single value in 'event_frame' is 0.
+            dict_of_values = {
+                                'event_frame': 0,
+                                'df': DATASET, 
+                                'center': DATASET[column_with_variable_to_be_analyzed].mean(),
+                                'sum': DATASET[column_with_variable_to_be_analyzed].sum(),
+                                'std': DATASET[column_with_variable_to_be_analyzed].std(),
+                                'var': DATASET[column_with_variable_to_be_analyzed].var(),
+                                'count': DATASET[column_with_variable_to_be_analyzed].count()
+                            }
+            
+            # append dict_of_values to the list:
+            list_of_dictionaries_with_dfs.append(dict_of_values)
+    
+    else:
+        # The other case where there is a single time window or 'g' or 't' charts. 
+        # So, the only dataframe stored in the dictionary is DATASET itself, which is stored with 
+        # the aggregate statistics calculated for the whole dataframe. Since
+        # there is a single dataframe, the single value in 'event_frame' is 0.
+        dict_of_values = {
+                            'event_frame': 0,
+                            'df': DATASET, 
+                            'center': DATASET[column_with_variable_to_be_analyzed].mean(),
+                            'sum': DATASET[column_with_variable_to_be_analyzed].sum(),
+                            'std': DATASET[column_with_variable_to_be_analyzed].std(),
+                            'var': DATASET[column_with_variable_to_be_analyzed].var(),
+                            'count': DATASET[column_with_variable_to_be_analyzed].count()
+                        }
+            
+        # append dict_of_values to the list:
+        list_of_dictionaries_with_dfs.append(dict_of_values)
+    
+    # Now, data is sorted, timestamps were converted to datetime objects, and values collected
+    # for different timestamps were separated into dictionaries (elements) from the list
+    # list_of_dictionaries_with_dfs. Each dictionary contains a key 'df' used to access the
+    # dataframe, as well as keys storing the aggregate statistics: 'mean', 'std', 'var', and
+    # 'count'.
+    
+    # Now, we can process the different control limits calculations.
+    
+    # Start a support list:
+    support_list = []
+    
+    ## INDIVIDUAL VALUES
+    # Use the unique_labels list to guarantee that there have to be more than 1 subgroup
+    # to not treat data as individual values. If there is a single subgroup, unique_labels
+    # will have a single element.
+    if ((column_with_labels_or_subgroups is None) | (len(unique_labels) <= 1)):
+        
+        if (chart_to_use == 'i_mr'):
+            
+            print("WARNING: the I-MR control limits are based on the strong hypothesis that data follows a normal distribution. If it is not the case, do not use this chart.")
+            print("If you are not confident about the statistical distribution, select chart_to_use = \'3s_as_natural_variation\' to use 3 times the standard deviation as estimator for the natural variation (the control limits); or chart_to_use = \'std_error\' to use 3 times the standard error as control limits.\n")
+            
+            for dictionary in list_of_dictionaries_with_dfs:
+                
+                dictionary = chart_i_mr (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
+                # Append the updated dictionary to the support_list:
+                support_list.append(dictionary)
+            
+            # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
+            # the support_list itself:
+            list_of_dictionaries_with_dfs = support_list
+        
+        elif (chart_to_use in ['g', 't']):
+            
+            print(f"Analyzing occurence of rare event {rare_event_indication} through chart {chart_to_use}.\n")
+            
+            for dictionary in list_of_dictionaries_with_dfs:
+                
+                dictionary = rare_events_chart (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit, chart_to_use = chart_to_use)
+                # Finally, append the dictionary to the list and go to next iteration
+                support_list.append(dictionary)
+            
+            # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
+            # the support_list itself:
+            list_of_dictionaries_with_dfs = support_list
+            
+        elif (chart_to_use == '3s_as_natural_variation'):
+            
+            print("Using 3s (3 times the standard deviation) as estimator of the natural variation (control limits).\n")
+            
+            for dictionary in list_of_dictionaries_with_dfs:
+                
+                dictionary = chart_3s (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+            
+            # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
+            # the support_list itself:
+            list_of_dictionaries_with_dfs = support_list
+        
+        else:
+            
+            print("Using 3 times the standard error as estimator of the natural variation (control limits).\n")
+            
+            for dictionary in list_of_dictionaries_with_dfs:
+                
+                dictionary = chart_std_error (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+            
+            # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
+            # the support_list itself:
+            list_of_dictionaries_with_dfs = support_list
+    
+    ## DATA IN SUBGROUPS
+    else:
+        
+        # Loop through each dataframe:
+        for dictionary in list_of_dictionaries_with_dfs:
+            
+            dictionary = create_grouped_df (dictionary = dictionary)
+            # Now, dataframe is ready for the calculation of control limits.
+            # Let's select the appropriate chart:
+        
+            if (chart_to_use == '3s_as_natural_variation'):
+
+                dictionary = chart_3s (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+            
+            elif (chart_to_use == 'std_error'):
+                
+                dictionary = chart_std_error (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+                
+            elif (chart_to_use == 'xbar_s'):
+                
+                dictionary = chart_x_bar_s (dictionary = dictionary)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+            
+            elif (chart_to_use == 'p'):
+                
+                dictionary = chart_p (dictionary = dictionary)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+
+            elif (chart_to_use == 'np'):
+            
+                dictionary = chart_np (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+
+            elif (chart_to_use == 'c'):
+                
+                dictionary = chart_c (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+                
+            elif (chart_to_use == 'u'):
+                
+                dictionary = chart_u (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
+                # Append the dictionary to the support_list:
+                support_list.append(dictionary)
+
+            else:
+
+                print(f"Select a valid control chart: {['3s_as_natural_variation', 'std_error', 'i_mr', 'xbar_s', 'np', 'p', 'u', 'c', 'g', 't']}.\n")
+                return "error", "error" # Two, since two dataframes are returned
+            
+            # Go to the next element (dictionary) from the list list_of_dictionaries_with_dfs
+        
+        # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
+        # the support_list itself:
+        list_of_dictionaries_with_dfs = support_list
+        
+        # Now we finished looping, we can print the warnings
+        if (chart_to_use == '3s_as_natural_variation'):
+    
+            print("Using 3s (3 times the standard deviation) as estimator of the natural variation (control limits). Remember that we are taking the standard deviation from the subgroup (label) aggregates.\n")
+        
+        elif (chart_to_use == 'xbar_s'):
+            
+            print("WARNING: the X-bar-S control limits are based on the strong hypothesis that the mean values from the subgroups follow a normal distribution. If it is not the case, do not use this chart.")
+            print("If you are not confident about the statistical distribution, select chart_to_use = \'3s_as_natural_variation\' to use 3 times the standard deviation as estimator for the natural variation (the control limits).\n")
+            print("Use this chart for analyzing mean values from multiple data collected together in groups (or specific labels), usually in close moments.\n")
+        
+        elif (chart_to_use == 'np'):
+            print("WARNING: the U control limits are based on the strong hypothesis that the counting of values from the subgroups follow a Poisson distribution (Poisson is a case from the Gamma distribution). If it is not the case, do not use this chart.")
+            
+        
+        elif (chart_to_use == 'p'):
+            print("WARNING: the U control limits are based on the strong hypothesis that the counting of values from the subgroups follow a Poisson distribution (Poisson is a case from the Gamma distribution). If it is not the case, do not use this chart.")
+            
+        
+        elif (chart_to_use == 'u'):
+            
+            print("WARNING: the U control limits are based on the strong hypothesis that the counting of values from the subgroups follow a Poisson distribution (Poisson is a case from the Gamma distribution). If it is not the case, do not use this chart.")
+            print("If you are not confident about the statistical distribution, select chart_to_use = \'3s_as_natural_variation\' to use 3 times the standard deviation as estimator for the natural variation (the control limits).\n")
+        
+        else:
+            # chart_to_use == 'c'
+            print("WARNING: the C control limits are based on the strong hypothesis that the counting of values from the subgroups follow a Poisson distribution (Poisson is a case from the Gamma distribution). If it is not the case, do not use this chart.")
+            print("If you are not confident about the statistical distribution, select chart_to_use = \'3s_as_natural_variation\' to use 3 times the standard deviation as estimator for the natural variation (the control limits).\n")
+        
+        
+    # Now, we have all the control limits calculated, and data aggregated when it is the case.
+    # Let's merge (append - SQL UNION) all the dataframes stored in the dictionaries (elements)
+    # from the list list_of_dictionaries_with_dfs. Pick the first dictionary, i.e., element of
+    # index 0 from the list:
+    
+    dictionary = list_of_dictionaries_with_dfs[0]
+    # access the dataframe:
+    df = dictionary['df']
+    
+    # Also, start a list for storing the timestamps where the event frames start:
+    time_of_event_frame_start = []
+    
+    # Now, let's loop through each one of the other dictionaries from the list:
+    
+    for i in range (1, len(list_of_dictionaries_with_dfs)):
+        
+        # start from i = 1, index of the second element (we already picked the first one),
+        # and goes to the index of the last dictionary, len(list_of_dictionaries_with_dfs) - 1:
+        
+        # access element (dictionary) i from the list:
+        dictionary_i = list_of_dictionaries_with_dfs[i]
+        # access the dataframe i:
+        df_i = dictionary_i['df']
+        
+        # Pick the first element (index 0) of the series timestamp_tag_column:
+        time_tag_value = (df_i[timestamp_tag_column])[0]
+        # Append this value on the list time_of_event_frame_start:
+        time_of_event_frame_start.append(time_tag_value)
+        
+        # Append df_i to df (SQL UNION - concatenate or append rows):
+        # Save in df itself:
+        df = pd.concat([df, df_i], axis = 0, ignore_index = True, sort = True, join = 'inner')
+        # axis = 0 to append rows; 'inner' join removes missing values
+    
+    # Now, reset the index of the final concatenated dataframe, containing all the event frames
+    # separately processed, and containing the control limits and mean values for each event:
+    df = df.reset_index(drop = True)
+    
+    # Now, add a column to inform if each point is in or out of the control limits.
+    # apply a filter to select each situation:
+    # (syntax: dataset.loc[dataset['column_filtered'] <= 0.87, 'labelled_column'] = 1)
+    # Start the new column as 'in_control_lim' (default case):
+    df['control_limits_check'] = 'in_control_lim'
+    
+    # Now modify only points which are out of the control ranges:
+    df.loc[(df[column_with_variable_to_be_analyzed] < lower_cl), 'control_limits_check'] = 'below_lower_control_lim'
+    df.loc[(df[column_with_variable_to_be_analyzed] > upper_cl), 'control_limits_check'] = 'above_upper_control_lim'
+                
+    # Let's also create the 'red_df' containing only the values outside of the control limits.
+    # This dataframe will be used to highlight the values outside the control limits
+    
+    # copy the dataframe:
+    red_df = df.copy(deep = True)
+    # Filter red_df to contain only the values outside the control limits:
+    boolean_filter = ((red_df[column_with_variable_to_be_analyzed] < lower_cl) | (red_df[column_with_variable_to_be_analyzed] > upper_cl))
+    red_df = red_df[boolean_filter]
+    # Reset the index of this dataframe:
+    red_df = red_df.reset_index(drop = True)
+    
+    if (len(red_df) > 0):
+        
+        # There is at least one row outside the control limits.
+        print("Attention! Point outside of natural variation (control limits).")
+        print("Check the red_df dataframe returned for details on values outside the control limits. They occur at the following time values:\n")
+        print(list(red_df[timestamp_tag_column]))
+        print("\n")
+    
+    # specification_limits = {'lower_spec_lim': value1, 'upper_spec_lim': value2}
+    
+    # Check if there is a lower specification limit:
+    if (specification_limits['lower_spec_lim'] is not None):
+        
+        lower_spec_lim = specification_limits['lower_spec_lim']
+        
+        # Now, add a column to inform if each point is in or out of the specification limits.
+        # apply a filter to select each situation:
+
+        # Start the new column as 'in_spec_lim' (default case):
+        df['spec_limits_check'] = 'in_spec_lim'
+        # Now modify only points which are below the specification limit:
+        df.loc[(df[column_with_variable_to_be_analyzed] < lower_spec_lim), 'spec_limits_check'] = 'below_lower_spec_lim'
+    
+        if (len(df[(df[column_with_variable_to_be_analyzed] < lower_spec_lim)]) > 0):
+            
+            print("Attention! Point below lower specification limit.")
+            print("Check the returned dataframe df to obtain more details.\n")
+        
+        # Check if there is an upper specification limit too:
+        if (specification_limits['upper_spec_lim'] is not None):
+
+            upper_spec_lim = specification_limits['upper_spec_lim']
+
+            # Now modify only points which are above the specification limit:
+            df.loc[(df[column_with_variable_to_be_analyzed] > upper_spec_lim), 'spec_limits_check'] = 'above_upper_spec_lim'
+
+            if (len(df[(df[column_with_variable_to_be_analyzed] > upper_spec_lim)]) > 0):
+
+                print("Attention! Point above upper specification limit.")
+                print("Check the returned dataframe df to obtain more details.\n")
+    
+    # Check the case where there is no lower, but there is a specification limit:
+    elif (specification_limits['upper_spec_lim'] is not None):
+        
+        upper_spec_lim = specification_limits['upper_spec_lim']
+        
+        # Start the new column as 'in_spec_lim' (default case):
+        df['spec_limits_check'] = 'in_spec_lim'
+        
+        # Now modify only points which are above the specification limit:
+        df.loc[(df[column_with_variable_to_be_analyzed] > upper_spec_lim), 'spec_limits_check'] = 'above_upper_spec_lim'
+
+        if (len(df[(df[column_with_variable_to_be_analyzed] > upper_spec_lim)]) > 0):
+
+            print("Attention! Point above upper specification limit.")
+            print("Check the returned dataframe df to obtain more details.\n")
+    
+    
+    # Now, we have the final dataframe containing analysis regarding the control and specification
+    # limits, and the red_df, that will be used to plot red points for values outside the control
+    # range. Then, we can plot the graph.
+    
+    # Now, we can plot the figure.
+    # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
+    # so that one series do not completely block the visualization of the other.
+    
+    if (add_splines_lines == True):
+        LINE_STYLE = '-'
+
+    else:
+        LINE_STYLE = ''
+        
+    if (add_scatter_dots == True):
+        MARKER = 'o'
+            
+    else:
+        MARKER = ''
+        
+        # Matplotlib linestyle:
+        # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
+        
+    if (plot_title is None):
+        
+        if (chart_to_use == 'g'):
+            plot_title = f"{chart_to_use}_for_count_of_events_between_rare_occurence"
+        
+        elif (chart_to_use == 't'):
+            plot_title = f"{chart_to_use}_for_timedelta_between_rare_occurence"
+        
+        else:
+            plot_title = f"{chart_to_use}_for_{column_with_variable_to_be_analyzed}"
+    
+    if ((column_with_labels_or_subgroups is None) | (len(unique_labels) <= 1)):
+        
+        # 'i_mr' or, 'std_error', or '3s_as_natural_variation' (individual measurements)
+        
+        LABEL = column_with_variable_to_be_analyzed
+        
+        if (chart_to_use == 'i_mr'):
+            LABEL_MEAN = 'mean'
+            
+        elif ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
+            if(consider_skewed_dist_when_estimating_with_std):
+                LABEL_MEAN = 'median'
+
+            else:
+                LABEL_MEAN = 'mean'
+        
+        else:
+            
+            if (chart_to_use == 'g'):
+                LABEL = 'count_between\nrare_events'
+                LABEL_MEAN = 'median'
+            
+            elif (chart_to_use == 't'):
+                LABEL = 'timedelta_between\nrare_events'
+                LABEL_MEAN = 'central_line'
+                
+    else:
+        if ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
+            
+            LABEL = "mean_value\nby_label"
+            
+            if(consider_skewed_dist_when_estimating_with_std):
+                LABEL_MEAN = 'median'
+            else:
+                LABEL_MEAN = 'mean'
+        
+        elif (chart_to_use == 'xbar_s'):
+            
+            LABEL = "mean_value\nby_label"
+            LABEL_MEAN = 'mean'
+            
+        elif (chart_to_use == 'np'):
+            
+            LABEL = "total_occurences\nby_label"
+            LABEL_MEAN = 'sum_of_ocurrences'
+            
+        elif (chart_to_use == 'p'):
+            
+            LABEL = "mean_value\ngrouped_by_label"
+            LABEL_MEAN = 'mean'
+        
+        elif (chart_to_use == 'u'):
+            
+            LABEL = "mean_value\ngrouped_by_label"
+            LABEL_MEAN = 'mean'
+            
+        else:
+            # chart_to_use == 'c'
+            LABEL = "total_occurences\nby_label"
+            LABEL_MEAN = 'average_sum\nof_ocurrences'
+    
+    x = df[timestamp_tag_column]
+    
+    y = df[column_with_variable_to_be_analyzed]  
+    upper_control_lim = df['upper_cl']
+    lower_control_lim = df['lower_cl']
+    mean_line = df['center']
+    
+    if (specification_limits['lower_spec_lim'] is not None):
+        
+        lower_spec_lim = specification_limits['lower_spec_lim']
+    
+    else:
+        lower_spec_lim = None
+    
+    if (specification_limits['upper_spec_lim'] is not None):
+        
+        upper_spec_lim = specification_limits['upper_spec_lim']
+    
+    else:
+        upper_spec_lim = None
+    
+    if (len(red_df) > 0):
+        
+        red_x = red_df[timestamp_tag_column]
+        red_y = red_df[column_with_variable_to_be_analyzed]
+        
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+        
+    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+    fig = plt.figure(figsize = (12, 8))
+    ax = fig.add_subplot()
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    # Set graphic title
+    ax.set_title(plot_title) 
+
+    if not (horizontal_axis_title is None):
+        # Set horizontal axis title
+        ax.set_xlabel(horizontal_axis_title)
+
+    if not (vertical_axis_title is None):
+        # Set vertical axis title
+        ax.set_ylabel(vertical_axis_title)
+
+    # Scatter plot of time series:
+    ax.plot(x, y, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = OPACITY, label = LABEL)
+    # Axes.plot documentation:
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            
+    # x and y are positional arguments: they are specified by their position in function
+    # call, not by an argument name like 'marker'.
+            
+    # Matplotlib markers:
+    # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+    
+    # Plot the mean line as a step function (values connected by straight splines, forming steps):
+    ax.step(x, y = mean_line, color = 'black', label = LABEL_MEAN)
+    
+    # Plot the control limits as step functions too:
+    ax.step(x, y = upper_control_lim, color = 'red', linestyle = 'dashed', label = 'control\nlimit')
+    ax.step(x, y = lower_control_lim, color = 'red', linestyle = 'dashed')
+    
+    # If there are specifications, plot as horizontal constant lines (axhlines):
+    if (lower_spec_lim is not None):
+        
+        ax.axhline(lower_spec_lim, color = 'darkgreen', linestyle = 'dashed', label = 'specification\nlimit')
+    
+    if (upper_spec_lim is not None):
+        
+        ax.axhline(upper_spec_lim, color = 'darkgreen', linestyle = 'dashed', label = 'specification\nlimit')
+    
+    # If there are red points outside of control limits to highlight, plot them above the graph
+    # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
+    if (len(red_df) > 0):
+        
+        ax.plot(red_x, red_y, linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0)
+    
+    # If the length of list time_of_event_frame_start is higher than zero,
+    # loop through each element on the list and add a vertical constant line for the timestamp
+    # correspondent to the beginning of an event frame:
+    
+    if (len(time_of_event_frame_start) > 0):
+        
+        for timestamp in time_of_event_frame_start:
+            # add timestamp as a vertical line (axvline):
+            ax.axvline(timestamp, color = 'darkblue', linestyle = 'dashed', label = 'event_frame\nchange')
+            
+            
+    # Now we finished plotting all of the series, we can set the general configuration:
+    ax.grid(grid) # show grid or not
+    ax.legend()
+
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = f"control_chart_{chart_to_use}"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+    #plt.figure(figsize = (12, 8))
+    #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    return df, red_df
+
 
