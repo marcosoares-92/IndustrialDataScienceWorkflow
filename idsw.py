@@ -16359,6 +16359,995 @@ class spc_chart_assistant:
             
             return chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication
         
+class spc_plot:
+            
+    # Initialize instance attributes.
+    # define the Class constructor, i.e., how are its objects:
+    def __init__ (self, dictionary, column_with_variable_to_be_analyzed, timestamp_tag_column, chart_to_use, column_with_labels_or_subgroups = None, consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day'):
+                
+        import numpy as np
+        import pandas as pd
+        
+        # If the user passes the argument, use them. Otherwise, use the standard values.
+        # Set the class objects' attributes.
+        # Suppose the object is named plot. We can access the attribute as:
+        # plot.dictionary, for instance.
+        # So, we can save the variables as objects' attributes.
+        self.dictionary = dictionary
+        self.df = self.dictionary['df']
+        # Start the attribute number of labels with value 2 (correspondent to moving range)
+        self.number_of_labels = 2
+        # List the possible numeric data types for a Pandas dataframe column:
+        self.numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+        # Start a dictionary of constants
+        self.dict_of_constants = {}
+        self.column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed
+        # Indicate which is the timestamp column:
+        self.timestamp_tag_column = timestamp_tag_column
+        # Set the chart 
+        self.chart_to_use = chart_to_use
+        
+        # Other arguments of the constructor (attributes):
+        # These ones have default values to use if omitted when creating the object
+        self.column_with_labels_or_subgroups = column_with_labels_or_subgroups
+        self.consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std
+        self.rare_event_indication = rare_event_indication 
+        self.rare_event_timedelta_unit = rare_event_timedelta_unit
+        # to check the class attributes, use the __dict__ method. Examples:
+        ## object.__dict__ will show all attributes from object
+                
+    # Define the class methods.
+    # All methods must take an object from the class (self) as one of the parameters
+   
+    # Define a dictionary of constants.
+    # Each key in the dictionary corresponds to a number of samples in a subgroup.
+    # number_of_labels - This variable represents the total of labels or subgroups n. 
+    # If there are multiple labels, this variable will be updated later.
+    
+    def get_constants (self):
+        
+        if (self.number_of_labels < 2):
+            
+            self.number_of_labels = 2
+            
+        if (self.number_of_labels <= 25):
+            
+            dict_of_constants = {
+                
+                2: {'A':2.121, 'A2':1.880, 'A3':2.659, 'c4':0.7979, '1/c4':1.2533, 'B3':0, 'B4':3.267, 'B5':0, 'B6':2.606, 'd2':1.128, '1/d2':0.8865, 'd3':0.853, 'D1':0, 'D2':3.686, 'D3':0, 'D4':3.267},
+                3: {'A':1.732, 'A2':1.023, 'A3':1.954, 'c4':0.8862, '1/c4':1.1284, 'B3':0, 'B4':2.568, 'B5':0, 'B6':2.276, 'd2':1.693, '1/d2':0.5907, 'd3':0.888, 'D1':0, 'D2':4.358, 'D3':0, 'D4':2.574},
+                4: {'A':1.500, 'A2':0.729, 'A3':1.628, 'c4':0.9213, '1/c4':1.0854, 'B3':0, 'B4':2.266, 'B5':0, 'B6':2.088, 'd2':2.059, '1/d2':0.4857, 'd3':0.880, 'D1':0, 'D2':4.698, 'D3':0, 'D4':2.282},
+                5: {'A':1.342, 'A2':0.577, 'A3':1.427, 'c4':0.9400, '1/c4':1.0638, 'B3':0, 'B4':2.089, 'B5':0, 'B6':1.964, 'd2':2.326, '1/d2':0.4299, 'd3':0.864, 'D1':0, 'D2':4.918, 'D3':0, 'D4':2.114},
+                6: {'A':1.225, 'A2':0.483, 'A3':1.287, 'c4':0.9515, '1/c4':1.0510, 'B3':0.030, 'B4':1.970, 'B5':0.029, 'B6':1.874, 'd2':2.534, '1/d2':0.3946, 'd3':0.848, 'D1':0, 'D2':5.078, 'D3':0, 'D4':2.004},
+                7: {'A':1.134, 'A2':0.419, 'A3':1.182, 'c4':0.9594, '1/c4':1.0423, 'B3':0.118, 'B4':1.882, 'B5':0.113, 'B6':1.806, 'd2':2.704, '1/d2':0.3698, 'd3':0.833, 'D1':0.204, 'D2':5.204, 'D3':0.076, 'D4':1.924},
+                8: {'A':1.061, 'A2':0.373, 'A3':1.099, 'c4':0.9650, '1/c4':1.0363, 'B3':0.185, 'B4':1.815, 'B5':0.179, 'B6':1.751, 'd2':2.847, '1/d2':0.3512, 'd3':0.820, 'D1':0.388, 'D2':5.306, 'D3':0.136, 'D4':1.864},
+                9: {'A':1.000, 'A2':0.337, 'A3':1.032, 'c4':0.9693, '1/c4':1.0317, 'B3':0.239, 'B4':1.761, 'B5':0.232, 'B6':1.707, 'd2':2.970, '1/d2':0.3367, 'd3':0.808, 'D1':0.547, 'D2':5.393, 'D3':0.184, 'D4':1.816},
+                10: {'A':0.949, 'A2':0.308, 'A3':0.975, 'c4':0.9727, '1/c4':1.0281, 'B3':0.284, 'B4':1.716, 'B5':0.276, 'B6':1.669, 'd2':3.078, '1/d2':0.3249, 'd3':0.797, 'D1':0.687, 'D2':5.469, 'D3':0.223, 'D4':1.777},
+                11: {'A':0.905, 'A2':0.285, 'A3':0.927, 'c4':0.9754, '1/c4':1.0252, 'B3':0.321, 'B4':1.679, 'B5':0.313, 'B6':1.637, 'd2':3.173, '1/d2':0.3152, 'd3':0.787, 'D1':0.811, 'D2':5.535, 'D3':0.256, 'D4':1.744},
+                12: {'A':0.866, 'A2':0.266, 'A3':0.886, 'c4':0.9776, '1/c4':1.0229, 'B3':0.354, 'B4':1.646, 'B5':0.346, 'B6':1.610, 'd2':3.258, '1/d2':0.3069, 'd3':0.778, 'D1':0.922, 'D2':5.594, 'D3':0.283, 'D4':1.717},
+                13: {'A':0.832, 'A2':0.249, 'A3':0.850, 'c4':0.9794, '1/c4':1.0210, 'B3':0.382, 'B4':1.618, 'B5':0.374, 'B6':1.585, 'd2':3.336, '1/d2':0.2998, 'd3':0.770, 'D1':1.025, 'D2':5.647, 'D3':0.307, 'D4':1.693},
+                14: {'A':0.802, 'A2':0.235, 'A3':0.817, 'c4':0.9810, '1/c4':1.0194, 'B3':0.406, 'B4':1.594, 'B5':0.399, 'B6':1.563, 'd2':3.407, '1/d2':0.2935, 'd3':0.763, 'D1':1.118, 'D2':5.696, 'D3':0.328, 'D4':1.672},
+                15: {'A':0.775, 'A2':0.223, 'A3':0.789, 'c4':0.9823, '1/c4':1.0180, 'B3':0.428, 'B4':1.572, 'B5':0.421, 'B6':1.544, 'd2':3.472, '1/d2':0.2880, 'd3':0.756, 'D1':1.203, 'D2':5.741, 'D3':0.347, 'D4':1.653},
+                16: {'A':0.750, 'A2':0.212, 'A3':0.763, 'c4':0.9835, '1/c4':1.0168, 'B3':0.448, 'B4':1.552, 'B5':0.440, 'B6':1.526, 'd2':3.532, '1/d2':0.2831, 'd3':0.750, 'D1':1.282, 'D2':5.782, 'D3':0.363, 'D4':1.637},
+                17: {'A':0.728, 'A2':0.203, 'A3':0.739, 'c4':0.9845, '1/c4':1.0157, 'B3':0.466, 'B4':1.534, 'B5':0.458, 'B6':1.511, 'd2':3.588, '1/d2':0.2787, 'd3':0.744, 'D1':1.356, 'D2':5.820, 'D3':0.378, 'D4':1.622},
+                18: {'A':0.707, 'A2':0.194, 'A3':0.718, 'c4':0.9854, '1/c4':1.0148, 'B3':0.482, 'B4':1.518, 'B5':0.475, 'B6':1.496, 'd2':3.640, '1/d2':0.2747, 'd3':0.739, 'D1':1.424, 'D2':5.856, 'D3':0.391, 'D4':1.608},
+                19: {'A':0.688, 'A2':0.187, 'A3':0.698, 'c4':0.9862, '1/c4':1.0140, 'B3':0.497, 'B4':1.503, 'B5':0.490, 'B6':1.483, 'd2':3.689, '1/d2':0.2711, 'd3':0.734, 'D1':1.487, 'D2':5.891, 'D3':0.403, 'D4':1.597},
+                20: {'A':0.671, 'A2':0.180, 'A3':0.680, 'c4':0.9869, '1/c4':1.0133, 'B3':0.510, 'B4':1.490, 'B5':0.504, 'B6':1.470, 'd2':3.735, '1/d2':0.2677, 'd3':0.729, 'D1':1.549, 'D2':5.921, 'D3':0.415, 'D4':1.585},
+                21: {'A':0.655, 'A2':0.173, 'A3':0.663, 'c4':0.9876, '1/c4':1.0126, 'B3':0.523, 'B4':1.477, 'B5':0.516, 'B6':1.459, 'd2':3.778, '1/d2':0.2647, 'd3':0.724, 'D1':1.605, 'D2':5.951, 'D3':0.425, 'D4':1.575},
+                22: {'A':0.640, 'A2':0.167, 'A3':0.647, 'c4':0.9882, '1/c4':1.0119, 'B3':0.534, 'B4':1.466, 'B5':0.528, 'B6':1.448, 'd2':3.819, '1/d2':0.2618, 'd3':0.720, 'D1':1.659, 'D2':5.979, 'D3':0.434, 'D4':1.566},
+                23: {'A':0.626, 'A2':0.162, 'A3':0.633, 'c4':0.9887, '1/c4':1.0114, 'B3':0.545, 'B4':1.455, 'B5':0.539, 'B6':1.438, 'd2':3.858, '1/d2':0.2592, 'd3':0.716, 'D1':1.710, 'D2':6.006, 'D3':0.443, 'D4':1.557},
+                24: {'A':0.612, 'A2':0.157, 'A3':0.619, 'c4':0.9892, '1/c4':1.0109, 'B3':0.555, 'B4':1.445, 'B5':0.549, 'B6':1.429, 'd2':3.895, '1/d2':0.2567, 'd3':0.712, 'D1':1.759, 'D2':6.031, 'D3':0.451, 'D4':1.548},
+                25: {'A':0.600, 'A2':0.153, 'A3':0.606, 'c4':0.9896, '1/c4':1.0105, 'B3':0.565, 'B4':1.435, 'B5':0.559, 'B6':1.420, 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541},
+            }
+            
+            # Access the key:
+            dict_of_constants = dict_of_constants[self.number_of_labels]
+            
+        else: #>= 26
+            
+            dict_of_constants = {'A':(3/(self.number_of_labels**(0.5))), 'A2':0.153, 
+                                 'A3':3/((4*(self.number_of_labels-1)/(4*self.number_of_labels-3))*(self.number_of_labels**(0.5))), 
+                                 'c4':(4*(self.number_of_labels-1)/(4*self.number_of_labels-3)), 
+                                 '1/c4':1/((4*(self.number_of_labels-1)/(4*self.number_of_labels-3))), 
+                                 'B3':(1-3/(((4*(self.number_of_labels-1)/(4*self.number_of_labels-3)))*((2*(self.number_of_labels-1))**(0.5)))), 
+                                 'B4':(1+3/(((4*(self.number_of_labels-1)/(4*self.number_of_labels-3)))*((2*(self.number_of_labels-1))**(0.5)))),
+                                 'B5':(((4*(self.number_of_labels-1)/(4*self.number_of_labels-3)))-3/((2*(self.number_of_labels-1))**(0.5))), 
+                                 'B6':(((4*(self.number_of_labels-1)/(4*self.number_of_labels-3)))+3/((2*(self.number_of_labels-1))**(0.5))), 
+                                 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541}
+        
+        # Update the attribute
+        self.dict_of_constants = dict_of_constants
+        
+        return self
+    
+    def chart_i_mr (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # access the dataframe:
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # CONTROL LIMIT EQUATIONS:
+        # X-bar = (sum of measurements)/(number of measurements)
+        # R = Absolute value of [(largest in subgroup) - (lowest in subgroup)]
+        # Individual chart: subgroup = 1
+        # R = Absolute value of [(data) - (next data)]
+        # R-bar = (sum of ranges R)/(number of R values calculated)
+        # Lower control limit (LCL) = X-bar - (2.66)R-bar
+        # Upper control limit (UCL) = X-bar + (2.66)R-bar
+        
+        # loop through each row from df, starting from the second (row 1):    
+        # calculate mR as the difference (Xmax - Xmin) of the difference between
+        # df[column_with_variable_to_be_analyzed] on row i and the row
+        # i-1. Since we do not know, in principle, which one is the maximum, we can use
+        # the max and min functions from Python:
+        # https://www.w3schools.com/python/ref_func_max.asp
+        # https://www.w3schools.com/python/ref_func_min.asp
+        # Also, the moving range here must be calculated as an absolute value
+        # https://www.w3schools.com/python/ref_func_abs.asp
+        
+        moving_range = [abs(max((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)])) - min((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)]))) for i in range (1, len(df))]
+        x_bar_list = [(df[column_with_variable_to_be_analyzed][i] + df[column_with_variable_to_be_analyzed][(i-1)])/2 for i in range (1, len(df))]
+        
+        # These lists were created from index 1. We must add a initial element to
+        # make their sizes equal to the original dataset length
+        # Start the list to store the moving ranges, containing only the number 0
+        # for the moving range (by simple concatenation):
+        moving_range = [0] + moving_range
+        
+        # Start the list that stores the mean values of the 2-elements subgroups
+        # with the first element itself (index 0):
+        x_bar_list = [df[column_with_variable_to_be_analyzed][0]] + x_bar_list
+        
+        # Save the moving ranges as a new column from df (it may be interesting to check it):
+        df['moving_range'] = moving_range
+        
+        # Save x_bar_list as the column to be analyzed:
+        df[column_with_variable_to_be_analyzed] = x_bar_list
+        
+        # Get the mean values from x_bar:
+        x_bar_bar = df[column_with_variable_to_be_analyzed].mean()
+        
+        # Calculate the mean value of the column moving_range, and save it as r_bar:
+        r_bar = df['moving_range'].mean()
+        
+        # Get the control chart constant A2 from the dictionary, considering n = 2 the
+        # number of elements of each subgroup:
+        # Apply the get_constants method to update the dict_of_constants attribute:
+        self = self.get_constants()
+        
+        control_chart_constant = self.dict_of_constants['1/d2']
+        control_chart_constant = control_chart_constant * 3
+        
+        # calculate the upper control limit as x_bar + (3/d2)r_bar:
+        upper_cl = x_bar_bar + (control_chart_constant) * (r_bar)
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as x_bar - (3/d2)r_bar:
+        lower_cl = x_bar_bar - (control_chart_constant) * (r_bar)
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = x_bar_bar
+        
+        # Update the dataframe in the dictionary and return it:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+
+    def chart_3s (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        if(self.consider_skewed_dist_when_estimating_with_std):
+            
+            # Skewed data. Use the median:
+            center = df[column_with_variable_to_be_analyzed].median()
+            
+        else:
+            
+            center = dictionary['center']
+            
+        # calculate the upper control limit as the mean + 3s
+        upper_cl = center + 3 * (dictionary['std'])
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as the mean - 3s:
+        lower_cl = center - 3 * (dictionary['std'])
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = center
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+    
+    def chart_std_error (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        n_samples = df[column_with_variable_to_be_analyzed].count()
+        
+        s = dictionary['std']
+        std_error = s/(n_samples**(0.5))
+        
+        if(self.consider_skewed_dist_when_estimating_with_std):
+            
+            # Skewed data. Use the median:
+            center = df[column_with_variable_to_be_analyzed].median()
+            
+        else:
+            
+            center = dictionary['center']
+            
+        # calculate the upper control limit as the mean + 3 std_error
+        upper_cl = center + 3 * (std_error)
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as the mean - 3 std_error:
+        lower_cl = center - 3 * (std_error)
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = center
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+        
+    # CONTROL CHARTS FOR SUBGROUPS 
+    
+    def create_grouped_df (self):
+        
+        import numpy as np
+        import pandas as pd
+        from scipy import stats
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+           
+        # We need to group each dataframe in terms of the subgroups stored in the variable
+        # column_with_labels_or_subgroups.
+        # The catehgorical or datetime columns must be aggregated in terms of mode.
+        # The numeric variables must be aggregated both in terms of mean and in terms of count
+        # (subgroup size)
+        
+        # 1. Start a list for categorical columns and other for numeric columns:
+        categorical_cols = []
+        numeric_cols = []
+        
+        # Variables to map if there are categorical or numeric variables:
+        is_categorical = 0
+        is_numeric = 0
+        
+        # 2. Loop through each column from the list of columns of the dataframe:
+        for column in list(df.columns):
+            
+            # check the type of column:
+            column_data_type = df[column].dtype
+            
+            if (column_data_type not in self.numeric_dtypes):
+                
+                # If the Pandas series was defined as an object, it means it is categorical
+                # (string, date, etc). Also, this if captures the variables converted to datetime64
+                # Append the column to the list of categorical columns:
+                categorical_cols.append(column)
+                
+            else:
+                # append the column to the list of numeric columns:
+                numeric_cols.append(column)
+                
+        # 3. Check if column_with_labels_or_subgroups is in both lists. 
+        # If it is missing, append it. We need that this column in all subsets for grouping.
+        if not (self.column_with_labels_or_subgroups in categorical_cols):
+            
+            categorical_cols.append(column_with_labels_or_subgroups)
+        
+        if not (column_with_labels_or_subgroups in numeric_cols):
+            
+            numeric_cols.append(column_with_labels_or_subgroups)
+            
+        if (len(categorical_cols) > 1):    
+            # There is at least one column plus column_with_labels_or_subgroups:
+            is_categorical = 1
+            
+        if (len(numeric_cols) > 1):
+            # There is at least one column plus column_with_labels_or_subgroups:
+            is_numeric = 1
+            
+        # 4. Create copies of df, subsetting by type of column
+        # 5. Group the dataframes by column_with_labels_or_subgroups, 
+        # according to the aggregate function:
+        if (is_categorical == 1):
+            
+            df_agg_mode = df.copy(deep = True)
+            df_agg_mode = df_agg_mode[categorical_cols]
+            df_agg_mode = df_agg_mode.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
+            
+            # 6. df_agg_mode processing:
+            # Loop through each column from this dataframe:
+            for col_mode in list(df_agg_mode.columns):
+                
+                # start a list of modes:
+                list_of_modes = []
+                
+                # Now, loop through each row from the dataset:
+                for i in range(0, len(df_agg_mode)):
+                    # i = 0 to i = len(df_agg_mode) - 1
+                    
+                    mode_array = df_agg_mode[col_mode][i]    
+                    
+                    try:
+                        # try accessing the mode
+                        # mode array is like:
+                        # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
+                        # To retrieve only the mode, we must access the element [0][0] from this array:
+                        mode = mode_array[0][0]
+                    
+                    except:
+                        mode = np.nan
+                    
+                    # Append it to the list of modes:
+                    list_of_modes.append(mode)
+                    
+                # Finally, make the column the list of modes itself:
+                df_agg_mode[col_mode] = list_of_modes
+                
+                # try to convert to datetime64 (case it is not anymore):
+                try:
+                    df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
+                
+                except:
+                    # simply ignore this step in case it is not possible to parse
+                    # because it is a string:
+                    pass
+                
+        if (is_numeric == 1):
+            
+            df_agg_mean = df.copy(deep = True)
+            df_agg_sum = df.copy(deep = True)
+            df_agg_std = df.copy(deep = True)
+            df_agg_count = df.copy(deep = True)
+            
+            df_agg_mean = df_agg_mean[numeric_cols]
+            df_agg_sum = df_agg_sum[numeric_cols]
+            df_agg_std = df_agg_std[numeric_cols]
+            df_agg_count = df_agg_count[numeric_cols]
+            
+            df_agg_mean = df_agg_mean.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).mean()
+            df_agg_sum = df_agg_sum.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).sum()
+            df_agg_std = df_agg_sum.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).std()
+            df_agg_count = df_agg_count.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).count()
+            # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
+            # (default: as_index = True).
+            
+            # 7. df_agg_count processing:
+            # Here, all original columns contain only the counting of elements in each
+            # label. So, let's select only the columns 'key_for_merging' and column_with_variable_to_be_analyzed:
+            df_agg_count = df_agg_count[[self.column_with_variable_to_be_analyzed]]
+            
+            # Rename the columns:
+            df_agg_count.columns = ['count_of_elements_by_label']
+            
+            # Analogously, let's keep only the colums column_with_variable_to_be_analyzed and
+            # 'key_for_merging' from the dataframes df_agg_sum and df_agg_std, and rename them:
+            df_agg_sum = df_agg_sum[[self.column_with_variable_to_be_analyzed]]
+            df_agg_std = df_agg_std[[self.column_with_variable_to_be_analyzed]]
+            
+            df_agg_sum.columns = ['sum_of_values_by_label']
+            df_agg_std.columns = ['std_of_values_by_label']
+            
+        if ((is_categorical + is_numeric) == 2):
+            # Both subsets are present and the column column_with_labels_or_subgroups
+            # is duplicated.
+            
+            # Remove this column from df_agg_mean:
+            df_agg_mean = df_agg_mean.drop(columns = self.column_with_labels_or_subgroups)
+            
+            # Concatenate all dataframes:
+            df = pd.concat([df_agg_mode, df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")
+            
+        elif (is_numeric == 1):
+            
+            # Only the numeric dataframes are present. So, concatenate them:
+            df = pd.concat([df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")
+            
+        elif (is_categorical == 1):
+            
+            # There is only the categorical dataframe:
+            df = df_agg_mode
+            
+        df = df.reset_index(drop = True)
+        
+        # Notice that now we have a different mean value: we have a mean value
+        # of the means calculated for each subgroup. So, we must update the
+        # dictionary information:    
+        dictionary['center'] = df[column_with_variable_to_be_analyzed].mean()
+        dictionary['sum'] = df[column_with_variable_to_be_analyzed].sum()
+        dictionary['std'] = df[column_with_variable_to_be_analyzed].std()
+        dictionary['var'] = df[column_with_variable_to_be_analyzed].var()
+        dictionary['count'] = df[column_with_variable_to_be_analyzed].count()
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+            
+    def chart_x_bar_s (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # CONTROL LIMIT EQUATIONS:
+        # X-bar = mean =  (sum of measurements)/(subgroup size)
+        # s = standard deviation in each subgroup
+        # s-bar = mean (s) = (sum of all s values)/(number of subgroups)
+        # x-bar-bar = mean (x-bar) = (sum of all x-bar)/(number of subgroups)
+        # Lower control limit (LCL) = X-bar-bar - (A3)(s-bar)
+        # Upper control limit (UCL) = X-bar-bar + (A3)(s-bar) 
+        
+        s = df['std_of_values_by_label']
+        
+        # Update the number of labels attribute
+        self.number_of_labels = dictionary['count']
+        
+        s_bar = (s.sum())/(self.number_of_labels)
+        x_bar_bar = dictionary['center']
+        
+        # Retrieve A3
+        self = self.get_constants()
+        control_chart_constant = self.dict_of_constants['A3']
+        
+        # calculate the upper control limit as X-bar-bar + (A3)(s-bar):
+        upper_cl = x_bar_bar + (control_chart_constant) * (s_bar)
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as X-bar-bar - (A3)(s-bar):
+        lower_cl = x_bar_bar - (control_chart_constant) * (s_bar)
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = x_bar_bar
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+    
+    def chart_p (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+         
+        # CONTROL LIMIT EQUATIONS:
+        # p-chart: control chart for proportion of defectives
+        # p = mean =  (sum of measurements)/(subgroup size)
+        # pbar = (sum of subgroup defective counts)/(sum of subgroups sizes)
+        # n = subgroup size
+        # Lower control limit (LCL) = pbar - 3.sqrt((pbar)*(1-pbar)/n)
+        # Upper control limit (UCL) = pbar + 3.sqrt((pbar)*(1-pbar)/n)
+        
+        count_per_label = df['count_of_elements_by_label']
+        p_bar = dictionary['center']
+        
+        # calculate the upper control limit as pbar + 3.sqrt((pbar)*(1-pbar)/n):
+        upper_cl = p_bar + 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as pbar - 3.sqrt((pbar)*(1-pbar)/n):
+        lower_cl = p_bar - 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = p_bar
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+
+    def chart_np (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # CONTROL LIMIT EQUATIONS:
+        # np-chart: control chart for count of defectives
+        # np = sum = subgroup defective count
+        # npbar = (sum of subgroup defective counts)/(number of subgroups)
+        # n = subgroup size
+        # pbar = npbar/n
+        # Lower control limit (LCL) = np - 3.sqrt((npbar)*(1-p))
+        # Upper control limit (UCL) = np + 3.sqrt((npbar)*(1-p))
+        # available function: **(0.5) - 0.5 power
+        
+        # Here, the column that we want to evaluate is not the mean, but the sum.
+        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+        # Let's make this column equals to the column of sums:
+        
+        df[self.column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        
+        count_per_label = df['count_of_elements_by_label']
+        sum_p = df['sum_of_values_by_label'].sum() # It is the np, would is already used for NumPy
+        
+        p = (df['sum_of_values_by_label'])/(count_per_label)
+        
+        # calculate the upper control limit as np + 3.sqrt((np)*(1-p)):
+        upper_cl = np + 3 * (((sum_p)*(1 - p))**(0.5))
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as np - 3.sqrt((np)*(1-p)):
+        lower_cl = np - 3 * (((sum_p)*(1 - p))**(0.5))
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = sum_p
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+    
+    def chart_c (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # CONTROL LIMIT EQUATIONS:
+        # c-chart: control chart for counts of occurrences per unit
+        # c = sum = sum of subgroup occurrences
+        # cbar = (sum of subgroup occurrences)/(number of subgroups)
+        # n = subgroup size
+        # Lower control limit (LCL) = cbar - 3.sqrt(cbar)
+        # Upper control limit (UCL) = cbar + 3.sqrt(cbar)
+        
+        # Here, the column that we want to evaluate is not the mean, but the sum.
+        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+        # Let's make this column equals to the column of sums:
+        
+        df[self.column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        
+        # Update the number of labels attribute
+        self.number_of_labels = dictionary['count']
+        
+        c_bar = (df['sum_of_values_by_label'].sum())/(self.number_of_labels)
+        
+        # calculate the upper control limit as cbar + 3.sqrt(cbar):
+        upper_cl = c_bar + 3 * ((c_bar)**(0.5))
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as cbar - 3.sqrt(cbar):
+        lower_cl = c_bar - 3 * ((c_bar)**(0.5))
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = c_bar
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+    
+    def chart_u (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # CONTROL LIMIT EQUATIONS:
+        # u-chart: control chart for average occurrence per unit
+        # u = mean =  (subgroup count of occurrences)/(subgroup size, in units)
+        # ubar = mean value of u
+        # n = subgroup size
+        # Lower control limit (LCL) = ubar - 3.sqrt(ubar/n)
+        # Upper control limit (UCL) = ubar + 3.sqrt(ubar/n)
+        
+        # Update the number of labels attribute
+        self.number_of_labels = dictionary['count']
+        
+        count_per_label = df['count_of_elements_by_label']
+        
+        u_bar = (df[column_with_variable_to_be_analyzed])/(self.number_of_labels)
+        
+        # calculate the upper control limit as ubar + 3.sqrt(ubar/n):
+        upper_cl = u_bar + 3 * ((u_bar/count_per_label)**(0.5))
+        
+        # add a column 'upper_cl' on the dataframe with this value:
+        df['upper_cl'] = upper_cl
+        
+        # calculate the lower control limit as ubar - 3.sqrt(ubar/n):
+        lower_cl = u_bar - 3 * ((u_bar/count_per_label)**(0.5))
+        
+        # add a column 'lower_cl' on the dataframe with this value:
+        df['lower_cl'] = lower_cl
+        
+        # Add a column with the mean value of the considered interval:
+        df['center'] = u_bar
+        
+        # Update the dataframe in the dictionary:
+        dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
+    
+    def rare_events_chart (self):
+        
+        import numpy as np
+        import pandas as pd
+        
+        dictionary = self.dictionary
+        df = self.df
+        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        
+        # Filter df to the rare events:
+        rare_events_df = df.copy(deep = True)
+        rare_events_df = rare_events_df[rare_events_df[self.column_with_variable_to_be_analyzed] == self.rare_event_indication]
+        
+        # rare_events_df stores only the entries for rare events.
+        # Let's get a list of the indices of these entries (we did not reset the index):
+        rare_events_indices = list(rare_events_df.index)
+        
+        # Start lists for storing the count of events between the rares and the time between
+        # the rare events. Start both lists from np.nan, since we do not have information of
+        # any rare event before the first one registered (np.nan is float).
+        count_between_rares = [np.nan]
+        timedelta_between_rares = [np.nan]
+        
+        # Check if the times are datetimes or not:
+        column_data_type = df[self.timestamp_tag_column].dtype
+        
+        if (column_data_type not in self.numeric_dtypes):            
+            # It is a datetime. Let's loop between successive indices:
+            if (len(rare_events_indices) > 1):
+                
+                for i in range(0, (len(rare_events_indices)-1)):
+                    # get the timedelta:
+                    index_i = rare_events_indices[i]
+                    index_i_plus = rare_events_indices[i + 1]  
+                    
+                    t_i = pd.Timestamp((df[self.timestamp_tag_column])[index_i], unit = 'ns')
+                    t_i_plus = pd.Timestamp((df[self.timestamp_tag_column])[index_i_plus], unit = 'ns')
+                    
+                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)]
+                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    
+                    # We sliced the dataframe from index_i + 1 not to include the rare
+                    # event, so we started from the next one. Also, the last element is
+                    # of index index_i_plus - 1, the element before the next rare.
+                    count_between_rares.append(count_between_rares)
+                    
+                    # Calculate the timedelta:
+                    # Convert to an integer representing the total of nanoseconds:
+                    timedelta = pd.Timedelta(t_i_plus - t_i).delta
+                    
+                    if (self.rare_event_timedelta_unit == 'year'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                        #5. Convert it to years. 1 year = 365 days + 6 h = 365 days + 6/24 h/(h/day)
+                        # = (365 + 1/4) days = 365.25 days
+                        timedelta = timedelta / (365.25) #in years
+                        #The .0 after the numbers guarantees a float division.
+                        
+                    elif (self.rare_event_timedelta_unit == 'month'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                        #5. Convert it to months. Consider 1 month = 30 days
+                        timedelta = timedelta / (30.0) #in months
+                        #The .0 after the numbers guarantees a float division.
+                        
+                    elif (self.rare_event_timedelta_unit == 'day'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        #4. Convert it to days (1 day = 24 h):
+                        timedelta = timedelta / 24.0 #in days
+                        
+                    elif (self.rare_event_timedelta_unit == 'hour'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        #3. Convert it to hours (1 h = 60 min):
+                        timedelta = timedelta / 60.0 #in hours
+                        
+                    elif (self.rare_event_timedelta_unit == 'minute'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        #2. Convert it to minutes (1 min = 60 s):
+                        timedelta = timedelta / 60.0 #in minutes
+                        
+                    elif (self.rare_event_timedelta_unit == 'second'):
+                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
+                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
+                        timedelta = timedelta / (10**9) #in seconds
+                        
+                    else:
+                        timedelta = timedelta # nanoseconds.
+                    
+                    # Append the timedelta to the list:
+                    timedelta_between_rares.append(timedelta)
+            
+            else:
+                # There is a single rare event.
+                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
+                return self
+        
+        else: 
+            # The column is not a timestamp. Simply subtract the values to calculate the
+            # timedeltas. Let's loop between successive indices:
+            if (len(rare_events_indices) > 1):
+                
+                for i in range(0, (len(rare_events_indices)-1)):
+                    
+                    # get the timedelta:
+                    index_i = rare_events_indices[i]
+                    index_i_plus = rare_events_indices[i + 1]
+                    
+                    t_i = (df[self.timestamp_tag_column])[index_i]
+                    t_i_plus = (df[self.timestamp_tag_column])[index_i_plus]
+                    
+                    timedelta = (t_i_plus - t_i)
+                    
+                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)] 
+                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    
+                    count_between_rares.append(count_between_rares)
+                    timedelta_between_rares.append(timedelta)
+            else:
+                # There is a single rare event.
+                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
+                return self
+            
+        # Notice that the lists still have one element less than the dataframe of rares.
+        # That is because we do not have data for accounting for the next rare event. So,
+        # append np.nan to both lists (we do not know how much time it will take until the next rare):
+        count_between_rares.append(np.nan)
+        timedelta_between_rares.append(np.nan)
+        
+        # Now, lists have the same total elements of the rare_events_df, and can be
+        # added as columns:        
+        # firstly, reset the index:
+        rare_events_df = rare_events_df.reset_index(drop = True)
+        
+        # Add the columns:
+        rare_events_df['count_between_rares'] = count_between_rares
+        rare_events_df['timedelta_between_rares'] = timedelta_between_rares
+        
+        # Now, make the rares dataframe the df itself:
+        df = rare_events_df
+        
+        if (self.chart_to_use == 'g'):
+            
+            # Here, the column that we want to evaluate is not the mean, but the 'count_between_rares'.
+            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+            # Let's make this column equals to the column 'count_between_rares':
+            df[self.column_with_variable_to_be_analyzed] = df['count_between_rares']
+            
+            g_bar = df['count_between_rares'].median()
+            n_samples = df['count_between_rares'].count()
+            
+            p = (1/(g_bar + 1))*((n_samples - 1)/n_samples)
+            
+            # np.log = natural logarithm
+            # https://numpy.org/doc/stable/reference/generated/numpy.log.html
+            center = ((np.log(0.5))/(np.log(1 - p))) - 1
+            
+            # calculate the upper control limit as log(0.00135)/log(1-p)-1:
+            upper_cl = ((np.log(0.00135))/(np.log(1 - p))) - 1
+            
+            # add a column 'upper_cl' on the dataframe with this value:
+            df['upper_cl'] = upper_cl
+            
+            # calculate the lower control limit as Max(0, log(1-0.00135)/log(1-p)-1):
+            lower_cl = max(0, ((np.log(1 - 0.00135))/(log(1 - p)) - 1))
+            
+            # add a column 'lower_cl' on the dataframe with this value:
+            df['lower_cl'] = lower_cl
+            
+            # Add a column with the mean value of the considered interval:
+            df['center'] = center
+            
+            # Update the dataframe in the dictionary:
+            dictionary['df'] = df
+            
+        elif (self.chart_to_use == 't'):
+            
+            # Here, the column that we want to evaluate is not the mean, but the 'timedelta_between_rares'.
+            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
+            # Let's make this column equals to the column 'timedelta_between_rares':
+            df[self.column_with_variable_to_be_analyzed] = df['timedelta_between_rares']
+            
+            # Create the transformed series:
+            # y = df['timedelta_between_rares']
+            # y_transf = y**(1/3.6)
+            y_transf = (df['timedelta_between_rares'])**(1/(3.6))
+            
+            # Now, let's create an I-MR chart for y_transf        
+            moving_range = [abs(max((y_transf[i]), (y_transf[(i-1)])) - min((y_transf[i]), (y_transf[(i-1)]))) for i in range (1, len(y_transf))]
+            y_bar = [(y_transf[i] + y_transf[(i-1)])/2 for i in range (1, len(y_transf))]
+            # These lists were created from index 1. We must add a initial element to
+            # make their sizes equal to the original dataset length
+            
+            # Start the list to store the moving ranges, containing only the number 0
+            # for the moving range (by simple concatenation):
+            moving_range = [0] + moving_range
+            # Start the list that stores the mean values of the 2-elements subgroups
+            # with the first element itself (index 0):  - list y_bar:
+            y_bar = [y_transf[0]] + y_bar
+            
+            # Convert the lists to NumPy arrays, for performing vectorial (element-wise)
+            # operations:
+            moving_range = np.array(moving_range)
+            y_bar = np.array(y_bar)
+            
+            # Get the mean values from y_bar list and moving_range:
+            # https://numpy.org/doc/stable/reference/generated/numpy.average.html
+            y_bar_bar = np.average(y_bar)
+            r_bar = np.average(moving_range)
+            
+            # Get the control chart constant A2 from the dictionary, considering n = 2 the
+            # number of elements of each subgroup:
+            
+            # Update the number of labels attribute for the moving range case
+            self.number_of_labels = 2
+            self = self.get_constants()
+            
+            control_chart_constant = self.dict_of_constants['1/d2']
+            control_chart_constant = control_chart_constant * 3
+            
+            # calculate the upper control limit as y_bar_bar + (3/d2)r_bar:
+            upper_cl_transf = y_bar_bar + (control_chart_constant) * (r_bar)
+            
+            # calculate the lower control limit as y_bar_bar - (3/d2)r_bar:
+            lower_cl_transf = y_bar_bar - (control_chart_constant) * (r_bar)
+            
+            # Notice that these values are for the transformed variables:
+            # y_transf = (df['timedelta_between_rares'])**(1/(3.6))
+            
+            # To reconvert to the correct time scale, we reverse this transform as:
+            # (y_transf)**(3.6)
+            
+            # add a column 'upper_cl' on the dataframe with upper_cl_transf
+            # converted to the original scale:
+            df['upper_cl'] = (upper_cl_transf)**(3.6)
+            
+            # add a column 'lower_cl' on the dataframe with lower_cl_transf
+            # converted to the original scale:
+            df['lower_cl'] = (lower_cl_transf)**(3.6)
+            
+            # Finally, add the central line by reconverting y_bar_bar to the
+            # original scale:
+            df['center'] = (y_bar_bar)**(3.6)
+            
+            # Notice that this procedure naturally corrects the deviations caused by
+            # the skewness of the distribution. Actually, log and exponential transforms
+            # tend to reduce the skewness and to normalize the data.
+            # Update the dataframe in the dictionary:
+            dictionary['df'] = df
+        
+        # Update the attributes:
+        self.dictionary = dictionary
+        self.df = df
+        
+        return self
 
 def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, add_splines_lines = True, add_scatter_dots = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
      
@@ -16441,56 +17430,16 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # Notice that this parameter is referrent only to the rare events analysis with G or T charts.
     # Also, it is valid only the timetag column effectively stores a timestamp.
     
-    
     # List the possible numeric data types for a Pandas dataframe column:
     numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
 
+    
     ## CONTROL CHARTS CALCULATION
     
     # References: 
     # Douglas C. Montgomery. Introduction to Statistical Quality Control. 6th Edition. 
     # John Wiley and Sons, 2009.
     # Jacob Anhoej. Control Charts with qicharts for R. 2021-04-20. In: https://cran.r-project.org/web/packages/qicharts/vignettes/controlcharts.html
-    
-    # Define a dictionary of constants.
-    # Each key in the dictionary corresponds to a number of samples in a subgroup.
-    # number_of_labels - This variable represents the total of labels or subgroups n. 
-    # If there are multiple labels, this variable will be updated later.
-    def get_constants (number_of_labels):
-        if (number_of_labels < 2):
-            number_of_labels = 2
-        if (number_of_labels <= 25):
-            dict_of_constants = {
-                2: {'A':2.121, 'A2':1.880, 'A3':2.659, 'c4':0.7979, '1/c4':1.2533, 'B3':0, 'B4':3.267, 'B5':0, 'B6':2.606, 'd2':1.128, '1/d2':0.8865, 'd3':0.853, 'D1':0, 'D2':3.686, 'D3':0, 'D4':3.267},
-                3: {'A':1.732, 'A2':1.023, 'A3':1.954, 'c4':0.8862, '1/c4':1.1284, 'B3':0, 'B4':2.568, 'B5':0, 'B6':2.276, 'd2':1.693, '1/d2':0.5907, 'd3':0.888, 'D1':0, 'D2':4.358, 'D3':0, 'D4':2.574},
-                4: {'A':1.500, 'A2':0.729, 'A3':1.628, 'c4':0.9213, '1/c4':1.0854, 'B3':0, 'B4':2.266, 'B5':0, 'B6':2.088, 'd2':2.059, '1/d2':0.4857, 'd3':0.880, 'D1':0, 'D2':4.698, 'D3':0, 'D4':2.282},
-                5: {'A':1.342, 'A2':0.577, 'A3':1.427, 'c4':0.9400, '1/c4':1.0638, 'B3':0, 'B4':2.089, 'B5':0, 'B6':1.964, 'd2':2.326, '1/d2':0.4299, 'd3':0.864, 'D1':0, 'D2':4.918, 'D3':0, 'D4':2.114},
-                6: {'A':1.225, 'A2':0.483, 'A3':1.287, 'c4':0.9515, '1/c4':1.0510, 'B3':0.030, 'B4':1.970, 'B5':0.029, 'B6':1.874, 'd2':2.534, '1/d2':0.3946, 'd3':0.848, 'D1':0, 'D2':5.078, 'D3':0, 'D4':2.004},
-                7: {'A':1.134, 'A2':0.419, 'A3':1.182, 'c4':0.9594, '1/c4':1.0423, 'B3':0.118, 'B4':1.882, 'B5':0.113, 'B6':1.806, 'd2':2.704, '1/d2':0.3698, 'd3':0.833, 'D1':0.204, 'D2':5.204, 'D3':0.076, 'D4':1.924},
-                8: {'A':1.061, 'A2':0.373, 'A3':1.099, 'c4':0.9650, '1/c4':1.0363, 'B3':0.185, 'B4':1.815, 'B5':0.179, 'B6':1.751, 'd2':2.847, '1/d2':0.3512, 'd3':0.820, 'D1':0.388, 'D2':5.306, 'D3':0.136, 'D4':1.864},
-                9: {'A':1.000, 'A2':0.337, 'A3':1.032, 'c4':0.9693, '1/c4':1.0317, 'B3':0.239, 'B4':1.761, 'B5':0.232, 'B6':1.707, 'd2':2.970, '1/d2':0.3367, 'd3':0.808, 'D1':0.547, 'D2':5.393, 'D3':0.184, 'D4':1.816},
-                10: {'A':0.949, 'A2':0.308, 'A3':0.975, 'c4':0.9727, '1/c4':1.0281, 'B3':0.284, 'B4':1.716, 'B5':0.276, 'B6':1.669, 'd2':3.078, '1/d2':0.3249, 'd3':0.797, 'D1':0.687, 'D2':5.469, 'D3':0.223, 'D4':1.777},
-                11: {'A':0.905, 'A2':0.285, 'A3':0.927, 'c4':0.9754, '1/c4':1.0252, 'B3':0.321, 'B4':1.679, 'B5':0.313, 'B6':1.637, 'd2':3.173, '1/d2':0.3152, 'd3':0.787, 'D1':0.811, 'D2':5.535, 'D3':0.256, 'D4':1.744},
-                12: {'A':0.866, 'A2':0.266, 'A3':0.886, 'c4':0.9776, '1/c4':1.0229, 'B3':0.354, 'B4':1.646, 'B5':0.346, 'B6':1.610, 'd2':3.258, '1/d2':0.3069, 'd3':0.778, 'D1':0.922, 'D2':5.594, 'D3':0.283, 'D4':1.717},
-                13: {'A':0.832, 'A2':0.249, 'A3':0.850, 'c4':0.9794, '1/c4':1.0210, 'B3':0.382, 'B4':1.618, 'B5':0.374, 'B6':1.585, 'd2':3.336, '1/d2':0.2998, 'd3':0.770, 'D1':1.025, 'D2':5.647, 'D3':0.307, 'D4':1.693},
-                14: {'A':0.802, 'A2':0.235, 'A3':0.817, 'c4':0.9810, '1/c4':1.0194, 'B3':0.406, 'B4':1.594, 'B5':0.399, 'B6':1.563, 'd2':3.407, '1/d2':0.2935, 'd3':0.763, 'D1':1.118, 'D2':5.696, 'D3':0.328, 'D4':1.672},
-                15: {'A':0.775, 'A2':0.223, 'A3':0.789, 'c4':0.9823, '1/c4':1.0180, 'B3':0.428, 'B4':1.572, 'B5':0.421, 'B6':1.544, 'd2':3.472, '1/d2':0.2880, 'd3':0.756, 'D1':1.203, 'D2':5.741, 'D3':0.347, 'D4':1.653},
-                16: {'A':0.750, 'A2':0.212, 'A3':0.763, 'c4':0.9835, '1/c4':1.0168, 'B3':0.448, 'B4':1.552, 'B5':0.440, 'B6':1.526, 'd2':3.532, '1/d2':0.2831, 'd3':0.750, 'D1':1.282, 'D2':5.782, 'D3':0.363, 'D4':1.637},
-                17: {'A':0.728, 'A2':0.203, 'A3':0.739, 'c4':0.9845, '1/c4':1.0157, 'B3':0.466, 'B4':1.534, 'B5':0.458, 'B6':1.511, 'd2':3.588, '1/d2':0.2787, 'd3':0.744, 'D1':1.356, 'D2':5.820, 'D3':0.378, 'D4':1.622},
-                18: {'A':0.707, 'A2':0.194, 'A3':0.718, 'c4':0.9854, '1/c4':1.0148, 'B3':0.482, 'B4':1.518, 'B5':0.475, 'B6':1.496, 'd2':3.640, '1/d2':0.2747, 'd3':0.739, 'D1':1.424, 'D2':5.856, 'D3':0.391, 'D4':1.608},
-                19: {'A':0.688, 'A2':0.187, 'A3':0.698, 'c4':0.9862, '1/c4':1.0140, 'B3':0.497, 'B4':1.503, 'B5':0.490, 'B6':1.483, 'd2':3.689, '1/d2':0.2711, 'd3':0.734, 'D1':1.487, 'D2':5.891, 'D3':0.403, 'D4':1.597},
-                20: {'A':0.671, 'A2':0.180, 'A3':0.680, 'c4':0.9869, '1/c4':1.0133, 'B3':0.510, 'B4':1.490, 'B5':0.504, 'B6':1.470, 'd2':3.735, '1/d2':0.2677, 'd3':0.729, 'D1':1.549, 'D2':5.921, 'D3':0.415, 'D4':1.585},
-                21: {'A':0.655, 'A2':0.173, 'A3':0.663, 'c4':0.9876, '1/c4':1.0126, 'B3':0.523, 'B4':1.477, 'B5':0.516, 'B6':1.459, 'd2':3.778, '1/d2':0.2647, 'd3':0.724, 'D1':1.605, 'D2':5.951, 'D3':0.425, 'D4':1.575},
-                22: {'A':0.640, 'A2':0.167, 'A3':0.647, 'c4':0.9882, '1/c4':1.0119, 'B3':0.534, 'B4':1.466, 'B5':0.528, 'B6':1.448, 'd2':3.819, '1/d2':0.2618, 'd3':0.720, 'D1':1.659, 'D2':5.979, 'D3':0.434, 'D4':1.566},
-                23: {'A':0.626, 'A2':0.162, 'A3':0.633, 'c4':0.9887, '1/c4':1.0114, 'B3':0.545, 'B4':1.455, 'B5':0.539, 'B6':1.438, 'd2':3.858, '1/d2':0.2592, 'd3':0.716, 'D1':1.710, 'D2':6.006, 'D3':0.443, 'D4':1.557},
-                24: {'A':0.612, 'A2':0.157, 'A3':0.619, 'c4':0.9892, '1/c4':1.0109, 'B3':0.555, 'B4':1.445, 'B5':0.549, 'B6':1.429, 'd2':3.895, '1/d2':0.2567, 'd3':0.712, 'D1':1.759, 'D2':6.031, 'D3':0.451, 'D4':1.548},
-                25: {'A':0.600, 'A2':0.153, 'A3':0.606, 'c4':0.9896, '1/c4':1.0105, 'B3':0.565, 'B4':1.435, 'B5':0.559, 'B6':1.420, 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541},
-            }
-            # Access the key:
-            dict_of_constants = dict_of_constants[number_of_labels]
-        else: #>= 26
-            dict_of_constants = {'A':(3/(number_of_labels**(0.5))), 'A2':0.153, 'A3':3/((4*(number_of_labels-1)/(4*number_of_labels-3))*(number_of_labels**(0.5))), 'c4':(4*(number_of_labels-1)/(4*number_of_labels-3)), '1/c4':1/((4*(number_of_labels-1)/(4*number_of_labels-3))), 'B3':(1-3/(((4*(number_of_labels-1)/(4*number_of_labels-3)))*((2*(number_of_labels-1))**(0.5)))), 'B4':(1+3/(((4*(number_of_labels-1)/(4*number_of_labels-3)))*((2*(number_of_labels-1))**(0.5)))), 'B5':(((4*(number_of_labels-1)/(4*number_of_labels-3)))-3/((2*(number_of_labels-1))**(0.5))), 'B6':(((4*(number_of_labels-1)/(4*number_of_labels-3)))+3/((2*(number_of_labels-1))**(0.5))), 'd2':3.931, '1/d2':0.2544, 'd3':0.708, 'D1':1.806, 'D2':6.056, 'D3':0.459, 'D4':1.541}
-        return dict_of_constants
 
     # CENTER LINE = m (mean)
     # s = std deviation
@@ -16518,274 +17467,14 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # UCL =  x_bar_bar + 3*(1/d2)*R_bar
     # LCL =  x_bar_bar - 3*(1/d2)*R_bar
     # Center line = x_bar_bar
-    
-    def chart_i_mr (dictionary, column_with_variable_to_be_analyzed):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # X-bar = (sum of measurements)/(number of measurements)
-        # R = Absolute value of [(largest in subgroup) - (lowest in subgroup)]
-        # Individual chart: subgroup = 1
-        # R = Absolute value of [(data) - (next data)]
-        # R-bar = (sum of ranges R)/(number of R values calculated)
-        # Lower control limit (LCL) = X-bar - (2.66)R-bar
-        # Upper control limit (UCL) = X-bar + (2.66)R-bar
-        # loop through each row from df, starting from the second (row 1):    
-        # calculate mR as the difference (Xmax - Xmin) of the difference between
-        # df[column_with_variable_to_be_analyzed] on row i and the row
-        # i-1. Since we do not know, in principle, which one is the maximum, we can use
-        # the max and min functions from Python:
-        # https://www.w3schools.com/python/ref_func_max.asp
-        # https://www.w3schools.com/python/ref_func_min.asp
-        # Also, the moving range here must be calculated as an absolute value
-        # https://www.w3schools.com/python/ref_func_abs.asp
-        moving_range = [abs(max((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)])) - min((df[column_with_variable_to_be_analyzed][i]), (df[column_with_variable_to_be_analyzed][(i-1)]))) for i in range (1, len(df))]
-        x_bar_list = [(df[column_with_variable_to_be_analyzed][i] + df[column_with_variable_to_be_analyzed][(i-1)])/2 for i in range (1, len(df))]
-        # These lists were created from index 1. We must add a initial element to
-        # make their sizes equal to the original dataset length
-        # Start the list to store the moving ranges, containing only the number 0
-        # for the moving range (by simple concatenation):
-        moving_range = [0] + moving_range
-        # Start the list that stores the mean values of the 2-elements subgroups
-        # with the first element itself (index 0):
-        x_bar_list = [df[column_with_variable_to_be_analyzed][0]] + x_bar_list
-        # Save the moving ranges as a new column from df (it may be interesting to check it):
-        df['moving_range'] = moving_range
-        # Save x_bar_list as the column to be analyzed:
-        df[column_with_variable_to_be_analyzed] = x_bar_list
-        # Get the mean values from x_bar:
-        x_bar_bar = df[column_with_variable_to_be_analyzed].mean()
-        # Calculate the mean value of the column moving_range, and save it as r_bar:
-        r_bar = df['moving_range'].mean()       
-        # Get the control chart constant A2 from the dictionary, considering n = 2 the
-        # number of elements of each subgroup:
-        dict_to_access = get_constants (number_of_labels = 2)
-        control_chart_constant = dict_to_access['1/d2']
-        control_chart_constant = control_chart_constant * 3
-        # calculate the upper control limit as x_bar + (3/d2)r_bar:
-        upper_cl = x_bar_bar + (control_chart_constant) * (r_bar)
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl 
-        # calculate the lower control limit as x_bar - (3/d2)r_bar:
-        lower_cl = x_bar_bar - (control_chart_constant) * (r_bar)
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = x_bar_bar
-        # Update the dataframe in the dictionary and return it:
-        dictionary['df'] = df
-        return dictionary
-
-    def chart_3s (dictionary, column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std):
-        # access the dataframe:
-        df = dictionary['df']
-        if(consider_skewed_dist_when_estimating_with_std):            
-            # Skewed data. Use the median:
-            center = df[column_with_variable_to_be_analyzed].median()    
-        else:
-            center = dictionary['center']    
-        # calculate the upper control limit as the mean + 3s
-        upper_cl = center + 3 * (dictionary['std'])
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl        
-        # calculate the lower control limit as the mean - 3s:
-        lower_cl = center - 3 * (dictionary['std'])
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl        
-        # Add a column with the mean value of the considered interval:
-        df['center'] = center        
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
-    
-    def chart_std_error (dictionary, column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std):
-        # access the dataframe:
-        df = dictionary['df']
-        n_samples = df[column_with_variable_to_be_analyzed].count()
-        s = dictionary['std']
-        std_error = s/(n_samples**(0.5))        
-        if(consider_skewed_dist_when_estimating_with_std):      
-            # Skewed data. Use the median:
-            center = df[column_with_variable_to_be_analyzed].median()    
-        else:
-            center = dictionary['center']    
-        # calculate the upper control limit as the mean + 3 std_error
-        upper_cl = center + 3 * (std_error)
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl        
-        # calculate the lower control limit as the mean - 3 std_error:
-        lower_cl = center - 3 * (std_error)
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = center        
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
         
     # CONTROL CHARTS FOR SUBGROUPS 
-    
-    def create_grouped_df (dictionary):
-        # access the dataframe:
-        df = dictionary['df']    
-        # We need to group each dataframe in terms of the subgroups stored in the variable
-        # column_with_labels_or_subgroups.
-        # The catehgorical or datetime columns must be aggregated in terms of mode.
-        # The numeric variables must be aggregated both in terms of mean and in terms of count
-        # (subgroup size)   
-        # 1. Start a list for categorical columns and other for numeric columns:
-        categorical_cols = []
-        numeric_cols = []
-        # Variables to map if there are categorical or numeric variables:
-        is_categorical = 0
-        is_numeric = 0
-        # 2. Loop through each column from the list of columns of the dataframe:
-        for column in list(df.columns):        
-            # check the type of column:
-            column_data_type = df[column].dtype
-            if (column_data_type not in numeric_dtypes):        
-                # If the Pandas series was defined as an object, it means it is categorical
-                # (string, date, etc). Also, this if captures the variables converted to datetime64
-                # Append the column to the list of categorical columns:
-                categorical_cols.append(column)
-            else:
-                # append the column to the list of numeric columns:
-                numeric_cols.append(column)
-            # 3. Check if column_with_labels_or_subgroups is in both lists. 
-            # If it is missing, append it. We need that this column in all subsets for grouping.
-            if not (column_with_labels_or_subgroups in categorical_cols):
-                categorical_cols.append(column_with_labels_or_subgroups)
-            if not (column_with_labels_or_subgroups in numeric_cols):
-                numeric_cols.append(column_with_labels_or_subgroups)
-            if (len(categorical_cols) > 1):
-                # There is at least one column plus column_with_labels_or_subgroups:
-                is_categorical = 1
-            if (len(numeric_cols) > 1):
-                # There is at least one column plus column_with_labels_or_subgroups:
-                is_numeric = 1
-        # 4. Create copies of df, subsetting by type of column
-        # 5. Group the dataframes by column_with_labels_or_subgroups, 
-        # according to the aggregate function:
-        if (is_categorical == 1):
-            df_agg_mode = df.copy(deep = True)
-            df_agg_mode = df_agg_mode[categorical_cols]
-            df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
-            # 6. df_agg_mode processing:
-            # Loop through each column from this dataframe:
-            for col_mode in list(df_agg_mode.columns):        
-                # start a list of modes:
-                list_of_modes = []    
-                # Now, loop through each row from the dataset:
-                for i in range(0, len(df_agg_mode)):
-                    # i = 0 to i = len(df_agg_mode) - 1    
-                    mode_array = df_agg_mode[col_mode][i]    
-                    try:
-                        # try accessing the mode
-                        # mode array is like:
-                        # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                        # To retrieve only the mode, we must access the element [0][0] from this array:
-                        mode = mode_array[0][0]
-                    except:
-                        mode = np.nan
-                    # Append it to the list of modes:
-                    list_of_modes.append(mode)
-                # Finally, make the column the list of modes itself:
-                df_agg_mode[col_mode] = list_of_modes    
-                # try to convert to datetime64 (case it is not anymore):
-                try:
-                    df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
-                except:
-                    # simply ignore this step in case it is not possible to parse
-                    # because it is a string:
-                    pass
-        if (is_numeric == 1):
-            df_agg_mean = df.copy(deep = True)
-            df_agg_sum = df.copy(deep = True)
-            df_agg_std = df.copy(deep = True)
-            df_agg_count = df.copy(deep = True)
-            df_agg_mean = df_agg_mean[numeric_cols]
-            df_agg_sum = df_agg_sum[numeric_cols]
-            df_agg_std = df_agg_std[numeric_cols]
-            df_agg_count = df_agg_count[numeric_cols]    
-            df_agg_mean = df_agg_mean.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).mean()
-            df_agg_sum = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).sum()
-            df_agg_std = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).std()
-            df_agg_count = df_agg_count.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).count()
-            # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
-            # (default: as_index = True).
-            # 7. df_agg_count processing:
-            # Here, all original columns contain only the counting of elements in each
-            # label. So, let's select only the columns 'key_for_merging' and column_with_variable_to_be_analyzed:
-            df_agg_count = df_agg_count[[column_with_variable_to_be_analyzed]]
-            # Rename the columns:
-            df_agg_count.columns = ['count_of_elements_by_label']    
-            # Analogously, let's keep only the colums column_with_variable_to_be_analyzed and
-            # 'key_for_merging' from the dataframes df_agg_sum and df_agg_std, and rename them:
-            df_agg_sum = df_agg_sum[[column_with_variable_to_be_analyzed]]
-            df_agg_std = df_agg_std[[column_with_variable_to_be_analyzed]]    
-            df_agg_sum.columns = ['sum_of_values_by_label']
-            df_agg_std.columns = ['std_of_values_by_label']
-        if ((is_categorical + is_numeric) == 2):
-            # Both subsets are present and the column column_with_labels_or_subgroups
-            # is duplicated.
-            # Remove this column from df_agg_mean:
-            df_agg_mean = df_agg_mean.drop(columns = column_with_labels_or_subgroups)
-            # Concatenate all dataframes:
-            df = pd.concat([df_agg_mode, df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")      
-        elif (is_numeric == 1):
-            # Only the numeric dataframes are present. So, concatenate them:
-            df = pd.concat([df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")
-        elif (is_categorical == 1):
-            # There is only the categorical dataframe:
-            df = df_agg_mode
-        df = df.reset_index(drop = True)
-        # Notice that now we have a different mean value: we have a mean value
-        # of the means calculated for each subgroup. So, we must update the
-        # dictionary information:    
-        dictionary['center'] = df[column_with_variable_to_be_analyzed].mean()
-        dictionary['sum'] = df[column_with_variable_to_be_analyzed].sum()
-        dictionary['std'] = df[column_with_variable_to_be_analyzed].std()
-        dictionary['var'] = df[column_with_variable_to_be_analyzed].var()
-        dictionary['count'] = df[column_with_variable_to_be_analyzed].count()
-        dictionary['df'] = df
-        return dictionary
             
     # X-bar-S (continuous variables) - (Montgomery, pg.253, section 6.3.1):
     # For subgroups with m elements:
     # UCL = x_bar_bar + A3*s_bar
     # Center line = x_bar_bar
     # LCL = x_bar_bar - A3*s_bar
-    
-    def chart_x_bar_s (dictionary):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # X-bar = mean =  (sum of measurements)/(subgroup size)
-        # s = standard deviation in each subgroup
-        # s-bar = mean (s) = (sum of all s values)/(number of subgroups)
-        # x-bar-bar = mean (x-bar) = (sum of all x-bar)/(number of subgroups)
-        # Lower control limit (LCL) = X-bar-bar - (A3)(s-bar)
-        # Upper control limit (UCL) = X-bar-bar + (A3)(s-bar)        
-        s = df['std_of_values_by_label']
-        number_of_labels = dictionary['count']
-        s_bar = (s.sum())/(number_of_labels)
-        x_bar_bar = dictionary['center']
-        # Retrieve A3
-        dict_to_access = get_constants (number_of_labels = number_of_labels)
-        control_chart_constant = dict_to_access['A3']
-        # calculate the upper control limit as X-bar-bar + (A3)(s-bar):
-        upper_cl = x_bar_bar + (control_chart_constant) * (s_bar)
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl
-        # calculate the lower control limit as X-bar-bar - (A3)(s-bar):
-        lower_cl = x_bar_bar - (control_chart_constant) * (s_bar)
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = x_bar_bar
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
     
     # CONTROL CHARTS FOR CATEGORICAL VARIABLES
     
@@ -16811,103 +17500,12 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # propoertion for each individual subgroup, as previously defined.
     # Then, again the control limits depend on the subgroup (label) size.
     
-    def chart_p (dictionary):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # p-chart: control chart for proportion of defectives
-        # p = mean =  (sum of measurements)/(subgroup size)
-        # pbar = (sum of subgroup defective counts)/(sum of subgroups sizes)
-        # n = subgroup size
-        # Lower control limit (LCL) = pbar - 3.sqrt((pbar)*(1-pbar)/n)
-        # Upper control limit (UCL) = pbar + 3.sqrt((pbar)*(1-pbar)/n)
-        number_of_labels = dictionary['count']
-        count_per_label = df['count_of_elements_by_label']
-        p_bar = dictionary['center']        
-        # calculate the upper control limit as pbar + 3.sqrt((pbar)*(1-pbar)/n):
-        upper_cl = p_bar + 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl
-        # calculate the lower control limit as pbar - 3.sqrt((pbar)*(1-pbar)/n):
-        lower_cl = p_bar - 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = p_bar
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
-
-    def chart_np (dictionary, column_with_variable_to_be_analyzed):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # np-chart: control chart for count of defectives
-        # np = sum = subgroup defective count
-        # npbar = (sum of subgroup defective counts)/(number of subgroups)
-        # n = subgroup size
-        # pbar = npbar/n
-        # Lower control limit (LCL) = np - 3.sqrt((npbar)*(1-p))
-        # Upper control limit (UCL) = np + 3.sqrt((npbar)*(1-p))
-        # available function: **(0.5) - 0.5 power        
-        # Here, the column that we want to evaluate is not the mean, but the sum.
-        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
-        # Let's make this column equals to the column of sums:
-        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
-        number_of_labels = dictionary['count']
-        count_per_label = df['count_of_elements_by_label']
-        sum_p = df['sum_of_values_by_label'].sum() # It is the np, would is already used for NumPy
-        p = (df['sum_of_values_by_label'])/(count_per_label)        
-        # calculate the upper control limit as np + 3.sqrt((np)*(1-p)):
-        upper_cl = np + 3 * (((sum_p)*(1 - p))**(0.5))
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl
-        # calculate the lower control limit as np - 3.sqrt((np)*(1-p)):
-        lower_cl = np - 3 * (((sum_p)*(1 - p))**(0.5))
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = sum_p
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
-    
     # C-chart - (Montgomery, pg.309, section 7.3.1):
     # In Poisson distribution, mean and variance are both equal to c.
     # UCL = c_bar + 3(c_bar**(0.5))
     # Center line = c_bar
     # LCL = c_bar + 3(c_bar**(0.5))
     # where c_bar is the mean c among all subgroups (labels)
-    
-    def chart_c (dictionary, column_with_variable_to_be_analyzed):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # c-chart: control chart for counts of occurrences per unit
-        # c = sum = sum of subgroup occurrences
-        # cbar = (sum of subgroup occurrences)/(number of subgroups)
-        # n = subgroup size
-        # Lower control limit (LCL) = cbar - 3.sqrt(cbar)
-        # Upper control limit (UCL) = cbar + 3.sqrt(cbar)
-        # Here, the column that we want to evaluate is not the mean, but the sum.
-        # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
-        # Let's make this column equals to the column of sums:        
-        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
-        number_of_labels = dictionary['count']
-        c_bar = (df['sum_of_values_by_label'].sum())/(number_of_labels)        
-        # calculate the upper control limit as cbar + 3.sqrt(cbar):
-        upper_cl = c_bar + 3 * ((c_bar)**(0.5))
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl
-        # calculate the lower control limit as cbar - 3.sqrt(cbar):
-        lower_cl = c_bar - 3 * ((c_bar)**(0.5))
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = c_bar
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
     
     # U-chart - (Montgomery, pg.314, section 7.3.1):
     # If we find x total nonconformities in a sample of n inspection units, then the average 
@@ -16917,33 +17515,6 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # LCL = u_bar + 3((u_bar/n)**(0.5))
     # where u_bar is the mean u among all subgroups (labels), but n is the individual subgroup size,
     # making the chart limit not-constant depending on the subgroups' sizes
-    
-    def chart_u (dictionary, column_with_variable_to_be_analyzed):
-        # access the dataframe:
-        df = dictionary['df']
-        # CONTROL LIMIT EQUATIONS:
-        # u-chart: control chart for average occurrence per unit
-        # u = mean =  (subgroup count of occurrences)/(subgroup size, in units)
-        # ubar = mean value of u
-        # n = subgroup size
-        # Lower control limit (LCL) = ubar - 3.sqrt(ubar/n)
-        # Upper control limit (UCL) = ubar + 3.sqrt(ubar/n)        
-        number_of_labels = dictionary['count']
-        count_per_label = df['count_of_elements_by_label']
-        u_bar = (df[column_with_variable_to_be_analyzed])/(number_of_labels)        
-        # calculate the upper control limit as ubar + 3.sqrt(ubar/n):
-        upper_cl = u_bar + 3 * ((u_bar/count_per_label)**(0.5))
-        # add a column 'upper_cl' on the dataframe with this value:
-        df['upper_cl'] = upper_cl
-        # calculate the lower control limit as ubar - 3.sqrt(ubar/n):
-        lower_cl = u_bar - 3 * ((u_bar/count_per_label)**(0.5))
-        # add a column 'lower_cl' on the dataframe with this value:
-        df['lower_cl'] = lower_cl
-        # Add a column with the mean value of the considered interval:
-        df['center'] = u_bar
-        # Update the dataframe in the dictionary:
-        dictionary['df'] = df
-        return dictionary
 
     # RARE EVENTS
     # ATTENTION: Due not group data in this case. Since events are rare, they are likely to be 
@@ -17024,217 +17595,6 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # distribution. Actually, log and exponential transforms tend to reduce the skewness and to 
     # normalize the data.
     
-    def rare_events_chart (dictionary, column_with_variable_to_be_analyzed, rare_event_indication, rare_event_timedelta_unit, chart_to_use):
-        # access the dataframe:
-        df = dictionary['df']
-        # Filter df to the rare events:
-        rare_events_df = df.copy(deep = True)
-        rare_events_df = rare_events_df[rare_events_df[column_with_variable_to_be_analyzed] == rare_event_indication]
-        # rare_events_df stores only the entries for rare events.
-        # Let's get a list of the indices of these entries (we did not reset the index):
-        rare_events_indices = list(rare_events_df.index)        
-        # Start lists for storing the count of events between the rares and the time between
-        # the rare events. Start both lists from np.nan, since we do not have information of
-        # any rare event before the first one registered (np.nan is float).
-        count_between_rares = [np.nan]
-        timedelta_between_rares = [np.nan]
-        # Check if the times are datetimes or not:
-        column_data_type = df[timestamp_tag_column].dtype        
-        if (column_data_type not in numeric_dtypes):            
-            # It is a datetime. Let's loop between successive indices:
-            if (len(rare_events_indices) > 1):            
-                for i in range(0, (len(rare_events_indices)-1)):
-                    # get the timedelta:
-                    index_i = rare_events_indices[i]
-                    index_i_plus = rare_events_indices[i + 1]        
-                    t_i = pd.Timestamp((df[timestamp_tag_column])[index_i], unit = 'ns')
-                    t_i_plus = pd.Timestamp((df[timestamp_tag_column])[index_i_plus], unit = 'ns')        
-                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)]
-                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
-                    # We sliced the dataframe from index_i + 1 not to include the rare
-                    # event, so we started from the next one. Also, the last element is
-                    # of index index_i_plus - 1, the element before the next rare.
-                    count_between_rares.append(count_between_rares)        
-                    # Calculate the timedelta:
-                    # Convert to an integer representing the total of nanoseconds:
-                    timedelta = pd.Timedelta(t_i_plus - t_i).delta
-                    if (rare_event_timedelta_unit == 'year'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                        #2. Convert it to minutes (1 min = 60 s):
-                        timedelta = timedelta / 60.0 #in minutes
-                        #3. Convert it to hours (1 h = 60 min):
-                        timedelta = timedelta / 60.0 #in hours
-                        #4. Convert it to days (1 day = 24 h):
-                        timedelta = timedelta / 24.0 #in days
-                        #5. Convert it to years. 1 year = 365 days + 6 h = 365 days + 6/24 h/(h/day)
-                        # = (365 + 1/4) days = 365.25 days
-                        timedelta = timedelta / (365.25) #in years
-                        #The .0 after the numbers guarantees a float division.
-                    elif (rare_event_timedelta_unit == 'month'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                        #2. Convert it to minutes (1 min = 60 s):
-                        timedelta = timedelta / 60.0 #in minutes
-                        #3. Convert it to hours (1 h = 60 min):
-                        timedelta = timedelta / 60.0 #in hours
-                        #4. Convert it to days (1 day = 24 h):
-                        timedelta = timedelta / 24.0 #in days
-                        #5. Convert it to months. Consider 1 month = 30 days
-                        timedelta = timedelta / (30.0) #in months
-                        #The .0 after the numbers guarantees a float division.
-                    elif (rare_event_timedelta_unit == 'day'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                        #2. Convert it to minutes (1 min = 60 s):
-                        timedelta = timedelta / 60.0 #in minutes
-                        #3. Convert it to hours (1 h = 60 min):
-                        timedelta = timedelta / 60.0 #in hours
-                        #4. Convert it to days (1 day = 24 h):
-                        timedelta = timedelta / 24.0 #in days
-                    elif (rare_event_timedelta_unit == 'hour'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                        #2. Convert it to minutes (1 min = 60 s):
-                        timedelta = timedelta / 60.0 #in minutes
-                        #3. Convert it to hours (1 h = 60 min):
-                        timedelta = timedelta / 60.0 #in hours
-                    elif (rare_event_timedelta_unit == 'minute'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                        #2. Convert it to minutes (1 min = 60 s):
-                        timedelta = timedelta / 60.0 #in minutes
-                    elif (rare_event_timedelta_unit == 'second'):
-                        #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
-                        #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
-                        timedelta = timedelta / (10**9) #in seconds
-                    else:
-                        timedelta = timedelta # nanoseconds.  
-                    # Append the timedelta to the list:
-                    timedelta_between_rares.append(timedelta)
-            else:
-                # There is a single rare event.
-                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
-                return {}
-        else: 
-            # The column is not a timestamp. Simply subtract the values to calculate the
-            # timedeltas:
-            # It is a datetime. Let's loop between successive indices:
-            if (len(rare_events_indices) > 1):            
-                for i in range(0, (len(rare_events_indices)-1)):
-                    # get the timedelta:
-                    index_i = rare_events_indices[i]
-                    index_i_plus = rare_events_indices[i + 1]
-                    t_i = (df[timestamp_tag_column])[index_i]
-                    t_i_plus = (df[timestamp_tag_column])[index_i_plus]
-                    timedelta = (t_i_plus - t_i)
-                    # to slice a dataframe from row i to row j (including j): df[i:(j+1)] 
-                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
-                    count_between_rares.append(count_between_rares)
-                    timedelta_between_rares.append(timedelta)
-            else:
-                # There is a single rare event.
-                print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
-                return {}
-        # Notice that the lists still have one element less than the dataframe of rares.
-        # That is because we do not have data for accounting for the next rare event. So,
-        # append np.nan to both lists:
-        count_between_rares.append(np.nan)
-        timedelta_between_rares.append(np.nan)
-        # Now, lists have the same total elements of the rare_events_df, and can be
-        # added as columns:        
-        # firstly, reset the index:
-        rare_events_df = rare_events_df.reset_index(drop = True)
-        # Add the columns:
-        rare_events_df['count_between_rares'] = count_between_rares
-        rare_events_df['timedelta_between_rares'] = timedelta_between_rares            
-        # Now, make the rares dataframe the df itself:
-        df = rare_events_df        
-        if (chart_to_use == 'g'):            
-            # Here, the column that we want to evaluate is not the mean, but the 'count_between_rares'.
-            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
-            # Let's make this column equals to the column 'count_between_rares':
-            df[column_with_variable_to_be_analyzed] = df['count_between_rares']        
-            g_bar = df['count_between_rares'].median()
-            n_samples = df['count_between_rares'].count()
-            p = (1/(g_bar + 1))*((n_samples - 1)/n_samples)
-            # np.log = natural logarithm
-            # https://numpy.org/doc/stable/reference/generated/numpy.log.html
-            center = ((np.log(0.5))/(np.log(1 - p))) - 1        
-            # calculate the upper control limit as log(0.00135)/log(1-p)-1:
-            upper_cl = ((np.log(0.00135))/(np.log(1 - p))) - 1
-            # add a column 'upper_cl' on the dataframe with this value:
-            df['upper_cl'] = upper_cl        
-            # calculate the lower control limit as Max(0, log(1-0.00135)/log(1-p)-1):
-            lower_cl = max(0, ((np.log(1 - 0.00135))/(log(1 - p)) - 1))
-            # add a column 'lower_cl' on the dataframe with this value:
-            df['lower_cl'] = lower_cl        
-            # Add a column with the mean value of the considered interval:
-            df['center'] = center
-            # Update the dataframe in the dictionary:
-            dictionary['df'] = df 
-        elif (chart_to_use == 't'):
-            # Here, the column that we want to evaluate is not the mean, but the 'timedelta_between_rares'.
-            # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
-            # Let's make this column equals to the column 'timedelta_between_rares':
-            df[column_with_variable_to_be_analyzed] = df['timedelta_between_rares']        
-            # Create the transformed series:
-            # y = df['timedelta_between_rares']
-            # y_transf = y**(1/3.6)
-            y_transf = (df['timedelta_between_rares'])**(1/(3.6))
-            # Now, let's create an I-MR chart for y_transf        
-            moving_range = [abs(max((y_transf[i]), (y_transf[(i-1)])) - min((y_transf[i]), (y_transf[(i-1)]))) for i in range (1, len(y_transf))]
-            y_bar = [(y_transf[i] + y_transf[(i-1)])/2 for i in range (1, len(y_transf))]
-            # These lists were created from index 1. We must add a initial element to
-            # make their sizes equal to the original dataset length
-            # Start the list to store the moving ranges, containing only the number 0
-            # for the moving range (by simple concatenation):
-            moving_range = [0] + moving_range
-            # Start the list that stores the mean values of the 2-elements subgroups
-            # with the first element itself (index 0):  - list y_bar:
-            y_bar = [y_transf[0]] + y_bar
-            # Convert the lists to NumPy arrays, for performing vectorial (element-wise)
-            # operations:
-            moving_range = np.array(moving_range)
-            y_bar = np.array(y_bar)        
-            # Get the mean values from y_bar list and moving_range:
-            # https://numpy.org/doc/stable/reference/generated/numpy.average.html
-            y_bar_bar = np.average(y_bar)
-            r_bar = np.average(moving_range)
-            # Get the control chart constant A2 from the dictionary, considering n = 2 the
-            # number of elements of each subgroup:
-            dict_to_access = get_constants (number_of_labels = 2)
-            control_chart_constant = dict_to_access['1/d2']
-            control_chart_constant = control_chart_constant * 3
-            # calculate the upper control limit as y_bar_bar + (3/d2)r_bar:
-            upper_cl_transf = y_bar_bar + (control_chart_constant) * (r_bar)                
-            # calculate the lower control limit as y_bar_bar - (3/d2)r_bar:
-            lower_cl_transf = y_bar_bar - (control_chart_constant) * (r_bar)        
-            # Notice that these values are for the transformed variables:
-            # y_transf = (df['timedelta_between_rares'])**(1/(3.6))
-            # To reconvert to the correct time scale, we reverse this transform as:
-            # (y_transf)**(3.6)        
-            # add a column 'upper_cl' on the dataframe with upper_cl_transf
-            # converted to the original scale:
-            df['upper_cl'] = (upper_cl_transf)**(3.6)
-            # add a column 'lower_cl' on the dataframe with lower_cl_transf
-            # converted to the original scale:
-            df['lower_cl'] = (lower_cl_transf)**(3.6)
-            # Finally, add the central line by reconverting y_bar_bar to the
-            # original scale:
-            df['center'] = (y_bar_bar)**(3.6)
-            # Notice that this procedure naturally corrects the deviations caused by
-            # the skewness of the distribution. Actually, log and exponential transforms
-            # tend to reduce the skewness and to normalize the data.
-            # Update the dataframe in the dictionary:
-            dictionary['df'] = df
-        return dictionary
-        
     
     if (use_spc_chart_assistant == True):
         
@@ -17476,9 +17836,12 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
             
             for dictionary in list_of_dictionaries_with_dfs:
                 
-                dictionary = chart_i_mr (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
-                # Append the updated dictionary to the support_list:
-                support_list.append(dictionary)
+                # Create an instance (object) from spc_plot class:
+                plot = spc_plot (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, timestamp_tag_column = timestamp_tag_column, chart_to_use = chart_to_use, column_with_labels_or_subgroups = column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit)
+                # Apply the method
+                plot = plot.chart_i_mr()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
             # the support_list itself:
@@ -17490,9 +17853,12 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
             
             for dictionary in list_of_dictionaries_with_dfs:
                 
-                dictionary = rare_events_chart (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit, chart_to_use = chart_to_use)
-                # Finally, append the dictionary to the list and go to next iteration
-                support_list.append(dictionary)
+                # Create an instance (object) from spc_plot class:
+                plot = spc_plot (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, timestamp_tag_column = timestamp_tag_column, chart_to_use = chart_to_use, column_with_labels_or_subgroups = column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit)
+                # Apply the method
+                plot = plot.rare_events_chart()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
             # the support_list itself:
@@ -17504,9 +17870,12 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
             
             for dictionary in list_of_dictionaries_with_dfs:
                 
-                dictionary = chart_3s (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                # Create an instance (object) from spc_plot class:
+                plot = spc_plot (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, timestamp_tag_column = timestamp_tag_column, chart_to_use = chart_to_use, column_with_labels_or_subgroups = column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit)
+                # Apply the method
+                plot = plot.chart_3s()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
             # the support_list itself:
@@ -17518,9 +17887,12 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
             
             for dictionary in list_of_dictionaries_with_dfs:
                 
-                dictionary = chart_std_error (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                # Create an instance (object) from spc_plot class:
+                plot = spc_plot (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, timestamp_tag_column = timestamp_tag_column, chart_to_use = chart_to_use, column_with_labels_or_subgroups = column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit)
+                # Apply the method
+                plot = plot.chart_std_error()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             # Now that we finished looping through dictionaries, make list_of_dictionaries_with_dfs
             # the support_list itself:
@@ -17532,51 +17904,55 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         # Loop through each dataframe:
         for dictionary in list_of_dictionaries_with_dfs:
             
-            dictionary = create_grouped_df (dictionary = dictionary)
+            # Create an instance (object) from spc_plot class:
+            plot = spc_plot (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, timestamp_tag_column = timestamp_tag_column, chart_to_use = chart_to_use, column_with_labels_or_subgroups = column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std, rare_event_indication = rare_event_indication, rare_event_timedelta_unit = rare_event_timedelta_unit)
+            # Apply the method
+            plot = plot.create_grouped_df()
+                
             # Now, dataframe is ready for the calculation of control limits.
             # Let's select the appropriate chart:
         
             if (chart_to_use == '3s_as_natural_variation'):
 
-                dictionary = chart_3s (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_3s()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             elif (chart_to_use == 'std_error'):
-                
-                dictionary = chart_std_error (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed, consider_skewed_dist_when_estimating_with_std = consider_skewed_dist_when_estimating_with_std)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+
+                plot = plot.chart_std_error()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
                 
             elif (chart_to_use == 'xbar_s'):
                 
-                dictionary = chart_x_bar_s (dictionary = dictionary)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_x_bar_s()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
             
             elif (chart_to_use == 'p'):
                 
-                dictionary = chart_p (dictionary = dictionary)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_p()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
 
             elif (chart_to_use == 'np'):
             
-                dictionary = chart_np (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_np()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
 
             elif (chart_to_use == 'c'):
                 
-                dictionary = chart_c (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_c()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
                 
             elif (chart_to_use == 'u'):
                 
-                dictionary = chart_u (dictionary = dictionary, column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed)
-                # Append the dictionary to the support_list:
-                support_list.append(dictionary)
+                plot = plot.chart_u()
+                # Append the updated dictionary to the support_list (access the dictionary attribute):
+                support_list.append(plot.dictionary)
 
             else:
 
