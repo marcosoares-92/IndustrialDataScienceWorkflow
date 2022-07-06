@@ -16358,7 +16358,8 @@ class spc_chart_assistant:
             print("If an error is raised; or if the chart is not complete, check if the columns' names inputs are strictly correct.\n")
             
             return chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication
-        
+
+
 class spc_plot:
             
     # Initialize instance attributes.
@@ -16469,7 +16470,7 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
         
         # CONTROL LIMIT EQUATIONS:
         # X-bar = (sum of measurements)/(number of measurements)
@@ -16512,7 +16513,7 @@ class spc_plot:
         # Get the mean values from x_bar:
         x_bar_bar = df[column_with_variable_to_be_analyzed].mean()
         
-        # Calculate the mean value of the column moving_range, and save it as r_bar:
+        # Calculate the mean value of the column moving_range, and save it as r_bar.
         r_bar = df['moving_range'].mean()
         
         # Get the control chart constant A2 from the dictionary, considering n = 2 the
@@ -16554,7 +16555,7 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
         
         if(self.consider_skewed_dist_when_estimating_with_std):
             
@@ -16596,7 +16597,7 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
         
         n_samples = df[column_with_variable_to_be_analyzed].count()
         
@@ -16646,7 +16647,9 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        column_with_labels_or_subgroups = self.column_with_labels_or_subgroups
+        numeric_dtypes = self.numeric_dtypes
            
         # We need to group each dataframe in terms of the subgroups stored in the variable
         # column_with_labels_or_subgroups.
@@ -16668,7 +16671,7 @@ class spc_plot:
             # check the type of column:
             column_data_type = df[column].dtype
             
-            if (column_data_type not in self.numeric_dtypes):
+            if (column_data_type not in numeric_dtypes):
                 
                 # If the Pandas series was defined as an object, it means it is categorical
                 # (string, date, etc). Also, this if captures the variables converted to datetime64
@@ -16681,14 +16684,14 @@ class spc_plot:
                 
         # 3. Check if column_with_labels_or_subgroups is in both lists. 
         # If it is missing, append it. We need that this column in all subsets for grouping.
-        if not (self.column_with_labels_or_subgroups in categorical_cols):
+        if (column_with_labels_or_subgroups not in categorical_cols):
             
             categorical_cols.append(column_with_labels_or_subgroups)
         
-        if not (column_with_labels_or_subgroups in numeric_cols):
+        if (column_with_labels_or_subgroups not in numeric_cols):
             
             numeric_cols.append(column_with_labels_or_subgroups)
-            
+        
         if (len(categorical_cols) > 1):    
             # There is at least one column plus column_with_labels_or_subgroups:
             is_categorical = 1
@@ -16704,45 +16707,49 @@ class spc_plot:
             
             df_agg_mode = df.copy(deep = True)
             df_agg_mode = df_agg_mode[categorical_cols]
-            df_agg_mode = df_agg_mode.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
+            df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
             
             # 6. df_agg_mode processing:
             # Loop through each column from this dataframe:
             for col_mode in list(df_agg_mode.columns):
                 
-                # start a list of modes:
-                list_of_modes = []
+                # take the mode for all columns, except the column_with_labels_or_subgroups,
+                # used for grouping the dataframe. This column already has the correct value
+                if (col_mode != column_with_labels_or_subgroups):
+            
+                    # start a list of modes:
+                    list_of_modes = []
+
+                    # Now, loop through each row from the dataset:
+                    for i in range(0, len(df_agg_mode)):
+                        # i = 0 to i = len(df_agg_mode) - 1
+
+                        mode_array = df_agg_mode[col_mode][i]    
+
+                        try:
+                            # try accessing the mode
+                            # mode array is like:
+                            # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
+                            # To retrieve only the mode, we must access the element [0][0] from this array:
+                            mode = mode_array[0][0]
+
+                        except:
+                            mode = np.nan
+
+                        # Append it to the list of modes:
+                        list_of_modes.append(mode)
+
+                    # Finally, make the column the list of modes itself:
+                    df_agg_mode[col_mode] = list_of_modes
                 
-                # Now, loop through each row from the dataset:
-                for i in range(0, len(df_agg_mode)):
-                    # i = 0 to i = len(df_agg_mode) - 1
-                    
-                    mode_array = df_agg_mode[col_mode][i]    
-                    
+                    # try to convert to datetime64 (case it is not anymore):
                     try:
-                        # try accessing the mode
-                        # mode array is like:
-                        # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                        # To retrieve only the mode, we must access the element [0][0] from this array:
-                        mode = mode_array[0][0]
-                    
+                        df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
+
                     except:
-                        mode = np.nan
-                    
-                    # Append it to the list of modes:
-                    list_of_modes.append(mode)
-                    
-                # Finally, make the column the list of modes itself:
-                df_agg_mode[col_mode] = list_of_modes
-                
-                # try to convert to datetime64 (case it is not anymore):
-                try:
-                    df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
-                
-                except:
-                    # simply ignore this step in case it is not possible to parse
-                    # because it is a string:
-                    pass
+                        # simply ignore this step in case it is not possible to parse
+                        # because it is a string:
+                        pass
                 
         if (is_numeric == 1):
             
@@ -16756,25 +16763,25 @@ class spc_plot:
             df_agg_std = df_agg_std[numeric_cols]
             df_agg_count = df_agg_count[numeric_cols]
             
-            df_agg_mean = df_agg_mean.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).mean()
-            df_agg_sum = df_agg_sum.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).sum()
-            df_agg_std = df_agg_sum.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).std()
-            df_agg_count = df_agg_count.groupby(by = self.column_with_labels_or_subgroups, as_index = False, sort = True).count()
+            df_agg_mean = df_agg_mean.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).mean()
+            df_agg_sum = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).sum()
+            df_agg_std = df_agg_std.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).std()
+            df_agg_count = df_agg_count.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).count()
             # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
             # (default: as_index = True).
             
             # 7. df_agg_count processing:
             # Here, all original columns contain only the counting of elements in each
             # label. So, let's select only the columns 'key_for_merging' and column_with_variable_to_be_analyzed:
-            df_agg_count = df_agg_count[[self.column_with_variable_to_be_analyzed]]
+            df_agg_count = df_agg_count[[column_with_variable_to_be_analyzed]]
             
             # Rename the columns:
             df_agg_count.columns = ['count_of_elements_by_label']
             
             # Analogously, let's keep only the colums column_with_variable_to_be_analyzed and
             # 'key_for_merging' from the dataframes df_agg_sum and df_agg_std, and rename them:
-            df_agg_sum = df_agg_sum[[self.column_with_variable_to_be_analyzed]]
-            df_agg_std = df_agg_std[[self.column_with_variable_to_be_analyzed]]
+            df_agg_sum = df_agg_sum[[column_with_variable_to_be_analyzed]]
+            df_agg_std = df_agg_std[[column_with_variable_to_be_analyzed]]
             
             df_agg_sum.columns = ['sum_of_values_by_label']
             df_agg_std.columns = ['std_of_values_by_label']
@@ -16784,7 +16791,7 @@ class spc_plot:
             # is duplicated.
             
             # Remove this column from df_agg_mean:
-            df_agg_mean = df_agg_mean.drop(columns = self.column_with_labels_or_subgroups)
+            df_agg_mean = df_agg_mean.drop(columns = column_with_labels_or_subgroups)
             
             # Concatenate all dataframes:
             df = pd.concat([df_agg_mode, df_agg_mean, df_agg_sum, df_agg_std, df_agg_count], axis = 1, join = "inner")
@@ -16808,12 +16815,15 @@ class spc_plot:
         dictionary['sum'] = df[column_with_variable_to_be_analyzed].sum()
         dictionary['std'] = df[column_with_variable_to_be_analyzed].std()
         dictionary['var'] = df[column_with_variable_to_be_analyzed].var()
-        dictionary['count'] = df[column_with_variable_to_be_analyzed].count()
+        dictionary['count'] = len(df) # Total entries from the new dataframe
         dictionary['df'] = df
         
         # Update the attributes:
         self.dictionary = dictionary
         self.df = df
+        # Notice that the number of labels is now the total of entries of the dataframe
+        # grouped by labels
+        self.number_of_labels = dictionary['count']
         
         return self
             
@@ -16824,7 +16834,8 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        number_of_labels = self.number_of_labels
         
         # CONTROL LIMIT EQUATIONS:
         # X-bar = mean =  (sum of measurements)/(subgroup size)
@@ -16836,10 +16847,7 @@ class spc_plot:
         
         s = df['std_of_values_by_label']
         
-        # Update the number of labels attribute
-        self.number_of_labels = dictionary['count']
-        
-        s_bar = (s.sum())/(self.number_of_labels)
+        s_bar = (s.sum())/(number_of_labels)
         x_bar_bar = dictionary['center']
         
         # Retrieve A3
@@ -16877,10 +16885,15 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
-         
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        number_of_labels = self.number_of_labels
+        
+        print("\n")
+        print("Attention: before obtaining this chart, substitute the values of the analyzed binary variable by 0 or 1 (integers), or an error will be raised.")
+        print("This function do not perform the automatic ordinal or One-Hot Encoding of the variables.\n")
+        
         # CONTROL LIMIT EQUATIONS:
-        # p-chart: control chart for proportion of defectives
+        # p-chart: control chart for proportion of defectives.
         # p = mean =  (sum of measurements)/(subgroup size)
         # pbar = (sum of subgroup defective counts)/(sum of subgroups sizes)
         # n = subgroup size
@@ -16888,7 +16901,7 @@ class spc_plot:
         # Upper control limit (UCL) = pbar + 3.sqrt((pbar)*(1-pbar)/n)
         
         count_per_label = df['count_of_elements_by_label']
-        p_bar = dictionary['center']
+        p_bar = (df['sum_of_values_by_label'].sum())/(df['count_of_elements_by_label'].sum())
         
         # calculate the upper control limit as pbar + 3.sqrt((pbar)*(1-pbar)/n):
         upper_cl = p_bar + 3 * (((p_bar)*(1 - p_bar)/(count_per_label))**(0.5))
@@ -16921,43 +16934,51 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        number_of_labels = self.number_of_labels
+        
+        print("\n")
+        print("Attention: before obtaining this chart, substitute the values of the analyzed binary variable by 0 or 1 (integers), or an error will be raised.")
+        print("This function do not perform the automatic ordinal or One-Hot Encoding of the variables.\n")
         
         # CONTROL LIMIT EQUATIONS:
-        # np-chart: control chart for count of defectives
+        # np-chart: control chart for count of defectives.
+        # p = mean =  (sum of measurements)/(subgroup size)
         # np = sum = subgroup defective count
         # npbar = (sum of subgroup defective counts)/(number of subgroups)
         # n = subgroup size
         # pbar = npbar/n
-        # Lower control limit (LCL) = np - 3.sqrt((npbar)*(1-p))
-        # Upper control limit (UCL) = np + 3.sqrt((npbar)*(1-p))
+        # Center line: npbar
+        # Lower control limit (LCL) = np - 3.sqrt((np)*(1-p))
+        # Upper control limit (UCL) = np + 3.sqrt((np)*(1-p))
         # available function: **(0.5) - 0.5 power
+        
+        # p = mean
+        p = df[column_with_variable_to_be_analyzed]
         
         # Here, the column that we want to evaluate is not the mean, but the sum.
         # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
         # Let's make this column equals to the column of sums:
         
-        df[self.column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        np_series = df[column_with_variable_to_be_analyzed]
         
-        count_per_label = df['count_of_elements_by_label']
-        sum_p = df['sum_of_values_by_label'].sum() # It is the np, would is already used for NumPy
-        
-        p = (df['sum_of_values_by_label'])/(count_per_label)
+        npbar = (df['sum_of_values_by_label'].sum())/(number_of_labels) # center
         
         # calculate the upper control limit as np + 3.sqrt((np)*(1-p)):
-        upper_cl = np + 3 * (((sum_p)*(1 - p))**(0.5))
+        upper_cl = np_series + 3 * (((np_series)*(1 - p))**(0.5))
         
         # add a column 'upper_cl' on the dataframe with this value:
         df['upper_cl'] = upper_cl
         
         # calculate the lower control limit as np - 3.sqrt((np)*(1-p)):
-        lower_cl = np - 3 * (((sum_p)*(1 - p))**(0.5))
+        lower_cl = np_series - 3 * (((np_series)*(1 - p))**(0.5))
         
         # add a column 'lower_cl' on the dataframe with this value:
         df['lower_cl'] = lower_cl
         
         # Add a column with the mean value of the considered interval:
-        df['center'] = sum_p
+        df['center'] = npbar
         
         # Update the dataframe in the dictionary:
         dictionary['df'] = df
@@ -16975,10 +16996,11 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        number_of_labels = self.number_of_labels
         
         # CONTROL LIMIT EQUATIONS:
-        # c-chart: control chart for counts of occurrences per unit
+        # c-chart: control chart for counts of occurrences per unit.
         # c = sum = sum of subgroup occurrences
         # cbar = (sum of subgroup occurrences)/(number of subgroups)
         # n = subgroup size
@@ -16989,12 +17011,9 @@ class spc_plot:
         # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
         # Let's make this column equals to the column of sums:
         
-        df[self.column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
+        df[column_with_variable_to_be_analyzed] = df['sum_of_values_by_label']
         
-        # Update the number of labels attribute
-        self.number_of_labels = dictionary['count']
-        
-        c_bar = (df['sum_of_values_by_label'].sum())/(self.number_of_labels)
+        c_bar = (df['sum_of_values_by_label'].sum())/(number_of_labels)
         
         # calculate the upper control limit as cbar + 3.sqrt(cbar):
         upper_cl = c_bar + 3 * ((c_bar)**(0.5))
@@ -17027,22 +17046,20 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        number_of_labels = self.number_of_labels
         
         # CONTROL LIMIT EQUATIONS:
-        # u-chart: control chart for average occurrence per unit
+        # u-chart: control chart for average occurrence per unit.
         # u = mean =  (subgroup count of occurrences)/(subgroup size, in units)
         # ubar = mean value of u
         # n = subgroup size
         # Lower control limit (LCL) = ubar - 3.sqrt(ubar/n)
         # Upper control limit (UCL) = ubar + 3.sqrt(ubar/n)
         
-        # Update the number of labels attribute
-        self.number_of_labels = dictionary['count']
-        
         count_per_label = df['count_of_elements_by_label']
         
-        u_bar = (df[column_with_variable_to_be_analyzed])/(self.number_of_labels)
+        u_bar = dictionary['center']
         
         # calculate the upper control limit as ubar + 3.sqrt(ubar/n):
         upper_cl = u_bar + 3 * ((u_bar/count_per_label)**(0.5))
@@ -17075,11 +17092,16 @@ class spc_plot:
         
         dictionary = self.dictionary
         df = self.df
-        column_with_variable_to_be_analyzed = df.column_with_variable_to_be_analyzed
+        column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
+        rare_event_indication = self.rare_event_indication
+        rare_event_timedelta_unit = self.rare_event_timedelta_unit
+        timestamp_tag_column = self.timestamp_tag_column
+        numeric_dtypes = self.numeric_dtypes
+        chart_to_use = self.chart_to_use
         
         # Filter df to the rare events:
         rare_events_df = df.copy(deep = True)
-        rare_events_df = rare_events_df[rare_events_df[self.column_with_variable_to_be_analyzed] == self.rare_event_indication]
+        rare_events_df = rare_events_df[rare_events_df[column_with_variable_to_be_analyzed] == rare_event_indication]
         
         # rare_events_df stores only the entries for rare events.
         # Let's get a list of the indices of these entries (we did not reset the index):
@@ -17092,9 +17114,9 @@ class spc_plot:
         timedelta_between_rares = [np.nan]
         
         # Check if the times are datetimes or not:
-        column_data_type = df[self.timestamp_tag_column].dtype
+        column_data_type = df[timestamp_tag_column].dtype
         
-        if (column_data_type not in self.numeric_dtypes):            
+        if (column_data_type not in numeric_dtypes):            
             # It is a datetime. Let's loop between successive indices:
             if (len(rare_events_indices) > 1):
                 
@@ -17103,22 +17125,22 @@ class spc_plot:
                     index_i = rare_events_indices[i]
                     index_i_plus = rare_events_indices[i + 1]  
                     
-                    t_i = pd.Timestamp((df[self.timestamp_tag_column])[index_i], unit = 'ns')
-                    t_i_plus = pd.Timestamp((df[self.timestamp_tag_column])[index_i_plus], unit = 'ns')
+                    t_i = pd.Timestamp((df[timestamp_tag_column])[index_i], unit = 'ns')
+                    t_i_plus = pd.Timestamp((df[timestamp_tag_column])[index_i_plus], unit = 'ns')
                     
                     # to slice a dataframe from row i to row j (including j): df[i:(j+1)]
-                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    total_events_between_rares = len(df[(index_i + 1):(index_i_plus)])
                     
                     # We sliced the dataframe from index_i + 1 not to include the rare
                     # event, so we started from the next one. Also, the last element is
                     # of index index_i_plus - 1, the element before the next rare.
-                    count_between_rares.append(count_between_rares)
+                    count_between_rares.append(total_events_between_rares)
                     
                     # Calculate the timedelta:
                     # Convert to an integer representing the total of nanoseconds:
                     timedelta = pd.Timedelta(t_i_plus - t_i).delta
                     
-                    if (self.rare_event_timedelta_unit == 'year'):
+                    if (rare_event_timedelta_unit == 'year'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
@@ -17133,7 +17155,7 @@ class spc_plot:
                         timedelta = timedelta / (365.25) #in years
                         #The .0 after the numbers guarantees a float division.
                         
-                    elif (self.rare_event_timedelta_unit == 'month'):
+                    elif (rare_event_timedelta_unit == 'month'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
@@ -17147,7 +17169,7 @@ class spc_plot:
                         timedelta = timedelta / (30.0) #in months
                         #The .0 after the numbers guarantees a float division.
                         
-                    elif (self.rare_event_timedelta_unit == 'day'):
+                    elif (rare_event_timedelta_unit == 'day'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
@@ -17158,7 +17180,7 @@ class spc_plot:
                         #4. Convert it to days (1 day = 24 h):
                         timedelta = timedelta / 24.0 #in days
                         
-                    elif (self.rare_event_timedelta_unit == 'hour'):
+                    elif (rare_event_timedelta_unit == 'hour'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
@@ -17167,14 +17189,14 @@ class spc_plot:
                         #3. Convert it to hours (1 h = 60 min):
                         timedelta = timedelta / 60.0 #in hours
                         
-                    elif (self.rare_event_timedelta_unit == 'minute'):
+                    elif (rare_event_timedelta_unit == 'minute'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
                         #2. Convert it to minutes (1 min = 60 s):
                         timedelta = timedelta / 60.0 #in minutes
                         
-                    elif (self.rare_event_timedelta_unit == 'second'):
+                    elif (rare_event_timedelta_unit == 'second'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
                         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
                         timedelta = timedelta / (10**9) #in seconds
@@ -17201,26 +17223,22 @@ class spc_plot:
                     index_i = rare_events_indices[i]
                     index_i_plus = rare_events_indices[i + 1]
                     
-                    t_i = (df[self.timestamp_tag_column])[index_i]
-                    t_i_plus = (df[self.timestamp_tag_column])[index_i_plus]
+                    t_i = (df[timestamp_tag_column])[index_i]
+                    t_i_plus = (df[timestamp_tag_column])[index_i_plus]
                     
                     timedelta = (t_i_plus - t_i)
                     
                     # to slice a dataframe from row i to row j (including j): df[i:(j+1)] 
-                    count_between_rares = (df[(index_i + 1): index_i_plus]).count()
+                    total_events_between_rares= len(df[(index_i + 1):(index_i_plus)])
                     
-                    count_between_rares.append(count_between_rares)
+                    count_between_rares.append(total_events_between_rares)
                     timedelta_between_rares.append(timedelta)
             else:
                 # There is a single rare event.
                 print("There is a single rare event. Impossible to calculate timedeltas and counting between rare events.\n")
                 return self
             
-        # Notice that the lists still have one element less than the dataframe of rares.
-        # That is because we do not have data for accounting for the next rare event. So,
-        # append np.nan to both lists (we do not know how much time it will take until the next rare):
-        count_between_rares.append(np.nan)
-        timedelta_between_rares.append(np.nan)
+        # Notice that the lists still have same number of elements of the dataframe of rares.
         
         # Now, lists have the same total elements of the rare_events_df, and can be
         # added as columns:        
@@ -17234,33 +17252,42 @@ class spc_plot:
         # Now, make the rares dataframe the df itself:
         df = rare_events_df
         
-        if (self.chart_to_use == 'g'):
+        if (chart_to_use == 'g'):
             
             # Here, the column that we want to evaluate is not the mean, but the 'count_between_rares'.
             # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
             # Let's make this column equals to the column 'count_between_rares':
-            df[self.column_with_variable_to_be_analyzed] = df['count_between_rares']
+            df[column_with_variable_to_be_analyzed] = df['count_between_rares']
             
             g_bar = df['count_between_rares'].median()
-            n_samples = df['count_between_rares'].count()
+            n_samples = len(df['count_between_rares'])
             
-            p = (1/(g_bar + 1))*((n_samples - 1)/n_samples)
+            try:
+                p = (1/(g_bar + 1))*((n_samples - 1)/n_samples)
             
-            # np.log = natural logarithm
-            # https://numpy.org/doc/stable/reference/generated/numpy.log.html
-            center = ((np.log(0.5))/(np.log(1 - p))) - 1
+                # np.log = natural logarithm
+                # https://numpy.org/doc/stable/reference/generated/numpy.log.html
+                center = ((np.log(0.5))/(np.log(1 - p))) - 1
+
+                # calculate the upper control limit as log(0.00135)/log(1-p)-1:
+                upper_cl = ((np.log(0.00135))/(np.log(1 - p))) - 1
+
+                # calculate the lower control limit as Max(0, log(1-0.00135)/log(1-p)-1):
+                lower_cl = max(0, ((np.log(1 - 0.00135))/(np.log(1 - p)) - 1))
             
-            # calculate the upper control limit as log(0.00135)/log(1-p)-1:
-            upper_cl = ((np.log(0.00135))/(np.log(1 - p))) - 1
+            except:
+                # division by zero
+                # Here, we are prone to it due to the obtention of the rare dataframe.
+                p = np.nan
+                center = np.nan
+                upper_cl = np.nan
+                lower_cl = np.nan
+                
+            # add a column 'lower_cl' on the dataframe with this value:
+            df['lower_cl'] = lower_cl
             
             # add a column 'upper_cl' on the dataframe with this value:
             df['upper_cl'] = upper_cl
-            
-            # calculate the lower control limit as Max(0, log(1-0.00135)/log(1-p)-1):
-            lower_cl = max(0, ((np.log(1 - 0.00135))/(log(1 - p)) - 1))
-            
-            # add a column 'lower_cl' on the dataframe with this value:
-            df['lower_cl'] = lower_cl
             
             # Add a column with the mean value of the considered interval:
             df['center'] = center
@@ -17268,41 +17295,48 @@ class spc_plot:
             # Update the dataframe in the dictionary:
             dictionary['df'] = df
             
-        elif (self.chart_to_use == 't'):
+        elif (chart_to_use == 't'):
             
             # Here, the column that we want to evaluate is not the mean, but the 'timedelta_between_rares'.
             # Since the graphics will be plotted using the column column_with_variable_to_be_analyzed
             # Let's make this column equals to the column 'timedelta_between_rares':
-            df[self.column_with_variable_to_be_analyzed] = df['timedelta_between_rares']
+            df[column_with_variable_to_be_analyzed] = df['timedelta_between_rares']
             
             # Create the transformed series:
             # y = df['timedelta_between_rares']
             # y_transf = y**(1/3.6)
             y_transf = (df['timedelta_between_rares'])**(1/(3.6))
-            
             # Now, let's create an I-MR chart for y_transf        
             moving_range = [abs(max((y_transf[i]), (y_transf[(i-1)])) - min((y_transf[i]), (y_transf[(i-1)]))) for i in range (1, len(y_transf))]
-            y_bar = [(y_transf[i] + y_transf[(i-1)])/2 for i in range (1, len(y_transf))]
+            
+            # The first y_transf is np.nan. We cannot use it for calculating the averages.
+            # That is because the average with np.nan is np.nan. So, let's skip the first entry,
+            # by starting from index i = 2.
+            y_bar = [(y_transf[i] + y_transf[(i-1)])/2 for i in range (2, len(y_transf))]
             # These lists were created from index 1. We must add a initial element to
             # make their sizes equal to the original dataset length
             
             # Start the list to store the moving ranges, containing only the number 0
             # for the moving range (by simple concatenation):
             moving_range = [0] + moving_range
-            # Start the list that stores the mean values of the 2-elements subgroups
-            # with the first element itself (index 0):  - list y_bar:
-            y_bar = [y_transf[0]] + y_bar
+            # Since we do not have the first element (which is np.nan), with index 0, let's
+            # take the average corresponding to index 1, the first valid entry, as the y_transf[1]
+            # itself:
+            y_bar = [y_transf[1]] + y_bar
+            # Notice that y_bar list did not start from index 0, but from index 1, so it has one
+            # element less than moving_range list. With this strategy, we eliminated the null element
+            # from the calculation of the mean.
             
-            # Convert the lists to NumPy arrays, for performing vectorial (element-wise)
-            # operations:
-            moving_range = np.array(moving_range)
-            y_bar = np.array(y_bar)
+            # The presence of other missing values in these lists will turn all results NaN.
+            # So, let's convert the list to pandas series, and apply the mean method, which
+            # automatically ignores the missing values from calculations (the function
+            # np.average for np.arrays would return NaN)
+            moving_range = pd.Series(moving_range)
+            y_bar = pd.Series(y_bar)
             
-            # Get the mean values from y_bar list and moving_range:
-            # https://numpy.org/doc/stable/reference/generated/numpy.average.html
-            y_bar_bar = np.average(y_bar)
-            r_bar = np.average(moving_range)
-            
+            # Now we can get the mean values from y_bar list and moving_range:
+            y_bar_bar = y_bar.mean()
+            r_bar = moving_range.mean()
             # Get the control chart constant A2 from the dictionary, considering n = 2 the
             # number of elements of each subgroup:
             
@@ -17315,10 +17349,10 @@ class spc_plot:
             
             # calculate the upper control limit as y_bar_bar + (3/d2)r_bar:
             upper_cl_transf = y_bar_bar + (control_chart_constant) * (r_bar)
-            
+        
             # calculate the lower control limit as y_bar_bar - (3/d2)r_bar:
             lower_cl_transf = y_bar_bar - (control_chart_constant) * (r_bar)
-            
+          
             # Notice that these values are for the transformed variables:
             # y_transf = (df['timedelta_between_rares'])**(1/(3.6))
             
@@ -17349,12 +17383,12 @@ class spc_plot:
         
         return self
 
-def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, add_splines_lines = True, add_scatter_dots = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
      
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-    import matplotlib.colors as mcolors
     from scipy import stats
     
     # matplotlib.colors documentation:
@@ -17371,13 +17405,55 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     
     # df: dataframe to be analyzed.
     
-    # timestamp_tag_column: column containing the timescale, that can be expressed as a timestamp, or
-    # as a series of floats or integers, correspondent to the sequence order. 
-    # If timestamp_tag_column = None, the index of the dataframe will be used as timestamp_tag_column.
+    # TIMESTAMP_TAG_COLUMN: name (header) of the column containing the timestamps or the numeric scale
+    # used to represent time (column with floats or integers). The column name may be a string or a number.
+    # e.g. TIMESTAMP_TAG_COLUMN = 'date' will use the values from column 'date'
+    # Keep TIMESTAMP_TAG_COLUMN = None if the dataframe do not contain timestamps, so the index will be
+    # used.
+
+    # COLUMN_WITH_VARIABLE_TO_BE_ANALYZED: name (header) of the column containing the variable
+    # which stability will be analyzed by the control chart. The column name may be a string or a number.
+    # Example: COLUMN_WITH_VARIABLE_TO_BE_ANALYZED = 'analyzed_column' will analyze a column named
+    # "analyzed_column", whereas COLUMN_WITH_VARIABLE_TO_BE_ANALYZED = 'col1' will evaluate column 'col1'.
+
+    # COLUMN_WITH_LABELS_OR_SUBGROUPS: name (header) of the column containing the variable
+    # indicating the subgroups or label indication which will be used for grouping the samples. 
+    # Example: Suppose you want to analyze the means for 4 different subgroups: 1, 2, 3, 4. For each subgroup,
+    # 4 or 5 samples of data (the values in COLUMN_WITH_VARIABLE_TO_BE_ANALYZED) are collected, and you
+    # want the average and standard deviation within the subgroups. Them, you create a column named
+    # 'label' and store the values: 1 for samples correspondent to subgroup 1; 2 for samples from
+    # subgroup 2,... etc. In this case, COLUMN_WITH_LABELS_OR_SUBGROUPS = 'label'
+    # Notice that the samples do not need to be collected in order. The function will automatically separate
+    # the entries according to the subgroups. So, the entries in the dataset may be in an arbitrary order
+    # like: 1, 1, 2, 1, 4, 3, etc.
+    # The values in the COLUMN_WITH_LABELS_OR_SUBGROUPS may be strings (text) or numeric values (like
+    # integers), but different values will be interpreted as different subgroups.
+    # As an example of text, you could have a column named 'col1' with group identifications as: 
+    # 'A', 'B', 'C', 'D', and COLUMN_WITH_LABELS_OR_SUBGROUPS = 'col1'.
+    # Notice the difference between COLUMN_WITH_LABELS_OR_SUBGROUPS and COLUMN_WITH_VARIABLE_TO_BE_ANALYZED:
+    # COLUMN_WITH_VARIABLE_TO_BE_ANALYZED accepts only numeric values, so the binary variables must be
+    # converted to integers 0 and 1 before the analysis. The COLUMN_WITH_LABELS_OR_SUBGROUPS, in turns,
+    # accept both numeric and text (string) values.
     
-    # column_with_variable_to_be_analyzed:  
-    # column_with_labels_or_subgroups = None
-    # column_with_event_frame_indication = None
+    # COLUMN_WITH_EVENT_FRAME_INDICATION: name (header) of the column containing the variable
+    # indicating the stages, time windows, or event frames. The central line and the limits of natural
+    # variation will be independently calculated for each event frame. The indication of an event frame
+    # may be textual (string) or numeric. 
+    # For example: suppose you have a column named 'event_frames'. For half of the entries, event_frame = 
+    # 'A'; and for the second half, event_frame = 'B'. If COLUMN_WITH_EVENT_FRAME_INDICATION = 'event_frame',
+    # the dataframe will be divided into two subsets: 'A', and 'B'. For each subset, the central lines
+    # and the limits of natural variation will be calculated independently. So, you can check if there is
+    # modification of the average value and of the dispersion when the time window is modified. It could
+    # reflect, for example, the use of different operational parameters on each event frame.
+    # Other possibilities of event indications: 0, 1, 2, 3, ... (sequence of integers); 'A', 'B', 'C', etc;
+    # 'stage1', 'stage2', ..., 'treatment1', 'treatment2',....; 'frame0', 'frame1', 'frame2', etc.
+    # ATTENTION: Do not identify different frames with the same value. For example, if
+    # COLUMN_WITH_EVENT_FRAME_INDICATION has missing values for the first values, then a sequence of rows
+    # is identified as number 0; followed by a sequence of missing values. In this case, the two windows
+    # with missing values would be merged as a single window, and the mean and variation would be
+    # obtained for this merged subset. Then, always specify different windows with different values.
+    # Other example: COLUMN_WITH_EVENT_FRAME_INDICATION = 'col1' will search for event frame indications
+    # in column 'col1'.
     
     # specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}
     # If there are specification limits, input them in this dictionary. Do not modify the keys,
@@ -17390,50 +17466,94 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # a liquid which pH must be between 6.8 and 7.2:
     # specification_limits = {'lower_spec_lim': 6.8, 'upper_spec_lim': 7.2}
     
-    # use_spc_chart_assistant = False. Set as True to open the visual flow chart assistant
-    # that will help you select the appropriate parameters; as well as passing the data in the
-    # correct format. If the assistant is open, many of the arguments of the function will be
-    # filled when using it.
+    # REFERENCE_VALUE: keep it as None or add a float value.
+    # This reference value will be shown as a red constant line to be compared
+    # with the plots. e.g. REFERENCE_VALUE = 1.0 will plot a line passing through
+    # VARIABLE_TO_ANALYZE = 1.0
     
+    # USE_SPC_CHART_ASSISTANT = False. Set USE_SPC_CHART_ASSISTANT = True to open the 
+    # visual flow chart assistant that will help you select the appropriate parameters; 
+    # as well as passing the data in the correct format. If the assistant is open, many of the 
+    # arguments of the function will be filled when using it.
+
     # chart_to_use = '3s_as_natural_variation', 'std_error', 'i_mr', 'xbar_s', 'np', 'p', 
     # 'u', 'c', 'g', 't'
-    # 'std_error' stands for standard error = s/(n**0.5), where n is the number of samples (that may
-    # be the number of individual data samples collected). Here, the natural variation will be
-    # calculated as 3 times the standard error.
+    # The type of chart that will be obtained, as well as the methodology used for estimating the
+    # natural variation of the process. Notice that it may be strongly dependent on the statistical
+    # distribution. So, if you are not sure about the distribution, or simply want to apply a more
+    # general (less restrictive) methodology, set:
+
+    # CHART_TO_USE = '3s_as_natural_variation' to estimate the natural variation as 3 times the
+    # standard deviation (s); or
+    # CHART_TO_USE = 'std_error' for estimating it as 3 times the standard error, where 
+    # standard error = s/(n**0.5) = s/sqrt(n), n = number of samples (that may be the number of 
+    # individual data samples collected, or the number of subgroups or labels); sqrt is the square root.
     # https://en.wikipedia.org/wiki/Standard_error
+    # CHART_TO_USE = '3s_as_natural_variation' and CHART_TO_USE = 'std_error' are the only ones available
+    # for both individual and grouped data.
+    ## ATTENTION: Do not group the variables before using the function. It will perform the automatic
+    # grouping in accordance to the values specified as COLUMN_WITH_LABELS_OR_SUBGROUPS.
+    # Other values allowed for CHART_TO_USE:
+    # CHART_TO_USE = 'i_mr', for individual values of a numeric (continuous) variable which follows the
+    # NORMAL distribution.
+    # CHART_TO_USE = 'xbar_s', for grouped values (by mean) of a numeric variable, where the mean values
+    # of labels or subgroups follow a NORMAL distribution.
+    # CHART_TO_USE = 'np', for grouped binary variables (allowed values: 0 or 1). This is the
+    # control chart for proportion of defectives. - Original data must follow the BINOMIAL distribution.
+    # CHART_TO_USE = 'p', for grouped binary variables (allowed values: 0 or 1). This is the
+    # control chart for count of defectives. - Original data must follow the BINOMIAL distribution.
+    # Attention: an error will be raised if CHART_TO_USE = 'np' or 'p' and the variable was not converted
+    # to a numeric binary, with values 0 or 1. This function do not perform the automatic ordinal or
+    # One-Hot encoding of the categorical features.
+    # CHART_TO_USE = 'u', for counts of occurrences per unit. - Original data must follow the POISSON
+    # distribution (special case of the gamma distribution).
+    # CHART_TO_USE = 'c', for average occurrence per unit. - Original data must follow the POISSON
+    # distribution (special case of the gamma distribution).
+    # CHARTS FOR ANALYZING RARE EVENTS
+    # CHART_TO_USE = 'g', for analyzing count of events between successive rare events occurrences 
+    # (data follow the GEOMETRIC distribution).
+    # CHART_TO_USE = 't', for analyzing time interval between successive rare events occurrences.
     
-    # consider_skewed_dist_when_estimating_with_std. If False, the central lines will be estimated
-    # as the mean values. If True, they will be estimated with the median, which is a better alternative
-    # for skewed data such as the ones that follow geometric or lognormal distributions
-    # (median = mean × 0.693).
-    
-    # rare_event_indication = None. String (in quotes), float or integer. If you want to analyze a
+    # consider_skewed_dist_when_estimating_with_std.
+    # Whether the distribution of data to be analyzed present high skewness or kurtosis.
+    # If CONSIDER_SKEWED_DISTRIBUTION_WHEN_ESTIMATING_STD = False, the central lines will be estimated
+    # as the mean values of the analyzed variable. 
+    # If CONSIDER_SKEWED_DISTRIBUTION_WHEN_ESTIMATING_STD = True, the central lines will be estimated 
+    # as the median of the analyzed variable, which is a better alternative for skewed data such as the 
+    # ones that follow geometric or lognormal distributions (median = mean × 0.693).
+    # Notice that this argument has effect only when CHART_TO_USE = '3s_as_natural_variation' or 
+    # CHART_TO_USE = 'std_error'.
+
+    # RARE_EVENT_INDICATION = None. String (in quotes), float or integer. If you want to analyze a
     # rare event through 'g' or 't' control charts, this parameter is obbligatory. Also, notice that:
-    # column_with_variable_to_be_analyzed must be the column which contain an indication of the rare
-    # event occurrence, and the rare_event_indication is the value of the column column_with_variable_to_be_analyzed
+    # COLUMN_WITH_VARIABLE_TO_BE_ANALYZED must be the column which contains an indication of the rare
+    # event occurrence, and the RARE_EVENT_INDICATION is the value of the column COLUMN_WITH_VARIABLE_TO_BE_ANALYZED
     # when a rare event takes place.
-    # For instance, suppose rare_event_indication = 'shutdown'. It means that column column_with_variable_to_be_analyzed
+    # For instance, suppose RARE_EVENT_INDICATION = 'shutdown'. It means that column COLUMN_WITH_VARIABLE_TO_BE_ANALYZED
     # has the value 'shutdown' when the rare event occurs, i.e., for timestamps when the system
-    # system stopped. Other possibilities are rare_event_indication = 0, or rare_event_indication = -1,
-    # indicating that when column_with_variable_to_be_analyzed = 0 (or -1), we know that
+    # stopped. Other possibilities are RARE_EVENT_INDICATION = 0, or RARE_EVENT_INDICATION = -1,
+    # indicating that when COLUMN_WITH_VARIABLE_TO_BE_ANALYZED = 0 (or -1), we know that
     # a rare event occurred. The most important thing here is that the value given to the rare event
-    # should be assigned only to the rare events.
+    # should be assigned ONLY to the rare events.
+
     # You do not need to assign values for the other timestamps when no rare event took place. But it is
     # important to keep all timestamps in the dataframe. That is because the rare events charts will
-    # compare the rare event occurrence against all other dataframes.
-    # If you are not analyzing rare events with g or t charts, keep rare_event_indication = None.
+    # compare the rare event occurrence against all other events and timestamps.
+    # If you are not analyzing rare events with 'g' or 't' charts, keep RARE_EVENT_INDICATION = None.
     
-    # rare_event_timedelta_unit: 'day', 'second', 'nanosecond', 'minute', 'hour',
+    # RARE_EVENT_TIMEDELTA_UNIT: 'day', 'second', 'nanosecond', 'minute', 'hour',
     # 'month', 'year' - This is the unit of time that will be used to plot the time interval
-    # (timedelta) between each successive rare event. If None or invalid value used, timedelta
+    # (timedelta) between each successive rare events. If None or invalid value used, timedelta
     # will be given in days.
-    # Notice that this parameter is referrent only to the rare events analysis with G or T charts.
-    # Also, it is valid only the timetag column effectively stores a timestamp.
+    # Notice that this parameter is referrent only to the rare events analysis with 'g' or 't' charts.
+    # Also, it is valid only when the timetag column effectively stores a timestamp. If the timestamp
+    # column stores a float or an integer (numeric) value, then the final dataframe and plot will be
+    # obtained in the same numeric scale of the original data, not in the unit indicated as
+    # RARE_EVENT_TIMEDELTA_UNIT.
     
     # List the possible numeric data types for a Pandas dataframe column:
     numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
 
-    
     ## CONTROL CHARTS CALCULATION
     
     # References: 
@@ -18006,6 +18126,15 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     
     # Also, start a list for storing the timestamps where the event frames start:
     time_of_event_frame_start = []
+    # Let's pick the last element from df[timestamp_tag_column]: it is the time
+    # when the time window (event frame) is changing. We can convert it to a list
+    # and slice the list from its last element (index -1; the immediately before is -2,
+    # etc).
+    timestamp_tag_value = list(df[timestamp_tag_column])[-1:]
+    # Now concatenate this 1-element list with time_of_event_frame_start:
+    time_of_event_frame_start = time_of_event_frame_start + timestamp_tag_value
+    # When concatenating lists, the elements from the right list are sequentially added to the
+    # first one: list1 = ['a', 'b'], list2 = ['c', 'd'], list1 + list2 = ['a', 'b', 'c', 'd'] 
     
     # Now, let's loop through each one of the other dictionaries from the list:
     
@@ -18019,10 +18148,10 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         # access the dataframe i:
         df_i = dictionary_i['df']
         
-        # Pick the first element (index 0) of the series timestamp_tag_column:
-        time_tag_value = (df_i[timestamp_tag_column])[0]
-        # Append this value on the list time_of_event_frame_start:
-        time_of_event_frame_start.append(time_tag_value)
+        # Again, pick the last timestamp from this window:
+        timestamp_tag_value = list(df[timestamp_tag_column])[-1:]
+        # Now concatenate this 1-element list with time_of_event_frame_start:
+        time_of_event_frame_start = time_of_event_frame_start + timestamp_tag_value
         
         # Append df_i to df (SQL UNION - concatenate or append rows):
         # Save in df itself:
@@ -18037,11 +18166,15 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # apply a filter to select each situation:
     # (syntax: dataset.loc[dataset['column_filtered'] <= 0.87, 'labelled_column'] = 1)
     # Start the new column as 'in_control_lim' (default case):
-    df['control_limits_check'] = 'in_control_lim'
+    df['control_limits_check'] = 'in_control_limits'
+    
+    # Get the control limits:
+    lower_cl = df['lower_cl']
+    upper_cl = df['upper_cl']
     
     # Now modify only points which are out of the control ranges:
-    df.loc[(df[column_with_variable_to_be_analyzed] < lower_cl), 'control_limits_check'] = 'below_lower_control_lim'
-    df.loc[(df[column_with_variable_to_be_analyzed] > upper_cl), 'control_limits_check'] = 'above_upper_control_lim'
+    df.loc[(df[column_with_variable_to_be_analyzed] < lower_cl), 'control_limits_check'] = 'below_lower_control_limit'
+    df.loc[(df[column_with_variable_to_be_analyzed] > upper_cl), 'control_limits_check'] = 'above_upper_control_limit'
                 
     # Let's also create the 'red_df' containing only the values outside of the control limits.
     # This dataframe will be used to highlight the values outside the control limits
@@ -18058,8 +18191,17 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         
         # There is at least one row outside the control limits.
         print("Attention! Point outside of natural variation (control limits).")
-        print("Check the red_df dataframe returned for details on values outside the control limits. They occur at the following time values:\n")
-        print(list(red_df[timestamp_tag_column]))
+        print("Check the red_df dataframe returned for details on values outside the control limits.")
+        print("They occur at the following time values:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(red_df)
+
+        except: # regular mode
+            print(list(red_df[timestamp_tag_column]))
+    
         print("\n")
     
     # specification_limits = {'lower_spec_lim': value1, 'upper_spec_lim': value2}
@@ -18119,21 +18261,9 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # Now, we can plot the figure.
     # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
     # so that one series do not completely block the visualization of the other.
-    
-    if (add_splines_lines == True):
-        LINE_STYLE = '-'
-
-    else:
-        LINE_STYLE = ''
         
-    if (add_scatter_dots == True):
-        MARKER = 'o'
-            
-    else:
-        MARKER = ''
-        
-        # Matplotlib linestyle:
-        # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
+    # Matplotlib linestyle:
+    # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
         
     if (plot_title is None):
         
@@ -18260,7 +18390,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         ax.set_ylabel(vertical_axis_title)
 
     # Scatter plot of time series:
-    ax.plot(x, y, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = OPACITY, label = LABEL)
+    ax.plot(x, y, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = LABEL)
     # Axes.plot documentation:
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
             
@@ -18271,20 +18401,24 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
     
     # Plot the mean line as a step function (values connected by straight splines, forming steps):
-    ax.step(x, y = mean_line, color = 'black', label = LABEL_MEAN)
+    ax.step(x, y = mean_line, color = 'fuchsia', linestyle = 'dashed', label = LABEL_MEAN, alpha = OPACITY)
     
     # Plot the control limits as step functions too:
-    ax.step(x, y = upper_control_lim, color = 'red', linestyle = 'dashed', label = 'control\nlimit')
-    ax.step(x, y = lower_control_lim, color = 'red', linestyle = 'dashed')
+    ax.step(x, y = upper_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'control\nlimit')
+    ax.step(x, y = lower_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY)
     
-    # If there are specifications, plot as horizontal constant lines (axhlines):
+    # If there are specifications or reference values, plot as horizontal constant lines (axhlines):
     if (lower_spec_lim is not None):
         
-        ax.axhline(lower_spec_lim, color = 'darkgreen', linestyle = 'dashed', label = 'specification\nlimit')
+        ax.axhline(lower_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
     
     if (upper_spec_lim is not None):
         
-        ax.axhline(upper_spec_lim, color = 'darkgreen', linestyle = 'dashed', label = 'specification\nlimit')
+        ax.axhline(upper_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
+    
+    if (reference_value is not None):
+        
+        ax.axhline(reference_value, color = 'darkgreen', linestyle = 'dashed', label = 'reference\nvalue', alpha = OPACITY)   
     
     # If there are red points outside of control limits to highlight, plot them above the graph
     # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
@@ -18300,8 +18434,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         
         for timestamp in time_of_event_frame_start:
             # add timestamp as a vertical line (axvline):
-            ax.axvline(timestamp, color = 'darkblue', linestyle = 'dashed', label = 'event_frame\nchange')
-            
+            ax.axvline(timestamp, color = 'aqua', linestyle = 'dashed', label = 'event_frame\nchange', alpha = OPACITY)
             
     # Now we finished plotting all of the series, we can set the general configuration:
     ax.grid(grid) # show grid or not
