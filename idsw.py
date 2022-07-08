@@ -13939,7 +13939,7 @@ class etl:
                     # If it is none, the value will be returned in nanoseconds.
                     # keep it None, for the results in nanoseconds
                     RETURN_AVG_DELAY = True
-                    _, avg_delay = CALCULATE_DELAY (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
+                    _, avg_delay = etl.CALCULATE_DELAY (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
                     # The underscore indicates that we will not keep the returned dataframe
                     # only the average time delay in nanoseconds.
                     print("\n")
@@ -14073,7 +14073,7 @@ class etl:
             IGNORE_INDEX_ON_UNION = True
             SORT_VALUES_ON_UNION = True
             UNION_JOIN_TYPE = None
-            forecast_df = UNION_DATAFRAMES (list_of_dataframes = LIST_OF_DATAFRAMES, ignore_index_on_union = IGNORE_INDEX_ON_UNION, sort_values_on_union = SORT_VALUES_ON_UNION, union_join_type = UNION_JOIN_TYPE)
+            forecast_df = etl.UNION_DATAFRAMES (list_of_dataframes = LIST_OF_DATAFRAMES, ignore_index_on_union = IGNORE_INDEX_ON_UNION, sort_values_on_union = SORT_VALUES_ON_UNION, union_join_type = UNION_JOIN_TYPE)
             
             # Full series, with input data and forecasts:
             x = forecast_df[x_forecast_label]
