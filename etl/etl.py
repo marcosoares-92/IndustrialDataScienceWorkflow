@@ -5315,6 +5315,11 @@ class etl_workflow:
         # will not be lost:
         DATASET = DATASET.reset_index(drop = True)
         
+        # Convert variable_to_group_by to Pandas 'category' type. If the variable is represented by
+        # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
+        # of as a category. It will prevents this to happen:
+        DATASET[variable_to_group_by] = DATASET[variable_to_group_by].astype("category")
+        
         # Create two subsets:
         if (len(categorical_list) > 1):
             
@@ -5623,7 +5628,7 @@ class etl_workflow:
             # return only the aggregated dataframe:
             return DATASET
 
-
+        
     def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, list_of_new_column_names = None):
         
         import numpy as np
@@ -8625,6 +8630,11 @@ class etl_workflow:
         # Before grouping, let's remove the missing values, avoiding the raising of TypeError.
         # Pandas deprecated the automatic dropna with aggregation:
         DATASET = DATASET.dropna(axis = 0)
+        
+        # Convert categorical_var_name to Pandas 'category' type. If the variable is represented by
+        # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
+        # of as a category. It will prevents this to happen:
+        DATASET[categorical_var_name] = DATASET[categorical_var_name].astype("category")    
         
         # If an aggregate function different from 'sum', 'mean', 'median' or 'mode' 
         # is used with plot_cumulative_percent = True, 
