@@ -4514,6 +4514,8 @@ class etl_workflow:
         else:
             # There is no column to ignore, so we must check all columns:
             checked_df = DATASET
+            # Update the list of columns to check:
+            cols_to_check = list(checked_df.columns)
         
         # To remove only rows or columns with only missing values, we set how = 'all' in
         # dropna method:
@@ -4530,9 +4532,14 @@ class etl_workflow:
         
         # If len(cols_to_check) > 0, merge again the subsets:
         if (len(cols_to_check) > 0):
+
+            if not (list_of_columns_to_ignore is None): # There is an ignored dataframe
             
-            DATASET = pd.concat([ignored_df, checked_df], axis = 1, join = "inner")
-        
+                DATASET = pd.concat([ignored_df, checked_df], axis = 1, join = "inner")
+            
+            else: # Make the DATASET the checked_df itself:
+                DATASET = checked_df
+
         # Now, reset the index:
         DATASET = DATASET.reset_index(drop = True)
         
