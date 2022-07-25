@@ -8461,13 +8461,24 @@ class etl_workflow:
         
         if (responses_to_return_corr is not None):
             
+            if (type(responses_to_return_corr) == str):
+                # If a string was input, put it inside a list
+                responses_to_return_corr = [responses_to_return_corr]
+            
             #Select only the desired responses, by passing the list responses_to_return_corr
             # as parameter for column filtering:
-            correlation_matrix = correlation_matrix[responses_to_return_corr]
+            correlation_matrix = correlation_matrix[[responses_to_return_corr]]
+            # By passing two brackets, we guarantee that [responses_to_return_corr] is
+            # a list, even if it contains a single element. So, correlation_matrix is still
+            # a dataframe.
+            
+            # Create a list of boolean variables == False, one False correspondent to
+            # each one of the responses
+            ascending_modes = [False for i in range(0, len(responses_to_return_corr))]
             
             #Now sort the values according to the responses, by passing the list
-            # responses_to_return_corr as the parameter
-            correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = False)
+            # response
+            correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = ascending_modes)
             
             # If a limit of coefficients was determined, apply it:
             if (set_returned_limit is not None):
