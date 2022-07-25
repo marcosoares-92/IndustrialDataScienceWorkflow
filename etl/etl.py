@@ -8467,10 +8467,9 @@ class etl_workflow:
             
             #Select only the desired responses, by passing the list responses_to_return_corr
             # as parameter for column filtering:
-            correlation_matrix = correlation_matrix[[responses_to_return_corr]]
-            # By passing two brackets, we guarantee that [responses_to_return_corr] is
-            # a list, even if it contains a single element. So, correlation_matrix is still
-            # a dataframe.
+            correlation_matrix = correlation_matrix[responses_to_return_corr]
+            # By passing a list as argument, we assure that the output is a dataframe
+            # and not a series, even if the list contains a single element.
             
             # Create a list of boolean variables == False, one False correspondent to
             # each one of the responses
