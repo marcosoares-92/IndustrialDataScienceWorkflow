@@ -4514,6 +4514,8 @@ class etl_workflow:
         else:
             # There is no column to ignore, so we must check all columns:
             checked_df = DATASET
+            # Update the list of columns to check:
+            cols_to_check = list(checked_df.columns)
         
         # To remove only rows or columns with only missing values, we set how = 'all' in
         # dropna method:
@@ -4530,9 +4532,14 @@ class etl_workflow:
         
         # If len(cols_to_check) > 0, merge again the subsets:
         if (len(cols_to_check) > 0):
+
+            if not (list_of_columns_to_ignore is None): # There is an ignored dataframe
             
-            DATASET = pd.concat([ignored_df, checked_df], axis = 1, join = "inner")
-        
+                DATASET = pd.concat([ignored_df, checked_df], axis = 1, join = "inner")
+            
+            else: # Make the DATASET the checked_df itself:
+                DATASET = checked_df
+
         # Now, reset the index:
         DATASET = DATASET.reset_index(drop = True)
         
@@ -5308,6 +5315,11 @@ class etl_workflow:
         # will not be lost:
         DATASET = DATASET.reset_index(drop = True)
         
+        # Convert variable_to_group_by to Pandas 'category' type. If the variable is represented by
+        # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
+        # of as a category. It will prevents this to happen:
+        DATASET[variable_to_group_by] = DATASET[variable_to_group_by].astype("category")
+        
         # Create two subsets:
         if (len(categorical_list) > 1):
             
@@ -5616,7 +5628,7 @@ class etl_workflow:
             # return only the aggregated dataframe:
             return DATASET
 
-
+        
     def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, list_of_new_column_names = None):
         
         import numpy as np
@@ -8449,13 +8461,23 @@ class etl_workflow:
         
         if (responses_to_return_corr is not None):
             
+            if (type(responses_to_return_corr) == str):
+                # If a string was input, put it inside a list
+                responses_to_return_corr = [responses_to_return_corr]
+            
             #Select only the desired responses, by passing the list responses_to_return_corr
             # as parameter for column filtering:
             correlation_matrix = correlation_matrix[responses_to_return_corr]
+            # By passing a list as argument, we assure that the output is a dataframe
+            # and not a series, even if the list contains a single element.
+            
+            # Create a list of boolean variables == False, one False correspondent to
+            # each one of the responses
+            ascending_modes = [False for i in range(0, len(responses_to_return_corr))]
             
             #Now sort the values according to the responses, by passing the list
-            # responses_to_return_corr as the parameter
-            correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = False)
+            # response
+            correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = ascending_modes)
             
             # If a limit of coefficients was determined, apply it:
             if (set_returned_limit is not None):
@@ -8618,6 +8640,11 @@ class etl_workflow:
         # Before grouping, let's remove the missing values, avoiding the raising of TypeError.
         # Pandas deprecated the automatic dropna with aggregation:
         DATASET = DATASET.dropna(axis = 0)
+        
+        # Convert categorical_var_name to Pandas 'category' type. If the variable is represented by
+        # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
+        # of as a category. It will prevents this to happen:
+        DATASET[categorical_var_name] = DATASET[categorical_var_name].astype("category")    
         
         # If an aggregate function different from 'sum', 'mean', 'median' or 'mode' 
         # is used with plot_cumulative_percent = True, 
@@ -9074,7 +9101,7 @@ class etl_workflow:
                 
                 # Create the twin plot for the cumulative percent:
                 ax2 = ax1.twinx()
-                ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
+                ax2.plot(categories, cum_pct, '-ro', label = "cumulative\npercent")
                 #.plot(x, y, ...)
                 ax2.tick_params('y', color = 'red')
                 ax2.set_ylabel("Cumulative Percent (%)", color = 'red', rotation = 270)
