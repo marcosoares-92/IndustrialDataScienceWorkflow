@@ -9101,7 +9101,7 @@ class etl_workflow:
                 
                 # Create the twin plot for the cumulative percent:
                 ax2 = ax1.twinx()
-                ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
+                ax2.plot(categories, cum_pct, '-ro', label = "cumulative\npercent")
                 #.plot(x, y, ...)
                 ax2.tick_params('y', color = 'red')
                 ax2.set_ylabel("Cumulative Percent (%)", color = 'red', rotation = 270)
