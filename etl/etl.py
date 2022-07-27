@@ -16106,7 +16106,7 @@ class etl_workflow:
             ax.set_ylabel(vertical_axis_title)
 
             ax.grid(grid) # show grid or not
-            ax.legend()
+            ax.legend(loc = "upper right")
             # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
             # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
             # https://www.statology.org/matplotlib-legend-position/
@@ -18727,7 +18727,7 @@ class etl_workflow:
                 
         # Now we finished plotting all of the series, we can set the general configuration:
         ax.grid(grid) # show grid or not
-        ax.legend()
+        ax.legend(loc = "lower left")
 
         if (export_png == True):
             # Image will be exported
