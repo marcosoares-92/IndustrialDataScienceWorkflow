@@ -16979,8 +16979,10 @@ class etl_workflow:
 
     def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
             
-        print ("If an error message is shown, update statsmodels. Declare and run a cell as:")
-        print ("!pip install statsmodels --upgrade\n")
+        print ("If an error message is shown, update statsmodels to a version >= 0.13.2. To update to this version, declare and run a cell as the following command; or run it on command line without magic character '!':")
+        print ("!pip install statsmodels==0.13.2 --upgrade")
+        print ("Also, update matplotlib to a version >= 3.5.2 by running:")
+        print ("!pip install matplotlib==3.5.2 --upgrade\n")
         import random
         import numpy as np
         import pandas as pd
@@ -17235,6 +17237,14 @@ class etl_workflow:
             list_of_arrays = [list(d['values_to_analyze']) for d in list_of_dictionaries_with_series_to_analyze]
             list_of_labels = [d['label'] for d in list_of_dictionaries_with_series_to_analyze]
             
+            # Calculate and store the means and medians for each label:
+            # https://numpy.org/doc/stable/reference/generated/numpy.mean.html
+            # https://numpy.org/doc/stable/reference/generated/numpy.median.html
+            list_of_means = [np.mean(array) for array in list_of_arrays]
+            list_of_medians = [np.median(array) for array in list_of_arrays]
+            list_of_min = [min(array) for array in list_of_arrays]
+            list_of_max = [max(array) for array in list_of_arrays]
+            
             # Store the total of valid series:
             total_series = len(list_of_labels)
             # Let's pad the series by eliminating random elements until all series have the
@@ -17298,9 +17308,35 @@ class etl_workflow:
                 f_statistic = anova_one_way_summary[0]
                 p_value = anova_one_way_summary[1]
                 
+                anova_summary_dict = {'groups_length':min_length, 'F_statistic': f_statistic, 'p_value': p_value}
+                
                 print(f"Total of samples in each group used for ANOVA (after padding): {min_length}\n")
                 print(f"Probability that the means of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
                 print(f"Calculated F-statistic for the variances = {f_statistic:e}\n")
+                
+                # start a statistics list:
+                statistics_list = []
+                
+                print("Statistics for each detected label:\n")
+                
+                # If we apply the function zip(list_of_labels, list_of_means, list_of_medians, list_of_min, list_of_max), 
+                # we obtain a series of tuples. The i-th tuple contains the i-th element from list_of_labels, 
+                # the i-th from list_of_means, the i-th from list_of_medians, the i-th from list_of_min, and
+                # the i-th from list_of_max in this order. So, we can iterate through the 5 lists simultaneously, 
+                # without declaring a counter variable by decoupling the zip:
+                for label, mean, median, minimum, maximum in zip(list_of_labels, list_of_means, list_of_medians, list_of_min, list_of_max):
+                    
+                    label_dict = {'label': label, 'mean': mean, 'median': median, 'min': minimum, 'max': maximum}
+                    statistics_list.append(label_dict)
+                    
+                    print(f"Mean value of label '{label}' = {mean:e}")
+                    print(f"Median value of label '{label}' = {median:e}")
+                    print(f"Minimum value of label '{label}' = {minimum:e}")
+                    print(f"Maximum value of label '{label}' = {maximum:e}\n")
+                
+                # Add the statistics list to the anova_summary_dict:
+                anova_summary_dict['statistics'] = statistics_list
+                
                 # :e indicates the scientific notation
 
                 if (p_value <= alpha_anova):
@@ -17310,8 +17346,7 @@ class etl_workflow:
                 else:
                     print(f"For a confidence level of {confidence_level_pct}%, we can accept the null hypothesis.")
                     print(f"The means are equal for a {confidence_level_pct}% confidence level.")
-
-                anova_summary_dict = {'groups_length':min_length, 'F_statistic': f_statistic, 'p_value': p_value}
+                    
 
             if ((plot_type is not None) & (plot_type != 'only_anova')):
 
