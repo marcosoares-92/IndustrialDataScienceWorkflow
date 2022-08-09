@@ -1974,3 +1974,181 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     else:
         print("Enter a valid action, import or export.")
 
+
+def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
+    
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    
+    # df: dataset containing historical data, from which the analysis will be generated.
+    
+    # SIMULATED_VARIABLES: name (string) or list of names of the variables that will be tested.
+    # In the generated dataset, the variable SIMULATED_VARIABLEs will be ranged from its
+    # minimum to its maximum value in the original dataset. In turns, the
+    # other variables will be kept constant, and with value set as the
+    # respective mean value (mean values calculated on the original dataset).
+    # e.g. SIMULATED_VARIABLES = "feature1" or SIMULATED_VARIABLES = ['col1', 'col2', 'col3']
+
+    # It allows us to perform situations where the effects of each
+    # feature are isolated from the variation of the other variables.
+
+    # Notice that it may be impossible in real scenarios: different constraints
+    # and even the need for keeping the operation ongoing may require the
+    # parameters to be defined in given levels. Also, it is possible that
+    # the variables in the original dataset are all modified simultaneously
+    # and with different rules. Finally, all the variables have their own
+    # sources of variability interacting in the real data, making it
+    # difficult or impossible to observe the correlations present.
+
+    # Applying the generated dataframes to the obtained models allows us to
+    # understand how each variable influences the responses (isolately) and
+    # how to optimize them.
+
+    
+    # TOTAL_BINS: amount of divisions of the tested range, i.e, into how much
+    # bins we will split the variables, from their minimum to their maximum
+    # values in the original dataset. 
+    # The range (max - min) of the variable will be divided into this number 
+    # of bins. 
+    # So, TOTAL_BINS will be the number of rows of the generated dataset 
+    # (in fact, since the division may not result into an integer, the number
+    # of rows may be total_bins +- 1).
+
+    # For instance: if a variable Y ranges from 0 to 10, and TOTAL_BINS = 11,
+    # we will create a dataset with the following values of Y: 
+    # Y = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    # Each generated value will be stored as a different row (an entry)
+    # of the generated dataset.
+    
+    # Start a local copy of the dataframe
+    history_dataset = df.copy(deep = True)
+    
+    # Check if the names are already in a list. If not, add them to a list (brackets):
+    if (type(simulated_variables) != list):
+        simulated_variables = [simulated_variables]
+    
+    # Get the columns from the history dataset and save as a list:
+    original_columns = list(history_dataset.columns)
+    
+    # Start a dictionary of dataframes:
+    simulation_dfs = {}
+    
+    for variable in simulated_variables:
+        
+        # Get a list of columns without variable:
+        other_columns = original_columns
+        # Get the index from variable in the list other_columns and pop it:
+        var_index = other_columns.index(variable)
+        other_columns.pop(var_index)
+        # If we make var = other_columns.pop(var_index), var would also store the variable name.
+        
+        # start a tested var list
+        var_list = []
+
+        # minimum value assumed by the variable:
+        min_var_val = float(history_dataset[variable].min())
+        
+        # add this minimum value as the first element of the var list:
+        var_list.append(min_var_val)
+
+        # maximum value assumed by the variable:
+        max_var_val = float(history_dataset[variable].max())
+        # We apply the float command to convert the descriptive statistics obtained in describe method
+        # into real (float) values to avoid obtaining them as arrays.
+
+        # tested range: range for the sensitivity analysis: max - min value:
+        tested_range = (max_var_val - min_var_val)
+
+        # bin size: width/distance between successive bins - distance between tested points.
+        bin_size = (tested_range)/(total_bins)
+        
+        tested_var = (min_var_val) + (bin_size)
+        # Variable value that will be generated for testing
+
+        while (tested_var < max_var_val):
+
+            #If it gets bigger or equal to the max_var_val, we will simply make it equals to the maximum
+            #possible value, so that we will not test values outside the range of possibilities.
+
+            var_list.append(tested_var)
+            #Go to next bin and restart the loop:
+            tested_var = tested_var + (bin_size)
+
+        #Now we are at the maximum possible value. Add it to the tested_var list:
+        var_list.append(max_var_val)
+        #Now we created the list with all the tested values. Let's check its dimension (total rows
+        #of the final dataframe).
+
+        # Let's create a dataframe from this list:
+        simulation_dict = {var_name: var_list}
+        #the key of the dictionary (name of the future column) is the original name of the variable.
+
+        sensitivityAnalysis_df = pd.DataFrame(data = simulation_dict)
+    
+        # Let's generate the new columns. They will have a constant value, equals to the average value
+        # of the variable in the original dataset. The list cols_names will register the correct names
+        # so we will be able to create a new column at each interaction: at each interaction, we will
+        # append a new name to this list and update the columns names to be equals to the list. Then, the
+        # generic name used for starting the column will be again able to be used.
+        
+        # Start a dictionary of statistics values (mean for numerics, mode for categoricals):
+        stats_dict = {}
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+        
+        for column in other_columns:
+            
+            # Store the column name as key, and the statistic as value:
+            column_data_type = cleaned_df[column].dtype
+            
+            if (column_data_type not in numeric_dtypes):
+                # column is categorical (string):
+                mode_array = stats.mode(history_dataset[column])
+                            
+                # The function stats.mode(X) returns an array as: 
+                # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
+                # If we select the first element from this array, stats.mode(X)[0], 
+                # the function will return an array as array(['a'], dtype='<U1'). 
+                # We want the first element from this array stats.mode(X)[0][0], 
+                # which will return a string like 'a':
+                try:
+                    stats_dict[column] = mode_array[0][0]
+
+                except IndexError:
+                    # This error is generated when trying to access an array storing no values.
+                    # (i.e., with missing values). Since there is no dimension, it is not possible
+                    # to access the [0][0] position. In this case, simply append the np.nan 
+                    # the (missing value):
+                    stats_dict[column] = np.nan
+            
+            else:
+                stats_dict[column] = history_dataset[column].mean()
+        
+        # Now, loop through each key-value (items) pair:
+        for key, value in stats_dict.items():
+            
+            # Add the key as the column name, and the value as constant value of the column:
+            sensitivityAnalysis_df[key] = value
+        
+        # Finally, add it to the output dictionary using the index in the input list as key:
+        simulation_dfs[simulated_variables.index(variable)] = {'variable_to_test': variable,
+                                                            'sensitivity_analysis_df': sensitivityAnalysis_df}
+        
+        print (f"Dataset for sensitivity analysis of the variable \'{variable}\' returned.")
+        print (f"In the returned dataset, \'{var_name}\' ranges from its minimum = {min_var_val}; to its maximum = {max_var_val} values observed on the original dataset.") 
+        print (f"This range was split into {total_bins} bins.")
+        print ("Check the 5 first rows of the returned dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(sensitivityAnalysis_df())
+
+        except: # regular mode
+            print (sensitivityAnalysis_df.head())
+            # When no integer is input as parameter of the head method, the defaul
+            # 5 rows is applied: .head() == .head(5)
+
+    #Return the new dictionary:
+    return simulation_dfs_dict
