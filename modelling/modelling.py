@@ -11,13 +11,16 @@ class model_checking:
             
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
-    def __init__(self, model_object, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_dict = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
-
+    def __init__(self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_dict = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
+        
         import numpy as np
         import tensorflow as tf
 
         # Add the model:        
         self.model = model_object
+        # It can be None: user can firstly call the object to retrieve the total classes, and
+        # then call it again with the model adjusted for that amount of classes.
+        
         # model_type = 'regression' or 'classification'
         self.model_type = model_type
         
@@ -65,8 +68,9 @@ class model_checking:
             total_predictors = X.shape[1]
             self.total_predictors = total_predictors
 
-        # to check the class attributes, use the __dict__ method. Examples:
+        # to check the class attributes, use the __dict__ method or the vars function. Examples:
         ## object.__dict__ will show all attributes from object
+        ## vars(object) shows the same.
                 
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters
@@ -272,6 +276,7 @@ class model_checking:
                     # The method update_state returns None, so it must be called without and equality
 
                     # Get the classification report:
+                    print("\n")
                     print("Classification Report:\n")
                     # Convert tensors to NumPy arrays
                     report = classification_report (y_true.numpy(), y_pred.numpy())
@@ -285,7 +290,7 @@ class model_checking:
                     matrix = confusion_matrix (y_true.numpy(), y_pred.numpy())
                     # Add to calculated metrics:
                     calculated_metrics['confusion_matrix'] = report
-                    print("Check the confusion matrix:\n")
+                    print("Confusion matrix:\n")
 
                     fig, ax = plt.subplots(figsize = (12, 8))
                     # possible color schemes (cmap) for the heat map: None, 'Blues_r',
@@ -373,41 +378,45 @@ class model_checking:
 
         if (model_class == 'linear'):
 
+            # Get the list of coefficients
+            reg_coefficients = model.coef_
+              
+            try: 
+                trial_access = reg_coefficients[1]
+                # If the trial succeeded, reg_coefficients is in the correct format [coef1, coef2, ...]
+                
+                # reg_coefficients[0] is a scalar, not an array.
+                # Convert the numpy array:
+                reg_coefficients = np.array(reg_coefficients)
+                abs_reg_coefficients = abs(reg_coefficients)
+                
+            except: 
+                # The trial fails when reg_coefficients is an array containing a single array like 
+                # [[coef1, coef2, ...]]
+                # So, the index 0 stores the array of interest. 
+                # Since coefficients may be negative, pick the absolute values from the array in index 0
+                # (NumPy arrays accept vectorial operations, lists do not):
+                reg_coefficients = np.array(reg_coefficients[0])
+                abs_reg_coefficients = abs(reg_coefficients)
+                # Already numpy arrays
+            
             if (column_map_dict is not None):
                 # Retrieve the values (columns' names):
                 # Set as list
                 columns_list = list(column_map_dict['features'].values())
             
-            # Get the list of coefficients
-            reg_coefficients = model.coef_
-            # This is an array containing a single array like [[coef1, coef2, ...]]
-            # So, the index 0 stores the array of interest. 
-            # Since coefficients may be negative, pick the absolute values from the array in index 0
-            # (NumPy arrays accept vectorial operations, lists do not):
-            
-            try:
-                reg_coefficients = abs(reg_coefficients[0])
-                # Now, convert to list:
-                reg_coefficients = list(reg_coefficients)
-            
-             
-            except: # reg_coefficients[0] is a scalar, not a list
-                reg_coefficients = abs(np.array(reg_coefficients))
-                # Now, convert to list:
-                reg_coefficients = [reg_coefficients]
-                
-            
-            if (column_map_dict is None):
+            else:
                 # Retrieve the values (columns' names):
                 columns_list = [i for i in range(0, len(reg_coefficients))]
-
-            # Append the intercept coefficient to this list:
+            
+            # Get the intercept coefficient:
             print(f"Calculated model intercept = {model.intercept_}\n")
             
             try:
                 # Create the regression dictionary:
                 reg_dict = {'predictive_features': columns_list,
-                          'regression_coefficients': reg_coefficients}
+                          'regression_coefficients': reg_coefficients,
+                           'abs_reg_coefficients': abs_reg_coefficients}
 
                 # Convert it to a Pandas dataframe:
                 feature_importance_df = pd.DataFrame(data = reg_dict)
@@ -417,7 +426,7 @@ class model_checking:
                 # list of booleans to ascending, instead of passing a simple string to by and a boolean
                 # to ascending. The element on a given index from the list by corresponds to the boolean
                 # with the same index in ascending):
-                feature_importance_df = feature_importance_df.sort_values(by = ['regression_coefficients', 'predictive_features'], ascending = [False, True])
+                feature_importance_df = feature_importance_df.sort_values(by = ['abs_reg_coefficients', 'regression_coefficients', 'predictive_features'], ascending = [False, False, True])
 
                 # Now that the dataframe is sorted in descending order, it represents the feature
                 # importance ranking.
@@ -435,37 +444,41 @@ class model_checking:
             # Set the list of the predictors:
             # Use the list attribute to guarantee that it is a list:
             
-            if (column_map_dict is not None):
-                # Retrieve the values (columns' names):
-                columns_list = list(column_map_dict['features'].values())
-            
             # Get the list of feature importances. Apply the list method to convert the
             # array from .feature_importances_ to a list:
             feature_importances = model.feature_importances_
-            # This is an array containing a single array like [[coef1, coef2, ...]]
-            # So, the index 0 stores the array of interest.
-            # Pick the absolute values from the array in index 0
-            # (NumPy arrays accept vectorial operations, lists do not):
+                 
+            try: 
+                trial_access = feature_importances[1]
+                # If the trial succeeded, feature_importances is in the correct format 
+                # [coef1, coef2, ...]
+                # feature_importances[0] is a scalar, not an array.
+                feature_importances = np.array(feature_importances)
+                abs_feature_importances = abs(feature_importances)
+                             
+            except: 
+                # The trial fails when reg_coefficients is an array containing a single array like 
+                # [[coef1, coef2, ...]]
+                # So, the index 0 stores the array of interest. 
+                # Since coefficients may be negative, pick the absolute values from the array in index 0
+                # (NumPy arrays accept vectorial operations, lists do not):
+                feature_importances = np.array(feature_importances[0])
+                abs_feature_importances = abs(feature_importances)
+                # feature_importances and abs_feature_importances are already numpy arrays
             
-            try:
-                feature_importances = abs(feature_importances[0])
-                # Now, convert to list:
-                feature_importances = list(feature_importances)
-            
-            except: # feature_importances[0] is a scalar, not a list
-                feature_importances = abs(np.array(feature_importances))
-                # Now, convert to list:
-                feature_importances = [feature_importances]
+            if (column_map_dict is not None):
+                # Retrieve the values (columns' names):
+                columns_list = list(column_map_dict['features'].values())
                 
-                
-            if (column_map_dict is None):
+            else:
                 # Retrieve the values (columns' names):
                 columns_list = [i for i in range(0, len(feature_importances))]
             
             try:
                 # Create the model dictionary:
                 model_dict = {'predictive_features': columns_list,
-                          'feature_importances': feature_importances}
+                            'feature_importances': feature_importances,
+                            'abs_feature_importances': abs_feature_importances}
 
                 # Convert it to a Pandas dataframe:
                 feature_importance_df = pd.DataFrame(data = model_dict)
@@ -475,7 +488,7 @@ class model_checking:
                 # list of booleans to ascending, instead of passing a simple string to by and a boolean
                 # to ascending. The element on a given index from the list by corresponds to the boolean
                 # with the same index in ascending):
-                feature_importance_df = feature_importance_df.sort_values(by = ['feature_importances', 'predictive_features'], ascending = [False, True])
+                feature_importance_df = feature_importance_df.sort_values(by = ['abs_feature_importances', 'feature_importances', 'predictive_features'], ascending = [False, False, True])
 
                 # Now that the dataframe is sorted in descending order, it represents the feature
                 # importance ranking.
@@ -505,10 +518,10 @@ class model_checking:
             features = feature_importance_df['predictive_features']
 
             if (model_class == 'linear'):
-                importances = feature_importance_df['regression_coefficients']
+                importances = feature_importance_df['abs_reg_coefficients']
 
             elif (model_class == 'tree'):
-                importances = feature_importance_df['feature_importances']
+                importances = feature_importance_df['abs_feature_importances']
 
             data_label = "feature_importance_ranking"
 
@@ -522,7 +535,7 @@ class model_checking:
 
             # Now, plot the bar chart
             print("\n")
-            print("Check the feature importance bar chart:\n")
+            print("Feature relative importance bar chart:\n")
             # Now the data is prepared and we only have to plot 
             # categories, responses, and cum_pct:
 
@@ -854,7 +867,6 @@ class model_checking:
 
         # Retrieve attributes:
         # Add the model:        
-        model_object = self.model
         y_train = self.y_train
         
         # Use numpy.unique to collect the unique classes, in the
@@ -1447,6 +1459,7 @@ class modelling_workflow:
         
         import numpy as np
         import pandas as pd
+        import tensorflow as tf
         from sklearn.linear_model import LogisticRegression
         
         # X_train = subset of predictive variables (dataframe).
@@ -1458,63 +1471,478 @@ class modelling_workflow:
         
         print("Attention: logistic regression is a binary classifier. It results in probabilities, instead of on scalar (real numbers) like other regression algorithms from linear models class.\n")
         
-        # Pass the appropriate parameters to the class constructor:
-        logistic_reg_model = LogisticRegression(max_iter = maximum_of_allowed_iterations)
-        # verbose = 1 to debug mode is not available for 'saga' solver
+        # Instantiate a model checker object to verify if there are only two classes:
+        check_classes = model_checking()
+        # Use the vars function to access the attributes dictionary and set the value from y_train:
+        # Make sure that it is a tensor, so that it can use .numpy method:
+        vars(check_classes)['y_train'] = tf.constant(y_train)
+        # Retrieve the classes:
+        check_classes = check_classes.retrieve_classes_used_for_training()
+        # Retrieve the attributes:
+        number_of_classes = check_classes.number_of_classes
+        list_of_classes = check_classes.list_of_classes
         
-        # Fit the model:
-        # Sklearn logistic regression requires a 1-dimensional vector for training. So, let's
-        # reshape the y_train tensor accordingly:
+        # Create a dictionary to return:
+        classes_dict = {'list_of_classes': list_of_classes,
+                        'number_of_classes': number_of_classes}
+        
+        if (number_of_classes == 2):
+            # Logistic regression can be obtained for only two classes.
+            # Since the number of classes is correct, we can proceed.
+            
+            # Pass the appropriate parameters to the class constructor:
+            logistic_reg_model = LogisticRegression(max_iter = maximum_of_allowed_iterations)
+            # verbose = 1 to debug mode is not available for 'saga' solver
+
+            # Fit the model:
+            # Sklearn logistic regression requires a 1-dimensional vector for training.
+            """
+            y_train tensor original format:
+                <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                array([[1.],
+                    [0.], ....,
+                    [0.]])>
+            
+            Reshape to unidimensional format. First step:
+            y_train.numpy().reshape(1, -1)
+            Now, it has format:
+                array([[1., 0.,..., 0.]]), shape = (1, 87)
+                (if we make reshape(-1, 1), we turn it again to the original tensor format)
+            
+            Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+            # So we make:
+            y_train[0] to select only it.
+            """
+            
+            reshaped_y_train = y_train.numpy().reshape(1, -1)
+            # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+            # only the first array:
+            reshaped_y_train = reshaped_y_train[0]
+
+
+            logistic_reg_model = logistic_reg_model.fit(X_train, reshaped_y_train)
+            print(f"Total of iterations to fit the model = {logistic_reg_model.n_iter_}\n")
+
+            if (logistic_reg_model.n_iter_ == maximum_of_allowed_iterations):
+                print("Warning! Total of iterations equals to the maximum allowed. It indicates that the convergence was not reached yet. Try to increase the maximum number of allowed iterations.\n")
+
+            # Get predictions for training, testing, and validation:
+            y_preds_for_train = logistic_reg_model.predict(X_train)
+
+            if ((X_test is not None) & ((y_test is not None))):
+                y_preds_for_test = logistic_reg_model.predict(X_test)
+
+            else:
+                y_preds_for_test = None
+
+            if ((X_valid is not None) & ((y_valid is not None))):
+                y_preds_for_validation = logistic_reg_model.predict(X_valid)
+
+            else:
+                y_preds_for_validation = None
+
+            # instantiate the model checker object:
+            model_check = model_checking(model_object = logistic_reg_model, model_type = 'classification', model_package = 'sklearn', column_map_dict = column_map_dict, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
+            
+            # Calculate model metrics:
+            model_check = model_check.model_metrics()
+            # Retrieve model metrics:
+            metrics_dict = model_check.metrics_dict
+
+            # Get feature importance ranking:
+            metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+            # Retrieve the feature importance ranking:
+            feature_importance_df = model_check.feature_importance_df
+
+            print("\n") #line break
+            print("To predict the model output y_pred for a dataframe X, declare: y_pred = logistic_reg_model.predict(X)\n")
+            print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+            print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+            # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = logistic_reg_model.predict_proba(X_train)")
+
+            return logistic_reg_model, metrics_dict, feature_importance_df, classes_dict
+        
+        else:
+            print("Unable to perform logistic regression.")
+            print(f"Found a total of {number_of_classes} in the training tensor: {list_of_classes}\n")
+            
+            return None, None, None, classes_dict
+
+
+    def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_trees = 100, max_tree_depth = None, min_samples_to_split_node = 2, min_samples_to_make_leaf = 2, bootstrap_samples = True, use_out_of_bag_error = True, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
+        # check Random Forest documentation on Scikit-learn:
+        # https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
+        # Check explanaining of out-of-bag error:
+        # https://scikit-learn.org/stable/auto_examples/ensemble/plot_ensemble_oob.html
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.ensemble import RandomForestClassifier
+        
+        # X_train = subset of predictive variables (dataframe).
+        # y_train = subset of response variable (series).
+        
+        # TYPE_OF_PROBLEM = 'regression'; or TYPE_OF_PROBLEM = 'classification'
+        # The default is 'regression', which will be used if no type is
+        # provided.
+        
+        # NUMBER_OF_TREES = 100 (integer) - number of trees in the forest
+        # it is the n_estimators parameter of the model.
+
+        # MAX_TREE_DEPTH = None - integer representing the maximum depth 
+        # permitted for the trees (base learners). If None, then nodes are expanded 
+        # until all leaves are pure or until all leaves contain less 
+        # than MIN_SAMPLES_TO_SPLIT_NODE samples.
+        # it is the max_depth parameter of the model.
+
+        # MIN_SAMPLES_TO_SPLIT_NODE = 2 (integer or float). It is the 
+        # min_samples_split parameter of the model.
+        # The minimum number of samples required to split an internal node:
+        # If int, then consider MIN_SAMPLES_TO_SPLIT_NODE as the minimum number.
+        # If float, then MIN_SAMPLES_TO_SPLIT_NODE is a fraction and ceil
+        # (MIN_SAMPLES_TO_SPLIT_NODE * NUMBER_OF_TREES) are the minimum number 
+        # of samples for each split.
+
+        # MIN_SAMPLES_TO_MAKE_LEAF = 2 (integer or float). It is the
+        # min_samples_leaf parameter of the model.
+        # The minimum number of samples required to be at a leaf node. 
+        # A split point at any depth will only be considered if it leaves at 
+        # least MIN_SAMPLES_TO_MAKE_LEAF training samples in each of the left and right branches. 
+        # This may have the effect of smoothing the model, especially in regression.
+        # If int, then consider MIN_SAMPLES_TO_MAKE_LEAF as the minimum number.
+        # If float, then MIN_SAMPLES_TO_MAKE_LEAF is a fraction and ceil
+        # (MIN_SAMPLES_TO_MAKE_LEAF * NUMBER_OF_TREES) are the minimum number 
+        # of samples for each node.
+        
+        # bootstrap_samples = True. Parameter bootstrap of the model.
+        # Whether bootstrap samples are used when building trees. If False, 
+        # the whole dataset is used to build each tree.
+        
+        # USE_OUT_OF_BAG_ERROR = True. Parameter oob_score of the model.
+        # Whether to use out-of-bag (OOB) samples to estimate the generalization score. 
+        # Only available if BOOTSTRAP_SAMPLES = True.
+        # OOB is the equivalent of the using batches for training the neural network:
+        # when using OOB, the training data is divided into several subsets, and these
+        # subsets are used for separately training the model.
+
+        # Importantly: random forest combines several decision trees, by randomnly selecting
+        # variables for making the tree leafs and nodes; and ramdonly setting the depth of
+        # the trees. The use of out-of-bag guarantees that the data used for the construction
+        # of the trees is randomly selected.
+        # If not using, the model will be highly susceptive of overfitting due to the use of
+        # the whole dataset. Also, the calculated metrics will be over estimated.
+
+        # This phenomenon is characteristic from ensemble algorithms like random forests, and
+        # is not usually observed on linear regressions.
+        
+        # Start a summary dictionary:
+        summary_dict = {}
+        
+        # check if use_out_of_bag_error = True but bootstrap_samples is False:
+        if ((bootstrap_samples == False) & (use_out_of_bag_error == True)):
+            
+            print("Out-of-bag errors can only be used when bootstrap is True. Then, changing the value of bootstrap_samples.")
+            
+            bootstrap_samples = True
+        
+        if (type_of_problem == "regression"):
+            # Create an instance (object) from the class RandomForestRegressor()
+            # Pass the appropriate parameters to the class constructor:
+            rf_model = RandomForestRegressor(n_estimators = number_of_trees, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
+            # verbose = 1 for debug mode (show training process details)
+            
+        elif (type_of_problem == "classification"):
+            
+            # Instantiate a model checker object to verify if there are only two classes:
+            check_classes = model_checking()
+            # Use the vars function to access the attributes dictionary and set the value from y_train:
+            # Make sure that it is a tensor, so that it can use .numpy method:
+            vars(check_classes)['y_train'] = tf.constant(y_train)
+            # Retrieve the classes:
+            check_classes = check_classes.retrieve_classes_used_for_training()
+            # Retrieve the attributes:
+            number_of_classes = check_classes.number_of_classes
+            list_of_classes = check_classes.list_of_classes
+            
+            # Create a dictionary to return:
+            classes_dict = {'list_of_classes': list_of_classes,
+                            'number_of_classes': number_of_classes}
+            
+            # Store it in the summary dictionary:
+            summary_dict['classes'] = classes_dict
+            
+            # Create an instance (object) from the class RandomForestClassifier()
+            # Pass the appropriate parameters to the class constructor:
+            rf_model = RandomForestClassifier(n_estimators = number_of_trees, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
+            # verbose = 1 for debug mode (show training process details)
+
+            
+        else:
+            
+            print ("Enter a valid type of problem, \'regression\' or \'classification\'.")
+            return "error"
+        
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+            y_train tensor original format:
+                <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                array([[1.],
+                    [0.], ....,
+                    [0.]])>
+            
+            Reshape to unidimensional format. First step:
+            y_train.numpy().reshape(1, -1)
+            Now, it has format:
+                array([[1., 0.,..., 0.]]), shape = (1, 87)
+                (if we make reshape(-1, 1), we turn it again to the original tensor format)
+            
+            Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+            # So we make:
+            y_train[0] to select only it.
+        """
+            
         reshaped_y_train = y_train.numpy().reshape(1, -1)
         # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
         # only the first array:
         reshaped_y_train = reshaped_y_train[0]
         
-        logistic_reg_model = logistic_reg_model.fit(X_train, reshaped_y_train)
-        print(f"Total of iterations to fit the model = {logistic_reg_model.n_iter_}\n")
+        rf_model = rf_model.fit(X_train, reshaped_y_train)
         
-        if (logistic_reg_model.n_iter_ == maximum_of_allowed_iterations):
-            print("Warning! Total of iterations equals to the maximum allowed. It indicates that the convergence was not reached yet. Try to increase the maximum number of allowed iterations.\n")
+        
+        if (use_out_of_bag_error): # runs only if the boolean is True
+            
+            print("OOB Score: score of the training dataset obtained using an out-of-bag estimate = ")
+            print(rf_model.oob_score_)
+            print("\n")
         
         # Get predictions for training, testing, and validation:
-        y_preds_for_train = logistic_reg_model.predict(X_train)
-        
+        y_preds_for_train = rf_model.predict(X_train)
+
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = logistic_reg_model.predict(X_test)
-        
+            y_preds_for_test = rf_model.predict(X_test)
+
         else:
             y_preds_for_test = None
-        
+
         if ((X_valid is not None) & ((y_valid is not None))):
-            y_preds_for_validation = logistic_reg_model.predict(X_valid)
-            
+            y_preds_for_validation = rf_model.predict(X_valid)
+
         else:
             y_preds_for_validation = None
-        
+
         # instantiate the model checker object:
-        model_check = model_checking(model_object = logistic_reg_model, model_type = 'classification', model_package = 'sklearn', column_map_dict = column_map_dict, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
-        
-        # Check total of classes:
-        model_check = model_check.retrieve_classes_used_for_training()
-        
+        model_check = model_checking(model_object = rf_model, model_type = type_of_problem, model_package = 'sklearn', column_map_dict = column_map_dict, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
+            
         # Calculate model metrics:
         model_check = model_check.model_metrics()
         # Retrieve model metrics:
         metrics_dict = model_check.metrics_dict
-        
+
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        metrics_dict = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
+        # Store the importance ranking in the summary dictionary:
+        summary_dict['feature_importance_df'] = feature_importance_df
+        
         print("\n") #line break
-        print("To predict the model output y_pred for a dataframe X, declare: y_pred = logistic_reg_model.predict(X)\n")
+        print("To reveal the decision path in the forest for a sample X, call the .decision_path method of the random forest model object. For example, declare:")
+        print("path = rf_model.decision_path(X)")
+        print("And then print path.")
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = rf_model.predict(X)\n")
         print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
         print("X_train = np.reshape(np.array(X_train), (-1, 1))")
         # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
         
-        print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
-        print("y_pred_probabilities = logistic_reg_model.predict_proba(X_train)")
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = rf_model.predict_proba(X_train)")
+
+        return rf_model, summary_dict
+
+
+    def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees = 100, max_tree_depth = None, percent_of_training_set_to_subsample = 75, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
-        return logistic_reg_model, metrics_dict, feature_importance_df
+        # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
+        # check XGBoost documentation:
+        # https://xgboost.readthedocs.io/en/stable/python/python_api.html?highlight=xgbregressor#xgboost.XGBRegressor
+    
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        from xgboost import XGBRegressor
+        from xgboost import XGBClassifier
+        
+        # X_train = subset of predictive variables (dataframe).
+        # y_train = subset of response variable (series).
+        
+        # TYPE_OF_PROBLEM = 'regression'; or TYPE_OF_PROBLEM = 'classification'
+        # The default is 'regression', which will be used if no type is
+        # provided.
+        
+        # number_of_trees = 100 (integer) - number of gradient boosted trees. 
+        # Equivalent to number of boosting rounds.
+        # it is the n_estimators parameter of the model.
+        
+        # max_tree_depth = None - integer representing the maximum depth 
+        # permitted for the trees (base learners).
+        
+        # percent_of_training_set_to_subsample = 75 (float or None).
+        # If this value is set, it defines the percent of data that will be ramdonly
+        # selected for training the models.
+        # e.g. percent_of_training_set_to_subsample = 80 uses 80% of the data. If None,
+        # it uses the whole training set (100%)
+        
+        # The subsampling of the dataset is the XGBoost equivalent to using the
+        # Out-of-bag (OOB) error in Random Forest.
+        # OOB, in turns, is the equivalent of the using batches for training the neural network:
+        # when using OOB, the training data is divided into several subsets, and these
+        # subsets are used for separately training the model.
+        
+        # Importantly: random forest and XGBoost combine several decision trees, by randomnly selecting
+        # variables for making the tree leafs and nodes; and ramdonly setting the depth of
+        # the trees. The use of out-of-bag guarantees that the data used for the construction
+        # of the trees is randomly selected.
+        # If not using, the model will be highly susceptive of overfitting due to the use of
+        # the whole dataset. Also, the calculated metrics will be over estimated.
+        
+        # This phenomenon is characteristic from ensemble algorithms like random forests, and
+        # XGBoost, and is not usually observed on linear regressions.
+        
+        
+        # Start a summary dictionary:
+        summary_dict = {}
+        
+        # check if percent_of_training_set_to_subsample is between 0 and 100%:
+        if (0 <= percent_of_training_set_to_subsample <= 100):
+            
+            # convert the percent into the fraction_to_subsample
+            fraction_to_subsample = (percent_of_training_set_to_subsample)/100
+        
+        else:
+            # None or invalid value was provided
+            print("None or invalid percent of dataset to subsample was provided. Then, the whole training set will be used.")
+            
+            fraction_to_subsample = 1.0 #total fraction, set as float
+        
+        if (type_of_problem == "regression"):
+            # Create an instance (object) from the class RandomForestRegressor()
+            # Pass the appropriate parameters to the class constructor:
+            xgb_model = XGBRegressor(n_estimators = number_of_trees, max_depth = max_tree_depth, subsample = fraction_to_subsample)
+            # verbosity = 3 for debug mode (show training details)
+            
+        elif (type_of_problem == "classification"):
+            
+            # Instantiate a model checker object to verify if there are only two classes:
+            check_classes = model_checking()
+            # Use the vars function to access the attributes dictionary and set the value from y_train:
+            # Make sure that it is a tensor, so that it can use .numpy method:
+            vars(check_classes)['y_train'] = tf.constant(y_train)
+            # Retrieve the classes:
+            check_classes = check_classes.retrieve_classes_used_for_training()
+            # Retrieve the attributes:
+            number_of_classes = check_classes.number_of_classes
+            list_of_classes = check_classes.list_of_classes
+            
+            # Create a dictionary to return:
+            classes_dict = {'list_of_classes': list_of_classes,
+                            'number_of_classes': number_of_classes}
+            
+            # Store it in the summary dictionary:
+            summary_dict['classes'] = classes_dict
+            
+            # Create an instance (object) from the class RandomForestClassifier()
+            # Pass the appropriate parameters to the class constructor:
+            xgb_model = XGBClassifier(n_estimators = number_of_trees, max_depth = max_tree_depth, subsample = fraction_to_subsample)
+            # verbosity = 3 for debug mode (show training details)
+            
+        else:
+            
+            print ("Enter a valid type of problem, \'regression\' or \'classification\'.")
+            return "error"
+        
+        
+        # XGBoost requires a 1-dimensional vector for training the classifier.
+        """
+            y_train tensor original format:
+                <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                array([[1.],
+                    [0.], ....,
+                    [0.]])>
+            
+            Reshape to unidimensional format. First step:
+            y_train.numpy().reshape(1, -1)
+            Now, it has format:
+                array([[1., 0.,..., 0.]]), shape = (1, 87)
+                (if we make reshape(-1, 1), we turn it again to the original tensor format)
+            
+            Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+            # So we make:
+            y_train[0] to select only it.
+        """
+            
+        reshaped_y_train = y_train.numpy().reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        reshaped_y_train = reshaped_y_train[0]
+        
+        xgb_model = xgb_model.fit(X_train, reshaped_y_train)
+        
+        
+        # Get predictions for training, testing, and validation:
+        y_preds_for_train = xgb_model.predict(X_train)
+
+        if ((X_test is not None) & ((y_test is not None))):
+            y_preds_for_test = xgb_model.predict(X_test)
+
+        else:
+            y_preds_for_test = None
+
+        if ((X_valid is not None) & ((y_valid is not None))):
+            y_preds_for_validation = xgb_model.predict(X_valid)
+
+        else:
+            y_preds_for_validation = None
+
+        # instantiate the model checker object:
+        model_check = model_checking(model_object = xgb_model, model_type = type_of_problem, model_package = 'xgboost', column_map_dict = column_map_dict, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
+            
+        # Calculate model metrics:
+        model_check = model_check.model_metrics()
+        # Retrieve model metrics:
+        metrics_dict = model_check.metrics_dict
+
+        # Get feature importance ranking:
+        metrics_dict = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        # Retrieve the feature importance ranking:
+        feature_importance_df = model_check.feature_importance_df
+        
+        # Store the importance ranking in the summary dictionary:
+        summary_dict['feature_importance_df'] = feature_importance_df
+        
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = xgb_model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = xgb_model.predict_proba(X_train)")
+    
+        return xgb_model, summary_dict
+
 
