@@ -2028,16 +2028,13 @@ def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
     if (type(simulated_variables) != list):
         simulated_variables = [simulated_variables]
     
-    # Get the columns from the history dataset and save as a list:
-    original_columns = list(history_dataset.columns)
-    
     # Start a dictionary of dataframes:
-    simulation_dfs = {}
+    simulation_dfs_dict = {}
     
     for variable in simulated_variables:
         
         # Get a list of columns without variable:
-        other_columns = original_columns
+        other_columns = list(history_dataset.columns)
         # Get the index from variable in the list other_columns and pop it:
         var_index = other_columns.index(variable)
         other_columns.pop(var_index)
@@ -2081,7 +2078,7 @@ def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
         #of the final dataframe).
 
         # Let's create a dataframe from this list:
-        simulation_dict = {var_name: var_list}
+        simulation_dict = {variable: var_list}
         #the key of the dictionary (name of the future column) is the original name of the variable.
 
         sensitivityAnalysis_df = pd.DataFrame(data = simulation_dict)
@@ -2097,10 +2094,11 @@ def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
         # List the possible numeric data types for a Pandas dataframe column:
         numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
         
+        # Let's get the mean or most common values for the other columns:
         for column in other_columns:
             
             # Store the column name as key, and the statistic as value:
-            column_data_type = cleaned_df[column].dtype
+            column_data_type = history_dataset[column].dtype
             
             if (column_data_type not in numeric_dtypes):
                 # column is categorical (string):
@@ -2132,23 +2130,29 @@ def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
             sensitivityAnalysis_df[key] = value
         
         # Finally, add it to the output dictionary using the index in the input list as key:
-        simulation_dfs[simulated_variables.index(variable)] = {'variable_to_test': variable,
+        simulation_dfs_dict[simulated_variables.index(variable)] = {'variable_to_test': variable,
                                                             'sensitivity_analysis_df': sensitivityAnalysis_df}
         
         print (f"Dataset for sensitivity analysis of the variable \'{variable}\' returned.")
-        print (f"In the returned dataset, \'{var_name}\' ranges from its minimum = {min_var_val}; to its maximum = {max_var_val} values observed on the original dataset.") 
+        print (f"In the returned dataset, \'{variable}\' ranges from its minimum = {min_var_val}; to its maximum = {max_var_val} values observed on the original dataset.") 
         print (f"This range was split into {total_bins} bins.")
         print ("Check the 5 first rows of the returned dataset:\n")
         
         try:
             # only works in Jupyter Notebook:
             from IPython.display import display
-            display(sensitivityAnalysis_df())
+            display(sensitivityAnalysis_df.head())
 
         except: # regular mode
             print (sensitivityAnalysis_df.head())
             # When no integer is input as parameter of the head method, the defaul
             # 5 rows is applied: .head() == .head(5)
 
-    #Return the new dictionary:
+    # Return the new dictionary:
+    # The dataframes are stored in the key 'sensitivity_analysis_df'. The keys to access the nested
+    # dictionaries are integers starting from zero, representing the position (order) of the generated
+    # dataframe. For example, simulation_dfs_dict[0]['sensitivity_analysis_df'] access the 1st dataframe,
+    # simulation_dfs_dict[1]['sensitivity_analysis_df'] access the 2nd dataframe, and so on.
+    # Simply modify this object on the left of equality:
     return simulation_dfs_dict
+
