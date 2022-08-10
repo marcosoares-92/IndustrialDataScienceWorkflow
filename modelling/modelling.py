@@ -900,7 +900,6 @@ class modelling_workflow:
     # Evaluate models' metrics and feature importance.
     # Make predictions and visualize models.
 
-
     def separate_and_prepare_features_and_responses (df, features_columns, response_columns):
 
         import numpy as np
@@ -925,13 +924,19 @@ class modelling_workflow:
         DATASET = df.copy(deep = True)
 
         # Check if features_columns and response_columns are lists:
-        if (type(features_columns) != list):
+        if ((type(features_columns) != list) & (type(features_columns) != tuple)):
             #put inside a list:
             features_columns = [features_columns]
+        
+        elif (type(features_columns) == tuple):
+            features_columns = list(features_columns)
 
-        if (type(response_columns) != list):
+        if ((type(response_columns) != list) & (type(response_columns) != tuple)):
             #put inside a list:
             response_columns = [response_columns]
+        
+        elif (type(response_columns) == tuple):
+            response_columns = list(response_columns)
 
         # Now, subset the dataframe:
         X = DATASET[features_columns].copy(deep = True)
@@ -1010,6 +1015,124 @@ class modelling_workflow:
         print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
 
         return X, y, column_map_dict
+
+
+    def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, columns_to_exclude = None):
+
+        import numpy as np
+        import pandas as pd
+
+        try:
+            import tensorflow as tf
+        except:
+            pass
+        # https://www.tensorflow.org/api_docs/python/tf/Tensor
+
+        # columns_to_convert: list of strings or string containing the names of columns
+        # that you want to convert. Use this if you want to convert only a subset of the dataframe. 
+        # Example: columns_to_convert = ['col1', 'col2']; columns_to_convert = 'predictor';
+        # columns_to_convert = ['predictor'] will create a tensor with only the specified columns;
+        # If None, the whole dataframe will be converted.
+        # ATTENTION: This argument only works for Pandas dataframes.
+        
+        # columns_to_exclude: Alternative parameter. 
+        # list of strings or string containing the names of columns that you want to exclude from the
+        # returned tensor. Use this if you want to convert only a subset of the dataframe. 
+        # Example: columns_to_exclude = ['col1', 'col2']; columns_to_exclude = 'predictor';
+        # columns_to_exclude = ['predictor'] will create a tensor with all columns from the dataframe
+        # except the specified ones. This argument will only be used if the previous one was not.
+        # ATTENTION: This argument only works for Pandas dataframes.
+
+        try:
+            # Set a local copy of the dataframe to manipulate:
+            DATASET = df.copy(deep = True)
+
+            if (columns_to_convert is not None):
+                # Subset the dataframe:
+                # Check if features_columns and response_columns are lists:
+                if ((type(columns_to_convert) != list) & (type(columns_to_convert) != tuple)):
+                    #put inside a list:
+                    columns_to_convert = [columns_to_convert]
+                
+                elif (type(columns_to_convert) == tuple):
+                    columns_to_convert = list(columns_to_convert)
+
+                # Now, filter the dataframe:
+                DATASET = DATASET[columns_to_convert]
+
+            elif (columns_to_exclude is not None):
+                # Run only if the dataframe was not subset:
+                if ((type(columns_to_exclude) != list) & (type(columns_to_exclude) != tuple)):
+                    #put inside a list:
+                    columns_to_exclude = [columns_to_exclude]
+                
+                elif (type(columns_to_exclude) == tuple):
+                    columns_to_exclude = list(columns_to_exclude)
+
+                # Drop the columns:
+                DATASET = DATASET.drop(columns_to_exclude, axis = 1)
+        
+        except:
+            # It is an array or iterable:
+            DATASET = np.array(df_or_array_to_convert)
+            
+            if (len(DATASET.shape) == 1):
+                # It is a tuple like (1,) - array like [1, 2, 3,...]
+                DATASET =  DATASET.reshape(-1, 1)
+                # Now, its format is like [[1], [2], [3],...] - shape like (4, 1)
+
+        # Try the conversion to tensor. Since the values should not be modified, we
+        # will create the tensors as tf.constant, instead of tf.Variable:
+        try:
+
+            X = tf.constant(DATASET)
+
+            """
+                Tensor with format as:
+                <tf.Tensor: shape=(253, 12), dtype=float64, numpy=
+                array([[ 1.        ,  1.        ,  1.        , ...,  4.18450387,
+                    10.49874623,  2.09639084],
+                ...,
+                [12.        ,  4.        ,  6.        , ...,  4.40752786,
+                    10.71241577,  3.30032431]])>
+            """
+
+        except:
+
+            # Simply convert them to NumPy arrays. The arrays can be processed through
+            # deep learning and do not add features names to the model information (what
+            # raises error if we try to use the model to a set without names):
+            X = np.array(DATASET)
+            
+        print("Check the 5 first elements from the tensor or array obtained:\n")
+        print(X[:5])
+        print("\n")
+        print(f"Shape of the complete X tensor or array = {X.shape}\n")
+        # shape attribute is common to tf.Tensor, pd.DataFrame, pd.Series, and np.array
+
+        # Notice that tensors and arrays are sliced in the same way as lists.
+        # The slicing also modify the shape attribute from Tensors.
+        # We can convert a tf.Tensor object named tensor to a np.array object by
+        # simply making array = np.array(tensor) 
+
+        # Now, since the arrays do not have a column header, let's create a mapping dictionary, correlating
+        # the array position with the original column name:
+        column_map_dict = {}
+        try:
+            
+            for column_number, column in enumerate(list(DATASET.columns)):
+                # The enumerate object created from a list can be decoupled into two values:
+                # The index (number) - position in the list, and the element itself. example:
+                # 0, 'first_column':
+                # Add it to the features dictionary, with the column number as key:
+                column_map_dict[column_number] = column
+
+            print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
+        
+        except:
+            pass
+        
+        return X, column_map_dict
 
 
     def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_training = 75, percent_of_training_data_used_for_model_validation = 0):
@@ -1951,14 +2074,6 @@ class modelling_workflow:
         import numpy as np
         import pandas as pd
         import tensorflow as tf
-        from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.neural_network import MLPRegressor
-        from sklearn.neural_network import MLPClassifier
-        from xgboost import XGBRegressor
-        from xgboost import XGBClassifier
         
         # predict_for = 'subset' or predict_for = 'single_entry'
         # The function will automatically detect if it is dealing with lists, NumPy arrays
@@ -2007,77 +2122,31 @@ class modelling_workflow:
         # Try to access the attribute shape. If the error AttributeError is raised, it is a list, so
         # set predict_for = 'single_entry':
         
-        try:
-            
-            # Try accessing the shape attribute
-            X_shape = X.shape
-            
-            # Now, check the type of the object X: if it is a dataframe or a numpy array:
-            X_type = type(X)
-            
-            # type(X) == numpy.ndarray (or np.ndarray if NumPy was imported as np) if it is
-            # an array
-            # type(X) == pandas.core.frame.DataFrame (or pd.core.frame.DataFrame if Pandas
-            # was imported as pd) if it is a pandas dataframe.
-            # Notice that the object type is not a string, so it should not be declared in quotes.
-            
-            if (X_type == np.ndarray):
-                
-                # It is a NumPy array
-                # If this array was previously manipulated for the deep learning models, it has 3
-                # dimensions, so: X_shape = (N, M, 1), N = number of arrays (the number of rows
-                # of the original dataset), and M = number of elements on each array (the number
-                # of columns of the original dataset)
-                
-                # If the array has the 3rd dimension, we should consider the prediction for 'subset',
-                # even if it is for a single entry. That is because the array is already reshaped
-                # and the single_entry code would reshape again.
-                
-                # Let's try to access the 3rd dimension as X_shape[2]. 
-                # If there is no 3rd dimension, the exception error IndexError will be raised, since
-                # there is no index 2:
-                try:
-                    
-                    # Try accessing the 3rd dimension:
-                    third_dim = X_shape[2]
-                    
-                    # Since it was accessed, the array is already in the correct shape, so set
-                    # prediction for subset:
-                    predict_for = 'subset'
-                
-                except IndexError:
-                    
-                    # The index error was raised because there is no 3rd dimension. Then, we are
-                    # dealing with a numpy array equivalent to a list. Set prediction for single_entry.
-                    # It is true even if there are two dimensions like (N, 1) - (2nd dimension added
-                    # by the function for correcting the array format for deep learning).
-                    predict_for = 'single_entry'
-            
-            else:
-                # It is a Pandas dataframe
-                # Set prediction for a subset:
-                predict_for = 'subset'
-            
-            
-        except AttributeError:
-            
-            # The AttributeError is raised when there is no attribute. 
-            # Since Python lists do not have the shape attribute, 
-            # the input of a list raises this error when trying to access the object's shape.
-            # Since it is a list, set predict_for = 'single_entry':
-            predict_for = 'single_entry'
-            
+        
+        if ((type(X) == list) | (type(X) == tuple)):
+            # Single entry as list or tuple
+            # Convert it to NumPy array:
+            X = np.array(X)
+        
+        # Run even if it come from list or tuple:
+        if ((type(X) == np.ndarray) & (len(X.shape) == 1)):
+            # If X.shape has len == 1, it is a tuple like (4,)
+            # Convert the numpy array to the correct shape. It runs even if the list or tuple was
+            # converted.
+            X = X.reshape(1, -1)
+            # generates an array like array([[1, 2, 3, 4]])
+            # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
+            # used for training.
+        
+        # Finally, convert to Tensor:
+        X = tf.constant(X)
+        
         
         if (predict_for == 'single_entry'):
             
-            print("Making prediction for a single entry X.")
-            print("X must be a list with values in the order of the correspondent columns of the dataset.")
-            print("In other words: declare X as a Python list of values correspondent to each variable, using the same order of variables (columns) used in the dataset.")
+            print("Making prediction for a single entry X.\n")
             
-            # Get reshaped list for making the prediction:
-            X_reshaped = np.reshape(np.array(X), (-1, 1))
-            
-            y_pred = model_object.predict(X_reshaped)
+            y_pred = model_object.predict(X)
                 
             print(f"Output value predicted for the entry parameters = {y_pred}\n")
             print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.")
@@ -2110,49 +2179,23 @@ class modelling_workflow:
             # The conclusion is that there is a third dimension only for models where return_sequences
             # = True or return_states = True
             
-            # Check if y_pred is a numpy array, instead of a Pandas dataframe:
-            
-            if (type(y_pred) == np.ndarray):
-                
-                    # Try accessing the array's 3rd dimension. If there is no 3rd dimension,
-                    # the exception error IndexError will be raised.
-                    # Notice: if 4 or more dimensions are present, we can still access
-                    # the 3rd dimension (naturally).
-                    try:
-                        
-                        third_dim = y_pred.shape[2]
+            if (len(y_pred.shape) > 2):
                     
-                        # If we could access the third_dimension, than return_states and
-                        # or return_sequences = True
-                        
-                        # We want only the values stored as the 1st dimension
-                        # y_pred is an array where each element is an array with two elements. 
-                        # To get only the first elements:
-                        # (slice the arrays: get all values only for dimension 0, the 1st dim):
-                        y_pred = y_pred[:,0]
-                        # if we used y_pred[:,1] we would get the second element, 
-                        # which is the hidden state h (input of the next LSTM unit).
-                        # It happens because of the parameter return_sequences = True. 
-                        # If return_states = True, there would be a third element, corresponding 
-                        # to the cell state c.
-                        # Notice that we want only the 1st dimension (0), no matter the case.
-                    
-                    except IndexError:
-                    
-                        # The index error was raised because there is no 3rd dimension. Then,
-                        # we do not have to worry with the returned states
-                        # simply set y_pred as itself:
-                        pass
-                        # Even though the slicing y_pred = y_pred[:,0] would not generate an
-                        # error, it would unecessarily modify the shape of the array (extra
-                        # critical step).
-                        
-                        # Also, the array obtained as y_pred[:,0] when there are 3 or more 
-                        # dimensions has same shape as y_pred when there are only 1 or 2 
-                        # dimensions. So, the extra modification of the shape would eliminate
-                        # this correspondence.
-                    
-                    # If we wanted only the first array, we could set y_pred = y_pred[0]
+                # The shape is a tuple containing 3 or more dimensions
+                # If we could access the third_dimension, than return_states and
+                # or return_sequences = True
+
+                # We want only the values stored as the 1st dimension
+                # y_pred is an array where each element is an array with two elements. 
+                # To get only the first elements:
+                # (slice the arrays: get all values only for dimension 0, the 1st dim):
+                y_pred = y_pred[:,0]
+                # if we used y_pred[:,1] we would get the second element, 
+                # which is the hidden state h (input of the next LSTM unit).
+                # It happens because of the parameter return_sequences = True. 
+                # If return_states = True, there would be a third element, corresponding 
+                # to the cell state c.
+                # Notice that we want only the 1st dimension (0), no matter the case.
             
             # Check if there is a dataframe to concatenate the predictions
             if not (dataframe_for_concatenating_predictions is None):
@@ -2177,7 +2220,9 @@ class modelling_workflow:
                 X_copy = dataframe_for_concatenating_predictions.copy(deep = True)
                 
                 # Add the predictions as the new column named col_name:
-                X_copy[col_name] = y_pred
+                # If y is a tensor, convert to NumPy array before adding. The numpy.array function
+                # has no effect in numpy arrays, but is equivalent to the .numpy method for tensors
+                X_copy[col_name] = np.array(y_pred)
                 
                 print(f"The prediction was added as the new column {col_name} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
                 try:
@@ -2199,4 +2244,275 @@ class modelling_workflow:
                 
                 return y_pred
 
+
+    def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None):
+
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # predict_for = 'subset' or predict_for = 'single_entry'
+        # The function will automatically detect if it is dealing with lists, NumPy arrays
+        # or Pandas dataframes. If X is a list or a single-dimension array, predict_for
+        # will be set as 'single_entry'. If X is a multi-dimension NumPy array (as the
+        # outputs for preparing data - even single_entry - for deep learning models), or if
+        # it is a Pandas dataframe, the function will set predict_for = 'subset'
+        
+        # X = subset of predictive variables (dataframe, NumPy array, or list).
+        # If PREDICT_FOR = 'single_entry', X should be a list of parameters values.
+        # e.g. X = [1.2, 3, 4] (dot is the decimal case separator, comma separate values). 
+        # Notice that the list should contain only the numeric values, in the same order of the
+        # correspondent columns.
+        # If PREDICT_FOR = 'subset' (prediction for multiple entries), X should be a dataframe 
+        # (subset) or a multi-dimensional NumPy array of the parameters values, as usual.
+        
+        # model_object: object containing the model that will be analyzed. e.g.
+        # model_object = elastic_net_linear_reg_model
+        
+        # list_of_classes is the list of classes effectively used for training
+        # the model. Set this parameter as the object returned from function
+        # retrieve_classes_used_to_train
+        
+        # type_of_model = 'other' or type_of_model = 'deep_learning'
+        
+        # Notice that the output will be an array of probabilities, where each
+        # element corresponds to a possible class, in the order classes appear.
+        
+        # dataframe_for_concatenating_predictions: if you want to concatenate the predictions
+        # to a dataframe, pass it here:
+        # e.g. dataframe_for_concatenating_predictions = df
+        # If the dataframe must be the same one passed as X, repeat the dataframe object here:
+        # X = dataset, dataframe_for_concatenating_predictions = dataset.
+        # Alternatively, if dataframe_for_concatenating_predictions = None, 
+        # the prediction will be returned as a series or NumPy array, depending on the input format.
+        # Notice that the concatenated predictions will be added as a new column.
+        
+        # All of the new columns (appended or not) will have the prefix "prob_class_" followed
+        # by the correspondent class name to identify them.
+        
+        
+        # 1. Check if a list was input. Lists do not have the attribute shape, present in dataframes
+        # and NumPy arrays. Accessing the attribute shape from a list will raise the Exception error
+        # named AttributeError
+        # Try to access the attribute shape. If the error AttributeError is raised, it is a list, so
+        # set predict_for = 'single_entry':
+        
+        if ((type(X) == list) | (type(X) == tuple)):
+            # Single entry as list or tuple
+            # Convert it to NumPy array:
+            X = np.array(X)
+        
+        # Run even if it come from list or tuple:
+        if ((type(X) == np.ndarray) & (len(X.shape) == 1)):
+            # If X.shape has len == 1, it is a tuple like (4,)
+            # Convert the numpy array to the correct shape. It runs even if the list or tuple was
+            # converted.
+            X = X.reshape(1, -1)
+            # generates an array like array([[1, 2, 3, 4]])
+            # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
+            # used for training.
+        
+        # Finally, convert to Tensor:
+        X = tf.constant(X)
+        
+            
+        # Check if it is a keras or other deep learning framework; or if it is a sklearn or xgb model:
+        boolean_check = (type_of_model == 'deep_learning')
+        
+        if (boolean_check): # run if it is True
+            print("The predictions (outputs) from deep learning models are themselves the probabilities associated to each possible class.")
+            print("\n") #line break
+            print("The output will be an array of float values: each float represents the probability of one class, in the order the classes appear. For a binary classifier, the first element will correspond to class 0; and the second element will be the probability of class 1.")
+        
+        
+        if (predict_for == 'single_entry'):
+            
+            print("Calculating probabilities for a single entry X.\n")
+        
+            if (boolean_check): 
+                # Use the predict method itself for deep learning models.
+                # These models do not have the predict_proba method.
+                # Their output is itself the probability for each class.
+                y_pred_probabilities = model_object.predict(X)
+            
+            else:
+                # use the predict_proba method from sklearn and xgboost:
+                y_pred_probabilities = model_object.predict_proba(X.numpy())
+            
+            print("Probabilities calculated using the entry parameters.") 
+            print(f"Probabilities calculated for each one of the classes {list_of_classes} (in the order of classes) = {y_pred_probabilities}\n")
+            
+            # create a dictionary with the possible classes and the correspondent probabilities:
+            # Use the list attribute to guarantee that the probabilities are
+            # retrieved as a list:
+            probability_dict = {'class': list_of_classes,
+                                'probability': list(y_pred_probabilities)}
+                
+            # Convert it to a Pandas dataframe:
+            probabilities_df = pd.DataFrame(data = probability_dict)
+                
+            print("Returning a dataframe containing the classes and the probabilities calculated for the entry to belong to each class. Check it below:")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(probabilities_df)
+                    
+            except: # regular mode
+                print(probabilities_df)
+                
+            return probabilities_df
+        
+        
+        else:
+            
+            # prediction for a subset
+            
+            if (boolean_check): 
+                # Use the predict method itself for deep learning models.
+                # These models do not have the predict_proba method.
+                # Their output is itself the probability for each class.
+                y_pred_probabilities = model_object.predict(X)
+                
+                # If y_pred_probabilities came from a RNN with the parameter return_sequences = True 
+                # and/or return_states = True, then the hidden and/or cell states from the LSTMs
+                # were returned. So, the returned array has at least one extra dimensions (two
+                # if both parameters are True). On the other hand, we want only the first dimension,
+                # correspondent to the actual output.
+
+                # Remember that, due to the reshapes for preparing data for deep learning models,
+                # y_pred_probabilities must have at least 2 dimensions: (N, 1), where N is the number 
+                # of rows of the original dataset. But y_pred_probabilities returned from a model 
+                # with return_sequences = True or return_states = True will be of dimension (N, N, 1). 
+                # If both parameters are True, the dimension is (N, N, N, 1), since there are extra 
+                # arrays for both the hidden and cell states.
+
+                # The conclusion is that there is a third dimension only for models where 
+                # return_sequences = True or return_states = True
+
+                # Check if y_pred_probabilities is a numpy array, instead of a Pandas dataframe:
+
+                if (len(y_pred_probabilities.shape) > 2):
+                    
+                    # The shape is a tuple containing 3 or more dimensions
+                    # If we could access the third_dimension, than return_states and
+                    # or return_sequences = True
+
+                    # We want only the values stored as the 1st dimension
+                    # y_pred_probabilities is an array where each element is an array with 
+                    # two elements. To get only the first elements:
+                    # (slice the arrays: get all values only for dimension 0, the 1st dim):
+                    y_pred_probabilities = y_pred_probabilities[:,0]
+                    # if we used y_pred_probabilities[:,1] we would get the second element, 
+                    # which is the hidden state h (input of the next LSTM unit).
+                    # It happens because of the parameter return_sequences = True. 
+                    # If return_states = True, there would be a third element, corresponding 
+                    # to the cell state c.
+                    # Notice that we want only the 1st dimension (0), no matter the case.
+            
+            else:
+                # use the predict_proba method from sklearn and xgboost:
+                y_pred_probabilities = model_object.predict_proba(X.numpy())
+            
+            # y_pred_probabilities is a column containing arrays of probabilities
+            # Let's create a dataframe separating each element of the array into
+            # a separate column
+            
+            # Get the size of each array. It is the total of elements from
+            # list_of_classes (total of possible classes):
+            total_of_classes = len(list_of_classes)
+            
+            # Starts a dictionary. This dictionary will have the class as the
+            # key and a list of the probabilities that the element belong to that
+            # class as the value (in the dataframe, the class will be column,
+            # with its calculated probability in each row):
+            probability_dict = {}
+            
+            # Loop through each possible class:
+            for class_name in list_of_classes:
+                
+                # Let's concatenate the prefix "prob_class_" to this strings.
+                # This string will be used as column name, so it will be clear 
+                # in the output dataframe that the column is referrent to the 
+                # probability calculated for the class. Since the elements may 
+                # have been saved as numbers use the str attribute to guarantee 
+                # that the element was read as a string, and concatenate the
+                # prefix to its left:
+                class_name = "prob_class_" + str(class_name)
+                # Get the index in the list:
+                class_index = list_of_class.index(class_name)
+                
+                # Start a list of probabilities:
+                prob_list = []
+                
+                # Now loop through each row j from the dataframe
+                # to retrieve the array in the column y_pred_probabilities:
+                
+                for i in range(len(y_pred_probabilities)):
+                    # goes from j = 0 (first row of the dataframe) to
+                    # j = y_pred_probabilities - 1, index of the last row
+                    # Get the array of probabilities for that row:
+                    # If y is a tensor, convert to NumPy array before adding. The numpy.array function
+                    # has no effect in numpy arrays, but is equivalent to the .numpy method for tensors
+                    prob_array = np.array(y_pred_probabilities[i])
+                    
+                    # Append the (class_index)-th element of that array in prob_list
+                    # The (class_index)-th position of the array is the probability
+                    # of the class being analyzed in the i-th iteration of
+                    # the main loop
+                    prob_list.append(prob_array[(class_index)])
+                
+                # Now that the probabilities for the class correspondent to
+                # each row were retrieved as the list prob_list, update the
+                # dictionary. Use the class name saved as class_name as the
+                # key, and put the prob_list as the correspondent value:
+                probability_dict[class_name] = prob_list
+            
+            # Now that we finished the loop, the probability dictionary contains
+            # each one of the classes as its keys, and the list of probabilities
+            # for each row as the correspondent values. 
+            # Also, the keys are identified with the prefix 'prob_class' to
+            # indicate that they are referrent to the probability of belonging to
+            # one class. Let's convert this dictionary to a Pandas dataframe:
+            
+            probabilities_df = pd.DataFrame(data = probability_dict)
+            
+            # Check if there is a dataframe to concatenate the predictions
+            if not (dataframe_for_concatenating_predictions is None):
+                
+                # there is a dataframe for concatenating the predictions.
+                
+                # Set a local copy of the dataframe to manipulate:
+                X_copy = X.copy(deep = True)
+                
+                # Append the columns from probabilities_df with Pandas concat
+                # method, setting axis = 1 (axis = 0  appends rows)
+                # Use the pandas 'inner' join, which removes entries without
+                # correspondence. It is the same strategy used for concatenating
+                # the dataframe obtained from One-Hot Encoding transformation in the
+                # ETL Workflow (3_Dataset_Transformation)
+                X_copy = pd.concat([X_copy, probabilities_df], axis = 1, join = "inner")
+        
+                print(f"The dataframe X was concatenated to the probabilities calculated for each class and returned. Check its first 10 entries:\n")
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(X_copy.head(10))
+                        
+                except: # regular mode
+                    print(X_copy.head(10))
+                
+                return X_copy
+            
+            else:
+                
+                print("Returning only the dataframe with the probabilities calculated for each class. Check its first 10 entries:\n")
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(probabilities_df.head(10))
+                        
+                except: # regular mode
+                    print(probabilities_df.head(10))
+                
+                return probabilities_df
 
