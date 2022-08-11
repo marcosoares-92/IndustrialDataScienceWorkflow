@@ -1045,7 +1045,7 @@ class modelling_workflow:
 
         try:
             # Set a local copy of the dataframe to manipulate:
-            DATASET = df.copy(deep = True)
+            DATASET = df_or_array_to_convert.copy(deep = True)
 
             if (columns_to_convert is not None):
                 # Subset the dataframe:
@@ -1068,7 +1068,7 @@ class modelling_workflow:
                 
                 elif (type(columns_to_exclude) == tuple):
                     columns_to_exclude = list(columns_to_exclude)
-
+                
                 # Drop the columns:
                 DATASET = DATASET.drop(columns_to_exclude, axis = 1)
         
@@ -2069,13 +2069,12 @@ class modelling_workflow:
         return xgb_model, summary_dict
 
 
-    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, col_with_predictions_suffix = None):
+    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None):
         
         import numpy as np
         import pandas as pd
         import tensorflow as tf
         
-        # predict_for = 'subset' or predict_for = 'single_entry'
         # The function will automatically detect if it is dealing with lists, NumPy arrays
         # or Pandas dataframes. If X is a list or a single-dimension array, predict_for
         # will be set as 'single_entry'. If X is a multi-dimension NumPy array (as the
@@ -2102,11 +2101,11 @@ class modelling_workflow:
         # the prediction will be returned as a series or NumPy array, depending on the input format.
         # Notice that the concatenated predictions will be added as a new column.
         
-        # col_with_predictions_suffix = None. If the predictions are added as a new column
+        # column_with_predictions_suffix = None. If the predictions are added as a new column
         # of the dataframe dataframe_for_concatenating_predictions, you can declare this
         # parameter as string with a suffix for identifying the model. If no suffix is added, the new
         # column will be named 'y_pred'.
-        # e.g. col_with_predictions_suffix = '_keras' will create a column named "y_pred_keras". This
+        # e.g. column_with_predictions_suffix = '_keras' will create a column named "y_pred_keras". This
         # parameter is useful when working with multiple models. Always start the suffix with underscore
         # "_" so that no blank spaces are added; the suffix will not be merged to the column; and there
         # will be no confusion with the dot (.) notation for methods, JSON attributes, etc.
@@ -2122,6 +2121,8 @@ class modelling_workflow:
         # Try to access the attribute shape. If the error AttributeError is raised, it is a list, so
         # set predict_for = 'single_entry':
         
+        predict_for = 'subset'
+        # map if we are dealing with a subset or single entry
         
         if ((type(X) == list) | (type(X) == tuple)):
             # Single entry as list or tuple
@@ -2137,112 +2138,105 @@ class modelling_workflow:
             # generates an array like array([[1, 2, 3, 4]])
             # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
             # used for training.
+            
+            # Update the predict_for variable:
+            predict_for = 'single_entry'
         
         # Finally, convert to Tensor:
         X = tf.constant(X)
         
-        
-        if (predict_for == 'single_entry'):
+        # prediction for a subset
+        y_pred = model_object.predict(X)
+        print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.\n")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.\n")
             
-            print("Making prediction for a single entry X.\n")
+        # If y_pred came from a RNN with the parameter return_sequences = True and/or
+        # return_states = True, then the hidden and/or cell states from the LSTMs
+        # were returned. So, the returned array has at least one extra dimensions (two
+        # if both parameters are True). On the other hand, we want only the first dimension,
+        # correspondent to the actual output.
             
-            y_pred = model_object.predict(X)
+        # Remember that, due to the reshapes for preparing data for deep learning models,
+        # y_pred must have at least 2 dimensions: (N, 1), where N is the number of rows of
+        # the original dataset. But y_pred returned from a model with return_sequences = True
+        # or return_states = True will be of dimension (N, N, 1). If both parameters are True,
+        # the dimension is (N, N, N, 1), since there are extra arrays for both the hidden and
+        # cell states.
+            
+        # The conclusion is that there is a third dimension only for models where return_sequences
+        # = True or return_states = True
+            
+        if (len(y_pred.shape) > 2):
+                    
+            # The shape is a tuple containing 3 or more dimensions
+            # If we could access the third_dimension, than return_states and
+            # or return_sequences = True
+
+            # We want only the values stored as the 1st dimension
+            # y_pred is an array where each element is an array with two elements. 
+            # To get only the first elements:
+            # (slice the arrays: get all values only for dimension 0, the 1st dim):
+            y_pred = y_pred[:,0]
+            # if we used y_pred[:,1] we would get the second element, 
+            # which is the hidden state h (input of the next LSTM unit).
+            # It happens because of the parameter return_sequences = True. 
+            # If return_states = True, there would be a third element, corresponding 
+            # to the cell state c.
+            # Notice that we want only the 1st dimension (0), no matter the case.
+            
+        # Check if there is a dataframe to concatenate the predictions
+        if not (dataframe_for_concatenating_predictions is None):
                 
-            print(f"Output value predicted for the entry parameters = {y_pred}\n")
-            print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.")
-            print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+            # there is a dataframe for concatenating the predictions    
+            # concatenate the predicted values with dataframe_for_concatenating_predictions.
+            # Add the predicted values as a column:
+            
+            # check if there is a suffix:
+            if not (column_with_predictions_suffix is None):
+                # There is a suffix declared
+                # Since there is a suffix, concatenate it to 'y_pred':
+                col_name = "y_pred" + column_with_predictions_suffix
                 
-            print("Returning only the predicted value.")
+            else:
+                # Create the column name as the standard.
+                # The name of the new column is simply 'y_pred'
+                col_name = "y_pred"
                 
-            return y_pred
-        
+            # Set a local copy of the dataframe to manipulate:
+            X_copy = dataframe_for_concatenating_predictions.copy(deep = True)
+                
+            # Add the predictions as the new column named col_name:
+            # If y is a tensor, convert to NumPy array before adding. The numpy.array function
+            # has no effect in numpy arrays, but is equivalent to the .numpy method for tensors
+            X_copy[col_name] = np.array(y_pred)
+                
+            print(f"The prediction was added as the new column {col_name} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(X_copy.head(10))
+                        
+            except: # regular mode
+                print(X_copy.head(10))
+                
+            return X_copy
+            
         else:
             
-            # prediction for a subset
-            y_pred = model_object.predict(X)
-            print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.")
-            print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
-            
-            # If y_pred came from a RNN with the parameter return_sequences = True and/or
-            # return_states = True, then the hidden and/or cell states from the LSTMs
-            # were returned. So, the returned array has at least one extra dimensions (two
-            # if both parameters are True). On the other hand, we want only the first dimension,
-            # correspondent to the actual output.
-            
-            # Remember that, due to the reshapes for preparing data for deep learning models,
-            # y_pred must have at least 2 dimensions: (N, 1), where N is the number of rows of
-            # the original dataset. But y_pred returned from a model with return_sequences = True
-            # or return_states = True will be of dimension (N, N, 1). If both parameters are True,
-            # the dimension is (N, N, N, 1), since there are extra arrays for both the hidden and
-            # cell states.
-            
-            # The conclusion is that there is a third dimension only for models where return_sequences
-            # = True or return_states = True
-            
-            if (len(y_pred.shape) > 2):
-                    
-                # The shape is a tuple containing 3 or more dimensions
-                # If we could access the third_dimension, than return_states and
-                # or return_sequences = True
-
-                # We want only the values stored as the 1st dimension
-                # y_pred is an array where each element is an array with two elements. 
-                # To get only the first elements:
-                # (slice the arrays: get all values only for dimension 0, the 1st dim):
-                y_pred = y_pred[:,0]
-                # if we used y_pred[:,1] we would get the second element, 
-                # which is the hidden state h (input of the next LSTM unit).
-                # It happens because of the parameter return_sequences = True. 
-                # If return_states = True, there would be a third element, corresponding 
-                # to the cell state c.
-                # Notice that we want only the 1st dimension (0), no matter the case.
-            
-            # Check if there is a dataframe to concatenate the predictions
-            if not (dataframe_for_concatenating_predictions is None):
+            if (predict_for == 'single_entry'):
                 
-                # there is a dataframe for concatenating the predictions
-                
-                # concatenate the predicted values with dataframe_for_concatenating_predictions.
-                # Add the predicted values as a column:
-                
-                # check if there is a suffix:
-                if not (col_with_predictions_suffix is None):
-                    # There is a suffix declared
-                    # Since there is a suffix, concatenate it to 'y_pred':
-                    col_name = "y_pred" + col_with_predictions_suffix
-                
-                else:
-                    # Create the column name as the standard.
-                    # The name of the new column is simply 'y_pred'
-                    col_name = "y_pred"
-                
-                # Set a local copy of the dataframe to manipulate:
-                X_copy = dataframe_for_concatenating_predictions.copy(deep = True)
-                
-                # Add the predictions as the new column named col_name:
-                # If y is a tensor, convert to NumPy array before adding. The numpy.array function
-                # has no effect in numpy arrays, but is equivalent to the .numpy method for tensors
-                X_copy[col_name] = np.array(y_pred)
-                
-                print(f"The prediction was added as the new column {col_name} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
-                try:
-                    # only works in Jupyter Notebook:
-                    from IPython.display import display
-                    display(X_copy.head(10))
-                        
-                except: # regular mode
-                    print(X_copy.head(10))
-                
-                return X_copy
+                print("Making prediction for a single entry X.\n")
+                print(f"Output value predicted for the entry parameters = {y_pred}\n")    
+                print("Returning only the predicted value.")
             
             else:
-                
+            
                 print("Returning only the predicted values. Check the 10 first values of the series:\n")
                 print(y_pred[:10]) # slice until 10th element from the series or list
                 # dataset[:,10]: all rows for column 10 of dataset
                 # dataset[1,:] - slice of all rows for row 1 of dataset.
                 
-                return y_pred
+            return y_pred
 
 
     def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None):
@@ -2297,6 +2291,9 @@ class modelling_workflow:
         # Try to access the attribute shape. If the error AttributeError is raised, it is a list, so
         # set predict_for = 'single_entry':
         
+        predict_for = 'subset'
+        # map if we are dealing with a subset or single entry
+        
         if ((type(X) == list) | (type(X) == tuple)):
             # Single entry as list or tuple
             # Convert it to NumPy array:
@@ -2311,6 +2308,9 @@ class modelling_workflow:
             # generates an array like array([[1, 2, 3, 4]])
             # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
             # used for training.
+            
+            # Update the predict_for variable:
+            predict_for = 'single_entry'      
         
         # Finally, convert to Tensor:
         X = tf.constant(X)
