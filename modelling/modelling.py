@@ -11,7 +11,7 @@ class model_checking:
             
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
-    def __init__(self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_dict = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
+    def __init__(self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_object = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
         
         import numpy as np
         import tensorflow as tf
@@ -30,7 +30,7 @@ class model_checking:
         # Add the columns names:
         self.column_map_dict = column_map_dict
         # Add the training history to the class:
-        self.history = training_history_dict
+        self.history = training_history_object
 
         # Add the y series for computing general metrics:
         # Guarantee that they are tensorflow tensors
@@ -891,6 +891,498 @@ class model_checking:
         return self
 
 
+class tf_models:
+    
+    # TensorFlow models with single input, single output, or single input and possibly
+    # 1 regression and 1 classification output
+    # Use preferentially for these situations
+    
+    def __init__(self, X_train, y_train, X_valid = None, y_valid = None, type_of_problem = 'regression', number_of_classes = 2, optimizer = None):
+        
+        # type_of_problem = 'regression', 'classification', 'both'
+        # optimizer: tf.keras.optimizers.Optimizer object:
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Optimizer
+        # use the object to set parameters such as learning rate and selection of the optimizer
+        
+        import tensorflow as tf
+        
+        # Guarantee it is a tensor:
+        self.X_train = tf.constant(X_train)
+        self.y_train = tf.constant(y_train)
+        
+        self.input_layer = tf.keras.layers.Input(shape = (self.X_train).shape, name = "input_layer")
+        
+        if ((X_valid is not None) & (y_valid is not None)):
+            
+            self.X_valid = tf.constant(X_valid)
+            self.y_valid = tf.constant(y_valid)
+        
+        else:
+            self.X_valid = None
+            self.y_valid = None
+        
+        self.type_of_problem = type_of_problem
+        self.number_of_classes = number_of_classes
+        
+        if (type_of_problem == 'regression'):    
+            self.metrics = tf.keras.metrics.RootMeanSquaredError()
+            self.loss = tf.keras.metrics.RootMeanSquaredError()
+            self.output_layer = tf.keras.layers.Dense(units = 1, name = 'output')
+            self.metrics_name = 'rmse'
+        
+        elif (type_of_problem == 'classification'):
+            
+            self.metrics = tf.keras.metrics.Accuracy()
+            self.metrics_name = 'acc'
+            
+            if (number_of_classes == 2):
+                self.output_layer = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = 'output')
+                # Dense(1) activated through sigmoid is the logistic regression: generayes a
+                # probability between 0 and 1
+                self.loss = tf.keras.metrics.BinaryCrossentropy()
+                # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
+            else:
+                self.output_layer = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = 'output')
+                self.loss = tf.keras.metrics.SparseCategoricalCrossentropy()
+                # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
+        
+        else: # both
+            
+            self.metrics_regression = tf.keras.metrics.RootMeanSquaredError()
+            self.loss_regression = tf.keras.metrics.RootMeanSquaredError()
+            self.output_regression_layer = tf.keras.layers.Dense(units = 1, name = 'output_regression')
+            
+            self.metrics_classification = tf.keras.metrics.Accuracy()
+            
+            if (number_of_classes == 2):
+                self.output_classification_layer = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = 'output_classification')
+                self.loss_classification = tf.keras.metrics.BinaryCrossentropy()
+                # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
+            else:
+                self.output_classification_layer = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = 'output_classification')
+                self.loss_classification = tf.keras.metrics.SparseCategoricalCrossentropy()
+                # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
+
+        # create a model attribute, and an history attribute:
+        self.model = None
+        self.history = None
+        
+        # Set the optimizer:
+        if (optimizer is None):
+            # use Adam with default arguments
+            # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam
+            optimizer = tf.keras.optimizers.Optimizer.Adam()
+        
+        # Save the optimizer as an attribute:
+        self.optimizer = optimizer
+    
+    
+    def compile_model(self):
+        
+        import tensorflow as tf
+        
+        optimizer = self.optimizer
+        input_layer = self.input_layer
+        model = self.model
+        
+        if ((type_of_problem == 'regression')|((type_of_problem == 'classification'))):
+            # model = tf.keras.models.Model(inputs = [input_layer], outputs = [output_layer])
+            
+            output_layer = self.output_layer
+            loss = self.loss
+            metrics = self.metrics
+            
+            print("Check model architecture:\n")
+            tf.keras.utils.plot_model(model)
+            print("\n")
+            
+            # Compile model:
+            model.compile(optimizer = optimizer,
+                          loss = loss,
+                          metrics = metrics)
+        
+        else:
+            # model = tf.keras.models.Model(inputs = [input_layer], outputs = [output_regression_layer, output_classification_layer])
+            
+            metrics_regression = self.metrics_regression
+            loss_regression = self.loss_regression
+            output_regression_layer = self.output_regression_layer
+            metrics_classification = self.metrics_classification
+            output_classification_layer = self.output_classification_layer
+            loss_classification = self.loss_classification
+            
+        
+            """
+            For multiple output layers:
+            
+            'wine_type' and 'wine_quality' are the 'name's of the output layers:
+
+            model.compile(optimizer=rms, 
+                           loss = {'wine_type' : 'binary_crossentropy',
+                                   'wine_quality' : 'mean_squared_error'
+                                  },
+                           metrics = {'wine_type' : 'accuracy',
+                                      'wine_quality': tf.keras.metrics.RootMeanSquaredError()
+                                    }
+                          )
+
+            """
+            
+            
+            print("Check model architecture:\n")
+            tf.keras.utils.plot_model(model)
+            print("\n")
+            
+            # Compile model:
+            model.compile(optimizer = optimizer,
+                          loss = {'output_classification': loss_classification,
+                                  'output_regression': loss_regression},
+                          metrics = {'output_classification': metrics_classification,
+                                    'output_regression': metrics_regression})
+        
+        
+        print("Check model summary:\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(model.summary())
+                    
+        except: # regular mode
+            print(model.summary())
+        
+        # Now, save the model in the attribute and return the object:
+        self.model = model
+        
+        return self
+    
+    def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+        
+        # If you set verbose = 0, It will show nothing. If you set verbose = 1, It will 
+        # show the output like this: Epoch 1/200 55/55[=====] - 10s 307ms/step - loss: 0.56 - 
+        # accuracy: 0.4949
+        
+        model = self.model
+        
+        X_train = self.X_train
+        y_train = self.y_train
+        
+        X_valid = self.X_valid
+        y_valid = self.y_valid
+        
+        if ((X_valid is not None) & (y_valid is not None)):   
+            has_validation = True
+        
+        else:
+            has_validation = False
+        
+        # Fit the model:
+        if (has_validation):
+            history = model.fit(X_train, 
+                                y_train,
+                                batch_size = batch_size,
+                                epochs = epochs,
+                                verbose = verbose,
+                                validation_data = (X_valid, y_valid))
+        
+        else: # no validation set
+            history = model.fit(X_train, 
+                                y_train,
+                                batch_size = batch_size,
+                                epochs = epochs,
+                                verbose = verbose)
+        
+        # Update the attributes and return the object:
+        self.history = history
+        self.model = model
+        
+        return self
+    
+    def tf_simple_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+
+        """
+        Wide and deep example:
+
+        # define inputs
+        input_a = Input(shape=[1], name="Wide_Input")
+        input_b = Input(shape=[1], name="Deep_Input")
+
+        # define deep path
+        hidden_1 = Dense(30, activation="relu")(input_b)
+        hidden_2 = Dense(30, activation="relu")(hidden_1)
+
+        # define merged path
+        concat = concatenate([input_a, hidden_2])
+        output = Dense(1, name="Output")(concat)
+
+        # define another output for the deep path
+        aux_output = Dense(1,name="aux_Output")(hidden_2)
+
+        # build the model
+        model = Model(inputs=[input_a, input_b], outputs=[output, aux_output])
+
+        """
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+
+        # First hidden layer:
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(input_1)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)  
+        # The integer passed as parameter for Dense is the parameter 'units' from Dense
+        # layer. The number ("units") used as input for the dense function Dense(units) is a 
+        # Positive integer that represents the dimensionality of the output space.
+        # Here, 'units' = 100, so this first hidden-layer has 100 neurons
+        
+        output_1 = output_layer(x)
+        
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        # return compiled model:
+        return self
+    
+    def tf_cnn_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+        
+        # ATTENTION: if the first layer is a Dense, we must specify
+        # the parameter 'input_dim'. If it is a CNN or RNN, we
+        # specify 'input_shape', instead. These parameters are only
+        # specified for the first layer of the network.
+            
+        # First convolution:
+        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'convolution')(input_1)
+        # First Max Pooling to enhance select the characteristics highlighted by the convolution:
+        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = 'pooling')(x)
+        # Reduces to half the original size.
+            
+        # The convolutions and pooling reduce the dimensionality of the data.
+        # Under the hood, TensorFlow is testing different combinations of filters until it finds
+        # filters that actually highlight important characteristics.
+        # On the other hand, apply too much convolutional layers may reduce too much the data, making
+        # it difficult for the last dense layer to perform a good prediction.
+            
+        # Flatten the data for making it adequate for feeding the dense layers:
+        x = tf.keras.layers.Flatten(name = 'flatten')(x)
+            
+        # Feed the first dense layer, with 50 neurons:
+        x = tf.keras.layers.Dense(units = 50, activation = 'relu', name = 'dense_1')(x)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+        
+        output_1 = output_layer(x)
+        
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        # return compiled model:
+        return self
+    
+    def tf_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+        
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+        
+        # LSTM layer: 1 cycle per sequence element (number of iterations = 
+        # SEQUENCE_LENGTH):
+        # LSTM with 50 neurons:
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm')(input_1)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+            
+        # We will use one LSTM layer to process each input sub-sequence 
+        # of N time steps, followed by a Dense layer to interpret the 
+        # summary of the input sequence.
+        
+        output_1 = output_layer(x)
+        
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        # return compiled model:
+        return self
+    
+    def tf_encoder_decoder_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+        
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+        
+        # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
+        # LSTM with 100 neurons:
+        # Encoder:
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm_encoder')(input_1)
+            
+        # The encoded sequence will be repeated 2 times by the model for the two output time steps 
+        # required by the model using a RepeatVector layer. These will be fed to a decoder LSTM layer 
+        # before using a Dense output layer wrapped in a TimeDistributed layer that will produce one 
+        # output for each step in the output sequence.
+        x = tf.keras.layers.RepeatVector(2, name = 'repeat_vector')(x)
+        # Decoder: LSTM with 100 neurons
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', return_sequences = True, name = 'lstm_decoder')(x)
+        # return_sequences = True returns the hidden states h.
+        # This generates an output with an extra dimension (output consists on an array of two values: 
+        # the prediction and the hidden state).
+            
+        # Last dense - output layer ('linear' activation):
+        # Apply a TimeDistributed layer for compatibility with the Encoder-Decoder Archictecture:
+        # Wrap the output into this layer:
+        output_1 = tf.keras.layers.TimeDistributed(output_layer, name = 'time_distributed_output')(x)
+        
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        # return compiled model:
+        return self
+    
+    def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import numpy as np
+        import tensorflow as tf
+        
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        # Number of columns (sequence length):
+        
+        # Create a custom lambda layer to reshape the tensor to: (X.shape[0], 2, 2, 1)
+        # 1. .numpy() converts the tensor to NumPy array
+        # 2. .reshape() reshape the array
+        # 3. tf.constant(x) make again a tensor with correct shape
+        lambda_layer = tf.keras.layers.Lambda(lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
+        # With this lambda layer, the reshape procedure becomes part of the model - we incorporate the
+        # function to the neural network.
+        
+        convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
+        # Originally: input_shape = (None, 2, 1)
+        max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
+        flatten_layer = tf.keras.layers.Flatten()
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+      
+        # The entire CNN model is wrapped in TimeDistributed wrapper layers so that it can be applied to 
+        # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
+        # before the model outputs a prediction.
+        
+        # Lambda (reshape) layer:
+        x = lambda_layer(input_1)
+        
+        # First time-distributed convolution (for compatibility with the LSTM):
+        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(x)
+        # First time distributed Max Pooling (for compatibility with the LSTM):
+        # Max Pooling: enhance select the characteristics highlighted by the convolution:
+        x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = 'pooling')(x)
+        # Reduces to half the original size.
+        # The convolutions and pooling reduce the dimensionality of the data.
+        # Under the hood, TensorFlow is testing different combinations of filters until it finds filters 
+        # that actually highlight important characteristics.
+        # On the other hand, apply too much convolutional layers may reduce too much the data, making
+        # it difficult for the last dense layer to perform a good prediction.        
+        # Flatten the data for making it adequate for feeding the dense layers:
+        # Time distributed Flatten for compatibility with the LSTM:
+        x = tf.keras.layers.TimeDistributed(flatten_layer, name = 'flatten')(x)
+            
+        # Now, feed the LSTM:
+        # The LSTM performs 1 cycle per element of the sequence. Since each sequence now have 2 elements,
+        # the LSTM will perform two iterations:
+        # LSTM with 50 neurons:
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm')(x)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+        output_1 = output_layer(x)    
+       
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        # return compiled model:
+        return self
+
+
 @dataclass
 class modelling_workflow:
 
@@ -1326,7 +1818,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
         
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -1402,7 +1894,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
         
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -1479,7 +1971,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
         
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -1561,7 +2053,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
         
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -1673,7 +2165,7 @@ class modelling_workflow:
             metrics_dict = model_check.metrics_dict
 
             # Get feature importance ranking:
-            metrics_dict = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+            model_check = model_check.feature_importance_ranking (model_class = 'linear', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
             # Retrieve the feature importance ranking:
             feature_importance_df = model_check.feature_importance_df
 
@@ -1869,7 +2361,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
 
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -2047,7 +2539,7 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
 
         # Get feature importance ranking:
-        metrics_dict = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        model_check = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
         feature_importance_df = model_check.feature_importance_df
         
@@ -2067,6 +2559,350 @@ class modelling_workflow:
             print("y_pred_probabilities = xgb_model.predict_proba(X_train)")
     
         return xgb_model, summary_dict
+
+
+    def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hidden_layers = 1, number_of_neurons_per_hidden_layer = 64, size_of_training_batch = 200, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        # check MLPRegressor documentation on Scikit-learn:
+        # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html?msclkid=b835e54ec17b11eca3d8febbc0eaeb3a
+        # check MLPClassifier documentation on Scikit-learn:
+        # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html?msclkid=ecb380ebc17b11ec99b7b8f762c84eab
+        
+        import numpy as np
+        import pandas as pd
+        from sklearn.neural_network import MLPRegressor
+        from sklearn.neural_network import MLPClassifier
+        
+        # X_train = subset of predictive variables (dataframe).
+        # y_train = subset of response variable (series).
+        
+        # TYPE_OF_PROBLEM = 'regression'; or TYPE_OF_PROBLEM = 'classification'
+        # The default is 'regression', which will be used if no type is
+        # provided.
+        
+        # number_of_hidden_layers = 1 - integer with the number of hidden
+        # layers. This number must be higher or equal to 1.
+        
+        # number_of_neurons_per_hidden_layer = 64 - integer containing the
+        # number of neurons in each hidden layer. Even though sklearn.neural_network
+        # accepts different layers sizes, passed as a list of integers where each
+        # value represents the neurons for one layer, this function works with layers
+        # of equal sizes.
+        
+        # Scikit-learn MLPClassifier adjusts the size of the output layer to have
+        # a number of units (neurons) equals to the number of output classes. Then, we
+        # do not have to manually set this parameter.
+        
+        # size_of_training_batch (integer): amount of data used on each training cycle (epoch). 
+        # If we had 20000 data and size_of_training_batch = 200, then there would be 100 
+        # batches (cycles) using 200 data. Training is more efficient when dividing the data into 
+        # smaller subsets (batches) of ramdonly chosen data and separately training the model
+        # for each batch (in training cycles called epochs). Also, this helps preventing
+        # overfitting: if we use at once all data, the model is much more prone to overfit
+        # (memorizing effect), selecting non-general features highly specific from the data
+        # for the description of it. Therefore, it will have lower capability of predicting
+        # data for values it already did not observe.
+        # This is the parameter batch_size of most of the algorithms.
+        
+        # MAXIMUM_OF_ALLOWED_ITERATIONS = integer representing the maximum number of iterations
+        # that the optimization algorithm can perform. Depending on data, convergence may not be
+        # reached within this limit, so you may need to increase this hyperparameter.
+        
+        
+        # 1. Let's configure the hidden layers. They are input as the parameter hidden_layer_sizes
+        # if only one value is provided, there will be only one hidden layer
+        # for more hidden layers, provide a list in hidden_layer_sizes. Each element
+        # of this list will be the number of neurons in each layer. Examples:
+        # hidden_layer_sizes  = 100 - a single hidden layer with 100 neurons
+        # hidden_layer_sizes=[100, 100] - 2 hidden layers with 100 neurons per layer
+        # hidden_layer_sizes=[100, 100, 100] - 3 hidden layers with 100 neurons per layer.
+        
+        if (number_of_hidden_layers == 1):
+            
+            # Simply copy the value input as number_of_neurons_per_hidden_layer
+            HIDDEN_LAYER_SIZES = number_of_neurons_per_hidden_layer
+            print(f"Multi-Layer Perceptron configured with a single hidden-layer containing {number_of_neurons_per_hidden_layer} neurons.")
+        
+        elif (number_of_hidden_layers > 1):
+            
+            # Start a list HIDDEN_LAYER_SIZES
+            HIDDEN_LAYER_SIZES = [number_of_neurons_per_hidden_layer for i in range (0, number_of_hidden_layers)]
+            # This list must have number of elements equals to number_of_hidden_layers
+            # (i.e. one element per layer)
+            
+            print(f"Multi-Layer Perceptron configured with {number_of_hidden_layers} hidden-layers containing {number_of_neurons_per_hidden_layer} neurons.")
+    
+        else:
+            
+            print("Please, input a valid number of hidden layers. It must be an integer higher or equal to 1.")
+            return "error"
+        
+        
+        if (type_of_problem == "regression"):
+            # Create an instance (object) from the class MLPRegressor()
+            # Pass the appropriate parameters to the class constructor:
+            mlp_model = MLPRegressor(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True)
+            # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+            # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+            # 'identity' or 'linear' is equivalent to the use of no-activation function (no-op activation)
+            # It is useful to implement linear bottleneck - returns f(x) = x
+            # use no activation function (in other words, 'linear' activation) for the output layer of a
+            # regression problem.
+            
+            # verbose: sklearn default is False. Whether to print progress messages to stdout.
+            
+        elif (type_of_problem == "classification"):
+            # Create an instance (object) from the class MLPClassifier()
+            # Pass the appropriate parameters to the class constructor:
+            mlp_model = MLPClassifier(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True)
+        
+        else:
+            
+            print ("Enter a valid type of problem, \'Regression\' or \'Classification\'.")
+            return "error"
+        
+        
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+                y_train tensor original format:
+                    <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                    array([[1.],
+                        [0.], ....,
+                        [0.]])>
+                
+                Reshape to unidimensional format. First step:
+                y_train.numpy().reshape(1, -1)
+                Now, it has format:
+                    array([[1., 0.,..., 0.]]), shape = (1, 87)
+                    (if we make reshape(-1, 1), we turn it again to the original tensor format)
+                
+                Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+                # So we make:
+                y_train[0] to select only it.
+        """
+                
+        reshaped_y_train = y_train.numpy().reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        reshaped_y_train = reshaped_y_train[0]
+        
+        # Fit the model:
+        mlp_model = mlp_model.fit(X_train, reshaped_y_train)
+        
+        if (mlp_model.n_iter_ == maximum_of_allowed_iterations):
+            print("Warning! Total of iterations equals to the maximum allowed. It indicates that the convergence was not reached yet. Try to increase the maximum number of allowed iterations.")
+        
+        print(f"Finished fitting of the neural network with {mlp_model.n_layers_} after {mlp_model.n_iter_} iterations.")
+        print(f"Minimum loss reached by the solver throughout fitting = {mlp_model.best_loss_}")
+        
+        
+        # Create the training history dictionary:
+        mlp_training_history_dict = {'loss': mlp_model.loss_curve_,
+                                    'rmse': []}
+        
+        # Let's create a history object analogous to the one created by TensorFlow, to be used
+        # for plotting the loss curve:
+        class history_object:
+            # Initialize instance attributes.
+            # define the Class constructor, i.e., how are its objects:
+            def __init__(self, history = mlp_training_history_dict):
+                
+                # TensorFlow creates an object with the history attribute. This attribute stores
+                # the history dictionary:
+                self.history = history
+        
+        # Instantiate the object:
+        history = history_object(history = mlp_training_history_dict)
+        # Now, it has the same format as the TensorFlow history.
+        
+        # Get predictions for training, testing, and validation:
+        y_preds_for_train = mlp_model.predict(X_train)
+
+        if ((X_test is not None) & ((y_test is not None))):
+            y_preds_for_test = mlp_model.predict(X_test)
+
+        else:
+            y_preds_for_test = None
+
+        if ((X_valid is not None) & ((y_valid is not None))):
+            y_preds_for_validation = mlp_model.predict(X_valid)
+
+        else:
+            y_preds_for_validation = None
+        
+        
+        # instantiate the model checker object:
+        model_check = model_checking(model_object = mlp_model, model_type = type_of_problem, model_package = 'sklearn', column_map_dict = column_map_dict, training_history_object = history, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
+                
+        # Calculate model metrics:
+        model_check = model_check.model_metrics()
+        # Retrieve model metrics:
+        metrics_dict = model_check.metrics_dict
+
+        print("Check the loss curve below:\n")
+        model_check = model_check.plot_training_history (metrics_name = 'rmse', x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        
+        print("\n") # line break
+        print("Note: If a proper number of epochs was used for training, then a final baseline (plateau) should be reached by the curve.\n")
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = mlp_model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = mlp_model.predict_proba(X_train)")
+        
+        
+        return mlp_model, metrics_dict, history
+
+
+    def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # X_train = subset of predictive variables (dataframe).
+        # y_train = subset of response variable (series).
+        # X_test = subset of predictive variables (test dataframe).
+        # y_test = subset of response variable (test series).
+        # The test parameters are passed as validation data, so they are necessary here.
+        
+        # architecture = 'simple_dense': tf_simple_dense model from class tf_models;
+        # architecture = cnn': tf_cnn time series model from class tf_models;
+        # architecture = 'lstm': tf_lstm time series model from class tf_models;
+        # architecture = 'encoder_decoder': encoder-decoder time series model from class tf_models;
+        # architecture = 'cnn_lstm': hybrid cnn-lstm time series model from class tf_models.
+        
+        # TYPE_OF_PROBLEM = 'regression'; or TYPE_OF_PROBLEM = 'classification'
+        # The default is 'regression', which will be used if no type is
+        # provided.
+        
+        # size_of_training_batch (integer): amount of data used on each training cycle (epoch). 
+        # If we had 20000 data and size_of_training_batch = 200, then there would be 100 
+        # batches (cycles) using 200 data. Training is more efficient when dividing the data into 
+        # smaller subsets (batches) of ramdonly chosen data and separately training the model
+        # for each batch (in training cycles called epochs). Also, this helps preventing
+        # overfitting: if we use at once all data, the model is much more prone to overfit
+        # (memorizing effect), selecting non-general features highly specific from the data
+        # for the description of it. Therefore, it will have lower capability of predicting
+        # data for values it already did not observe.
+        # This is the parameter batch_size of most of the algorithms.
+        
+        # number_of_training_epochs (integer): number of training cycles used. 
+        # This is the 'epochs' parameter of the algorithms.
+        
+        # number_of_output_classes = None - if TYPE_OF_PROBLEM = 'classification',
+        # this parameter should be specified as an integer. That is because the number of
+        # neurons in the output layer should be equal to the number of classes (1 neuron per
+        # possible class).
+        # If we simply took the number of different labels on the training data as the number
+        # of classes, there would be the risk that a given class is not present on the training
+        # set. So, it is safer (and less computer consuming) to input this number.
+        # For simplicity, you may simply set this parameter as the value
+        # number_of_classes returned from the function 'retrieve_classes_used_for_training'
+
+        # If there are only two classes, we use a last Dense(1) layer (only one neuron) activated
+        # through sigmoid: Dense(1, activation = 'sigmoid'). 
+        # This is equivalent to the logistic regression, generating an output between 0 and 1 
+        # (binary probability). The loss function, in this case, will be the 'binary_crossentropy'. 
+        # This is more efficient than using softmax.
+        
+        # If there are more than two classes, then we set the number of neurons in Dense as
+        # number_of_output_classes, and activate the layer through 'softmax':  
+        # Dense(number_of_output_classes, activation = 'softmax')
+        # Softmax generates a probability distribution, calculates the probability for 
+        # each output and chooses the class with higher probability. The loss function depends on the
+        # number of classes. If we are working with few classes (<= 5), we can use 
+        # "categorical_crossentropy". If a higher number is used, we apply the 'sparse_categorical_crossentropy'
+        # All of the classification problems accept 'accuracy' as the metrics for training.
+        
+        # For the regression problems, though, the output is a real value (i.e., a scalar). Then,
+        # the last layer should ALWAYS contain a single neuron. So, there is no meaning in
+        # specifying it as a parameter.
+        # Also, the loss used for evaluating regression problems cannot be the crossentropy.
+        # In these cases, we use the mean squared error (mse) instead. For the metrics,
+        # naturally there is no meaning in using 'accuracy'. So, we use 'RootMeanSquaredError'
+        # or 'mae' (mean absolute error).
+        
+        # Instantiate a tf_models object:
+        tf_model_obj = tf_models(X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test, type_of_problem = type_of_problem, number_of_classes = number_of_output_classes, optimizer = None)
+        
+        if (architecture == 'cnn'):
+            # Get the tf_cnn time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_cnn_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'lstm'):
+            # Get the tf_lstm time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'encoder_decoder'):
+            # Get the encoder-decoder time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_encoder_decoder_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'cnn_lstm'):
+            # Get the hybrid cnn-lstm time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_cnn_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        else:
+            # Get the tf_simple_dense model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_simple_dense(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+
+        # Retrieve the model and the history:
+        model = tf_model_obj.model
+        history = tf_model_obj.history
+        
+        # Get predictions for training, testing, and validation:
+        y_preds_for_train = model.predict(X_train)
+
+        if ((X_test is not None) & ((y_test is not None))):
+            y_preds_for_test = mlp_model.predict(X_test)
+
+        else:
+            y_preds_for_test = None
+
+        if ((X_valid is not None) & ((y_valid is not None))):
+            y_preds_for_validation = model.predict(X_valid)
+
+        else:
+            y_preds_for_validation = None
+        
+        # instantiate the model checker object:
+        model_check = model_checking(model_object = model, model_type = type_of_problem, model_package = 'tensorflow', column_map_dict = column_map_dict, training_history_object = history, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
+                
+        # Calculate model metrics:
+        model_check = model_check.model_metrics()
+        # Retrieve model metrics:
+        metrics_dict = model_check.metrics_dict
+
+        print("Check the training loss and metrics curve below:\n")
+        model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        print("\n")
+        
+        print("Notice that:")
+        print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
+        print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
+        print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
+        print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
+        print("tf.keras.layers.Dropout(0.5)")
+        print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
+        print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
+        print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
+        print("\n") # line break
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+            
+        return model, metrics_dict, history
 
 
     def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None):
