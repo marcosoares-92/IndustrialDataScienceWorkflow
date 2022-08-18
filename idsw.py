@@ -1431,10 +1431,14 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     import os
     import pickle
     import dill
+    import tarfile
+    import tensorflow as tf
+    from zipfile import ZipFile
+    # https://docs.python.org/3/library/tarfile.html#tar-examples
+    # https://docs.python.org/3/library/zipfile.html#zipfile-objects
     # pickle and dill save the file in binary (bits) serialized mode. So, we must use
     # open 'rb' or 'wb' when calling the context manager. The 'b' stands for 'binary',
     # informing the context manager (with statement) that a bit-file will be processed
-    import tensorflow as tf
     from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
     from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, MinMaxScaler
     from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
@@ -1473,8 +1477,8 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     
     # model_type: This parameter has effect only when a model will be manipulated.
     # model_type = 'keras' for deep learning keras/ tensorflow models with extension .h5
-    # model_type = 'tensorflow_lambda' for deep learning tensorflow models containing 
-    # lambda layers. Such models are compressed as tar.gz.
+    # model_type = 'tensorflow_general' for generic deep learning tensorflow models containing 
+    # custom layers, losses and architectures. Such models are compressed as tar.gz, tar, or zip.
     # model_type = 'sklearn' for models from scikit-learn (non-deep learning)
     # model_type = 'xgb_regressor' for XGBoost regression models (non-deep learning)
     # model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
@@ -1544,9 +1548,6 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             #check model_type:
             if (model_type == 'keras'):
                 model_extension = 'h5'
-            
-            elif (model_type == 'keras_lambda'):
-                model_extension = 'tar.gz'
             
             elif (model_type == 'sklearn'):
                 model_extension = 'dill'
@@ -1668,57 +1669,132 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     model = tf.keras.models.load_model(model_path)
                     print(f"Keras/TensorFlow model successfully imported from {model_path}.")
             
-            elif (model_type == 'tensorflow_lambda'):
+            elif (model_type == 'tensorflow_general'):
+                
+                print("Warning, save the model in a directory called 'saved_model' (before compressing.)\n")
+                # Create a temporary folder in case it does not exist:
+                # https://www.geeksforgeeks.org/python-os-makedirs-method/
+                # Set exist_ok = True
+                os.makedirs("tmp/", exist_ok = True)
                 
                 if (use_colab_memory == True):
                     
-                    key = model_file_name + "." + model_extension
+                    key = model_file_name
                     
-                    # Try accessing the tar.gz file directly from the environment:
-                    model_path = key
-                    # to access from the dictionary:
-                    # model_path = colab_files_dict[key]
+                    try:
+                        model_extension = ".tar"
+                        key = key + model_extension
+                        model_path = colab_files_dict[key]
+                        # Open the context manager
+                        with tarfile.open (model_path, 'r:') as compressed_model:
+                            #extract all to the tmp directory:
+                            compressed_model.extractall("tmp/")
+                        
+                        # if you were not using the context manager, it would be necessary to apply
+                        # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
                     
-                    # Extract to a temporary 'tmp' directory:
-                    #try:
+                    except:
+                        
+                        try:
+                            # try tar.gz extension
+                            model_extension = ".tar.gz"
+                            key = key + model_extension
+                            model_path = colab_files_dict[key]
+                            
+                            # Open the context manager
+                            with tarfile.open (model_path, 'r:gz') as compressed_model:
+                                #extract all to the tmp directory:
+                                compressed_model.extractall("tmp/")
+                        
+                        except:
+                            # try .zip extension
+                            try:
+                                model_extension = ".zip"
+                                key = key + model_extension
+                                model_path = colab_files_dict[key]
+                                
+                                # Open the context manager
+                                with ZipFile (model_path, 'r') as compressed_model:
+                                    #extract all to the tmp directory:
+                                    compressed_model.extractall("tmp/")
+                            
+                            except:
+                                print("Failed to load the model. Compress it as zip, tar or tar.gz file.\n")
+                    
+                    
                     # Compress the directory using tar
                     # https://www.gnu.org/software/tar/manual/tar.html
                     #    ! tar --extract --file=model_path --verbose --verbose tmp/
                     
-                    #except:
-                        
-                    from tarfile import TarFile
-                    # pickle, csv, tarfile, and zipfile are on Python standard library
-                    # https://docs.python.org/3/library/tarfile.html
-                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                    tar_file = TarFile.open(model_path, mode = 'r:gz')
-                    tar_file.extractall("tmp/")
-                    tar_file.close()
+                    try:
+                        model = tf.keras.models.load_model("tmp/saved_model")
+                        print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
                     
-                    model = tf.keras.models.load_model("tmp/saved_model")
-                    print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
+                    except:
+                        print("Failed to load the model. Save it in a directory named 'saved_model' before compressing.\n")
                     
                 else:
                     #standard method
-                    # Extract to a temporary 'tmp' directory:
-                    #try:
-                        # Compress the directory using tar
-                        # https://www.gnu.org/software/tar/manual/tar.html
-                    #    ! tar --extract --file=model_path --verbose --verbose tmp/
                     
-                    #except:
+                    # Try simply accessing the directory:
+                    try:
+                        model = tf.keras.models.load_model("tmp/saved_model")
+                    
+                    except:
                         
-                    from tarfile import TarFile
-                    # pickle, csv, tarfile, and zipfile are on Python standard library
-                    # https://docs.python.org/3/library/tarfile.html
-                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                    tar_file = TarFile.open(model_path, mode = 'r:gz')
-                    tar_file.extractall("tmp/")
-                    tar_file.close()
+                        try:
+                            model = tf.keras.models.load_model(model_file_name)
+                        
+                        except:
+                            
+                            # It is compressed
+                            try:
+                                model_extension = ".tar"
+                                model_path = model_file_name
+
+                                # Open the context manager
+                                with tarfile.open (model_path, 'r:') as compressed_model:
+                                    #extract all to the tmp directory:
+                                    compressed_model.extractall("tmp/")
+
+                                # if you were not using the context manager, it would be necessary to apply
+                                # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
+
+                            except:
+
+                                try:
+                                    # try tar.gz extension
+                                    model_extension = ".tar.gz"
+                                    model_path = model_file_name
+
+                                    # Open the context manager
+                                    with tarfile.open (model_path, 'r:gz') as compressed_model:
+                                        #extract all to the tmp directory:
+                                        compressed_model.extractall("tmp/")
+
+                                except:
+                                    # try .zip extension
+                                    try:
+                                        model_extension = ".zip"
+                                        model_path = model_file_name
+
+                                        # Open the context manager
+                                        with ZipFile (model_path, 'r') as compressed_model:
+                                            #extract all to the tmp directory:
+                                            compressed_model.extractall("tmp/")
+
+                                    except:
+                                        print("Failed to load the model. Compress it as zip, tar or tar.gz file.\n")
+
                     
-                    model = tf.keras.models.load_model("tmp/saved_model")
-                    print(f"TensorFlow model successfully imported from {model_path}.")
-            
+                    try:
+                        model = tf.keras.models.load_model("tmp/saved_model")
+                        print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
+                    
+                    except:
+                        print("Failed to load the model. Save it in a directory named 'saved_model' before compressing.\n")
+                    
+                    
             elif (model_type == 'sklearn'):
                 
                 if (use_colab_memory == True):
@@ -1861,52 +1937,46 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     model_to_export.save(model_path)
                     print(f"Keras/TensorFlow model successfully exported as {model_path}.")
             
-            elif (model_type == 'tensorflow_lambda'):
+            elif (model_type == 'tensorflow_general'):
+                
+                # Save your model in the SavedModel format
+                # Save as a directory named 'saved_model'
+                model_to_export.save('saved_model')
+                model_path = 'saved_model'
+            
+                try:
+                    model_path = model_path + ".tar.gz"
+                    
+                    # Open the context manager
+                    with tarfile.open (model_path, 'w:gz') as compressed_model:
+                        #Add the folder:
+                        compressed_model.add('saved_model/')    
+                        # if you were not using the context manager, it would be necessary to apply
+                        # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
+                
+                except:
+                    # try compressing as tar:
+                    try:
+                        model_path = model_path + ".tar"
+                        # Open the context manager
+                        with tarfile.open (model_path, 'w:') as compressed_model:
+                            #Add the folder:
+                            compressed_model.add('saved_model/') 
+                    
+                    except:
+                        # compress as zip:
+                        model_path = model_path + ".zip"
+                        with ZipFile (model_path, 'w') as compressed_model:
+                            compressed_model.write('saved_model/')
                 
                 if (use_colab_memory == True):
-                    ## Download the model
                     
-                    # Save your model in the SavedModel format
-                    model_to_export.save('saved_model/my_model')
-                    
-                    #try:
-                        # Compress the directory using tar
-                        # https://www.gnu.org/software/tar/manual/tar.html
-                    #    ! tar -czvf model_path saved_model/
-                    
-                    #except NotFoundError:
-                        
-                    from tarfile import TarFile
-                    # pickle, csv, tarfile, and zipfile are on Python standard library
-                    # https://docs.python.org/3/library/tarfile.html
-                    # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                    tar_file = TarFile.open(model_path, mode = 'w:gz')
-                    tar_file.add('saved_model/')
-                    tar_file.close()
-                    
-                    key = model_file_name + "." + model_extension
+                    key = model_path
                     files.download(key)
                     print(f"TensorFlow model: {key} successfully downloaded from Colab environment.")
             
                 else:
                     #standard method
-                    # Save your model in the SavedModel format
-                    model_to_export.save('saved_model/my_model')
-                    
-                    #try:
-                        # Compress the directory using tar
-                    #    ! tar -czvf model_path saved_model/
-                    
-                    #except NotFoundError:
-                        
-                    from tarfile import TarFile
-                        # pickle, csv, tarfile, and zipfile are on Python standard library
-                        # https://docs.python.org/3/library/tarfile.html
-                        # https://docs.python.org/3/library/zipfile.html#module-zipfile
-                    tar_file = TarFile.open(model_path, mode = 'w:gz')
-                    tar_file.add('saved_model/')
-                    tar_file.close()
-                        
                     print(f"TensorFlow model successfully exported as {model_path}.")
 
             elif (model_type == 'sklearn'):
