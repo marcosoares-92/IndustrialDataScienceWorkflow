@@ -1317,15 +1317,18 @@ class tf_models:
         
         input_layer = self.input_layer
         output_layer = self.output_layer
+        X_train = self.X_train
         # Number of columns (sequence length):
+        sequence_length = X_train.shape[1]
         
-        # Create a custom lambda layer to reshape the tensor to: (X.shape[0], 2, 2, 1)
-        # 1. .numpy() converts the tensor to NumPy array
-        # 2. .reshape() reshape the array
-        # 3. tf.constant(x) make again a tensor with correct shape
-        lambda_layer = tf.keras.layers.Lambda(lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
-        # With this lambda layer, the reshape procedure becomes part of the model - we incorporate the
-        # function to the neural network.
+        # Check if the number is even: % - remainder of the integer division
+        if ((sequence_length % 2) != 0):
+            # There is remainder of the division: the number of columns is not even
+            print("This architecture requires the inputs to be reshape as pairs of numbers.")
+            print(f"Here, there are {sequence_length} columns or sequence elements. Drop one column to use this architecture.\n")
+            
+            return self
+                
         
         convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
@@ -1343,11 +1346,8 @@ class tf_models:
         # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
         # before the model outputs a prediction.
         
-        # Lambda (reshape) layer:
-        x = lambda_layer(input_1)
-        
         # First time-distributed convolution (for compatibility with the LSTM):
-        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(x)
+        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(input_1)
         # First time distributed Max Pooling (for compatibility with the LSTM):
         # Max Pooling: enhance select the characteristics highlighted by the convolution:
         x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = 'pooling')(x)
@@ -2360,6 +2360,9 @@ class modelling_workflow:
         # Retrieve model metrics:
         metrics_dict = model_check.metrics_dict
 
+        # Store the metrics dictionary in the summary dictionary:
+        summary_dict['metrics_dict'] = metrics_dict
+
         # Get feature importance ranking:
         model_check = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         # Retrieve the feature importance ranking:
@@ -2537,6 +2540,9 @@ class modelling_workflow:
         model_check = model_check.model_metrics()
         # Retrieve model metrics:
         metrics_dict = model_check.metrics_dict
+        
+        # Store the metrics dictionary in the summary dictionary:
+        summary_dict['metrics_dict'] = metrics_dict
 
         # Get feature importance ranking:
         model_check = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
@@ -2803,8 +2809,6 @@ class modelling_workflow:
         # If we simply took the number of different labels on the training data as the number
         # of classes, there would be the risk that a given class is not present on the training
         # set. So, it is safer (and less computer consuming) to input this number.
-        # For simplicity, you may simply set this parameter as the value
-        # number_of_classes returned from the function 'retrieve_classes_used_for_training'
 
         # If there are only two classes, we use a last Dense(1) layer (only one neuron) activated
         # through sigmoid: Dense(1, activation = 'sigmoid'). 
@@ -2846,6 +2850,35 @@ class modelling_workflow:
         
         elif (architecture == 'cnn_lstm'):
             # Get the hybrid cnn-lstm time series model from class tf_models:
+            
+            # Here, the sequence length or number of columns must be even: they will be grouped in pairs
+            # Check if the number is even: % - remainder of the integer division
+            if ((X_train.shape[1] % 2) != 0):
+                # There is remainder of the division: the number of columns is not even
+                print("This architecture requires the inputs to be reshape as pairs of numbers.")
+                print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+                
+                return None, None, None
+            
+            else:
+                # Reshape the tensors:
+                # This architecture can only be used when the number of columns or sequence elements is even
+            
+                # lambda: single-line no-named function. To use one, you can declare:
+                # f = lambda x: x**2
+                # y = f(x) - y will store the output x from lambda function
+                # or, in a single line: y = (lambda x: x**2)(x)
+                # In this example, if x = 2, the output will be 4 (lambda output: function of the input)(input)
+                
+                reshape_function = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
+                
+                X_train = reshape_function(X_train)
+                
+                if ((X_test is not None) & (y_test is not None)):   
+                    X_test = reshape_function(X_test)
+                if ((X_valid is not None) & (y_valid is not None)):   
+                    X_valid = reshape_function(X_valid)
+            
             tf_model_obj = tf_model_obj.tf_cnn_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
         
         else:
@@ -2905,7 +2938,7 @@ class modelling_workflow:
         return model, metrics_dict, history
 
 
-    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None):
+    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, architecture = None):
         
         import numpy as np
         import pandas as pd
@@ -2946,6 +2979,11 @@ class modelling_workflow:
         # "_" so that no blank spaces are added; the suffix will not be merged to the column; and there
         # will be no confusion with the dot (.) notation for methods, JSON attributes, etc.
         
+        # architecture: some models require inputs in a proper format. Declare here if you are using
+        # one of these architectures. Example: architecture = 'cnn_lstm' from class tf_models require
+        # a special reshape before getting predictions. You can keep None or put the name of the
+        # architecture, if no special reshape is needed.
+        
         
         # Check the type of input: if we are predicting the output for a subset (NumPy array reshaped
         # for deep learning models or Pandas dataframe); or predicting for a single entry (single-
@@ -2980,6 +3018,11 @@ class modelling_workflow:
         
         # Finally, convert to Tensor:
         X = tf.constant(X)
+        
+        if (architecture == 'cnn_lstm'):
+            # Get the hybrid cnn-lstm time series model from class tf_models:
+            X = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))(X)
+        
         
         # prediction for a subset
         y_pred = model_object.predict(X)
@@ -3075,7 +3118,7 @@ class modelling_workflow:
             return y_pred
 
 
-    def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None):
+    def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None, architecture = None):
 
         import numpy as np
         import pandas as pd
@@ -3117,6 +3160,12 @@ class modelling_workflow:
         # the prediction will be returned as a series or NumPy array, depending on the input format.
         # Notice that the concatenated predictions will be added as a new column.
         
+        # architecture: some models require inputs in a proper format. Declare here if you are using
+        # one of these architectures. Example: architecture = 'cnn_lstm' from class tf_models require
+        # a special reshape before getting predictions. You can keep None or put the name of the
+        # architecture, if no special reshape is needed.
+        
+        
         # All of the new columns (appended or not) will have the prefix "prob_class_" followed
         # by the correspondent class name to identify them.
         
@@ -3150,6 +3199,10 @@ class modelling_workflow:
         
         # Finally, convert to Tensor:
         X = tf.constant(X)
+        
+        if (architecture == 'cnn_lstm'):
+            # Get the hybrid cnn-lstm time series model from class tf_models:
+            X = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))(X)
         
             
         # Check if it is a keras or other deep learning framework; or if it is a sklearn or xgb model:
