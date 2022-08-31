@@ -251,6 +251,10 @@ class ip21_extractor:
         
         start_time = self.start_timestamp
         stop_time = self.stop_timestamp
+                
+        now = datetime.now()
+        today = pd.Timestamp(now, unit = 'ns')
+
         
         if (type (start_time) == dict):
 
@@ -273,9 +277,6 @@ class ip21_extractor:
             START_TIMESTAMP = pd.Timestamp(START_DATETIME, unit = 'ns')
 
         elif (type (start_time) == str):
-
-            now = datetime.now()
-            today = pd.Timestamp(now, unit = 'ns')
 
             if ((start_time == "today") | (start_time == "now")):
 
@@ -314,12 +315,12 @@ class ip21_extractor:
         if (type (stop_time) == dict):
 
             # STOP timestamp information:
-            STOP_YEAR = stop_time_dict['year']
-            STOP_MONTH = stop_time_dict['month']
-            STOP_DAY = stop_time_dict['day']
-            STOP_HOUR = stop_time_dict['hour']
-            STOP_MINUTE = stop_time_dict['minute']
-            STOP_SECOND = stop_time_dict['second']
+            STOP_YEAR = stop_time['year']
+            STOP_MONTH = stop_time['month']
+            STOP_DAY = stop_time['day']
+            STOP_HOUR = stop_time['hour']
+            STOP_MINUTE = stop_time['minute']
+            STOP_SECOND = stop_time['second']
 
             # STOP_DATETIME: this is the last moment of the database that will be queried.
             STOP_DATETIME = datetime(year = STOP_YEAR, month = STOP_MONTH, day = STOP_DAY, hour = STOP_HOUR, minute = STOP_MINUTE, second = STOP_SECOND)
@@ -378,6 +379,9 @@ class ip21_extractor:
     
     def get_rest_api_url (self):
         
+        import numpy as np
+        import pandas as pd
+        
         server = self.server
         tag = self.tag
         data_source = self.data_source
@@ -419,6 +423,7 @@ class ip21_extractor:
         
         import os
         import json
+        import numpy as np
         import pandas as pd
         from pandas import json_normalize
         
@@ -426,6 +431,9 @@ class ip21_extractor:
         tag_name = self.actual_tag_name
         start_ip21_scale = self.start_ip21_scale
         stop_ip21_scale = self.stop_ip21_scale
+        
+        # Retrieve previous dataset in memory:
+        previous_df = self.dataset
         
         if (json_file_path is not None):
             try:
@@ -490,10 +498,42 @@ class ip21_extractor:
         json_field_separator = "_"
         dataset = json_normalize(json_file, record_path = json_record_path, sep = json_field_separator)
         
-        # Keep only columns 't' and 'v':
-        dataset = dataset[['t', 'v']]
-        # Rename these columns:
-        dataset.columns = ['timestamp_ip21_scale', tag_name]
+        if (("er" in dataset.columns) | ("ec" in dataset.columns) | ("es" in dataset.columns)):
+            
+            print("There is no data available for the defined time window.\n")
+            
+            # If the attribute is not None, concatenate the dataframes:
+            if (previous_df is not None):
+                # Concatenate all dataframes (append rows):
+                dataset = previous_df
+                print("Returning the previous dataset itself.\n")
+        
+            self.dataset = dataset
+            self.need_next_call = False
+            # Interrupt the algorithm:
+            return self
+            
+        
+        if (('t' not in dataset.columns) & ('v' not in dataset.columns)):
+            
+            # Lower case column names:
+            columns = [c.lower() for c in dataset.columns]
+            # Pick only first character (until character of index 1, excluding index 1):
+            columns = [c[:1] for c in columns]
+            # Make this list the columns names:
+            dataset.columns = columns
+        
+        if (('t' in dataset.columns) & ('v' in dataset.columns)):
+            
+            # Keep only columns 't' and 'v':
+            dataset = dataset[['t', 'v']]
+            # Rename these columns:
+            dataset.columns = ['timestamp_ip21_scale', tag_name]
+        
+        else:
+            # Substitute only the 1st column name and pick the other columns starting from
+            # the second one (index 1)
+            columns = ['timestamp_ip21_scale'] + list(dataset.columns)[1:]
         
         # Isolate the time series:
         time_series = dataset['timestamp_ip21_scale']
@@ -520,8 +560,6 @@ class ip21_extractor:
         # Select only these columns:
         dataset = dataset[['timestamp', tag_name]]
         
-        # Retrieve previous dataset in memory:
-        previous_df = self.dataset
         
         # If the attribute is not None, concatenate the dataframes:
         if (previous_df is not None):
@@ -533,9 +571,11 @@ class ip21_extractor:
         
         return self
     
-    
+
     def fetch_database (self, request_type = 'get'):
         
+        import numpy as np
+        import pandas as pd
         import requests
         # IP21 uses the NTLM authentication protocol
         from requests_ntlm import HttpNtlmAuth
