@@ -563,9 +563,24 @@ class ip21_extractor:
         
         # If the attribute is not None, concatenate the dataframes:
         if (previous_df is not None):
-            # Concatenate all dataframes (append rows):
-            dataset = pd.concat([previous_df, dataset], axis = 0, join = "inner")
-        
+            
+            # Compare the last timestamp from dataset and previous_df
+            last_timestamp = list(dataset['timestamp'])[-1]
+            previous_last_timestamp = list(previous_df['timestamp'])[-1]
+            
+            if (last_timestamp == previous_last_timestamp):
+                
+                # We already reached the end of the database. It actually never reaches the stop timestamp.
+                print(f"The last timestamp registered in the database is: {last_timestamp}\n")
+                # Pick the previous dataframe, which is already concatenated with dfs from previous calls
+                dataset = previous_df
+                # Now, finish the process:
+                self.need_next_call = False
+            
+            else:
+                # Concatenate all dataframes (append rows):
+                dataset = pd.concat([previous_df, dataset], axis = 0, join = "inner")
+
         # Finally, save the concatenated dataset as dataset attribute and return the object:
         self.dataset = dataset
         
@@ -763,7 +778,9 @@ class pims:
 
                 except: # regular mode
                     print(extracted_df)
-
+                
+                api_call_number = api_call_number + 1
+        
         
         return returned_dfs_list
 
