@@ -13571,6 +13571,354 @@ class etl_workflow:
             return DATASET
 
 
+    def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import tensorflow as tf
+        
+        
+        # average_frequency_of_data_collection = 'hour' or 'h' for hours; 'day' or 'd' for days;
+        # 'minute' or 'min' for minutes; 'seconds' or 's' for seconds; 'ms' for milliseconds; 'ns' for
+        # nanoseconds; 'year' or 'y' for years; 'month' or 'm' for months.
+        
+        
+        average_frequency_of_data_collection = str(average_frequency_of_data_collection).lower()
+        
+        if ((average_frequency_of_data_collection == 'year')|(average_frequency_of_data_collection == 'y')):
+            count_per_year = 1
+            xtick_list = [1]
+            labels_list = ['1/year']
+        
+        elif ((average_frequency_of_data_collection == 'month')|(average_frequency_of_data_collection == 'm')):
+            count_per_year = 12
+            xtick_list = [1, count_per_year]
+            labels_list = ['1/year', '1/month']
+        
+        elif ((average_frequency_of_data_collection == 'day')|(average_frequency_of_data_collection == 'd')):
+            count_per_year = 365.2524
+            xtick_list = [1, count_per_year]
+            labels_list = ['1/year', '1/day']
+        
+        elif ((average_frequency_of_data_collection == 'hour')|(average_frequency_of_data_collection == 'h')):
+            count_per_year = 24 * 365.2524
+            xtick_list = [1, 365.2524, count_per_year]
+            labels_list = ['1/year', '1/day', '1/h']
+        
+        elif ((average_frequency_of_data_collection == 'minute')|(average_frequency_of_data_collection == 'min')):
+            count_per_year = 60 * 24 * 365.2524
+            xtick_list = [1, 365.2524, (24 * 365.2524), count_per_year]
+            labels_list = ['1/year', '1/day', '1/h', '1/min']
+        
+        elif ((average_frequency_of_data_collection == 'second')|(average_frequency_of_data_collection == 's')):
+            count_per_year = 60 * 60 * 24 * 365.2524
+            xtick_list = [1, 365.2524, (24 * 365.2524), (60 * 24 * 365.2524), count_per_year]
+            labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s']
+        
+        elif (average_frequency_of_data_collection == 'ms'):
+            count_per_year = 60 * 60 * 24 * 365.2524 * (10**3)
+            xtick_list = [1, 365.2524, (24 * 365.2524), (60 * 24 * 365.2524), (60 * 60 * 24 * 365.2524), count_per_year]
+            labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms']
+        
+        elif (average_frequency_of_data_collection == 'ns'):
+            count_per_year = 60 * 60 * 24 * 365.2524 * (10**9)
+            xtick_list = [1, 365.2524, (24 * 365.2524), (60 * 24 * 365.2524), (60 * 60 * 24 * 365.2524), (60 * 60 * 24 * 365.2524 * (10**3)), count_per_year]
+            labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms', '1/ns']
+        
+        else:
+            print("No valid frequency input. Considering frequency in h.\n")
+            count_per_year = 24 * 365.2524
+            xtick_list = [1, 365.2524, count_per_year]
+            labels_list = ['1/year', '1/day', '1/h']
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        fft = tf.signal.rfft(DATASET[column_to_analyze])
+        f_per_dataset = np.arange(0, len(fft))
+
+        n_samples = len(DATASET[column_to_analyze])
+        years_per_dataset = n_samples/(count_per_year)
+
+        f_per_year = f_per_dataset/years_per_dataset
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = f"obtained_frequencies"
+
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = "frequency_log_scale"
+
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "abs(fft)"
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        ax.step(f_per_year, np.abs(fft), color = 'crimson', linestyle = '-', alpha = OPACITY)
+        
+        plt.xscale('log')
+        plt.xticks(xtick_list, labels = labels_list)
+            
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = 'upper right')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "fast_fourier_transform"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+        
+        return fft
+
+
+    def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}]
+        # List of dictionaries with the important frequencies to add to the model. You can remove dictionaries,
+        # or add extra dictionaries. The dictionaries must have always the same keys, 'value' and 'unit'.
+        # If the importante frequency is once a day, the value will be 1, and the unit will be 'day' or 'd'.
+        # The possible units are: 'ns', 'ms', 'second' or 's', 'minute' or 'min', 'day' or 'd', 'month' or 'm',
+        # 'year' or 'y'.
+        
+        # the Date Time column is very useful, but not in this string form. 
+        # Start by converting it to seconds:
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        timestamp_s = DATASET[timestamp_tag_column].map(pd.Timestamp.timestamp)
+        # the time in seconds is not a useful model input. 
+        # It may have daily and yearly periodicity, for instance. 
+        # To deal with periodicity, you can get usable signals by using sine and cosine transforms 
+        # to clear "Time of day" and "Time of year" signals:
+        
+        columns_to_plot = []
+        
+        for freq_dict in important_frequencies:
+            
+            value = freq_dict['value']
+            unit = freq_dict['unit']
+            
+            if ((value is not None) & (unit is not None)):
+                
+                unit = str(unit).lower()
+                
+                column_name1 = unit + "_sin"
+                column_name2 = unit + "_cos"
+                
+                column_tuple = (column_name1, column_name2)
+                columns_to_plot.append(column_tuple)
+                
+                if (unit == 'ns'):
+                    # convert to seconds:
+                    factor = 10 ** (-9)
+                
+                elif (unit == 'ms'):
+                    # convert to seconds:
+                    factor = 10 ** (-3)
+                
+                elif ((unit == 's')|(unit == 'second')):
+                    # convert to seconds:
+                    factor = 1
+                
+                elif ((unit == 'min')|(unit == 'minute')):
+                    # convert to seconds:
+                    factor = 60
+                
+                elif ((unit == 'hour')|(unit == 'h')):
+                    # convert to seconds:
+                    factor = 60 * 60
+                
+                elif ((unit == 'month')|(unit == 'm')):
+                    # convert to seconds, considering a (365.2425)-day year, divided by 12:
+                    factor = 60 * 60 * 24 * (365.2425)/12
+                    print(f"Attention: considering an average month of {(365.2425)/12} days.\n")
+                
+                elif ((unit == 'year')|(unit == 'y')):
+                    # convert to seconds, considering a (365.2425)-day year:
+                    factor = 60 * 60 * 24 * (365.2425)
+                
+                else:
+                    # unit == 'day', or 'd', the default case
+                    # convert to seconds:
+                    factor = 60 * 60 * 24
+                
+                DATASET[column_name1] = np.sin(timestamp_s * (2 * np.pi / factor))
+                DATASET[column_name2] = np.cos(timestamp_s * (2 * np.pi / factor))
+                
+        # There are 8 possible frequencies to plot, i.e, 16 possible sin and cos plots.
+        # List of tuples, containing the pairs of colors to be used:
+        colors = [('crimson', 'darkblue'), 
+                    ('fuchsia', 'black'),
+                    ('red', 'blue'),
+                    ('darkgreen', 'magenta'),
+                    ('aqua', 'violet'),
+                    ('navy', 'purple'),
+                    ('green', 'firebrick'),
+                    ('blue', 'plum')]
+        
+        # Slice the colors list so that it has the same amount of elements as columns_to_plot:
+        colors = colors[:(len(columns_to_plot))]
+        # Now, we can zip both to create an iterable containing a tuple of plots and a correspondent
+        # tuple of colors.
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = f"frequency_signals"
+
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = "time"
+
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "signal"
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        for columns_tuple, colors_tuple in zip(columns_to_plot, colors):
+            
+            ax.plot(np.array(DATASET[columns_tuple[0]])[:25], linestyle = "-", marker = '', color = colors_tuple[0], alpha = OPACITY, label = columns_tuple[0])
+            ax.plot(np.array(DATASET[columns_tuple[1]])[:25], linestyle = "-", marker = '', color = colors_tuple[1], alpha = OPACITY, label = columns_tuple[1])
+            
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = 'upper right')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "frequency_signals"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+        
+        return DATASET
+
+
     def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
         
         import numpy as np
