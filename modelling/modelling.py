@@ -891,6 +891,157 @@ class model_checking:
         return self
 
 
+class WindowGenerator:
+  
+    def __init__(self, input_width, label_width, shift, train_df = train_df, val_df = val_df, test_df = test_df, 
+                 label_columns = None):
+        
+        # Store the raw data.
+        self.train_df = train_df
+        self.val_df = val_df
+        self.test_df = test_df
+
+        # Work out the label column indices.
+        self.label_columns = label_columns
+        if label_columns is not None:
+            
+            self.label_columns_indices = {name: i for i, name in
+                                        enumerate(label_columns)}
+            
+        self.column_indices = {name: i for i, name in
+                                   enumerate(train_df.columns)}
+
+        # Work out the window parameters.
+        self.input_width = input_width
+        self.label_width = label_width
+        self.shift = shift
+
+        self.total_window_size = input_width + shift
+
+        self.input_slice = slice(0, input_width)
+        self.input_indices = np.arange(self.total_window_size)[self.input_slice]
+
+        self.label_start = self.total_window_size - self.label_width
+        self.labels_slice = slice(self.label_start, None)
+        self.label_indices = np.arange(self.total_window_size)[self.labels_slice]
+    
+    def __repr__(self):
+        
+        return '\n'.join([
+            f'Total window size: {self.total_window_size}',
+            f'Input indices: {self.input_indices}',
+            f'Label indices: {self.label_indices}',
+            f'Label column name(s): {self.label_columns}'])
+    
+    def split_window (self, features):
+        
+        import tensorflow as tf
+        
+        inputs = features[:, self.input_slice, :]
+        labels = features[:, self.labels_slice, :]
+        
+        if self.label_columns is not None:
+            
+            labels = tf.stack(
+                [labels[:, :, self.column_indices[name]] for name in self.label_columns], axis = -1)
+
+        # Slicing doesn't preserve static shape information, so set the shapes
+        # manually. This way the `tf.data.Datasets` are easier to inspect.
+        inputs.set_shape([None, self.input_width, None])
+        labels.set_shape([None, self.label_width, None])
+        
+        self.inputs = inputs
+        self.labels = labels
+        
+        return self
+    
+    
+    def plot(self, model = None, plot_col = response_column, max_subplots = 3):
+        
+        import matplotlib.pyplot as plt
+        
+        inputs = self.inputs
+        labels = self.labels
+        
+        plt.figure(figsize = (12, 8))
+        plot_col_index = self.column_indices[plot_col]
+        max_n = min(max_subplots, len(inputs))
+        for n in range(max_n):
+            plt.subplot(max_n, 1, n+1)
+            plt.ylabel(f'{plot_col}')
+            plt.plot(self.input_indices, inputs[n, :, plot_col_index],
+                     label = 'Inputs', marker = '.', zorder = -10)
+
+        if self.label_columns:
+            label_col_index = self.label_columns_indices.get(plot_col, None)
+        else:
+            label_col_index = plot_col_index
+
+        if label_col_index is None:
+            continue
+
+        plt.scatter(self.label_indices, labels[n, :, label_col_index],
+                    edgecolors = 'k', label = 'Labels', c = '#2ca02c', s = 64)
+        
+        if model is not None:
+            predictions = model(inputs)
+            plt.scatter(self.label_indices, predictions[n, :, label_col_index],
+                      marker = 'X', edgecolors = 'k', label = 'Predictions',
+                      c = '#ff7f0e', s = 64)
+
+        if n == 0:
+            plt.legend()
+
+        plt.xlabel('time')
+
+    def make_datasets(self, train_data, test_data, val_data = None, batch_size = 32, shuffle = True):
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        train_data = np.array(train_data, dtype = np.float32)
+        train_dataset = tf.keras.utils.timeseries_dataset_from_array(data = train_data,
+                                                                      targets = None,
+                                                                      sequence_length = self.total_window_size,
+                                                                      sequence_stride = 1,
+                                                                      shuffle = shuffle,
+                                                                      batch_size = batch_size)
+
+        train_dataset = train_dataset.map(self.split_window)
+        
+        self.train_dataset = train_dataset
+        
+        test_data = np.array(test_data, dtype = np.float32)
+        test_dataset = tf.keras.utils.timeseries_dataset_from_array(data = test_data,
+                                                                      targets = None,
+                                                                      sequence_length = self.total_window_size,
+                                                                      sequence_stride = 1,
+                                                                      shuffle = shuffle,
+                                                                      batch_size = batch_size)
+
+        test_dataset = test_dataset.map(self.split_window)
+        
+        self.test_dataset = test_dataset
+        
+        if (val_data is not None):
+            
+            val_data = np.array(val_data, dtype = np.float32)
+            val_dataset = tf.keras.utils.timeseries_dataset_from_array(data = val_data,
+                                                                          targets = None,
+                                                                          sequence_length = self.total_window_size,
+                                                                          sequence_stride = 1,
+                                                                          shuffle = shuffle,
+                                                                          batch_size = batch_size)
+
+            val_dataset = val_dataset.map(self.split_window)
+
+            self.val_dataset = val_dataset
+            
+
+        return self
+
+
 class tf_models:
     
     # TensorFlow models with single input, single output, or single input and possibly
@@ -1774,6 +1925,121 @@ class modelling_workflow:
         return dataset
 
 
+    def prepare_time_series_dataset (df, response_columns, batch_size = 32, shuffle = True, input_width = 6, label_width = 1, shift = 1, percent_of_data_used_for_model_training = 70, percent_of_training_data_used_for_model_validation = 10):
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # response_columns: string or list of strings with the response columns
+        
+        # batch_size = 32: the datasets are divided into batches for model training. This integer
+        # represents the size of the batches.
+        
+        # shuffle = True: boolean (True or False) indicating wether the batches will be shuffled or not.
+        
+        # input_width = 6, label_width = 1, shift = 1 (integers)
+        # The time series may be represented as a sequence of times like: t = 0, t = 1, t = 2, ..., t = N.
+        # When preparing the dataset, we pick a given number of 'times' (indexes), and use them for
+        # predicting a time in the future.
+        # So, the input_width represents how much times will be used for prediction. If input_width = 6,
+        # we use 6 values for prediction, e.g., t = 0, t = 1, ..., t = 5 will be a prediction window.
+        # In turns, if input_width = 3, 3 values are used: t = 0, t = 1, t = 2; if input_width = N, N
+        # consecutive values will be used: t = 0, t = 1, t = 2, ..., t = N. And so on.
+        
+        # label_width, in turns, represent how much times will be predicted. If label_width = 1, a single
+        # value will be predicted. If label_width = 2, two consecutive values are predicted; if label_width =
+        # N, N consecutive values are predicted; and so on.
+        
+        # shift represents the offset, i.e., given the input values, which value in the time sequence will
+        # be predicted. So, suppose input_width = 6 and label_width = 1
+        # If shift = 1, the label, i.e., the predicted value, will be the first after the sequence used for
+        # prediction. So, if  t = 0, t = 1, ..., t = 5 will be a prediction window and t = 6 will be the
+        # predicted value. Notice that the complete window has a total width = 7: t = 0, ..., t = 7. 
+        # If label_width = 2, then t = 6 and t = 7 will be predicted (total width = 8).
+        # Another example: suppose input_width = 24. So the predicted window is: t = 0, t = 1, ..., t = 23.
+        # If shift = 24, the 24th element after the prediction sequence will be used as label, i.e., will
+        # be predicted. So, t = 24 is the 1st after the sequence, t = 25 is the second, ... t = 47 is the
+        # 24th after. If label_with = 1, then the sequence t = 0, t = 1, ..., t = 23 will be used for
+        # predicting t = 47. Naturally, the total width of the window = 47 in this case.
+        
+        # Notice that the total width of the window = input_window + shift, if the label_width = 1; or
+        # is equal to input_window + shift + (label_width - 1), if label_width > 1 (the first is already
+        # included in input_window_shift).
+        
+        # Also, notice that the label is used by the model as the response (predicted) variable.
+        
+        
+        # percent_of_data_used_for_model_training: float from 0 to 100,
+        # representing the percent of data used for training the model
+        
+        # If you want to use cross-validation, separate a percent of the training data for validation.
+        # Declare this percent as percent_of_training_data_used_for_model_validation (float from 0 to 100).
+        
+        # If PERCENT_OF_DATA_USED_FOR_MODEL_TRAINING = 70, and 
+        # PERCENT_OF_TRAINING_DATA_USED_FOR_MODEL_VALIDATION = 10, 
+        # training dataset slice goes from 0 to 0.7 (70%) of the dataset;
+        # testing slicing goes from 0.7 x dataset to ((1 - 0.1) = 0.9) x dataset
+        # validation slicing goes from 0.9 x dataset to the end of the dataset.
+        # Here, consider the time sequence t = 0, t = 1, ... , t = N, for a dataset with length N:
+        # training: from t = 0 to t = (0.7 x N); testing: from t = ((0.7 x N) + 1) to (0.9 x N);
+        # validation: from t = ((0.9 x N) + 1) to N (the fractions 0.7 x N and 0.9 x N are rounded to
+        # the closest integer).
+
+        
+        # Create a local copy of the dataframe to manipulate:
+        DATASET = df.copy(deep = True)
+        
+        if (type(response_columns) != list):
+            response_columns = [response_columns]
+        
+        
+        column_indices = {name: i for i, name in enumerate(DATASET.columns)}
+
+        n = len(DATASET)
+        
+        if (percent_of_training_data_used_for_model_validation > 0):
+        
+            train_df = DATASET[0:int(n*(percent_of_data_used_for_model_training/100))]
+            test_df = DATASET[int(n*percent_of_data_used_for_model_training/100):int(n*(100-percent_of_training_data_used_for_model_validation)/100)]
+            # If percent_of_training_data_used_for_model_validation = 10, and percent_of_data_used_for_model_training = 70, this slicing
+            # goes from 0.7 x dataset to ((1-0.1) = 0.9) x dataset
+            val_df = DATASET[int(n*(100-percent_of_training_data_used_for_model_validation)/100):]
+        
+        else:
+            train_df = DATASET[0:int(n*(percent_of_data_used_for_model_training/100))]
+            test_df = DATASET[int(n*percent_of_data_used_for_model_training/100):]
+            val_df = None
+
+        num_features = DATASET.shape[1]
+        
+        # Instantiate an object from WindowGenerator class:
+        window = WindowGenerator(input_width = input_width, label_width = label_width, shift = shift, label_columns = response_columns)
+        # Apply the split_window method to obtain inputs and labels:
+        window = window.split_window()
+        
+        # Make the dataset:
+        window = window.make_dataset(train_data = train_df, test_data = test_df, val_data = val_df, batch_size = batch_size, shuffle = shuffle)
+        # Retrieve the dataset from dataset attribute:
+        
+        print(f"Training tensor properties: {window.train_dataset}\n")
+        print(f"Test tensor properties: {window.test_dataset}\n")
+        
+        datasets_dict = {}
+        
+        datasets_dict['train_dataset'] = window.train_dataset
+        datasets_dict['test_dataset'] = window.test_dataset
+        
+        if (val_df is not None):
+            datasets_dict['val_dataset'] = window.val_dataset
+            print(f"Validation tensor properties: {window.val_dataset}\n")
+        
+        
+        print("Finished preparing the time series datasets. Check them in the datasets dictionary returned.\n")
+        
+        return datasets_dict
+
+  
     def ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
