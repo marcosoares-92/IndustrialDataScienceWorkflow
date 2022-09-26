@@ -13635,6 +13635,11 @@ class etl_workflow:
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
         
+        #Subtract the average value of column to analyze from each entry, to eliminate a possible offset
+        avg_value = DATASET[column_to_analyze].mean()
+        DATASET[column_to_analyze] = DATASET[column_to_analyze] - avg_value
+        
+        # Perform the Fourier transform
         fft = tf.signal.rfft(DATASET[column_to_analyze])
         f_per_dataset = np.arange(0, len(fft))
 
@@ -13649,7 +13654,7 @@ class etl_workflow:
         
         if (plot_title is None):
             # Set graphic title
-            plot_title = f"obtained_frequencies"
+            plot_title = "obtained_frequencies"
 
         if (horizontal_axis_title is None):
             # Set horizontal axis title
@@ -13659,11 +13664,20 @@ class etl_workflow:
             # Set vertical axis title
             vertical_axis_title = "abs(fft)"
         
+        # fft is a complex tensor. Let's pick the absolute value of each complex:
+        abs_fft = np.abs(fft)
+        
         #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         fig = plt.figure(figsize = (12, 8))
         ax = fig.add_subplot()
         
-        ax.step(f_per_year, np.abs(fft), color = 'crimson', linestyle = '-', alpha = OPACITY)
+        ax.step(f_per_year, abs_fft, color = 'crimson', linestyle = '-', alpha = OPACITY)
+        
+        # Set limits of the axes:
+        # Y from 0 to a value 1% higher than the maximum
+        # X from 0.1, close to zero, to the maximum. Zero cannot be present in log scale
+        
+        plt.xlim([0.1, max(plt.xlim())])
         
         plt.xscale('log')
         plt.xticks(xtick_list, labels = labels_list)
@@ -13680,11 +13694,7 @@ class etl_workflow:
         ax.set_ylabel(vertical_axis_title)
 
         ax.grid(grid) # show grid or not
-        ax.legend(loc = 'upper right')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-
+        
         if (export_png == True):
             # Image will be exported
             import os
@@ -13731,7 +13741,10 @@ class etl_workflow:
         ##  '03_05_END.ipynb'
         plt.show()
         
-        return fft
+        print("Attention: the frequency is in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.\n")
+        
+        # Also, return a tuple combining the absolute value of fft with the corresponding count per year
+        return fft, tuple(zip(abs_fft, f_per_year))
 
 
     def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
