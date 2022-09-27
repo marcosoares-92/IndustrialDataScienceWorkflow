@@ -13747,10 +13747,11 @@ class etl_workflow:
         return fft, tuple(zip(abs_fft, f_per_year))
 
 
-    def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, max_number_of_entries_to_plot = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         import numpy as np
         import pandas as pd
+        import matplotlib.pyplot as plt
         
         # important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}]
         # List of dictionaries with the important frequencies to add to the model. You can remove dictionaries,
@@ -13759,12 +13760,24 @@ class etl_workflow:
         # The possible units are: 'ns', 'ms', 'second' or 's', 'minute' or 'min', 'day' or 'd', 'month' or 'm',
         # 'year' or 'y'.
         
+        # max_number_of_entries_to_plot (integer or None): use this argument to limit the number of entries 
+        # to plot. If None, all the entries will be plot.
+        # max_number_of_entries_to_plot = 25 will plot the first 25 entries, max_number_of_entries_to_plot =
+        # 100 will plot the 100 first entries, and so on.
+        
         # the Date Time column is very useful, but not in this string form. 
         # Start by converting it to seconds:
         
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
         
+        # Guarantee that the timestamp column has a datetime object, and not a string
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        
+        # Return POSIX timestamp as float
+        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
+        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.timestamp.html#pandas.Timestamp.timestamp
+        # It is a variation of UNIX timestamp
         timestamp_s = DATASET[timestamp_tag_column].map(pd.Timestamp.timestamp)
         # the time in seconds is not a useful model input. 
         # It may have daily and yearly periodicity, for instance. 
@@ -13841,6 +13854,9 @@ class etl_workflow:
         # Now, we can zip both to create an iterable containing a tuple of plots and a correspondent
         # tuple of colors.
         
+        # Start an information dictionary to be returned
+        timestamp_dict = {'timestamp': DATASET[timestamp_tag_column]}
+        
         # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
         # so that the bars do not completely block other views.
         OPACITY = 0.95
@@ -13851,7 +13867,7 @@ class etl_workflow:
 
         if (horizontal_axis_title is None):
             # Set horizontal axis title
-            horizontal_axis_title = "time"
+            horizontal_axis_title = "timestamp"
 
         if (vertical_axis_title is None):
             # Set vertical axis title
@@ -13861,11 +13877,33 @@ class etl_workflow:
         fig = plt.figure(figsize = (12, 8))
         ax = fig.add_subplot()
         
+        # Start a list to append all the plot dictionaries
+        plots_list = []
+        
         for columns_tuple, colors_tuple in zip(columns_to_plot, colors):
             
-            ax.plot(np.array(DATASET[columns_tuple[0]])[:25], linestyle = "-", marker = '', color = colors_tuple[0], alpha = OPACITY, label = columns_tuple[0])
-            ax.plot(np.array(DATASET[columns_tuple[1]])[:25], linestyle = "-", marker = '', color = colors_tuple[1], alpha = OPACITY, label = columns_tuple[1])
+            plot_dict = {'label_sin': columns_tuple[0], 'plot_sin': np.array(DATASET[columns_tuple[0]]), 'color_sin': colors_tuple[0],
+                        'label_cos': columns_tuple[1], 'plot_cos': np.array(DATASET[columns_tuple[1]]), 'color_cos': colors_tuple[1]}
             
+            if (max_number_of_entries_to_plot is None):
+                
+                x_plot = timestamp_dict['timestamp']
+                sin_plot = plot_dict['plot_sin']
+                cos_plot = plot_dict['plot_cos']
+            
+            else:
+                x_plot = np.array(timestamp_dict['timestamp'])[:max_number_of_entries_to_plot]
+                sin_plot = np.array(plot_dict['plot_sin'])[:max_number_of_entries_to_plot]
+                cos_plot = np.array(plot_dict['plot_cos'])[:max_number_of_entries_to_plot]
+            
+            ax.plot(x_plot, sin_plot, linestyle = "-", marker = '', color = plot_dict['color_sin'], alpha = OPACITY, label = plot_dict['label_sin'])
+            ax.plot(x_plot, cos_plot, linestyle = "-", marker = '', color = plot_dict['color_cos'], alpha = OPACITY, label = plot_dict['label_cos'])
+            
+            plots_list.append(plot_dict)
+        
+        # Add the list of plots to the returned dictionary:
+        timestamp_dict['plots_list'] = plots_list
+        
         #ROTATE X AXIS IN XX DEGREES
         plt.xticks(rotation = x_axis_rotation)
         # XX = 0 DEGREES x_axis (Default)
@@ -13929,7 +13967,7 @@ class etl_workflow:
         ##  '03_05_END.ipynb'
         plt.show()
         
-        return DATASET
+        return DATASET, timestamp_dict
 
 
     def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
