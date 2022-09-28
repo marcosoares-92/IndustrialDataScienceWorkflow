@@ -13578,6 +13578,11 @@ class etl_workflow:
         import matplotlib.pyplot as plt
         import tensorflow as tf
         
+        # Real-valued fast Fourier transform: https://www.tensorflow.org/api_docs/python/tf/signal/rfft?authuser=1
+        # 2D real-valued fast Fourier transform: https://www.tensorflow.org/api_docs/python/tf/signal/rfft2d?authuser=1
+        # 3D real-valued fast Fourier transform: https://www.tensorflow.org/api_docs/python/tf/signal/rfft3d?authuser=1
+        # Short-time Fourier Transform: https://www.tensorflow.org/api_docs/python/tf/signal/stft?authuser=1
+        
         
         # average_frequency_of_data_collection = 'hour' or 'h' for hours; 'day' or 'd' for days;
         # 'minute' or 'min' for minutes; 'seconds' or 's' for seconds; 'ms' for milliseconds; 'ns' for
