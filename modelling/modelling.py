@@ -892,153 +892,176 @@ class model_checking:
 
 
 class WindowGenerator:
+    
+    # original algorithm:
+    # https://www.tensorflow.org/tutorials/structured_data/time_series?hl=en&%3Bauthuser=1&authuser=1
   
-    def __init__(self, input_width, label_width, shift, train_df = train_df, val_df = val_df, test_df = test_df, 
-                 label_columns = None):
-        
-        # Store the raw data.
-        self.train_df = train_df
-        self.val_df = val_df
-        self.test_df = test_df
-
-        # Work out the label column indices.
-        self.label_columns = label_columns
-        if label_columns is not None:
-            
-            self.label_columns_indices = {name: i for i, name in
-                                        enumerate(label_columns)}
-            
-        self.column_indices = {name: i for i, name in
-                                   enumerate(train_df.columns)}
-
-        # Work out the window parameters.
-        self.input_width = input_width
-        self.label_width = label_width
-        self.shift = shift
-
-        self.total_window_size = input_width + shift
-
-        self.input_slice = slice(0, input_width)
-        self.input_indices = np.arange(self.total_window_size)[self.input_slice]
-
-        self.label_start = self.total_window_size - self.label_width
-        self.labels_slice = slice(self.label_start, None)
-        self.label_indices = np.arange(self.total_window_size)[self.labels_slice]
-    
-    def __repr__(self):
-        
-        return '\n'.join([
-            f'Total window size: {self.total_window_size}',
-            f'Input indices: {self.input_indices}',
-            f'Label indices: {self.label_indices}',
-            f'Label column name(s): {self.label_columns}'])
-    
-    def split_window (self, features):
-        
-        import tensorflow as tf
-        
-        inputs = features[:, self.input_slice, :]
-        labels = features[:, self.labels_slice, :]
-        
-        if self.label_columns is not None:
-            
-            labels = tf.stack(
-                [labels[:, :, self.column_indices[name]] for name in self.label_columns], axis = -1)
-
-        # Slicing doesn't preserve static shape information, so set the shapes
-        # manually. This way the `tf.data.Datasets` are easier to inspect.
-        inputs.set_shape([None, self.input_width, None])
-        labels.set_shape([None, self.label_width, None])
-        
-        self.inputs = inputs
-        self.labels = labels
-        
-        return self
-    
-    
-    def plot(self, model = None, plot_col = response_column, max_subplots = 3):
-        
-        import matplotlib.pyplot as plt
-        
-        inputs = self.inputs
-        labels = self.labels
-        
-        plt.figure(figsize = (12, 8))
-        plot_col_index = self.column_indices[plot_col]
-        max_n = min(max_subplots, len(inputs))
-        for n in range(max_n):
-            plt.subplot(max_n, 1, n+1)
-            plt.ylabel(f'{plot_col}')
-            plt.plot(self.input_indices, inputs[n, :, plot_col_index],
-                     label = 'Inputs', marker = '.', zorder = -10)
-
-        if self.label_columns:
-            label_col_index = self.label_columns_indices.get(plot_col, None)
-        else:
-            label_col_index = plot_col_index
-
-        if label_col_index is None:
-            continue
-
-        plt.scatter(self.label_indices, labels[n, :, label_col_index],
-                    edgecolors = 'k', label = 'Labels', c = '#2ca02c', s = 64)
-        
-        if model is not None:
-            predictions = model(inputs)
-            plt.scatter(self.label_indices, predictions[n, :, label_col_index],
-                      marker = 'X', edgecolors = 'k', label = 'Predictions',
-                      c = '#ff7f0e', s = 64)
-
-        if n == 0:
-            plt.legend()
-
-        plt.xlabel('time')
-
-    def make_datasets(self, train_data, test_data, val_data = None, batch_size = 32, shuffle = True):
+    def __init__(self, dataset, shift, use_past_responses_for_prediction = True, 
+                 sequence_stride = 1, sampling_rate = 1, label_columns = None, 
+                 train_pct = 70, val_pct = 10):
         
         import numpy as np
         import pandas as pd
         import tensorflow as tf
         
-        train_data = np.array(train_data, dtype = np.float32)
-        train_dataset = tf.keras.utils.timeseries_dataset_from_array(data = train_data,
-                                                                      targets = None,
-                                                                      sequence_length = self.total_window_size,
-                                                                      sequence_stride = 1,
-                                                                      shuffle = shuffle,
-                                                                      batch_size = batch_size)
+        # Return an error if the percents are out of the allowable range:
+        assert ((train_pct >= 0) & (train_pct <= 100))
+        assert ((val_pct >= 0) & (val_pct <= 100))
+        
+        df = dataset.copy(deep = True)
+        
+        # Store the raw data.
+        self.df = df
+        self.sequence_stride = sequence_stride
+        self.sampling_rate = sampling_rate
+        self.shift = shift
+        
+        n = len(dataset)
+        # Store the fractions for training and validation:
+        self.train_boundary = int(n*(train_pct/100))
+        self.val_boundary = int(n*(100 - val_pct)/100)
+        
+        
+        # Set the response columns as a list, if it is a simple string:
+    
+        if ((type(label_columns) == tuple)|(type(label_columns) == set)):
+            self.label_columns = list(label_columns)
 
-        train_dataset = train_dataset.map(self.split_window)
+        elif (type(label_columns) != list):
+            self.label_columns = [label_columns]
         
-        self.train_dataset = train_dataset
+        else:
+            self.label_columns = label_columns
         
-        test_data = np.array(test_data, dtype = np.float32)
-        test_dataset = tf.keras.utils.timeseries_dataset_from_array(data = test_data,
-                                                                      targets = None,
-                                                                      sequence_length = self.total_window_size,
-                                                                      sequence_stride = 1,
-                                                                      shuffle = shuffle,
-                                                                      batch_size = batch_size)
-
-        test_dataset = test_dataset.map(self.split_window)
+        # Set responses and features datasets
+        y = (df[self.label_columns]).copy(deep = True)
         
-        self.test_dataset = test_dataset
-        
-        if (val_data is not None):
+        if (use_past_responses_for_prediction):
+            # we use all the columns as predictors for the time series dataset:
+            X = df
             
-            val_data = np.array(val_data, dtype = np.float32)
-            val_dataset = tf.keras.utils.timeseries_dataset_from_array(data = val_data,
-                                                                          targets = None,
-                                                                          sequence_length = self.total_window_size,
-                                                                          sequence_stride = 1,
-                                                                          shuffle = shuffle,
-                                                                          batch_size = batch_size)
-
-            val_dataset = val_dataset.map(self.split_window)
-
-            self.val_dataset = val_dataset
+        else:
+            # Since they will not be used, eliminate them
+            X = df.drop(columns = self.label_columns)
+        
+        self.feature_columns = list(X.columns)
+        self.num_features = X.shape[1]
+        
+        # Define each one of the train, test and validation dataframes as arrays:
+        self.X_train = np.array(X[0:self.train_boundary])
+        self.y_train = np.array(y[0:self.train_boundary])
+        self.X_test = np.array(X[self.train_boundary:self.val_boundary])
+        self.y_test = np.array(y[self.train_boundary:self.val_boundary])
+        self.X_val = np.array(X[self.val_boundary:])
+        self.y_val = np.array(y[self.val_boundary:])
+              
+        # In the time series TF dataset, all columns are used as predictors.
+        # You can use entries on times t1, t2, t3 to predict t4, for example.
+        # The predicted columns are the ones indicated as label_columns, i.e., columns that
+        # will be used as the labels y.
+        
+        if label_columns is not None:
             
+            self.label_columns_indices = {name: i for i, name in
+                                        enumerate(self.label_columns)}
+            
+        self.column_indices = {name: i for i, name in
+                                   enumerate(self.df.columns)}
+        
+        """
+        slice object: object that defines the slicing interval. slice(x,y) is equivalent
+        to defining the interval [x:y] for slicing.
+        Example: a = list(range(0,99))
+        b = slice(10,22)
+        c = a[b] is equivalent to c = a[10:22], resulting in [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        if b = slice(1,3), c = [1, 2], which are the indices 1 and 2 (indexing starting from 0)
+        
+        """
+    
+    def split_as_labels_and_inputs (self, X, y):
+        
+        import numpy as np
+        import tensorflow as tf
+        
+        shift = self.shift
+        # shift: the sequence of timesteps i, i+1, ... will be used for predicting the
+        # timestep i + shift
+        stride = self.sequence_stride
+        # if a sequence starts in index i, the next sequence will start from i + stride
+        sampling = self.sampling_rate
+        # the sequence will be formed by timesteps i, i + sampling_rate, i + 2* sampling_rate, ...
+        """
+        Example from TensorFlow documentation: 
+        https://www.tensorflow.org/api_docs/python/tf/keras/utils/timeseries_dataset_from_array
+        
+        Consider indices [0, 1, ... 99]. With sequence_length=10, sampling_rate=2, sequence_stride=3, 
+        shuffle=False, the dataset will yield batches of sequences composed of the following indices:
 
+        First sequence:  [0  2  4  6  8 10 12 14 16 18]
+        Second sequence: [3  5  7  9 11 13 15 17 19 21]
+        Third sequence:  [6  8 10 12 14 16 18 20 22 24]
+        ...
+        Last sequence:   [78 80 82 84 86 88 90 92 94 96]
+        """
+        
+        total_elements = len(X)
+        start_index = 0
+        stop_index = start_index + shift
+        
+        # List to store all arrays
+        list_of_inputs = []
+        list_of_labels = []
+        
+        while (start_index < total_elements):
+            
+            try:
+                # Slice the X array from start to stop, with step = sampling
+                # Array slice: [start:stop:sampling]
+                added_input = X[start_index:stop_index:sampling]
+                # Notice that stop_index is not added. It is actually the index to be picked from y:
+                added_label = y[stop_index]
+                
+                # add them to the lists of arrays:
+                list_of_inputs.append(np.array(added_input))
+                list_of_labels.append(np.array(added_label))
+                # Update the start and stop indices:
+                start_index = start_index + stride
+                stop_index = stop_index + stride
+            
+            except:
+                # The elements actually finished, due to shifting and striding, so stop the loop
+                break
+        
+        # Convert lists to arrays and then to tensors:
+        inputs_tensor = np.array(list_of_inputs)
+        labels_tensor = np.array(list_of_labels)
+        
+        inputs_tensor = tf.constant(inputs_tensor)
+        labels_tensor = tf.constant(labels_tensor)
+        
+        return inputs_tensor, labels_tensor
+    
+    
+    def make_tensors (self):
+        
+        # start a tensors dictionary
+        tensors_dict = {}
+        
+        for group in ['train', 'test', 'val']:
+            
+            # Use vars function to access the correct attributes storing the desired arrays.
+            # The vars function allows you to access an attribute as a string
+            X = vars(self)[('X_' + group)]
+            y = vars(self)[('y_' + group)]
+            
+            # Split into inputs and labels
+            inputs_tensor, labels_tensor = self.split_as_labels_and_inputs(X = X, y = y)
+            # Store them in the tensors dictionary:
+            tensors_dict[group] = {'inputs': inputs_tensor, 'labels': labels_tensor}
+        
+        # Save the dictionary as class variable:
+        self.tensors_dict = tensors_dict
+        
         return self
 
 
@@ -1925,7 +1948,10 @@ class modelling_workflow:
         return dataset
 
 
-    def prepare_time_series_dataset (df, response_columns, batch_size = 32, shuffle = True, input_width = 6, label_width = 1, shift = 1, percent_of_data_used_for_model_training = 70, percent_of_training_data_used_for_model_validation = 10):
+    def multi_columns_time_series_tensors (df, response_columns, sequence_stride = 1, sampling_rate = 1, shift = 1, use_past_responses_for_prediction = True, percent_of_data_used_for_model_training = 70, percent_of_training_data_used_for_model_validation = 10):
+    
+        # original algorithm: 
+        # https://www.tensorflow.org/tutorials/structured_data/time_series?hl=en&%3Bauthuser=1&authuser=1
         
         import numpy as np
         import pandas as pd
@@ -1933,12 +1959,6 @@ class modelling_workflow:
         
         # response_columns: string or list of strings with the response columns
         
-        # batch_size = 32: the datasets are divided into batches for model training. This integer
-        # represents the size of the batches.
-        
-        # shuffle = True: boolean (True or False) indicating wether the batches will be shuffled or not.
-        
-        # input_width = 6, label_width = 1, shift = 1 (integers)
         # The time series may be represented as a sequence of times like: t = 0, t = 1, t = 2, ..., t = N.
         # When preparing the dataset, we pick a given number of 'times' (indexes), and use them for
         # predicting a time in the future.
@@ -1946,10 +1966,11 @@ class modelling_workflow:
         # we use 6 values for prediction, e.g., t = 0, t = 1, ..., t = 5 will be a prediction window.
         # In turns, if input_width = 3, 3 values are used: t = 0, t = 1, t = 2; if input_width = N, N
         # consecutive values will be used: t = 0, t = 1, t = 2, ..., t = N. And so on.
-        
         # label_width, in turns, represent how much times will be predicted. If label_width = 1, a single
         # value will be predicted. If label_width = 2, two consecutive values are predicted; if label_width =
         # N, N consecutive values are predicted; and so on.
+        
+        # shift, sampling_rate, and sequence_stride: integers
         
         # shift represents the offset, i.e., given the input values, which value in the time sequence will
         # be predicted. So, suppose input_width = 6 and label_width = 1
@@ -1963,13 +1984,21 @@ class modelling_workflow:
         # 24th after. If label_with = 1, then the sequence t = 0, t = 1, ..., t = 23 will be used for
         # predicting t = 47. Naturally, the total width of the window = 47 in this case.
         
-        # Notice that the total width of the window = input_window + shift, if the label_width = 1; or
-        # is equal to input_window + shift + (label_width - 1), if label_width > 1 (the first is already
-        # included in input_window_shift).
-        
         # Also, notice that the label is used by the model as the response (predicted) variable.
         
-        
+        # So for a given shift: the sequence of timesteps i, i+1, ... will be used for predicting the
+        # timestep i + shift
+        # If a sequence starts in index i, the next sequence will start from i + sequence_stride.
+        # The sequence will be formed by timesteps i, i + sampling_rate, i + 2* sampling_rate, ...
+        # Example: Consider indices [0, 1, ... 99]. With sequence_length=10, sampling_rate=2, 
+        # sequence_stride=3, the dataset will yield batches of sequences composed of the following 
+        # indices:
+        # First sequence:  [0  2  4  6  8 10 12 14 16 18]
+        # Second sequence: [3  5  7  9 11 13 15 17 19 21]
+        # Third sequence:  [6  8 10 12 14 16 18 20 22 24]
+        # ...
+        # Last sequence:   [78 80 82 84 86 88 90 92 94 96]
+
         # percent_of_data_used_for_model_training: float from 0 to 100,
         # representing the percent of data used for training the model
         
@@ -1985,61 +2014,33 @@ class modelling_workflow:
         # training: from t = 0 to t = (0.7 x N); testing: from t = ((0.7 x N) + 1) to (0.9 x N);
         # validation: from t = ((0.9 x N) + 1) to N (the fractions 0.7 x N and 0.9 x N are rounded to
         # the closest integer).
+        
+        # use_past_responses_for_prediction: True if the past responses will be used for predicting their
+        # value in the future; False if you do not want to use them.
 
         
         # Create a local copy of the dataframe to manipulate:
         DATASET = df.copy(deep = True)
         
-        if (type(response_columns) != list):
-            response_columns = [response_columns]
-        
-        
-        column_indices = {name: i for i, name in enumerate(DATASET.columns)}
-
-        n = len(DATASET)
-        
-        if (percent_of_training_data_used_for_model_validation > 0):
-        
-            train_df = DATASET[0:int(n*(percent_of_data_used_for_model_training/100))]
-            test_df = DATASET[int(n*percent_of_data_used_for_model_training/100):int(n*(100-percent_of_training_data_used_for_model_validation)/100)]
-            # If percent_of_training_data_used_for_model_validation = 10, and percent_of_data_used_for_model_training = 70, this slicing
-            # goes from 0.7 x dataset to ((1-0.1) = 0.9) x dataset
-            val_df = DATASET[int(n*(100-percent_of_training_data_used_for_model_validation)/100):]
-        
-        else:
-            train_df = DATASET[0:int(n*(percent_of_data_used_for_model_training/100))]
-            test_df = DATASET[int(n*percent_of_data_used_for_model_training/100):]
-            val_df = None
-
-        num_features = DATASET.shape[1]
-        
         # Instantiate an object from WindowGenerator class:
-        window = WindowGenerator(input_width = input_width, label_width = label_width, shift = shift, label_columns = response_columns)
-        # Apply the split_window method to obtain inputs and labels:
-        window = window.split_window()
-        
-        # Make the dataset:
-        window = window.make_dataset(train_data = train_df, test_data = test_df, val_data = val_df, batch_size = batch_size, shuffle = shuffle)
-        # Retrieve the dataset from dataset attribute:
-        
-        print(f"Training tensor properties: {window.train_dataset}\n")
-        print(f"Test tensor properties: {window.test_dataset}\n")
-        
-        datasets_dict = {}
-        
-        datasets_dict['train_dataset'] = window.train_dataset
-        datasets_dict['test_dataset'] = window.test_dataset
-        
-        if (val_df is not None):
-            datasets_dict['val_dataset'] = window.val_dataset
-            print(f"Validation tensor properties: {window.val_dataset}\n")
-        
-        
-        print("Finished preparing the time series datasets. Check them in the datasets dictionary returned.\n")
-        
-        return datasets_dict
+        w = WindowGenerator (dataset = DATASET, shift = shift, use_past_responses_for_prediction = use_past_responses_for_prediction, sequence_stride = sequence_stride, sampling_rate = sampling_rate, label_columns = response_columns, train_pct = percent_of_data_used_for_model_training, val_pct = percent_of_training_data_used_for_model_validation)
+        # Make the tensors:
+        w = w.make_tensors()
+        # Retrieve tensors dictionary:
+        tensors_dict = w.tensors_dict
 
-  
+        print("Finished preparing the time series datasets for training, testing, and validation. Check their shapes.\n")
+        
+        for key in tensors_dict.keys():
+            
+            print(f"{key}-tensors obtained:")
+            nested_dict = tensors_dict[key]
+            print(f"Inputs tensor shape = {nested_dict['inputs'].shape}")
+            print(f"Labels tensor shape = {nested_dict['labels'].shape}\n")
+        
+        return tensors_dict
+
+
     def ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
