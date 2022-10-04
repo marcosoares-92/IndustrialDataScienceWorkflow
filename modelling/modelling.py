@@ -1333,6 +1333,43 @@ class tf_models:
         # return compiled model:
         return self
     
+    def tf_double_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
+ 
+        import tensorflow as tf
+
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        
+        # define inputs
+        input_1 = input_layer
+        # Creating blocks of Simple dense with the following 
+        # (filters, kernel_size, repetitions) configurations:
+        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
+        # tf.keras.layers.Dense(1)
+
+        # First hidden layer:
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(input_1)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)  
+        # The integer passed as parameter for Dense is the parameter 'units' from Dense
+        # layer. The number ("units") used as input for the dense function Dense(units) is a 
+        # Positive integer that represents the dimensionality of the output space.
+        # Here, 'units' = 100, so this first hidden-layer has 100 neurons
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_2')(x)
+        
+        output_1 = output_layer(x)
+        
+        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        # Update model attribute:
+        self.model = model
+        
+        # Compile the model:
+        self = self.compile_model()
+        # Fit the model:
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        
+        return x
+    
     def tf_cnn_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -1494,16 +1531,7 @@ class tf_models:
         X_train = self.X_train
         # Number of columns (sequence length):
         sequence_length = X_train.shape[1]
-        
-        # Check if the number is even: % - remainder of the integer division
-        if ((sequence_length % 2) != 0):
-            # There is remainder of the division: the number of columns is not even
-            print("This architecture requires the inputs to be reshape as pairs of numbers.")
-            print(f"Here, there are {sequence_length} columns or sequence elements. Drop one column to use this architecture.\n")
-            
-            return self
                 
-        
         convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
         max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
@@ -1554,6 +1582,417 @@ class tf_models:
         self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
         
         # return compiled model:
+        return self
+
+
+class siamese_networks:
+    
+    # TensorFlow models for multiple responses. The neural networks are replicated for each one
+    # of the responses
+    
+    def __init__(self, output_dictionary, X_train, y_train, X_valid = None, y_valid = None):
+        
+        # type_of_problem = 'regression', 'classification', 'both'
+        # optimizer: tf.keras.optimizers.Optimizer object:
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Optimizer
+        # use the object to set parameters such as learning rate and selection of the optimizer
+        
+        # ATTENTION, y_train, y_valid must be tensors or numpy arrays containing the responses in the
+        # exact same order as the responses declared in the output dictionary
+
+        # output_dictionary:
+        # output_dictionary structure:
+        # {'response_variable': {
+        # 'type': 'regression', 'number_of_classes':}}
+        # 'response_variable': name of the column used as response for one of the outputs. This key
+        # gives access to the nested dictionary containing the following keys: 
+        # 'type': type of problem. Must contain the string 'regression' or 'classification';
+        # 'number_of_classes': integer. This key may not be declared for regression problems. Do not
+        # include the key, set as 1, or set the number of classes used for training.
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        self.output_dictionary = output_dictionary
+        
+        # Retrieve the list of responses (the keys from this dictionary)
+        self.list_of_responses = list((self.output_dictionary).keys())
+
+        # Define an internal function for reformating the data in the format needed.
+        # We need a tuple formed by each one of the responses at time:
+        # (response1, response2, ...)
+        def format_output(data, list_of_responses):
+            # Convert to NumPy array, if it is a tensor:
+            data = np.array(data)
+            # Convert to Pandas dataframe:
+            data = pd.DataFrame(data = data, columns = list_of_responses)
+            # Start a list of tensors:
+            tensors_list = []
+            # Apply the pop method to return a particular column and drop it from data:
+            for column in list_of_responses:
+                response = data.pop(column)
+                # Convert the response Pandas Series to a numpy array and then to Tensor:
+                response = np.array(response)
+                response = tf.constant(response)
+                # Add it to tensors list:
+                tensors_list.append(response)
+            # Convert the list to tuple and return it:
+            return tuple(tensors_list)
+
+        # Guarantee it is a tensor:
+        self.X_train = tf.constant(X_train)
+        self.y_train = format_output(data = y_train, list_of_responses = self.list_of_responses)
+        
+        self.input_layer = tf.keras.layers.Input(shape = (self.X_train).shape, name = "input_layer")
+        
+        if ((X_valid is not None) & (y_valid is not None)):
+            
+            self.X_valid = tf.constant(X_valid)
+            self.y_valid = format_output(data = y_valid, list_of_responses = self.list_of_responses)
+        
+        else:
+            self.X_valid = None
+            self.y_valid = None
+            
+    
+    def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
+        
+        import tensorflow as tf
+        
+        # If you set verbose = 0, It will show nothing. If you set verbose = 1, It will 
+        # show the output like this: Epoch 1/200 55/55[=====] - 10s 307ms/step - loss: 0.56 - 
+        # accuracy: 0.4949
+        
+        model = self.model
+        
+        X_train = self.X_train
+        y_train = self.y_train
+        
+        X_valid = self.X_valid
+        y_valid = self.y_valid
+        
+        if ((X_valid is not None) & (y_valid is not None)):   
+            has_validation = True
+        
+        else:
+            has_validation = False
+        
+        # Fit the model:
+        if (has_validation):
+            history = model.fit(X_train, 
+                                y_train,
+                                batch_size = batch_size,
+                                epochs = epochs,
+                                verbose = verbose,
+                                validation_data = (X_valid, y_valid))
+        
+        else: # no validation set
+            history = model.fit(X_train, 
+                                y_train,
+                                batch_size = batch_size,
+                                epochs = epochs,
+                                verbose = verbose)
+        
+        # Update the attributes and return the object:
+        self.history = history
+        self.model = model
+        
+        return self
+    
+    
+    def base_model_simple_dense (self, inputs):
+        
+        import tensorflow as tf
+
+        # First hidden layer:
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(inputs)
+        
+        return x
+    
+    
+    def base_model_double_dense (self, inputs):
+        
+        import tensorflow as tf
+
+        # First hidden layer:
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(inputs)
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_2')(x)
+        
+        return x
+    
+    
+    def base_model_cnn_time_series (self, inputs):
+        
+        import tensorflow as tf
+
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # ATTENTION: if the first layer is a Dense, we must specify
+        # the parameter 'input_dim'. If it is a CNN or RNN, we
+        # specify 'input_shape', instead. These parameters are only
+        # specified for the first layer of the network.
+            
+        # First convolution:
+        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'convolution')(inputs)
+        # First Max Pooling to enhance select the characteristics highlighted by the convolution:
+        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = 'pooling')(x)
+        # Reduces to half the original size.
+            
+        # The convolutions and pooling reduce the dimensionality of the data.
+        # Under the hood, TensorFlow is testing different combinations of filters until it finds
+        # filters that actually highlight important characteristics.
+        # On the other hand, apply too much convolutional layers may reduce too much the data, making
+        # it difficult for the last dense layer to perform a good prediction.
+            
+        # Flatten the data for making it adequate for feeding the dense layers:
+        x = tf.keras.layers.Flatten(name = 'flatten')(x)
+            
+        # Feed the first dense layer, with 50 neurons:
+        x = tf.keras.layers.Dense(units = 50, activation = 'relu', name = 'dense_1')(x)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+        
+        return x
+    
+    
+    def base_model_lstm_time_series (self, inputs):
+        
+        import tensorflow as tf
+        
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # LSTM layer: 1 cycle per sequence element (number of iterations = 
+        # SEQUENCE_LENGTH):
+        # LSTM with 50 neurons:
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm')(inputs)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+            
+        # We will use one LSTM layer to process each input sub-sequence 
+        # of N time steps, followed by a Dense layer to interpret the 
+        # summary of the input sequence.
+        
+        return x
+    
+    
+    def base_model_encoder_decoder_time_series (self, inputs):
+        
+        import tensorflow as tf
+        
+        # Number of columns (sequence length):
+        SEQUENCE_LENGTH = (self.X_train).shape[1]
+        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
+        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
+        # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
+        # LSTM with 100 neurons:
+        # Encoder:
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm_encoder')(inputs)
+            
+        # The encoded sequence will be repeated 2 times by the model for the two output time steps 
+        # required by the model using a RepeatVector layer. These will be fed to a decoder LSTM layer 
+        # before using a Dense output layer wrapped in a TimeDistributed layer that will produce one 
+        # output for each step in the output sequence.
+        x = tf.keras.layers.RepeatVector(2, name = 'repeat_vector')(x)
+        # Decoder: LSTM with 100 neurons
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', return_sequences = True, name = 'lstm_decoder')(x)
+        # return_sequences = True returns the hidden states h.
+        # This generates an output with an extra dimension (output consists on an array of two values: 
+        # the prediction and the hidden state).
+            
+        # Last dense - output layer ('linear' activation):
+        # Apply a TimeDistributed layer for compatibility with the Encoder-Decoder Archictecture:
+        # Wrap the output into this layer:
+        x = tf.keras.layers.TimeDistributed(output_layer, name = 'time_distributed_output')(x)
+        
+        return x
+    
+    
+    def base_model_cnn_lstm_time_series (self, inputs):
+        
+        import numpy as np
+        import tensorflow as tf
+        
+        X_train = self.X_train
+        # Number of columns (sequence length):
+        sequence_length = X_train.shape[1]
+                
+        convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
+        # Originally: input_shape = (None, 2, 1)
+        max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
+        flatten_layer = tf.keras.layers.Flatten()
+        
+        # The entire CNN model is wrapped in TimeDistributed wrapper layers so that it can be applied to 
+        # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
+        # before the model outputs a prediction.
+        
+        # First time-distributed convolution (for compatibility with the LSTM):
+        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(inputs)
+        # First time distributed Max Pooling (for compatibility with the LSTM):
+        # Max Pooling: enhance select the characteristics highlighted by the convolution:
+        x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = 'pooling')(x)
+        # Reduces to half the original size.
+        # The convolutions and pooling reduce the dimensionality of the data.
+        # Under the hood, TensorFlow is testing different combinations of filters until it finds filters 
+        # that actually highlight important characteristics.
+        # On the other hand, apply too much convolutional layers may reduce too much the data, making
+        # it difficult for the last dense layer to perform a good prediction.        
+        # Flatten the data for making it adequate for feeding the dense layers:
+        # Time distributed Flatten for compatibility with the LSTM:
+        x = tf.keras.layers.TimeDistributed(flatten_layer, name = 'flatten')(x)
+            
+        # Now, feed the LSTM:
+        # The LSTM performs 1 cycle per element of the sequence. Since each sequence now have 2 elements,
+        # the LSTM will perform two iterations:
+        # LSTM with 50 neurons:
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm')(x)
+        # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
+        # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+        
+        return x
+    
+    
+    def network_branch (self, inputs, response_variable = 'response_variable', type_of_problem = 'regression', number_of_classes = 2, architecture = 'simple_dense'):
+        
+        # Generate a full branch from the siamese network. We will have one branch per response
+        
+        import tensorflow as tf
+        
+        # architecture = 'simple_dense': base_model_simple_dense from class siamese_networks;
+        # architecture = 'double_dense': base_model_double_dense from class siamese_networks;
+        # architecture = 'cnn': base_model_cnn_time_series from class siamese_networks;
+        # architecture = 'lstm': base_model_lstm_time_series from class siamese_networks;
+        # architecture = 'encoder_decoder': base_model_encoder_decoder_time_series from class siamese_networks;
+        # architecture = 'cnn_lstm': hybrid base_model_cnn_lstm_time_series from class siamese_networks.
+        
+        if (architecture == 'double_dense'):
+            x = self.base_model_double_dense(inputs)
+            
+        elif (architecture == 'cnn'):
+            x = self.base_model_cnn_time_series(inputs)
+            
+        elif (architecture == 'lstm'):
+            x = self.base_model_lstm_time_series(inputs)
+            
+        elif (architecture == 'encoder_decoder'):
+            x = self.base_model_encoder_decoder_time_series(inputs)
+            
+        elif (architecture == 'cnn_lstm'):
+            x = self.base_model_cnn_lstm_time_series(inputs)
+            
+        else:
+            x = self.base_model_simple_dense(inputs)
+        
+        if (type_of_problem == 'regression'):
+            # Scalar output: 1 neuron with linear activation
+            output = tf.keras.layers.Dense(units = 1, name = ('output_' + response_variable))(x)
+        
+        else:
+            # Classification
+            if (number_of_classes == 2):
+                # 1 neuron activated through sigmoid, analogous to logistic regression
+                output = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = ('output_' + response_variable))(x)
+            
+            else:
+                # 1 neuron per class, activated through softmax
+                output = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = ('output_' + response_variable))(x)
+        
+        return output
+    
+    
+    def compile_model (self, architecture, optimizer = None):
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # output_dictionary structure:
+        # {'response_variable': {
+        # 'type': 'regression', 'number_of_classes':}}
+        
+        # Retrieve the outputs dictionary
+        inputs = self.input_layer
+        output_dictionary = self.output_dictionary
+        
+        # Initialize a loss and a metrics dictionary
+        loss_dict = {}
+        metrics_dict = {}
+        
+        # Initialize a list of output layers:
+        outputs_list = []
+        
+        # Loop through all the keys from the output_dictionary:
+        for response_variable in output_dictionary.keys():
+            
+            # Retrieve the type of problem and the number of classes:
+            
+            type_of_problem = output_dictionary['type']
+            
+            try:
+                number_of_classes = output_dictionary['number_of_classes']
+            
+            except:
+                # The number was not passed for a regression problem
+                number_of_classes = 1
+            
+            # Get the output layer for that branch
+            output_layer = self.network_branch (self, inputs, response_variable = response_variable, type_of_problem = type_of_problem, number_of_classes = number_of_classes, architecture = architecture)
+            
+            # Append the output_layer to the list:
+            outputs_list.append(output_layer)
+        
+            if (type_of_problem == 'regression'):    
+                metrics = tf.keras.metrics.RootMeanSquaredError()
+                loss = tf.keras.metrics.RootMeanSquaredError()
+                # Add it to the losses and metrics dictionaries:
+                loss_dict[response_variable] = loss
+                metrics_dict[response_variable] = metrics
+                
+            elif (type_of_problem == 'classification'):
+
+                metrics = tf.keras.metrics.Accuracy()
+                
+                if (number_of_classes == 2):
+                    loss = tf.keras.metrics.BinaryCrossentropy()
+                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
+                else:
+                    loss = tf.keras.metrics.SparseCategoricalCrossentropy()
+                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
+                
+                # Add it to the losses and metrics dictionaries:
+                loss_dict[response_variable] = loss
+                metrics_dict[response_variable] = metrics
+        
+        # Now, compile the model
+        
+        # Set the optimizer:
+        if (optimizer is None):
+            # use Adam with default arguments
+            # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam
+            optimizer = tf.keras.optimizers.Optimizer.Adam()
+        
+        # define the model using the input and output layers
+        model = tf.keras.models.Model(inputs = [inputs], outputs = outputs_list)
+        
+        model.compile(optimizer = optimizer, 
+               loss = loss_dict,
+               metrics = metrics_dict)
+        
+        print("Check model architecture:\n")
+        tf.keras.utils.plot_model(model)
+        print("\n")
+        
+        # Save as class attribute:
+        self.model = model
+        
         return self
 
 
@@ -3033,7 +3472,7 @@ class modelling_workflow:
         return mlp_model, metrics_dict, history
 
 
-    def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         import numpy as np
         import pandas as pd
@@ -3046,10 +3485,17 @@ class modelling_workflow:
         # The test parameters are passed as validation data, so they are necessary here.
         
         # architecture = 'simple_dense': tf_simple_dense model from class tf_models;
-        # architecture = cnn': tf_cnn time series model from class tf_models;
+        # architecture = 'double_dense': tf_double_dense model from class tf_models;
+        # architecture = 'cnn': tf_cnn time series model from class tf_models;
         # architecture = 'lstm': tf_lstm time series model from class tf_models;
         # architecture = 'encoder_decoder': encoder-decoder time series model from class tf_models;
         # architecture = 'cnn_lstm': hybrid cnn-lstm time series model from class tf_models.
+        
+        # optimizer: tf.keras.optimizers.Optimizer object:
+        # keep it None to use the Adam optimizer.
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Optimizer
+        # use the object to set parameters such as learning rate and selection of the optimizer
         
         # TYPE_OF_PROBLEM = 'regression'; or TYPE_OF_PROBLEM = 'classification'
         # The default is 'regression', which will be used if no type is
@@ -3076,6 +3522,8 @@ class modelling_workflow:
         # If we simply took the number of different labels on the training data as the number
         # of classes, there would be the risk that a given class is not present on the training
         # set. So, it is safer (and less computer consuming) to input this number.
+        # For simplicity, you may simply set this parameter as the value
+        # number_of_classes returned from the function 'retrieve_classes_used_for_training'
 
         # If there are only two classes, we use a last Dense(1) layer (only one neuron) activated
         # through sigmoid: Dense(1, activation = 'sigmoid'). 
@@ -3100,22 +3548,7 @@ class modelling_workflow:
         # naturally there is no meaning in using 'accuracy'. So, we use 'RootMeanSquaredError'
         # or 'mae' (mean absolute error).
         
-        # Instantiate a tf_models object:
-        tf_model_obj = tf_models(X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test, type_of_problem = type_of_problem, number_of_classes = number_of_output_classes, optimizer = None)
-        
-        if (architecture == 'cnn'):
-            # Get the tf_cnn time series model from class tf_models:
-            tf_model_obj = tf_model_obj.tf_cnn_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
-        
-        elif (architecture == 'lstm'):
-            # Get the tf_lstm time series model from class tf_models:
-            tf_model_obj = tf_model_obj.tf_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
-        
-        elif (architecture == 'encoder_decoder'):
-            # Get the encoder-decoder time series model from class tf_models:
-            tf_model_obj = tf_model_obj.tf_encoder_decoder_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
-        
-        elif (architecture == 'cnn_lstm'):
+        if (architecture == 'cnn_lstm'):
             # Get the hybrid cnn-lstm time series model from class tf_models:
             
             # Here, the sequence length or number of columns must be even: they will be grouped in pairs
@@ -3145,6 +3578,27 @@ class modelling_workflow:
                     X_test = reshape_function(X_test)
                 if ((X_valid is not None) & (y_valid is not None)):   
                     X_valid = reshape_function(X_valid)
+        
+        # Instantiate a tf_models object:
+        tf_model_obj = tf_models(X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test, type_of_problem = type_of_problem, number_of_classes = number_of_output_classes, optimizer = optimizer)
+        
+        if (architecture == 'double_dense'):
+            # Get the tf_cnn time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_double_dense(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'cnn'):
+            # Get the tf_cnn time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_cnn_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'lstm'):
+            # Get the tf_lstm time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'encoder_decoder'):
+            # Get the encoder-decoder time series model from class tf_models:
+            tf_model_obj = tf_model_obj.tf_encoder_decoder_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        elif (architecture == 'cnn_lstm'):
             
             tf_model_obj = tf_model_obj.tf_cnn_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
         
@@ -3160,7 +3614,7 @@ class modelling_workflow:
         y_preds_for_train = model.predict(X_train)
 
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = mlp_model.predict(X_test)
+            y_preds_for_test = model.predict(X_test)
 
         else:
             y_preds_for_test = None
@@ -3183,6 +3637,157 @@ class modelling_workflow:
         model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         print("\n")
         
+        print("Notice that:")
+        print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
+        print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
+        print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
+        print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
+        print("tf.keras.layers.Dropout(0.5)")
+        print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
+        print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
+        print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
+        print("\n") # line break
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+            
+        return model, metrics_dict, history
+
+
+    def get_siamese_networks_model (X_train, y_train, output_dictionary, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, size_of_training_batch = 200, number_of_training_epochs = 2000, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # output_dictionary:
+        # output_dictionary structure:
+        # {'response_variable': {
+        # 'type': 'regression', 'number_of_classes':}}
+        # 'response_variable': name of the column used as response for one of the outputs. This key
+        # gives access to the nested dictionary containing the following keys: 
+        # 'type': type of problem. Must contain the string 'regression' or 'classification';
+        # 'number_of_classes': integer. This key may not be declared for regression problems. Do not
+        # include the key, set as 1, or set the number of classes used for training.
+        
+        # X_train = subset of predictive variables (dataframe).
+        # y_train = subset of response variable (series).
+        # X_test = subset of predictive variables (test dataframe).
+        # y_test = subset of response variable (test series).
+        # The test parameters are passed as validation data, so they are necessary here.
+        
+        # architecture = 'simple_dense': base_model_simple_dense from class siamese_networks;
+        # architecture = 'double_dense': base_model_double_dense from class siamese_networks;
+        # architecture = 'cnn': base_model_cnn_time_series from class siamese_networks;
+        # architecture = 'lstm': base_model_lstm_time_series from class siamese_networks;
+        # architecture = 'encoder_decoder': base_model_encoder_decoder_time_series from class siamese_networks;
+        # architecture = 'cnn_lstm': hybrid base_model_cnn_lstm_time_series from class siamese_networks.
+        
+        # optimizer: tf.keras.optimizers.Optimizer object:
+        # keep it None to use the Adam optimizer.
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers
+        # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Optimizer
+        # use the object to set parameters such as learning rate and selection of the optimizer
+        
+        # size_of_training_batch (integer): amount of data used on each training cycle (epoch). 
+        # If we had 20000 data and size_of_training_batch = 200, then there would be 100 
+        # batches (cycles) using 200 data. Training is more efficient when dividing the data into 
+        # smaller subsets (batches) of ramdonly chosen data and separately training the model
+        # for each batch (in training cycles called epochs). Also, this helps preventing
+        # overfitting: if we use at once all data, the model is much more prone to overfit
+        # (memorizing effect), selecting non-general features highly specific from the data
+        # for the description of it. Therefore, it will have lower capability of predicting
+        # data for values it already did not observe.
+        # This is the parameter batch_size of most of the algorithms.
+        
+        # number_of_training_epochs (integer): number of training cycles used. 
+        # This is the 'epochs' parameter of the algorithms.
+        
+        list_of_responses = list((output_dictionary).keys())
+
+        if (architecture == 'cnn_lstm'):
+            # Get the hybrid cnn-lstm time series model:
+            
+            # Here, the sequence length or number of columns must be even: they will be grouped in pairs
+            # Check if the number is even: % - remainder of the integer division
+            if ((X_train.shape[1] % 2) != 0):
+                # There is remainder of the division: the number of columns is not even
+                print("This architecture requires the inputs to be reshape as pairs of numbers.")
+                print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+                
+                return None, None, None
+            
+            else:
+                # Reshape the tensors:
+                # This architecture can only be used when the number of columns or sequence elements is even
+            
+                # lambda: single-line no-named function. To use one, you can declare:
+                # f = lambda x: x**2
+                # y = f(x) - y will store the output x from lambda function
+                # or, in a single line: y = (lambda x: x**2)(x)
+                # In this example, if x = 2, the output will be 4 (lambda output: function of the input)(input)
+                
+                reshape_function = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
+                
+                X_train = reshape_function(X_train)
+                
+                if ((X_test is not None) & (y_test is not None)):   
+                    X_test = reshape_function(X_test)
+                if ((X_valid is not None) & (y_valid is not None)):   
+                    X_valid = reshape_function(X_valid)
+            
+        # Instantiate a siamese_networks object:
+        siamese_networks_obj = siamese_networks(output_dictionary = output_dictionary, X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test)
+        
+        # Compile the model:
+        siamese_networks_obj = siamese_networks_obj.compile_model(architecture = architecture, optimizer = optimizer)
+        
+        # Fit the model:
+        siamese_networks_obj = siamese_networks_obj.fit_model(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+        
+        # Retrieve model and the history from model and history attributes:
+        model = siamese_networks_obj.model
+        history = siamese_networks_obj.history
+        
+        # Get predictions for training, testing, and validation:
+        y_preds_for_train = model.predict(X_train)
+
+        if ((X_test is not None) & ((y_test is not None))):
+            y_preds_for_test = model.predict(X_test)
+
+        else:
+            y_preds_for_test = None
+
+        if ((X_valid is not None) & ((y_valid is not None))):
+            y_preds_for_validation = model.predict(X_valid)
+
+        else:
+            y_preds_for_validation = None
+        
+        metrics_dict = {}
+        
+        for index, response in enumerate(list_of_responses):
+            # enumerate will get tuples like (0, response1), (1, response2), etc
+            print(f"Evaluation of metrics for response variable '{response}':\n")
+            
+            # Pick only the desired index on the array/tuple of responses to analyze:
+            # instantiate the model checker object:
+            model_check = model_checking(model_object = model, model_type = type_of_problem, model_package = 'tensorflow', column_map_dict = column_map_dict, training_history_object = history, X = X_train, y_train = y_train[index], y_preds_for_train = y_preds_for_train[index], y_test = y_test[index], y_preds_for_test = y_preds_for_test[index], y_valid = y_valid[index], y_preds_for_validation = y_preds_for_validation[index])
+
+            # Calculate model metrics:
+            model_check = model_check.model_metrics()
+            # Retrieve model metrics and save in the key response of the metrics dictionary:
+            metrics_dict[response] = model_check.metrics_dict
+
+            print("Check the training loss and metrics curve below:\n")
+            model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+            print("\n")
+
         print("Notice that:")
         print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
         print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
