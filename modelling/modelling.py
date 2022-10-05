@@ -2480,6 +2480,52 @@ class modelling_workflow:
         return tensors_dict
 
 
+    def union_1_dim_tensors (list_of_tensors_or_arrays):
+        
+        # list of tensors: list containing the 1-dimensional tensors or arrays that the function will union.
+        # the operation will be performed in the order that the tensors are declared.
+        # One-dimensional tensors have shape (X,), where X is the number of elements. Example: a column
+        # of the dataframe with elements 1, 2, 3 in this order may result in an array like array([1, 2, 3])
+        # and a Tensor with shape (3,). With we union it with the tensor from the column with elements
+        # 4, 5, 6, the output will be array([[1,4], [2,5], [3,6]]). Alternatively, this new array could
+        # be converted into a Pandas dataframe where each column would be correspondent to one individual
+        # tensor.
+        
+        import numpy as np
+        import pandas as pd
+        import tensorflow as tf
+        
+        # Convert each element from the list to a numpy array, in case they are tensors:
+        list_of_arrays = [np.array(tensor) for tensor in list_of_tensors_or_arrays]
+        
+        # Now, stack all elements from list_of_arrays into a single array, using the columns' axis
+        # (axis = 1).
+        # https://numpy.org/doc/stable/reference/generated/numpy.stack.html
+        
+        """
+        Example: suppose a = np.array([1, 2, 3]), b = np.array([4, 5, 6]), c = np.array([7, 8, 9])
+        If we do np.stack([a,b,c], axis = 1), the resultant will be array([[1, 4, 7],[2, 5, 8],[3, 6, 9]]),
+        what would be converted into a dataframe where each original tensor would correspond to a column.
+        
+        On the other hand, by doing np.stack([a,b,c], axis = 0), the resultant would be array([[1, 2, 3],
+        [4, 5, 6],[7, 8, 9]]) - in a dataframe originated from this array, each original tensor would
+        correspond to a row.
+        """
+        stacked_array = np.stack(list_of_arrays, axis = 1)
+        
+        # Finally, convert it to tensor and return it:
+        tensors_union = tf.constant(stacked_array)
+        
+        # Notice that this operation is equivalent to firstly converting all to tensors and then performing:
+        # tf.stack([a,b,c], axis = 1), where [a, b, c] is a list of tensors a, b, c (substitute it by
+        # list_of_tensors).
+        
+        print("Tensors union complete. Check the resulting tensor below:\n")
+        print(tensors_union)
+        
+        return tensors_union
+
+
     def ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
