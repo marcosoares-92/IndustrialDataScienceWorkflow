@@ -1930,21 +1930,22 @@ class siamese_networks:
         outputs_list = []
         
         # Loop through all the keys from the output_dictionary:
-        for response_variable in output_dictionary.keys():
+        for response in output_dictionary.keys():
             
+            nested_dict = output_dictionary[response]
             # Retrieve the type of problem and the number of classes:
             
-            type_of_problem = output_dictionary['type']
+            type_of_problem = nested_dict['type']
             
             try:
-                number_of_classes = output_dictionary['number_of_classes']
+                number_of_classes = nested_dict['number_of_classes']
             
             except:
                 # The number was not passed for a regression problem
                 number_of_classes = 1
             
             # Get the output layer for that branch
-            output_layer = self.network_branch (self, inputs, response_variable = response_variable, type_of_problem = type_of_problem, number_of_classes = number_of_classes, architecture = architecture)
+            output_layer = self.network_branch (self, inputs, response_variable = response, type_of_problem = type_of_problem, number_of_classes = number_of_classes, architecture = architecture)
             
             # Append the output_layer to the list:
             outputs_list.append(output_layer)
