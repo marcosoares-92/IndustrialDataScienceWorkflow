@@ -24,6 +24,12 @@ class model_checking:
         # model_type = 'regression' or 'classification'
         self.model_type = model_type
         
+        if (model_type == 'regression'):
+            self.metrics_name = 'mse'
+        
+        else:
+            self.metrics_name = 'crossentropy'
+        
         # Add model package: 'tensorflow' (and keras), 'sklearn', or 'xgboost':
         self.package = model_package
 
@@ -83,8 +89,6 @@ class model_checking:
         import seaborn as sns
         import tensorflow as tf
         # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
-        import tensorflow_addons as tfa
-        # https://www.tensorflow.org/addons
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html
@@ -173,6 +177,8 @@ class model_checking:
                     calculated_metrics['mape'] = mape
                     
                     try:
+                        import tensorflow_addons as tfa
+                        # https://www.tensorflow.org/addons
                         # R2 and R2-adj are available only as tfa object:
                         # https://www.tensorflow.org/addons/api_docs/python/tfa/metrics/RSquare
                         # Create the object:
@@ -720,13 +726,13 @@ class model_checking:
 
         return self
 
-    def plot_training_history (self, metrics_name = 'RootMeanSquaredError', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def plot_training_history (self, metrics_name = 'mse', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
         import numpy as np
         import pandas as pd
         import matplotlib.pyplot as plt
 
-        # metrics_name = 'RootMeanSquaredError', 'sparse_categorical_crossentropy', etc
+        # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
 
         history = self.history
         # Set the validation metrics name.
@@ -754,7 +760,7 @@ class model_checking:
         # This attribute is where the dictionary is actually stored.
         
         # Create list of epoch numbers correspondent to the metrics, starting from epoch 1:
-        list_of_epochs = [i for i in range(1, (len(metrics) + 1))]
+        list_of_epochs = [i for i in range(1, (len(train_metrics) + 1))]
         # loops from i = 1 to i = (EPOCHS + 1) - 1 = EPOCHS
         
         if (horizontal_axis_title is None):
@@ -1085,7 +1091,9 @@ class tf_models:
         self.X_train = tf.constant(X_train)
         self.y_train = tf.constant(y_train)
         
-        self.input_layer = tf.keras.layers.Input(shape = (self.X_train).shape, name = "input_layer")
+        # Input layer with shape given by the number of columns of the tensors. If using an image
+        # it would be the number of pixels in X and Y axis, with the image depth
+        self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1], name = "input_layer")
         
         if ((X_valid is not None) & (y_valid is not None)):
             
@@ -1100,42 +1108,42 @@ class tf_models:
         self.number_of_classes = number_of_classes
         
         if (type_of_problem == 'regression'):    
-            self.metrics = tf.keras.metrics.RootMeanSquaredError()
-            self.loss = tf.keras.metrics.RootMeanSquaredError()
+            self.metrics = 'mse'
+            self.loss = 'mse'
             self.output_layer = tf.keras.layers.Dense(units = 1, name = 'output')
-            self.metrics_name = 'rmse'
+            self.metrics_name = 'mse'
         
         elif (type_of_problem == 'classification'):
             
-            self.metrics = tf.keras.metrics.Accuracy()
+            self.metrics = 'acc'
             self.metrics_name = 'acc'
             
             if (number_of_classes == 2):
                 self.output_layer = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = 'output')
                 # Dense(1) activated through sigmoid is the logistic regression: generayes a
                 # probability between 0 and 1
-                self.loss = tf.keras.metrics.BinaryCrossentropy()
+                self.loss = 'binary_crossentropy'
                 # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
             else:
                 self.output_layer = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = 'output')
-                self.loss = tf.keras.metrics.SparseCategoricalCrossentropy()
+                self.loss = 'sparse_categorical_crossentropy'
                 # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
         
         else: # both
             
-            self.metrics_regression = tf.keras.metrics.RootMeanSquaredError()
-            self.loss_regression = tf.keras.metrics.RootMeanSquaredError()
+            self.metrics_regression = 'mse'
+            self.loss_regression = 'mse'
             self.output_regression_layer = tf.keras.layers.Dense(units = 1, name = 'output_regression')
             
-            self.metrics_classification = tf.keras.metrics.Accuracy()
+            self.metrics_classification = 'acc'
             
             if (number_of_classes == 2):
                 self.output_classification_layer = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = 'output_classification')
-                self.loss_classification = tf.keras.metrics.BinaryCrossentropy()
+                self.loss_classification = 'binary_crossentropy'
                 # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
             else:
                 self.output_classification_layer = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = 'output_classification')
-                self.loss_classification = tf.keras.metrics.SparseCategoricalCrossentropy()
+                self.loss_classification = 'sparse_categorical_crossentropy'
                 # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
 
         # create a model attribute, and an history attribute:
@@ -1146,7 +1154,7 @@ class tf_models:
         if (optimizer is None):
             # use Adam with default arguments
             # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam
-            optimizer = tf.keras.optimizers.Optimizer.Adam()
+            optimizer = tf.keras.optimizers.Adam()
         
         # Save the optimizer as an attribute:
         self.optimizer = optimizer
@@ -1159,9 +1167,14 @@ class tf_models:
         optimizer = self.optimizer
         input_layer = self.input_layer
         model = self.model
+        type_of_problem = self.type_of_problem
         
         if ((type_of_problem == 'regression')|((type_of_problem == 'classification'))):
             # model = tf.keras.models.Model(inputs = [input_layer], outputs = [output_layer])
+            # When declaring the metrics as an object, they must be provided to the compile
+            # method within a list:
+            # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/RootMeanSquaredError
+            # or as the attribute ._name, which contains the correspondent string
             
             output_layer = self.output_layer
             loss = self.loss
@@ -1321,7 +1334,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1359,7 +1372,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1415,7 +1428,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1458,7 +1471,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1509,7 +1522,7 @@ class tf_models:
         # Wrap the output into this layer:
         output_1 = tf.keras.layers.TimeDistributed(output_layer, name = 'time_distributed_output')(x)
         
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1572,7 +1585,7 @@ class tf_models:
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
         output_1 = output_layer(x)    
        
-        model = tf.keras.models.Model(inputs = [input_1], outputs = [output_1])
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
         # Update model attribute:
         self.model = model
         
@@ -1645,7 +1658,9 @@ class siamese_networks:
         self.X_train = tf.constant(X_train)
         self.y_train = format_output(data = y_train, list_of_responses = self.list_of_responses)
         
-        self.input_layer = tf.keras.layers.Input(shape = (self.X_train).shape, name = "input_layer")
+        # Input layer with shape given by the number of columns of the tensors. If using an image
+        # it would be the number of pixels in X and Y axis, with the image depth
+        self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1], name = "input_layer")
         
         if ((X_valid is not None) & (y_valid is not None)):
             
@@ -1949,23 +1964,28 @@ class siamese_networks:
             
             # Append the output_layer to the list:
             outputs_list.append(output_layer)
+            
+            # When declaring the metrics as an object, they must be provided to the compile
+            # method within a list:
+            # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/RootMeanSquaredError
+            # or as the attribute ._name, which contains the correspondent string
         
             if (type_of_problem == 'regression'):    
-                metrics = tf.keras.metrics.RootMeanSquaredError()
-                loss = tf.keras.metrics.RootMeanSquaredError()
+                metrics = 'mse'
+                loss = 'mse'
                 # Add it to the losses and metrics dictionaries:
                 loss_dict[response_variable] = loss
                 metrics_dict[response_variable] = metrics
                 
             elif (type_of_problem == 'classification'):
 
-                metrics = tf.keras.metrics.Accuracy()
+                metrics = 'acc'
                 
                 if (number_of_classes == 2):
-                    loss = tf.keras.metrics.BinaryCrossentropy()
+                    loss = 'binary_crossentropy'
                     # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/BinaryCrossentropy
                 else:
-                    loss = tf.keras.metrics.SparseCategoricalCrossentropy()
+                    loss = 'sparse_categorical_crossentropy'
                     # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
                 
                 # Add it to the losses and metrics dictionaries:
@@ -1978,7 +1998,7 @@ class siamese_networks:
         if (optimizer is None):
             # use Adam with default arguments
             # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam
-            optimizer = tf.keras.optimizers.Optimizer.Adam()
+            optimizer = tf.keras.optimizers.Adam()
         
         # define the model using the input and output layers
         model = tf.keras.models.Model(inputs = [inputs], outputs = outputs_list)
@@ -3855,7 +3875,7 @@ class modelling_workflow:
         print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
             
         return model, metrics_dict, history
-
+    
 
     def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, architecture = None):
         
