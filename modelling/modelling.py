@@ -125,12 +125,19 @@ class model_checking:
                     #https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_squared_error?authuser=1
                     # The function returns a NumPy array containing a single element. Extract it as
                     # variable:
+                    # Then, some situations may return numpy arrays instead of scalars. We can convert
+                    # to a scalar by selecting only the first and single element from the array.
+                    
                     try:
                         mse = mse[0]
-                    except: # mse is a scalar, not an array
+                    except:
                         pass
+                    
                     # Print in scientific notation:
-                    print(f"Mean squared error (MSE) = {mse:e}")
+                    try:
+                        print(f"Mean squared error (MSE) = {mse:e}")
+                    except:
+                        print(f"Mean squared error (MSE) = {mse}")
                     # Add to calculated metrics:
                     calculated_metrics['mse'] = mse
 
@@ -144,7 +151,16 @@ class model_checking:
                     rmse = rmse.numpy()
                     # Here, numpy method already returns a scalar
                     # Print in scientific notation:
-                    print(f"Root mean squared error (RMSE) = {rmse:e}")
+                    
+                    try:
+                        rmse = rmse[0]
+                    except:
+                        pass
+                    
+                    try:
+                        print(f"Root mean squared error (RMSE) = {rmse:e}")
+                    except:
+                        print(f"Root mean squared error (RMSE) = {rmse}")
                     # Add to calculated metrics:
                     calculated_metrics['rmse'] = rmse
 
@@ -152,13 +168,17 @@ class model_checking:
                     mae = tf.keras.metrics.mean_absolute_error(y_true, y_pred)
                     # The function returns a NumPy array containing a single element. Extract it as
                     # variable:
+                    
                     try:
                         mae = mae[0]
-                    except: # mae is a scalar, not an array
+                    except:
                         pass
                     
                     # Print in scientific notation:
-                    print(f"Mean absolute error (MAE) = {mae:e}")
+                    try:
+                        print(f"Mean absolute error (MAE) = {mae:e}")
+                    except:
+                        print(f"Mean absolute error (MAE) = {mae}")
                     # Add to calculated metrics:
                     calculated_metrics['mae'] = mae
 
@@ -166,13 +186,17 @@ class model_checking:
                     mape = tf.keras.metrics.mean_absolute_percentage_error(y_true, y_pred)
                     # The function returns a NumPy array containing a single element. Extract it as
                     # variable:
+                    
                     try:
                         mape = mape[0]
-                    except: # mape is a scalar, not an array
+                    except:
                         pass
                     
                     # Print in scientific notation:
-                    print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                    try:
+                        print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                    except:
+                        print(f"Mean absolute percentage error (MAPE) = {mape}")
                     # Add to calculated metrics:
                     calculated_metrics['mape'] = mape
                     
@@ -190,14 +214,33 @@ class model_checking:
                         r2 = r2.result().numpy() # already a scalar
                         # for this tfa metrics, the methods result and numpy must be chained
                         # otherwise, an error will be raised.
-                        print(f"Coefficient of linear correlation R² = {r2:e}")
+                        
+                        try:
+                            r2 = r2[0]
+                        except:
+                            pass
+                        
+                        try:
+                            print(f"Coefficient of linear correlation R² = {r2:e}")
+                        except:
+                            print(f"Coefficient of linear correlation R² = {r2}")
                         # Add to calculated metrics:
                         calculated_metrics['r_squared'] = r2
                         
                     except:
                         r2 = r2_score(y_true.numpy(), y_pred.numpy())
                         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
-                        print(f"Coefficient of linear correlation R² = {r2:e}")
+                        try:
+                            r2 = r2[0]
+                        except:
+                            pass
+                        
+                        
+                        try:
+                            print(f"Coefficient of linear correlation R² = {r2:e}")
+                        except:
+                            print(f"Coefficient of linear correlation R² = {r2}")
+                        
                         # Add to calculated metrics:
                         calculated_metrics['r_squared'] = r2
                     
@@ -212,7 +255,16 @@ class model_checking:
                         # Use the numpy method to retrieve only the value:
                         r2_adj = r2_adj.result().numpy() # scalar
                         # Again, the methods result and numpy must be chained
-                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        
+                        try:
+                            r2_adj = r2_adj[0]
+                        except:
+                            pass
+                        
+                        try:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        except:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
                         # Add to calculated metrics:
                         calculated_metrics['r_squared_adj'] = r2_adj
 
@@ -224,7 +276,18 @@ class model_checking:
                         #numer of rows
                         n_size = len(y_true)
                         r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
-                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        
+                        try:
+                            r2_adj = r2_adj[0]
+                        except:
+                            pass
+                        
+                        
+                        try:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        except:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+                        
                         # Add to calculated metrics:
                         calculated_metrics['r_squared_adj'] = r2_adj
                     
@@ -242,7 +305,15 @@ class model_checking:
                     auc.update_state(y_true, y_pred)
                     # Use the numpy method to retrieve only the value:
                     auc = auc.result().numpy() # scalar
-                    print(f"AUC = {auc:e}")
+                    try:
+                        auc = auc[0]
+                    except:
+                        pass
+                    
+                    try:
+                        print(f"AUC = {auc:e}")
+                    except:
+                        print(f"AUC = {auc}")
                     # Add to calculated metrics:
                     calculated_metrics['auc'] = auc
 
@@ -253,7 +324,15 @@ class model_checking:
                     acc.update_state(y_true, y_pred)
                     # Use the numpy method to retrieve only the value:
                     acc = acc.result().numpy() # scalar
-                    print(f"Accuracy = {acc:e}")
+                    try:
+                        acc = acc[0]
+                    except:
+                        pass
+                    
+                    try:
+                        print(f"Accuracy = {acc:e}")
+                    except:
+                        print(f"Accuracy = {acc}")
                     # Add to calculated metrics:
                     calculated_metrics['accuracy'] = acc
 
@@ -264,7 +343,15 @@ class model_checking:
                     precision.update_state(y_true, y_pred)
                     # Use the numpy method to retrieve only the value:
                     precision = precision.result().numpy() # scalar
-                    print(f"Precision = {precision:e}")
+                    try:
+                        precision = precision[0]
+                    except:
+                        pass
+                    
+                    try:
+                        print(f"Precision = {precision:e}")
+                    except:
+                        print(f"Precision = {precision}")
                     # Add to calculated metrics:
                     calculated_metrics['precision'] = precision
 
@@ -275,7 +362,15 @@ class model_checking:
                     recall.update_state(y_true, y_pred)
                     # Use the numpy method to retrieve only the value:
                     recall = recall.result().numpy() # scalar
-                    print(f"Recall = {recall:e}")
+                    try:
+                        recall = recall[0]
+                    except:
+                        pass
+                    
+                    try:
+                        print(f"Recall = {recall:e}")
+                    except:
+                        print(f"Recall = {recall}")
                     # Add to calculated metrics:
                     calculated_metrics['recall'] = recall
                     
@@ -759,9 +854,9 @@ class model_checking:
         # Notice that history is not exactly a dictionary: it is an object with attribute history.
         # This attribute is where the dictionary is actually stored.
         
-        # Create list of epoch numbers correspondent to the metrics, starting from epoch 1:
-        list_of_epochs = [i for i in range(1, (len(train_metrics) + 1))]
-        # loops from i = 1 to i = (EPOCHS + 1) - 1 = EPOCHS
+        # Access the list of epochs, stored as the epoch attribute from the history object
+        list_of_epochs = history.epoch
+        # epochs start from zero
         
         if (horizontal_axis_title is None):
             horizontal_axis_title = "epoch"
@@ -865,6 +960,690 @@ class model_checking:
         ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
         ##  '03_05_END.ipynb'
         plt.show()
+    
+    def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+
+        # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
+
+        history = self.history
+        
+        """
+        history object has a format like (2 responses, 1 epoch, metrics = 'mse'), when we apply the
+        .__dict__ method:
+
+        'history': {'loss': [2.977898597717285],
+          'response1_loss': [0.052497703582048416],
+          'response2_loss': [2.457101345062256],
+          'response1_mse': [0.052497703582048416],
+          'response2_mse': [2.457101345062256],
+          'val_loss': [2.007075071334839],
+          'val_response1_loss': [0.02299179881811142],
+          'val_response2_loss': [1.8660322427749634],
+          'val_response1_mse': [0.02299179881811142],
+          'val_response2_mse': [1.8660322427749634],
+         'params': {'verbose': 1, 'epochs': 1, 'steps': 1},
+         'epoch': [0]}
+
+         Here, the history attribute stores a dictionary with the training history, whereas the epoch
+         attribute stores the list of epochs, starting from zero.
+         - Keys 'loss' and 'val_loss' store the general losses for the whole network.
+         - Other keys store the metrics for the responses.
+
+        """
+        # Access the list of epochs, stored as the epoch attribute from the history object
+        list_of_epochs = history.epoch
+        # epochs start from zero
+        
+        # access history attribute to retrieve the series of metrics.
+        history_dict = history.history
+        
+        metrics_dict = {}
+        #Get the global one:
+        nested_dict = {'loss': history_dict['loss']}
+        
+        
+        # Try accessing validation information
+        has_validation = False
+        # Maps if there are validation data: this variable is updated when values are present.
+        
+        try:
+            nested_dict['val_loss'] = history_dict['val_loss']
+            has_validation = True
+        
+        except: # simply pass
+            pass
+        
+        nested_dict['response'] = 'global'
+        
+        metrics_dict['global'] = nested_dict
+        
+        # Let's find out the metrics name
+        for key in history_dict.keys():
+            
+            if ((key != 'loss') & (key != 'val_loss')):
+                # These are the globals, which were already saved
+                
+                # Split the string in the underscores: 'response2_loss'
+                # will generate a list of two elements ['response2', 'loss']. We pick the last element
+                # with index -1.
+                # Attention: guarantee that the key was read as a string, not as a number
+                list_of_substrings = str(key).split("_")
+                first_portion = list_of_substrings[0]
+                last_portion = list_of_substrings[-1]
+
+                # Get the total of characters of the last portion
+                total_characters = len(last_portion)
+                # pick the string eliminating its last portion
+                response = key[:(-1*(total_characters + 1))]
+                # if we had a string like 'response1_loss', now response = 'response1_' if we did
+                # not sum another character. By summing 1, we eliminate the last underscore
+                
+                if (first_portion == 'val'):
+                    # In this case, the response variable by now stores val_response1, i.e., the first
+                    # we should eliminate characters from positions 0 to 3, starting the string from
+                    # character 4:
+                    response = response[4:]
+                
+                # try accessing the nested dict:
+                try:
+                    nested_dict = metrics_dict[response]
+
+                except:
+                    # There is no nested_dict yet, so create one:
+                    nested_dict = {'response': response}
+                
+                if (last_portion != 'loss'):
+                    
+                    if (first_portion != 'val'):
+                        # Insert the metrics name only once:
+                        nested_dict['metrics'] = last_portion
+                        nested_dict[last_portion] = history_dict[key]
+                    
+                    else:
+                        nested_dict[("val_" + last_portion)] = history_dict[key]
+                
+                else:
+                    if (first_portion != 'val'):
+                        # Insert the metrics name only once:
+                        nested_dict['loss'] = history_dict[key]
+                    
+                    else:
+                        nested_dict["val_loss"] = history_dict[key]
+                
+                #Update nested dictionary
+                metrics_dict[response] = nested_dict
+        
+        # metrics_dict keys: responses without the 'val_' and '_loss' and '_' + metrics. Stores
+        # the nested dictionary.
+        # nested_dict keys: 'response': name of the response variable;
+        # 'metrics': name of the metrics; metrics (key with name that varies):
+        # series of the metrics registered during training; "val_" + metrics (key with name that 
+        # varies): series of the metrics registered during training for validation data; 'loss':
+        # series of losses obtained during training; 'val_loss': losses for validation data.
+        
+        # Loop through the responses and nested dictionaries in the metrics_dict:
+        for response, nested_dict in metrics_dict.items():
+            
+            try:
+                metrics_name = nested_dict['metrics']
+
+                # Set the validation metrics name.
+                # to access the validation metrics, simply put a 'val_' prefix:
+                val_metrics_name = 'val_' + metrics_name
+            
+            except:
+                pass
+            
+            try:
+                train_loss = nested_dict['loss']
+                
+                if (has_validation):
+                    validation_loss = nested_dict['val_loss']
+            except:
+                pass
+            
+            try:
+                train_metrics = nested_dict[metrics_name]
+                
+                if (has_validation):
+                    validation_metrics = nested_dict[val_metrics_name]
+            except:
+                pass
+                
+        
+            if (horizontal_axis_title is None):
+                horizontal_axis_title = "epoch"
+
+            if (metrics_vertical_axis_title is None):
+                metrics_vertical_axis_title = "metrics_value"
+
+            if (loss_vertical_axis_title is None):
+                loss_vertical_axis_title = "loss_value"
+
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
+
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            fig = plt.figure(figsize = (12, 8))
+            try:
+                ax1 = fig.add_subplot(211)
+                #ax1.set_xlabel("Lags")
+                ax1.set_ylabel(metrics_vertical_axis_title)
+
+                # Scatter plot of time series:
+                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics" + response[:10]))
+                if (has_validation):
+                    # If present, plot validation data:
+                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics" + response[:10]))
+                # Axes.plot documentation:
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 0 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
+
+                ax1.grid(grid)
+                ax1.legend(loc = "upper right")
+            
+            except:
+                pass
+            
+            try:
+                ax2 = fig.add_subplot(212)
+                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss" + response[:10]))
+
+                if (has_validation):
+                    # If present, plot validation data:
+                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss" + response[:10]))
+
+                ax2.set_xlabel(horizontal_axis_title)
+                ax2.set_ylabel(loss_vertical_axis_title)
+
+                ax2.grid(grid)
+                ax2.legend(loc = "upper right")
+
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 0 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
+            
+            except:
+                pass
+
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = ("history_" + response[:10])
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+
+                #Export the file to this new path:
+                # The extension will be automatically added by the savefig method:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                #quality could be set from 1 to 100, where 100 is the best quality
+                #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #transparent = True or False
+                # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            #plt.figure(figsize = (12, 8))
+            #fig.tight_layout()
+
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+            plt.show()
+            print("\n")
+    
+    
+    def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+        
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import tensorflow as tf
+        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
+        from sklearn.metrics import classification_report, confusion_matrix, r2_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html
+
+        # Retrieve type of problem:
+        model_type = self.model_type
+        
+        # output_dictionary structure:
+        # {'response_variable': {
+        # 'type': 'regression', 'number_of_classes':}}
+
+        list_of_responses = list((output_dictionary).keys())
+        # Total of responses
+        total_of_responses = len(list_of_responses)
+
+        # Retrieve the tensors.
+        tensors_dict = {}
+        tensors_dict['training'] = {'actual': self.y_train, 'predictions': self.y_preds_for_train}
+        tensors_dict['testing'] = {'actual': self.y_test, 'predictions': self.y_preds_for_test}
+        tensors_dict['validation'] = {'actual': self.y_valid, 'predictions': self.y_preds_for_validation}
+
+        metrics_dict = {}
+
+        # Loop through the keys:
+        for key in tensors_dict.keys():
+          
+            # Retrieve the nested dictionary:
+            nested_dict = tensors_dict[key]
+            # Retrieve actual and predicted values:
+            y_true_tensor =  nested_dict['actual']
+            y_pred_tensor = nested_dict['predictions']
+            
+            y_true_array = np.array(y_true_tensor)
+            # Total of entries in the dataset:
+            # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
+            total_data = len(y_true_array[:, 0])
+            
+            # Reshape y_pred so that it is in the same format as the y_true tensor
+            # The predictions may come in a different shape, depending on the algorithm that
+            # generates them.
+            y_pred_array = np.array(y_pred_tensor)
+            y_pred_array = y_pred_array.reshape(total_data, total_of_responses)
+            
+            # Check if there is no None value stored:
+            if ((y_true_array is not None) & (y_pred_array is not None)):
+
+                calculated_metrics = {}
+                print(f"Metrics for {key}:\n")
+                
+                nested_metrics = {}
+                
+                for index, response in enumerate(list_of_responses):
+                    # enumerate will get tuples like (0, response1), (1, response2), etc
+                    print(f"Evaluation of metrics for response variable '{response}':\n")
+
+                    type_of_problem = output_dictionary[response]['type']
+                    # select only the arrays in position 'index' of the tensors y_true_tensor
+                    # and y_pred_tensor:
+                    y_true = y_true_array[:, index]
+                    y_pred = y_pred_array[:, index]
+                    
+                
+                    # Regression metrics:
+                    if (model_type == 'regression'):
+
+                        mse = tf.keras.metrics.mean_squared_error(y_true, y_pred)
+                        #https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_squared_error?authuser=1
+                        # The function returns a NumPy array containing a single element. Extract it as
+                        # variable:
+                        # Then, some situations may return numpy arrays instead of scalars. We can convert
+                        # to a scalar by selecting only the first and single element from the array.
+
+                        try:
+                            mse = mse[0]
+                        except:
+                            pass
+
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean squared error (MSE) = {mse:e}")
+                        except:
+                            print(f"Mean squared error (MSE) = {mse}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mse'] = mse
+
+                        # rmse is not available as function, only class. Use numpy method to convert to value
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/RootMeanSquaredError?authuser=1
+                        # Create the object:
+                        rmse = tf.keras.metrics.RootMeanSquaredError()
+                        # Update its state:
+                        rmse = rmse.update_state(y_true, y_pred)
+                        # Use the numpy method to retrieve only the value:
+                        rmse = rmse.numpy()
+                        # Here, numpy method already returns a scalar
+                        # Print in scientific notation:
+
+                        try:
+                            rmse = rmse[0]
+                        except:
+                            pass
+
+                        try:
+                            print(f"Root mean squared error (RMSE) = {rmse:e}")
+                        except:
+                            print(f"Root mean squared error (RMSE) = {rmse}")
+                        # Add to calculated metrics:
+                        calculated_metrics['rmse'] = rmse
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_error?authuser=1
+                        mae = tf.keras.metrics.mean_absolute_error(y_true, y_pred)
+                        # The function returns a NumPy array containing a single element. Extract it as
+                        # variable:
+
+                        try:
+                            mae = mae[0]
+                        except:
+                            pass
+
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean absolute error (MAE) = {mae:e}")
+                        except:
+                            print(f"Mean absolute error (MAE) = {mae}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mae'] = mae
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_percentage_error?authuser=1
+                        mape = tf.keras.metrics.mean_absolute_percentage_error(y_true, y_pred)
+                        # The function returns a NumPy array containing a single element. Extract it as
+                        # variable:
+
+                        try:
+                            mape = mape[0]
+                        except:
+                            pass
+
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                        except:
+                            print(f"Mean absolute percentage error (MAPE) = {mape}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mape'] = mape
+
+                        try:
+                            import tensorflow_addons as tfa
+                            # https://www.tensorflow.org/addons
+                            # R2 and R2-adj are available only as tfa object:
+                            # https://www.tensorflow.org/addons/api_docs/python/tfa/metrics/RSquare
+                            # Create the object:
+                            r2 = tfa.metrics.RSquare()
+                            # Update its state:
+                            # tfa method returns None, so we must only call the method:
+                            r2.update_state(y_true, y_pred)
+                            # Use the numpy method to retrieve only the value:
+                            r2 = r2.result().numpy() # already a scalar
+                            # for this tfa metrics, the methods result and numpy must be chained
+                            # otherwise, an error will be raised.
+
+                            try:
+                                r2 = r2[0]
+                            except:
+                                pass
+
+                            try:
+                                print(f"Coefficient of linear correlation R² = {r2:e}")
+                            except:
+                                print(f"Coefficient of linear correlation R² = {r2}")
+                            # Add to calculated metrics:
+                            calculated_metrics['r_squared'] = r2
+
+                        except:
+                            r2 = r2_score(y_true, y_pred)
+                            # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+                            try:
+                                r2 = r2[0]
+                            except:
+                                pass
+
+
+                            try:
+                                print(f"Coefficient of linear correlation R² = {r2:e}")
+                            except:
+                                print(f"Coefficient of linear correlation R² = {r2}")
+
+                            # Add to calculated metrics:
+                            calculated_metrics['r_squared'] = r2
+
+                        try:
+                            # Try to calculate the adjusted R² by accessing the number of predictors:
+                            # This number may not be present.
+                            total_predictors = self.total_predictors
+                            # Create the object:
+                            r2_adj = tfa.metrics.RSquare(num_regressors = total_predictors)
+                            # Update its state. Again, method returns None:
+                            r2_adj.update_state(y_true, y_pred)
+                            # Use the numpy method to retrieve only the value:
+                            r2_adj = r2_adj.result().numpy() # scalar
+                            # Again, the methods result and numpy must be chained
+
+                            try:
+                                r2_adj = r2_adj[0]
+                            except:
+                                pass
+
+                            try:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                            except:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+                            # Add to calculated metrics:
+                            calculated_metrics['r_squared_adj'] = r2_adj
+
+                        except:
+                            # Manually correct R²:
+                            # n_size_train = number of sample size
+                            # k_model = number of independent variables of the defined model
+                            k_model = self.total_predictors
+                            #numer of rows
+                            n_size = len(y_true)
+                            r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
+
+                            try:
+                                r2_adj = r2_adj[0]
+                            except:
+                                pass
+
+
+                            try:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                            except:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+
+                            # Add to calculated metrics:
+                            calculated_metrics['r_squared_adj'] = r2_adj
+
+                        print("\n")
+
+                    else:
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/AUC
+                        # Create the object:
+                        auc = tf.keras.metrics.AUC()
+                        # Update its state:
+                        auc.update_state(y_true, y_pred)
+                        # Use the numpy method to retrieve only the value:
+                        auc = auc.result().numpy() # scalar
+                        try:
+                            auc = auc[0]
+                        except:
+                            pass
+
+                        try:
+                            print(f"AUC = {auc:e}")
+                        except:
+                            print(f"AUC = {auc}")
+                        # Add to calculated metrics:
+                        calculated_metrics['auc'] = auc
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Accuracy
+                        # Create the object:
+                        acc = tf.keras.metrics.Accuracy()
+                        # Update its state:
+                        acc.update_state(y_true, y_pred)
+                        # Use the numpy method to retrieve only the value:
+                        acc = acc.result().numpy() # scalar
+                        try:
+                            acc = acc[0]
+                        except:
+                            pass
+
+                        try:
+                            print(f"Accuracy = {acc:e}")
+                        except:
+                            print(f"Accuracy = {acc}")
+                        # Add to calculated metrics:
+                        calculated_metrics['accuracy'] = acc
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Precision
+                        # Create the object:
+                        precision = tf.keras.metrics.Precision()
+                        # Update its state:
+                        precision.update_state(y_true, y_pred)
+                        # Use the numpy method to retrieve only the value:
+                        precision = precision.result().numpy() # scalar
+                        try:
+                            precision = precision[0]
+                        except:
+                            pass
+
+                        try:
+                            print(f"Precision = {precision:e}")
+                        except:
+                            print(f"Precision = {precision}")
+                        # Add to calculated metrics:
+                        calculated_metrics['precision'] = precision
+
+                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Recall
+                        # Create the object:
+                        recall = tf.keras.metrics.Recall()
+                        # Update its state:
+                        recall.update_state(y_true, y_pred)
+                        # Use the numpy method to retrieve only the value:
+                        recall = recall.result().numpy() # scalar
+                        try:
+                            recall = recall[0]
+                        except:
+                            pass
+
+                        try:
+                            print(f"Recall = {recall:e}")
+                        except:
+                            print(f"Recall = {recall}")
+                        # Add to calculated metrics:
+                        calculated_metrics['recall'] = recall
+
+                        # The method update_state returns None, so it must be called without and equality
+
+                        # Get the classification report:
+                        print("\n")
+                        print("Classification Report:\n")
+                        # Convert tensors to NumPy arrays
+                        report = classification_report (y_true, y_pred)
+                        print(report)
+                        # Add to calculated metrics:
+                        calculated_metrics['classification_report'] = report
+                        print("\n")
+
+                        # Get the confusion matrix:
+                        # Convert tensors to NumPy arrays
+                        matrix = confusion_matrix (y_true, y_pred)
+                        # Add to calculated metrics:
+                        calculated_metrics['confusion_matrix'] = report
+                        print("Confusion matrix:\n")
+
+                        fig, ax = plt.subplots(figsize = (12, 8))
+                        # possible color schemes (cmap) for the heat map: None, 'Blues_r',
+                        # "YlGnBu",
+                        # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
+                        # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
+                        ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
+                        #annot = True: shows the number corresponding to each square
+                        #annot = False: do not show the number
+                        plot_title = f"Accuracy Score for {key} = {acc:.2f}"
+                        ax.set_title(plot_title)
+                        ax.set_ylabel('Actual class')
+                        ax.set_xlabel('Predicted class')
+
+                        if (export_png == True):
+                            # Image will be exported
+                            import os
+
+                            #check if the user defined a directory path. If not, set as the default root path:
+                            if (directory_to_save is None):
+                                #set as the default
+                                directory_to_save = ""
+
+                            #check if the user defined a file name. If not, set as the default name for this
+                            # function.
+                            if (file_name is None):
+                                #set as the default
+                                file_name = "confusion_matrix_" + response
+
+                            else:
+                                # add the train suffix, to differentiate from the test matrix:
+                                file_name = file_name + "_" + key
+
+                            #check if the user defined an image resolution. If not, set as the default 110 dpi
+                            # resolution.
+                            if (png_resolution_dpi is None):
+                                #set as 330 dpi
+                                png_resolution_dpi = 330
+
+                            #Get the new_file_path
+                            new_file_path = os.path.join(directory_to_save, file_name)
+
+                            #Export the file to this new path:
+                            # The extension will be automatically added by the savefig method:
+                            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                            #quality could be set from 1 to 100, where 100 is the best quality
+                            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                            #transparent = True or False
+                            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+                        #fig.tight_layout()
+
+                        ## Show an image read from an image file:
+                        ## import matplotlib.image as pltimg
+                        ## img=pltimg.imread('mydecisiontree.png')
+                        ## imgplot = plt.imshow(img)
+                        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                        ##  '03_05_END.ipynb'
+                        plt.show()
+
+                        print("\n")
+                        # Now, add the metrics to the metrics_dict:
+                        
+                    nested_metrics[response] = calculated_metrics
+                        
+                metrics_dict[key] = nested_metrics
+          
+        # Now that we finished calculating metrics for all tensors, save the
+        # dictionary as a class variable (attribute) and return the object:
+        self.metrics_dict = metrics_dict
+        
+        return self
+    
     
     def retrieve_classes_used_for_training (self):
         
@@ -1093,7 +1872,8 @@ class tf_models:
         
         # Input layer with shape given by the number of columns of the tensors. If using an image
         # it would be the number of pixels in X and Y axis, with the image depth
-        self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1], name = "input_layer")
+        self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1:], name = "input_layer")
+        # The slice [1:] guarantees that extra dimensions added during tensor processing are added.
         
         if ((X_valid is not None) & (y_valid is not None)):
             
@@ -1334,7 +2114,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_simple_dense')
         # Update model attribute:
         self.model = model
         
@@ -1372,7 +2152,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_double_dense')
         # Update model attribute:
         self.model = model
         
@@ -1428,7 +2208,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_cnn_time_series')
         # Update model attribute:
         self.model = model
         
@@ -1447,9 +2227,6 @@ class tf_models:
         input_layer = self.input_layer
         output_layer = self.output_layer
         # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
         
         # define inputs
         input_1 = input_layer
@@ -1461,7 +2238,7 @@ class tf_models:
         # LSTM layer: 1 cycle per sequence element (number of iterations = 
         # SEQUENCE_LENGTH):
         # LSTM with 50 neurons:
-        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm')(input_1)
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm', input_shape = (self.X_train.shape[1], 1))
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
             
@@ -1471,7 +2248,7 @@ class tf_models:
         
         output_1 = output_layer(x)
         
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_lstm_time_series')
         # Update model attribute:
         self.model = model
         
@@ -1522,7 +2299,7 @@ class tf_models:
         # Wrap the output into this layer:
         output_1 = tf.keras.layers.TimeDistributed(output_layer, name = 'time_distributed_output')(x)
         
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_encoder_decoder_time_series')
         # Update model attribute:
         self.model = model
         
@@ -1585,7 +2362,7 @@ class tf_models:
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
         output_1 = output_layer(x)    
        
-        model = tf.keras.models.Model(inputs = input_1, outputs = output_1)
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_cnn_lstm_time_series')
         # Update model attribute:
         self.model = model
         
@@ -1639,6 +2416,14 @@ class siamese_networks:
         def format_output(data, list_of_responses):
             # Convert to NumPy array, if it is a tensor:
             data = np.array(data)
+            
+            # number of data columns must be equal to the total of responses
+            try:
+                assert data.shape[1] == len(list_of_responses)
+            
+            except:
+                raise AssertionError (f"Response tensor contains {data.shape[1]} responses, but found only {len(list_of_responses)} responses ({list_of_responses}) in the dictionary. Check your output dictionary before running this function.\n")
+            
             # Convert to Pandas dataframe:
             data = pd.DataFrame(data = data, columns = list_of_responses)
             # Start a list of tensors:
@@ -1657,10 +2442,7 @@ class siamese_networks:
         # Guarantee it is a tensor:
         self.X_train = tf.constant(X_train)
         self.y_train = format_output(data = y_train, list_of_responses = self.list_of_responses)
-        
-        # Input layer with shape given by the number of columns of the tensors. If using an image
-        # it would be the number of pixels in X and Y axis, with the image depth
-        self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1], name = "input_layer")
+    
         
         if ((X_valid is not None) & (y_valid is not None)):
             
@@ -1670,7 +2452,14 @@ class siamese_networks:
         else:
             self.X_valid = None
             self.y_valid = None
-            
+        
+        # Input layer with shape given by the number of columns of the tensors. If using an image
+        # it would be the number of pixels in X and Y axis, with the image depth
+        input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1:], name = "input_layer")
+        # slice [1:] guarantees that extra dimensions added during tensor preparation are considered
+        # Save it as an attribute
+        self.inputs = input_layer
+    
     
     def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
         
@@ -1682,6 +2471,14 @@ class siamese_networks:
         
         model = self.model
         
+        # There must be one copy of the input by response. So, before fitting the model, let's create
+        # tuples with same size as the total of responses, where all elements of the tuple are equal
+        # to the X tensor. Each element will be sequentially used by the model to fit one of the
+        # responses: first element for the first branch, 2nd for the 2nd branch, and so on...
+        
+        # Retrieve the outputs dictionary
+        output_dictionary = self.output_dictionary
+        
         X_train = self.X_train
         y_train = self.y_train
         
@@ -1690,7 +2487,7 @@ class siamese_networks:
         
         if ((X_valid is not None) & (y_valid is not None)):   
             has_validation = True
-        
+    
         else:
             has_validation = False
         
@@ -1717,28 +2514,28 @@ class siamese_networks:
         return self
     
     
-    def base_model_simple_dense (self, inputs):
+    def base_model_simple_dense (self, input_layer, response):
         
         import tensorflow as tf
-
+        
         # First hidden layer:
-        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(inputs)
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_1'+ '_' + response))(input_layer)
         
         return x
     
     
-    def base_model_double_dense (self, inputs):
+    def base_model_double_dense (self, input_layer, response):
         
         import tensorflow as tf
-
-        # First hidden layer:
-        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_1')(inputs)
-        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_2')(x)
         
+        # First hidden layer:
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_1' + '_' + response))(input_layer)
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_2' + '_' + response))(x)
+            
         return x
     
     
-    def base_model_cnn_time_series (self, inputs):
+    def base_model_cnn_time_series (self, input_layer, response):
         
         import tensorflow as tf
 
@@ -1751,11 +2548,11 @@ class siamese_networks:
         # the parameter 'input_dim'. If it is a CNN or RNN, we
         # specify 'input_shape', instead. These parameters are only
         # specified for the first layer of the network.
-            
+        
         # First convolution:
-        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'convolution')(inputs)
+        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('convolution' + '_' + response))(input_layer)
         # First Max Pooling to enhance select the characteristics highlighted by the convolution:
-        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = 'pooling')(x)
+        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = ('pooling' + '_' + response))(x)
         # Reduces to half the original size.
             
         # The convolutions and pooling reduce the dimensionality of the data.
@@ -1765,17 +2562,18 @@ class siamese_networks:
         # it difficult for the last dense layer to perform a good prediction.
             
         # Flatten the data for making it adequate for feeding the dense layers:
-        x = tf.keras.layers.Flatten(name = 'flatten')(x)
+        x = tf.keras.layers.Flatten(name = ('flatten' + '_' + response))(x)
             
         # Feed the first dense layer, with 50 neurons:
-        x = tf.keras.layers.Dense(units = 50, activation = 'relu', name = 'dense_1')(x)
+        x = tf.keras.layers.Dense(units = 50, activation = 'relu', name = ('dense_1' + '_' + response))(x)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
+        # try accessing the attribute inputs:
         
         return x
     
     
-    def base_model_lstm_time_series (self, inputs):
+    def base_model_lstm_time_series (self, input_layer, response):
         
         import tensorflow as tf
         
@@ -1783,11 +2581,11 @@ class siamese_networks:
         SEQUENCE_LENGTH = (self.X_train).shape[1]
         #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
         print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
-        
+       
         # LSTM layer: 1 cycle per sequence element (number of iterations = 
         # SEQUENCE_LENGTH):
         # LSTM with 50 neurons:
-        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm')(inputs)
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('lstm' + '_' + response))(input_layer)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
             
@@ -1798,7 +2596,7 @@ class siamese_networks:
         return x
     
     
-    def base_model_encoder_decoder_time_series (self, inputs):
+    def base_model_encoder_decoder_time_series (self, input_layer, response):
         
         import tensorflow as tf
         
@@ -1810,15 +2608,15 @@ class siamese_networks:
         # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
         # LSTM with 100 neurons:
         # Encoder:
-        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm_encoder')(inputs)
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('lstm_encoder' + '_' + response))(input_layer)
             
         # The encoded sequence will be repeated 2 times by the model for the two output time steps 
         # required by the model using a RepeatVector layer. These will be fed to a decoder LSTM layer 
         # before using a Dense output layer wrapped in a TimeDistributed layer that will produce one 
         # output for each step in the output sequence.
-        x = tf.keras.layers.RepeatVector(2, name = 'repeat_vector')(x)
+        x = tf.keras.layers.RepeatVector(2, name = ('repeat_vector' + '_' + response))(x)
         # Decoder: LSTM with 100 neurons
-        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', return_sequences = True, name = 'lstm_decoder')(x)
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', return_sequences = True, name = ('lstm_decoder' + '_' + response))(x)
         # return_sequences = True returns the hidden states h.
         # This generates an output with an extra dimension (output consists on an array of two values: 
         # the prediction and the hidden state).
@@ -1826,12 +2624,12 @@ class siamese_networks:
         # Last dense - output layer ('linear' activation):
         # Apply a TimeDistributed layer for compatibility with the Encoder-Decoder Archictecture:
         # Wrap the output into this layer:
-        x = tf.keras.layers.TimeDistributed(output_layer, name = 'time_distributed_output')(x)
+        x = tf.keras.layers.TimeDistributed(output_layer, name = ('time_distributed_output' + '_' + response))(x)
         
         return x
     
     
-    def base_model_cnn_lstm_time_series (self, inputs):
+    def base_model_cnn_lstm_time_series (self, input_layer, response):
         
         import numpy as np
         import tensorflow as tf
@@ -1839,7 +2637,7 @@ class siamese_networks:
         X_train = self.X_train
         # Number of columns (sequence length):
         sequence_length = X_train.shape[1]
-                
+        
         convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
         max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
@@ -1850,10 +2648,10 @@ class siamese_networks:
         # before the model outputs a prediction.
         
         # First time-distributed convolution (for compatibility with the LSTM):
-        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(inputs)
+        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = ('convolution' + '_' + response))(input_layer)
         # First time distributed Max Pooling (for compatibility with the LSTM):
         # Max Pooling: enhance select the characteristics highlighted by the convolution:
-        x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = 'pooling')(x)
+        x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = ('pooling' + '_' + response))(x)
         # Reduces to half the original size.
         # The convolutions and pooling reduce the dimensionality of the data.
         # Under the hood, TensorFlow is testing different combinations of filters until it finds filters 
@@ -1862,20 +2660,20 @@ class siamese_networks:
         # it difficult for the last dense layer to perform a good prediction.        
         # Flatten the data for making it adequate for feeding the dense layers:
         # Time distributed Flatten for compatibility with the LSTM:
-        x = tf.keras.layers.TimeDistributed(flatten_layer, name = 'flatten')(x)
+        x = tf.keras.layers.TimeDistributed(flatten_layer, name = ('flatten'+ '_' + response))(x)
             
         # Now, feed the LSTM:
         # The LSTM performs 1 cycle per element of the sequence. Since each sequence now have 2 elements,
         # the LSTM will perform two iterations:
         # LSTM with 50 neurons:
-        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm')(x)
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = ('lstm' + '_' + response))(x)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
         
         return x
     
     
-    def network_branch (self, inputs, response_variable = 'response_variable', type_of_problem = 'regression', number_of_classes = 2, architecture = 'simple_dense'):
+    def network_branch (self, response_variable, type_of_problem = 'regression', number_of_classes = 2, architecture = 'simple_dense'):
         
         # Generate a full branch from the siamese network. We will have one branch per response
         
@@ -1888,23 +2686,26 @@ class siamese_networks:
         # architecture = 'encoder_decoder': base_model_encoder_decoder_time_series from class siamese_networks;
         # architecture = 'cnn_lstm': hybrid base_model_cnn_lstm_time_series from class siamese_networks.
         
+        
+        input_layer = self.inputs
+        
         if (architecture == 'double_dense'):
-            x = self.base_model_double_dense(inputs)
+            x = self.base_model_double_dense(input_layer = input_layer, response = response_variable)
             
         elif (architecture == 'cnn'):
-            x = self.base_model_cnn_time_series(inputs)
+            x = self.base_model_cnn_time_series(input_layer = input_layer, response = response_variable)
             
         elif (architecture == 'lstm'):
-            x = self.base_model_lstm_time_series(inputs)
+            x = self.base_model_lstm_time_series(input_layer = input_layer, response = response_variable)
             
         elif (architecture == 'encoder_decoder'):
-            x = self.base_model_encoder_decoder_time_series(inputs)
+            x = self.base_model_encoder_decoder_time_series(input_layer = input_layer, response = response_variable)
             
         elif (architecture == 'cnn_lstm'):
-            x = self.base_model_cnn_lstm_time_series(inputs)
+            x = self.base_model_cnn_lstm_time_series(input_layer = input_layer, response = response_variable)
             
         else:
-            x = self.base_model_simple_dense(inputs)
+            x = self.base_model_simple_dense(input_layer = input_layer, response = response_variable)
         
         if (type_of_problem == 'regression'):
             # Scalar output: 1 neuron with linear activation
@@ -1934,7 +2735,6 @@ class siamese_networks:
         # 'type': 'regression', 'number_of_classes':}}
         
         # Retrieve the outputs dictionary
-        inputs = self.input_layer
         output_dictionary = self.output_dictionary
         
         # Initialize a loss and a metrics dictionary
@@ -1960,7 +2760,7 @@ class siamese_networks:
                 number_of_classes = 1
             
             # Get the output layer for that branch
-            output_layer = self.network_branch (self, inputs, response_variable = response, type_of_problem = type_of_problem, number_of_classes = number_of_classes, architecture = architecture)
+            output_layer = self.network_branch (response_variable = response, type_of_problem = type_of_problem, number_of_classes = number_of_classes, architecture = architecture)
             
             # Append the output_layer to the list:
             outputs_list.append(output_layer)
@@ -1974,8 +2774,9 @@ class siamese_networks:
                 metrics = 'mse'
                 loss = 'mse'
                 # Add it to the losses and metrics dictionaries:
-                loss_dict[response_variable] = loss
-                metrics_dict[response_variable] = metrics
+                # Concatenate "output_" since the names of the output layers start as this
+                loss_dict[("output_" + response)] = loss
+                metrics_dict[("output_" + response)] = metrics
                 
             elif (type_of_problem == 'classification'):
 
@@ -1989,8 +2790,9 @@ class siamese_networks:
                     # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/SparseCategoricalCrossentropy
                 
                 # Add it to the losses and metrics dictionaries:
-                loss_dict[response_variable] = loss
-                metrics_dict[response_variable] = metrics
+                # Concatenate "output_" since the names of the output layers start as this
+                loss_dict[("output_" + response)] = loss
+                metrics_dict[("output_" + response)] = metrics
         
         # Now, compile the model
         
@@ -2001,7 +2803,17 @@ class siamese_networks:
             optimizer = tf.keras.optimizers.Adam()
         
         # define the model using the input and output layers
-        model = tf.keras.models.Model(inputs = [inputs], outputs = outputs_list)
+        """
+        for multiple inputs, inputs should be a list, like in:
+        model = Model(inputs=[input_a, input_b], outputs=[output, aux_output])
+        for a single input, it can be simply the input layer used
+        """
+        
+        # retrieve the inputs attribute, containing the list of inputs:
+        # try accessing the attribute inputs:
+        inputs = self.inputs
+        
+        model = tf.keras.models.Model(inputs = inputs, outputs = outputs_list, name = 'siamese_neural_net')
         
         model.compile(optimizer = optimizer, 
                loss = loss_dict,
@@ -2010,6 +2822,15 @@ class siamese_networks:
         print("Check model architecture:\n")
         tf.keras.utils.plot_model(model)
         print("\n")
+        
+        print("Check model summary:\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(model.summary())
+                    
+        except: # regular mode
+            print(model.summary())
         
         # Save as class attribute:
         self.model = model
@@ -3774,8 +4595,6 @@ class modelling_workflow:
         
         # number_of_training_epochs (integer): number of training cycles used. 
         # This is the 'epochs' parameter of the algorithms.
-        
-        list_of_responses = list((output_dictionary).keys())
 
         if (architecture == 'cnn_lstm'):
             # Get the hybrid cnn-lstm time series model:
@@ -3821,6 +4640,7 @@ class modelling_workflow:
         model = siamese_networks_obj.model
         history = siamese_networks_obj.history
         
+        
         # Get predictions for training, testing, and validation:
         y_preds_for_train = model.predict(X_train)
 
@@ -3836,24 +4656,15 @@ class modelling_workflow:
         else:
             y_preds_for_validation = None
         
-        metrics_dict = {}
+        model_check = model_checking(model_object = model, model_package = 'tensorflow', column_map_dict = column_map_dict, training_history_object = history, X = X_train, y_train = y_train, y_preds_for_train = y_preds_for_train, y_test = y_test, y_preds_for_test = y_preds_for_test, y_valid = y_valid, y_preds_for_validation = y_preds_for_validation)
         
-        for index, response in enumerate(list_of_responses):
-            # enumerate will get tuples like (0, response1), (1, response2), etc
-            print(f"Evaluation of metrics for response variable '{response}':\n")
-            
-            # Pick only the desired index on the array/tuple of responses to analyze:
-            # instantiate the model checker object:
-            model_check = model_checking(model_object = model, model_type = type_of_problem, model_package = 'tensorflow', column_map_dict = column_map_dict, training_history_object = history, X = X_train, y_train = y_train[index], y_preds_for_train = y_preds_for_train[index], y_test = y_test[index], y_preds_for_test = y_preds_for_test[index], y_valid = y_valid[index], y_preds_for_validation = y_preds_for_validation[index])
-
-            # Calculate model metrics:
-            model_check = model_check.model_metrics()
-            # Retrieve model metrics and save in the key response of the metrics dictionary:
-            metrics_dict[response] = model_check.metrics_dict
-
-            print("Check the training loss and metrics curve below:\n")
-            model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
-            print("\n")
+        model_check = model_check.model_metrics_multiresponses (output_dictionary = output_dictionary)
+        
+        # Retrieve model metrics:
+        metrics_dict = model_check.metrics_dict
+        
+        model_check = model_check.plot_history_multiresponses (x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        print("\n")
 
         print("Notice that:")
         print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
@@ -3873,9 +4684,10 @@ class modelling_workflow:
         # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
         print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
         print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
-            
-        return model, metrics_dict, history
     
+        
+        return model, metrics_dict, history
+
 
     def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, architecture = None):
         
