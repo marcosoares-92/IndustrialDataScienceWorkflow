@@ -1866,19 +1866,19 @@ class tf_models:
         
         import tensorflow as tf
         
-        # Guarantee it is a tensor:
-        self.X_train = tf.constant(X_train)
-        self.y_train = tf.constant(y_train)
+        # Guarantee it is an array:
+        self.X_train = np.array(X_train)
+        self.y_train = np.array(y_train)
         
         # Input layer with shape given by the number of columns of the tensors. If using an image
         # it would be the number of pixels in X and Y axis, with the image depth
+        # The batch (last) dimension should not be provided to the input layer
         self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1:], name = "input_layer")
-        # The slice [1:] guarantees that extra dimensions added during tensor processing are added.
         
         if ((X_valid is not None) & (y_valid is not None)):
             
-            self.X_valid = tf.constant(X_valid)
-            self.y_valid = tf.constant(y_valid)
+            self.X_valid = np.array(X_valid)
+            self.y_valid = np.array(y_valid)
         
         else:
             self.X_valid = None
@@ -2161,7 +2161,7 @@ class tf_models:
         # Fit the model:
         self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
         
-        return x
+        return self
     
     def tf_cnn_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
@@ -2169,10 +2169,6 @@ class tf_models:
 
         input_layer = self.input_layer
         output_layer = self.output_layer
-        # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
         
         # define inputs
         input_1 = input_layer
@@ -2185,11 +2181,11 @@ class tf_models:
         # the parameter 'input_dim'. If it is a CNN or RNN, we
         # specify 'input_shape', instead. These parameters are only
         # specified for the first layer of the network.
-            
+        
         # First convolution:
-        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'convolution')(input_1)
+        x = tf.keras.layers.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = 'convolution')(input_1)
         # First Max Pooling to enhance select the characteristics highlighted by the convolution:
-        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = 'pooling')(x)
+        x = tf.keras.layers.MaxPooling1D(pool_size = 2, name = 'pooling')(x)
         # Reduces to half the original size.
             
         # The convolutions and pooling reduce the dimensionality of the data.
@@ -2238,7 +2234,7 @@ class tf_models:
         # LSTM layer: 1 cycle per sequence element (number of iterations = 
         # SEQUENCE_LENGTH):
         # LSTM with 50 neurons:
-        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm', input_shape = (self.X_train.shape[1], 1))
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = 'lstm')(input_1)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
             
@@ -2266,10 +2262,7 @@ class tf_models:
         
         input_layer = self.input_layer
         output_layer = self.output_layer
-        # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
+        
         
         # define inputs
         input_1 = input_layer
@@ -2281,7 +2274,7 @@ class tf_models:
         # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
         # LSTM with 100 neurons:
         # Encoder:
-        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = 'lstm_encoder')(input_1)
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = 'lstm_encoder')(input_1)
             
         # The encoded sequence will be repeated 2 times by the model for the two output time steps 
         # required by the model using a RepeatVector layer. These will be fed to a decoder LSTM layer 
@@ -2318,13 +2311,10 @@ class tf_models:
         
         input_layer = self.input_layer
         output_layer = self.output_layer
-        X_train = self.X_train
-        # Number of columns (sequence length):
-        sequence_length = X_train.shape[1]
                 
-        convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
+        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
-        max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
+        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2)
         flatten_layer = tf.keras.layers.Flatten()
         
         # define inputs
@@ -2431,22 +2421,21 @@ class siamese_networks:
             # Apply the pop method to return a particular column and drop it from data:
             for column in list_of_responses:
                 response = data.pop(column)
-                # Convert the response Pandas Series to a numpy array and then to Tensor:
+                # Convert the response Pandas Series to a numpy array:
                 response = np.array(response)
-                response = tf.constant(response)
                 # Add it to tensors list:
                 tensors_list.append(response)
             # Convert the list to tuple and return it:
             return tuple(tensors_list)
 
-        # Guarantee it is a tensor:
-        self.X_train = tf.constant(X_train)
+        # Guarantee it is an array:
+        self.X_train = np.array(X_train)
         self.y_train = format_output(data = y_train, list_of_responses = self.list_of_responses)
     
         
         if ((X_valid is not None) & (y_valid is not None)):
             
-            self.X_valid = tf.constant(X_valid)
+            self.X_valid = np.array(X_valid)
             self.y_valid = format_output(data = y_valid, list_of_responses = self.list_of_responses)
         
         else:
@@ -2455,8 +2444,8 @@ class siamese_networks:
         
         # Input layer with shape given by the number of columns of the tensors. If using an image
         # it would be the number of pixels in X and Y axis, with the image depth
+        # The batch (last) dimension should not be provided to the input layer
         input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1:], name = "input_layer")
-        # slice [1:] guarantees that extra dimensions added during tensor preparation are considered
         # Save it as an attribute
         self.inputs = input_layer
     
@@ -2538,21 +2527,11 @@ class siamese_networks:
     def base_model_cnn_time_series (self, input_layer, response):
         
         import tensorflow as tf
-
-        # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
-        
-        # ATTENTION: if the first layer is a Dense, we must specify
-        # the parameter 'input_dim'. If it is a CNN or RNN, we
-        # specify 'input_shape', instead. These parameters are only
-        # specified for the first layer of the network.
         
         # First convolution:
-        x = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('convolution' + '_' + response))(input_layer)
+        x = tf.keras.layers.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = ('convolution' + '_' + response))(input_layer)
         # First Max Pooling to enhance select the characteristics highlighted by the convolution:
-        x = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2, name = ('pooling' + '_' + response))(x)
+        x = tf.keras.layers.MaxPooling1D(pool_size = 2, name = ('pooling' + '_' + response))(x)
         # Reduces to half the original size.
             
         # The convolutions and pooling reduce the dimensionality of the data.
@@ -2568,7 +2547,6 @@ class siamese_networks:
         x = tf.keras.layers.Dense(units = 50, activation = 'relu', name = ('dense_1' + '_' + response))(x)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
-        # try accessing the attribute inputs:
         
         return x
     
@@ -2577,15 +2555,10 @@ class siamese_networks:
         
         import tensorflow as tf
         
-        # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
-       
         # LSTM layer: 1 cycle per sequence element (number of iterations = 
         # SEQUENCE_LENGTH):
         # LSTM with 50 neurons:
-        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('lstm' + '_' + response))(input_layer)
+        x = tf.keras.layers.LSTM(units = 50, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = ('lstm' + '_' + response))(input_layer)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
             
@@ -2600,15 +2573,10 @@ class siamese_networks:
         
         import tensorflow as tf
         
-        # Number of columns (sequence length):
-        SEQUENCE_LENGTH = (self.X_train).shape[1]
-        #This parameter is the MAX_SEQUENCE_LENGTH when we are using LSTM for NLP.
-        print(f"Sequence length = {SEQUENCE_LENGTH:.0f}\n")
-        
         # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
         # LSTM with 100 neurons:
         # Encoder:
-        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (SEQUENCE_LENGTH, 1), name = ('lstm_encoder' + '_' + response))(input_layer)
+        x = tf.keras.layers.LSTM(units = 100, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = ('lstm_encoder' + '_' + response))(input_layer)
             
         # The encoded sequence will be repeated 2 times by the model for the two output time steps 
         # required by the model using a RepeatVector layer. These will be fed to a decoder LSTM layer 
@@ -2620,11 +2588,6 @@ class siamese_networks:
         # return_sequences = True returns the hidden states h.
         # This generates an output with an extra dimension (output consists on an array of two values: 
         # the prediction and the hidden state).
-            
-        # Last dense - output layer ('linear' activation):
-        # Apply a TimeDistributed layer for compatibility with the Encoder-Decoder Archictecture:
-        # Wrap the output into this layer:
-        x = tf.keras.layers.TimeDistributed(output_layer, name = ('time_distributed_output' + '_' + response))(x)
         
         return x
     
@@ -2634,21 +2597,17 @@ class siamese_networks:
         import numpy as np
         import tensorflow as tf
         
-        X_train = self.X_train
-        # Number of columns (sequence length):
-        sequence_length = X_train.shape[1]
-        
-        convolution_layer = tf.keras.layers.convolutional.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
+        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
-        max_pooling_layer = tf.keras.layers.convolutional.MaxPooling1D(pool_size = 2)
+        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2)
         flatten_layer = tf.keras.layers.Flatten()
-        
+      
         # The entire CNN model is wrapped in TimeDistributed wrapper layers so that it can be applied to 
         # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
         # before the model outputs a prediction.
         
         # First time-distributed convolution (for compatibility with the LSTM):
-        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = ('convolution' + '_' + response))(input_layer)
+        x  = tf.keras.layers.TimeDistributed(convolution_layer,  name = ('convolution' + '_' + response))(input_layer)
         # First time distributed Max Pooling (for compatibility with the LSTM):
         # Max Pooling: enhance select the characteristics highlighted by the convolution:
         x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = ('pooling' + '_' + response))(x)
@@ -2709,18 +2668,24 @@ class siamese_networks:
         
         if (type_of_problem == 'regression'):
             # Scalar output: 1 neuron with linear activation
-            output = tf.keras.layers.Dense(units = 1, name = ('output_' + response_variable))(x)
-        
+            output = tf.keras.layers.Dense(units = 1, name = ('output_' + response_variable))(x) 
+            if (architecture == 'encoder_decoder'):
+                output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+           
         else:
             # Classification
             if (number_of_classes == 2):
                 # 1 neuron activated through sigmoid, analogous to logistic regression
                 output = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = ('output_' + response_variable))(x)
-            
+                if (architecture == 'encoder_decoder'):
+                    output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+                
             else:
                 # 1 neuron per class, activated through softmax
                 output = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = ('output_' + response_variable))(x)
-        
+                if (architecture == 'encoder_decoder'):
+                    output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+                    
         return output
     
     
@@ -4436,6 +4401,16 @@ class modelling_workflow:
         # naturally there is no meaning in using 'accuracy'. So, we use 'RootMeanSquaredError'
         # or 'mae' (mean absolute error).
         
+        # Create functions for specific reshaping
+        def reshaper(architecture):
+            if (architecture == 'cnn_lstm'):
+                return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            elif ((architecture == 'cnn')|(architecture == 'lstm')|(architecture == 'encoder_decoder')):
+                return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            else:
+                # return the array itself:
+                return (lambda x: np.array(x))
+        
         if (architecture == 'cnn_lstm'):
             # Get the hybrid cnn-lstm time series model from class tf_models:
             
@@ -4447,25 +4422,19 @@ class modelling_workflow:
                 print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
                 
                 return None, None, None
-            
-            else:
-                # Reshape the tensors:
-                # This architecture can only be used when the number of columns or sequence elements is even
-            
-                # lambda: single-line no-named function. To use one, you can declare:
-                # f = lambda x: x**2
-                # y = f(x) - y will store the output x from lambda function
-                # or, in a single line: y = (lambda x: x**2)(x)
-                # In this example, if x = 2, the output will be 4 (lambda output: function of the input)(input)
-                
-                reshape_function = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
-                
-                X_train = reshape_function(X_train)
-                
-                if ((X_test is not None) & (y_test is not None)):   
-                    X_test = reshape_function(X_test)
-                if ((X_valid is not None) & (y_valid is not None)):   
-                    X_valid = reshape_function(X_valid)
+        
+        # Put the arrays in the correct shape for the particular architecture
+        reshape_function = reshaper(architecture)
+        
+        try:
+            X_train = reshape_function(X_train)
+
+            if ((X_test is not None) & (y_test is not None)):   
+                X_test = reshape_function(X_test)
+            if ((X_valid is not None) & (y_valid is not None)):   
+                X_valid = reshape_function(X_valid)
+        except:
+            pass
         
         # Instantiate a tf_models object:
         tf_model_obj = tf_models(X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test, type_of_problem = type_of_problem, number_of_classes = number_of_output_classes, optimizer = optimizer)
@@ -4477,6 +4446,7 @@ class modelling_workflow:
         elif (architecture == 'cnn'):
             # Get the tf_cnn time series model from class tf_models:
             tf_model_obj = tf_model_obj.tf_cnn_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+            
         
         elif (architecture == 'lstm'):
             # Get the tf_lstm time series model from class tf_models:
@@ -4500,15 +4470,24 @@ class modelling_workflow:
         
         # Get predictions for training, testing, and validation:
         y_preds_for_train = model.predict(X_train)
+        
+        if (architecture == 'encoder_decoder'):
+            # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
+            # the first position (index 0) of 2nd dimension
+            y_preds_for_train = y_preds_for_train[:,0]
 
         if ((X_test is not None) & ((y_test is not None))):
             y_preds_for_test = model.predict(X_test)
+            if (architecture == 'encoder_decoder'):
+                y_preds_for_test = y_preds_for_test[:,0]
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
             y_preds_for_validation = model.predict(X_valid)
+            if (architecture == 'encoder_decoder'):
+                y_preds_for_validation = y_preds_for_validation[:,0]
 
         else:
             y_preds_for_validation = None
@@ -4595,6 +4574,16 @@ class modelling_workflow:
         
         # number_of_training_epochs (integer): number of training cycles used. 
         # This is the 'epochs' parameter of the algorithms.
+        
+        # Create functions for specific reshaping
+        def reshaper(architecture):
+            if (architecture == 'cnn_lstm'):
+                return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            elif ((architecture == 'cnn')|(architecture == 'lstm')|(architecture == 'encoder_decoder')):
+                return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            else:
+                # return the array itself:
+                return (lambda x: np.array(x))
 
         if (architecture == 'cnn_lstm'):
             # Get the hybrid cnn-lstm time series model:
@@ -4607,25 +4596,19 @@ class modelling_workflow:
                 print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
                 
                 return None, None, None
-            
-            else:
-                # Reshape the tensors:
-                # This architecture can only be used when the number of columns or sequence elements is even
-            
-                # lambda: single-line no-named function. To use one, you can declare:
-                # f = lambda x: x**2
-                # y = f(x) - y will store the output x from lambda function
-                # or, in a single line: y = (lambda x: x**2)(x)
-                # In this example, if x = 2, the output will be 4 (lambda output: function of the input)(input)
-                
-                reshape_function = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))
-                
-                X_train = reshape_function(X_train)
-                
-                if ((X_test is not None) & (y_test is not None)):   
-                    X_test = reshape_function(X_test)
-                if ((X_valid is not None) & (y_valid is not None)):   
-                    X_valid = reshape_function(X_valid)
+        
+        # Put the arrays in the correct shape for the particular architecture
+        reshape_function = reshaper(architecture)
+        
+        try:
+            X_train = reshape_function(X_train)
+
+            if ((X_test is not None) & (y_test is not None)):   
+                X_test = reshape_function(X_test)
+            if ((X_valid is not None) & (y_valid is not None)):   
+                X_valid = reshape_function(X_valid)
+        except:
+            pass
             
         # Instantiate a siamese_networks object:
         siamese_networks_obj = siamese_networks(output_dictionary = output_dictionary, X_train = X_train, y_train = y_train, X_valid = X_test, y_valid = y_test)
@@ -4643,6 +4626,13 @@ class modelling_workflow:
         
         # Get predictions for training, testing, and validation:
         y_preds_for_train = model.predict(X_train)
+        
+        if (architecture == 'encoder_decoder'):
+            # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
+            # the first position (index 0) of 2nd dimension
+            print(y_preds_for_train[:5])
+            y_preds_for_train = y_preds_for_train[:,0]
+            print(y_preds_for_train[:5])
 
         if ((X_test is not None) & ((y_test is not None))):
             y_preds_for_test = model.predict(X_test)
