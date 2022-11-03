@@ -103,7 +103,7 @@ class model_checking:
         tensors_dict['validation'] = {'actual': self.y_valid, 'predictions': self.y_preds_for_validation}
 
         metrics_dict = {}
-
+        
         # Loop through the keys:
         for key in tensors_dict.keys():
           
@@ -1136,10 +1136,10 @@ class model_checking:
                 ax1.set_ylabel(metrics_vertical_axis_title)
 
                 # Scatter plot of time series:
-                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics" + response[:10]))
+                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics_" + response[:10]))
                 if (has_validation):
                     # If present, plot validation data:
-                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics" + response[:10]))
+                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics_" + response[:10]))
                 # Axes.plot documentation:
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
 
@@ -1158,11 +1158,11 @@ class model_checking:
             
             try:
                 ax2 = fig.add_subplot(212)
-                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss" + response[:10]))
+                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
 
                 if (has_validation):
                     # If present, plot validation data:
-                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss" + response[:10]))
+                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss_" + response[:10]))
 
                 ax2.set_xlabel(horizontal_axis_title)
                 ax2.set_ylabel(loss_vertical_axis_title)
@@ -2529,7 +2529,7 @@ class siamese_networks:
         import tensorflow as tf
         
         # First convolution:
-        x = tf.keras.layers.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', input_shape = (self.X_train.shape[1], 1), name = ('convolution' + '_' + response))(input_layer)
+        x = tf.keras.layers.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', name = ('convolution' + '_' + response))(input_layer)
         # First Max Pooling to enhance select the characteristics highlighted by the convolution:
         x = tf.keras.layers.MaxPooling1D(pool_size = 2, name = ('pooling' + '_' + response))(x)
         # Reduces to half the original size.
@@ -2668,23 +2668,29 @@ class siamese_networks:
         
         if (type_of_problem == 'regression'):
             # Scalar output: 1 neuron with linear activation
-            output = tf.keras.layers.Dense(units = 1, name = ('output_' + response_variable))(x) 
+            output = tf.keras.layers.Dense(units = 1, name = ('output_' + response_variable))
             if (architecture == 'encoder_decoder'):
-                output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+                output = tf.keras.layers.TimeDistributed(output, name = ('output_' + response_variable))(x)
+            else:
+                    output = output(x)
            
         else:
             # Classification
             if (number_of_classes == 2):
                 # 1 neuron activated through sigmoid, analogous to logistic regression
-                output = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = ('output_' + response_variable))(x)
+                output = tf.keras.layers.Dense(units = 1, activation = 'sigmoid', name = ('output_' + response_variable))
                 if (architecture == 'encoder_decoder'):
-                    output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+                    output = tf.keras.layers.TimeDistributed(output, name = ('output_' + response_variable))(x)
+                else:
+                    output = output(x)
                 
             else:
                 # 1 neuron per class, activated through softmax
-                output = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = ('output_' + response_variable))(x)
+                output = tf.keras.layers.Dense(units = number_of_classes, activation = 'softmax', name = ('output_' + response_variable))
                 if (architecture == 'encoder_decoder'):
-                    output = tf.keras.layers.TimeDistributed(output, name = ('time_dist_output_' + response_variable))(x)
+                    output = tf.keras.layers.TimeDistributed(output, name = ('output_' + response_variable))(x)
+                else:
+                    output = output(x)
                     
         return output
     
@@ -4630,18 +4636,30 @@ class modelling_workflow:
         if (architecture == 'encoder_decoder'):
             # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
             # the first position (index 0) of 2nd dimension
-            print(y_preds_for_train[:5])
-            y_preds_for_train = y_preds_for_train[:,0]
-            print(y_preds_for_train[:5])
+            # Convert to Numpy array:
+            y_preds_for_train = np.array(y_preds_for_train)
+            # This array has dimensions like (4, 48, 2, 1) for a 4-response model output.
+            # Notice that the 3rd dimension contains 2 dimensions, due to the parameter return_sequences = True.
+            # We want only the first value correspondent to this dimension.
+            # Also, notice that a single response model would have dimensions as (48, 2, 1), and the extra dimension
+            # correspondent to return_sequences = True would be the 2nd dim.
+            # Pick only the first value from third dimension:
+            y_preds_for_train = y_preds_for_train[:,:,0]
 
         if ((X_test is not None) & ((y_test is not None))):
             y_preds_for_test = model.predict(X_test)
+            if (architecture == 'encoder_decoder'):
+                y_preds_for_test = np.array(y_preds_for_test)
+                y_preds_for_test = y_preds_for_test[:,:,0]
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
             y_preds_for_validation = model.predict(X_valid)
+            if (architecture == 'encoder_decoder'):
+                y_preds_for_validation = np.array(y_preds_for_validation)
+                y_preds_for_validation = y_preds_for_validation[:,:,0]
 
         else:
             y_preds_for_validation = None
