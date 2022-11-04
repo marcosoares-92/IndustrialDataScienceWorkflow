@@ -4697,7 +4697,7 @@ class modelling_workflow:
         return model, metrics_dict, history
 
 
-    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, architecture = None):
+    def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, function_used_for_fitting_dl_model = 'get_deep_learning_tf_model', architecture = None, list_of_responses = []):
         
         import numpy as np
         import pandas as pd
@@ -4738,10 +4738,22 @@ class modelling_workflow:
         # "_" so that no blank spaces are added; the suffix will not be merged to the column; and there
         # will be no confusion with the dot (.) notation for methods, JSON attributes, etc.
         
+        # function_used_for_fitting_dl_model: the function you used for obtaining the deep learning model.
+        # Example: 'get_deep_learning_tf_model' or 'get_siamese_networks_model'
+        
         # architecture: some models require inputs in a proper format. Declare here if you are using
         # one of these architectures. Example: architecture = 'cnn_lstm' from class tf_models require
         # a special reshape before getting predictions. You can keep None or put the name of the
         # architecture, if no special reshape is needed.
+        
+        # list_of_responses = []. This parameter is obbligatory for multi-response models, such as the ones obtained from
+        # function 'get_siamese_networks_model'. It must contain a list with the same order of the output responses.
+        # Example: suppose your siamese model outputs 4 responses: 'temperature', 'pressure', 'flow_rate', and 'ph', in
+        # this order. The list of responses must be declared as: 
+        # list_of_responses = ['temperature', 'pressure', 'flow_rate', 'ph']
+        # tuples and numpy arrays are also acceptable: list_of_responses = ('temperature', 'pressure', 'flow_rate', 'ph')
+        # Attention: the number of responses must be exactly the number of elements in list_of_responses, or an error will
+        # be raised.
         
         
         # Check the type of input: if we are predicting the output for a subset (NumPy array reshaped
@@ -4754,16 +4766,31 @@ class modelling_workflow:
         # Try to access the attribute shape. If the error AttributeError is raised, it is a list, so
         # set predict_for = 'single_entry':
         
-        predict_for = 'subset'
-        # map if we are dealing with a subset or single entry
         
-        if ((type(X) == list) | (type(X) == tuple)):
-            # Single entry as list or tuple
-            # Convert it to NumPy array:
-            X = np.array(X)
+        # Create functions for specific reshaping
+        def reshaper(architecture):
+            # Use the str function in case user input None or a number as architecture
+            if (str(architecture) == 'cnn_lstm'):
+                return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            elif ((str(architecture) == 'cnn')|(str(architecture) == 'lstm')|(str(architecture) == 'encoder_decoder')):
+                return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            else: # includes architecture is None
+                # return the array itself:
+                return (lambda x: np.array(x))
         
+        
+        # Put the arrays in the correct shape for the particular architecture
+        reshape_function = reshaper(architecture)
+        try:
+            X = reshape_function(X)
+        except:
+            pass
+        
+        # start a response dictionary:
+        response_dict = {}
+    
         # Run even if it come from list or tuple:
-        if ((type(X) == np.ndarray) & (len(X.shape) == 1)):
+        if (len(X.shape) == 1):
             # If X.shape has len == 1, it is a tuple like (4,)
             # Convert the numpy array to the correct shape. It runs even if the list or tuple was
             # converted.
@@ -4772,16 +4799,6 @@ class modelling_workflow:
             # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
             # used for training.
             
-            # Update the predict_for variable:
-            predict_for = 'single_entry'
-        
-        # Finally, convert to Tensor:
-        X = tf.constant(X)
-        
-        if (architecture == 'cnn_lstm'):
-            # Get the hybrid cnn-lstm time series model from class tf_models:
-            X = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))(X)
-        
         
         # prediction for a subset
         y_pred = model_object.predict(X)
@@ -4803,42 +4820,66 @@ class modelling_workflow:
             
         # The conclusion is that there is a third dimension only for models where return_sequences
         # = True or return_states = True
+        
+        if (function_used_for_fitting_dl_model == 'get_siamese_networks_model'):
             
-        if (len(y_pred.shape) > 2):
-                    
-            # The shape is a tuple containing 3 or more dimensions
-            # If we could access the third_dimension, than return_states and
-            # or return_sequences = True
+            y_pred = np.array(y_pred)
+            # Total of entries in the dataset:
+            # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
+            
+            if (architecture == 'encoder_decoder'):
+                # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
+                # the first position (index 0) of 2nd dimension
+                # This array has dimensions like (4, 48, 2, 1) for a 4-response model output.
+                # Notice that the 3rd dimension contains 2 dimensions, due to the parameter return_sequences = True.
+                # We want only the first value correspondent to this dimension.
+                # Also, notice that a single response model would have dimensions as (48, 2, 1), and the extra dimension
+                # correspondent to return_sequences = True would be the 2nd dim.
+                # Pick only the first value from third dimension:
+                y_pred = y_pred[:,:,0]
+            
+            total_data = len(y_pred[:, 0])
+            # It is equivalent to picking the first dimension of the X tensor or array
+            
+            total_of_responses = len(list_of_responses)
+            # Reshape y_pred so that it is in the correct format
+            # The predictions may come in a different shape, depending on the algorithm that
+            # generates them.
+            y_pred_array = y_pred.reshape(total_data, total_of_responses)
+            # the name was changed because the array must be used for several responses.
+            
+            # Now, loop through each response:
+            for index, response in enumerate(list_of_responses):
+                
+                # select only the arrays in position 'index' of the tensor y_pred
+                y_pred = y_pred_array[:, index]
+                # add it to the dictionary as the key response:
+                response_dict[('y_pred' + response)] = y_pred
 
-            # We want only the values stored as the 1st dimension
-            # y_pred is an array where each element is an array with two elements. 
-            # To get only the first elements:
-            # (slice the arrays: get all values only for dimension 0, the 1st dim):
-            y_pred = y_pred[:,0]
-            # if we used y_pred[:,1] we would get the second element, 
-            # which is the hidden state h (input of the next LSTM unit).
-            # It happens because of the parameter return_sequences = True. 
-            # If return_states = True, there would be a third element, corresponding 
-            # to the cell state c.
-            # Notice that we want only the 1st dimension (0), no matter the case.
+        else: # general case
             
+            if ((function_used_for_fitting_dl_model == 'get_deep_learning_tf_model') & (architecture == 'encoder_decoder')):
+                # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
+                # the first position (index 0) of 2nd dimension
+                y_pred = y_pred[:,0]
+            
+            # check if there is a suffix:
+            if not (column_with_predictions_suffix is None):
+                # There is a suffix declared
+                # Since there is a suffix, concatenate it to 'y_pred':
+                response_dict[( "y_pred" + column_with_predictions_suffix)] = y_pred
+                
+            else:
+                # Create the column name as the standard.
+                # The name of the new column is simply 'y_pred'
+                response_dict["y_pred"] = y_pred
+        
         # Check if there is a dataframe to concatenate the predictions
         if not (dataframe_for_concatenating_predictions is None):
                 
             # there is a dataframe for concatenating the predictions    
             # concatenate the predicted values with dataframe_for_concatenating_predictions.
             # Add the predicted values as a column:
-            
-            # check if there is a suffix:
-            if not (column_with_predictions_suffix is None):
-                # There is a suffix declared
-                # Since there is a suffix, concatenate it to 'y_pred':
-                col_name = "y_pred" + column_with_predictions_suffix
-                
-            else:
-                # Create the column name as the standard.
-                # The name of the new column is simply 'y_pred'
-                col_name = "y_pred"
                 
             # Set a local copy of the dataframe to manipulate:
             X_copy = dataframe_for_concatenating_predictions.copy(deep = True)
@@ -4846,9 +4887,11 @@ class modelling_workflow:
             # Add the predictions as the new column named col_name:
             # If y is a tensor, convert to NumPy array before adding. The numpy.array function
             # has no effect in numpy arrays, but is equivalent to the .numpy method for tensors
-            X_copy[col_name] = np.array(y_pred)
+            
+            for col_name, y_pred in response_dict.items():
+                X_copy[col_name] = y_pred
                 
-            print(f"The prediction was added as the new column {col_name} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
+            print(f"The prediction was added as the new columns {list(response_dict.keys())} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
             try:
                 # only works in Jupyter Notebook:
                 from IPython.display import display
@@ -4861,20 +4904,19 @@ class modelling_workflow:
             
         else:
             
-            if (predict_for == 'single_entry'):
-                
-                print("Making prediction for a single entry X.\n")
-                print(f"Output value predicted for the entry parameters = {y_pred}\n")    
-                print("Returning only the predicted value.")
+            # Convert the response_dict into a pandas DataFrame:
+            predictions_df = pd.DataFrame(data = response_dict)
+            print("Returning only the predicted values. Check the 10 first values of predictions dataframe:\n")
             
-            else:
-            
-                print("Returning only the predicted values. Check the 10 first values of the series:\n")
-                print(y_pred[:10]) # slice until 10th element from the series or list
-                # dataset[:,10]: all rows for column 10 of dataset
-                # dataset[1,:] - slice of all rows for row 1 of dataset.
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(predictions_df.head(10))
+                        
+            except: # regular mode
+                print(predictions_df.head(10))
                 
-            return y_pred
+            return predictions_df
 
 
     def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None, architecture = None):
