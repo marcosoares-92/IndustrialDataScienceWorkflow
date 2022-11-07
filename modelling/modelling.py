@@ -1276,9 +1276,41 @@ class model_checking:
             # Reshape y_pred so that it is in the same format as the y_true tensor
             # The predictions may come in a different shape, depending on the algorithm that
             # generates them.
-            y_pred_array = np.array(y_pred_tensor)
-            y_pred_array = y_pred_array.reshape(total_data, total_of_responses)
             
+            y_pred_array = np.array(y_pred_tensor)
+            
+            # If the prediction was generated from a 3D-tensor, it may have 4 dimensions, with the last dimension
+            # equals to 1. So, let's check this possibility (y_pred_array.shape is a tuple):
+            try:
+                if ((len(y_pred_array.shape) == 4) & (y_pred_array.shape[3] == 1)):
+                    # Pick only first index from last dimension:
+                    y_pred_array = y_pred_array[:,:,:,0]
+            except:
+                pass
+            
+            try:
+                # Either if it was processed through previous if-statement or if it came from a 2D-tensor, 
+                # it may have a third dimension equals to 1:
+                if ((len(y_pred_array.shape) == 3) & (y_pred_array.shape[2] == 1)):
+                    # Pick only first index from last dimension:
+                    y_pred_array = y_pred_array[:,:,0]
+            except:
+                pass
+            
+            try:
+                y_pred_array = y_pred_array.reshape(total_data, total_of_responses)
+                dim = 1
+                # the variable dim maps the position of the shape tuple correspondent to the total of responses
+            except:
+                # let's assume that the first dimension (index 0) is the total_of_responses
+                dim = 0
+                
+                # check the dimension correspondent to the total of responses, and correct it if it
+                # is not zero:
+                for tuple_index, tuple_value in enumerate(y_pred_array.shape):
+                    if(tuple_value == total_of_responses):
+                        dim = tuple_index
+                
             # Check if there is no None value stored:
             if ((y_true_array is not None) & (y_pred_array is not None)):
 
@@ -1294,8 +1326,24 @@ class model_checking:
                     type_of_problem = output_dictionary[response]['type']
                     # select only the arrays in position 'index' of the tensors y_true_tensor
                     # and y_pred_tensor:
-                    y_true = y_true_array[:, index]
-                    y_pred = y_pred_array[:, index]
+                    
+                    try:
+                        y_true = y_true_array[:, index]
+                        
+                        if (dim == 1):
+                            y_pred = y_pred_array[:, index]
+                    except:
+                        pass
+                    
+                    if (dim == 0):
+                        y_pred = y_pred_array[index]
+                    
+                    # If there is still an extra dimension related to the shift, pick only first value from each
+                    # array:
+                    try:
+                        y_pred = y_pred[:, 0]
+                    except:
+                        pass
                     
                 
                     # Regression metrics:
