@@ -1564,12 +1564,15 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             elif (model_type == 'arima'):
                 model_extension = 'pkl'
             
-            else:
-                print("Enter a valid model_type: keras, sklearn_xgb, or arima.")
+            # Finally, check if it is not the only one which can have several extensions:
+            elif (model_type != 'tensorflow_general'):
+                print("Enter a valid model_type: keras, tensorflow_general, sklearn, xgb_regressor, xgb_classifier, or arima.")
                 return "error2"
             
-            #concatenate:
-            model_path = model_path +  "." + model_extension
+            # If there is an extension, add it:
+            if (model_type != 'tensorflow_general'):
+                #concatenate:
+                model_path = model_path +  "." + model_extension
             
     # Now we have the full paths for the dictionary and for the model.
     
