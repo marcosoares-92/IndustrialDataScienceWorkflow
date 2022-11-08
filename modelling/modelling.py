@@ -25,10 +25,10 @@ class model_checking:
         self.model_type = model_type
         
         if (model_type == 'regression'):
-            self.metrics_name = 'mse'
+            self.metrics_name = 'mean_absolute_error'
         
         else:
-            self.metrics_name = 'crossentropy'
+            self.metrics_name = 'acc'
         
         # Add model package: 'tensorflow' (and keras), 'sklearn', or 'xgboost':
         self.package = model_package
@@ -92,6 +92,16 @@ class model_checking:
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html#sklearn.metrics.r2_score
+        from sklearn.metrics import mean_squared_error, mean_absolute_error, explained_variance_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html#sklearn.metrics.mean_squared_error
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html#sklearn.metrics.mean_absolute_error
+        from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html#sklearn.metrics.precision_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html#sklearn.metrics.recall_score
+        
 
         # Retrieve type of problem:
         model_type = self.model_type
@@ -116,22 +126,15 @@ class model_checking:
             if ((y_true is not None) & (y_pred is not None)):
 
                 calculated_metrics = {}
+                
+                y_true = np.array(y_true)
+                y_pred = np.array(y_pred)
 
                 # Regression metrics:
                 if (model_type == 'regression'):
 
                     print(f"Metrics for {key}:\n")
-                    mse = tf.keras.metrics.mean_squared_error(y_true, y_pred)
-                    #https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_squared_error?authuser=1
-                    # The function returns a NumPy array containing a single element. Extract it as
-                    # variable:
-                    # Then, some situations may return numpy arrays instead of scalars. We can convert
-                    # to a scalar by selecting only the first and single element from the array.
-                    
-                    try:
-                        mse = mse[0]
-                    except:
-                        pass
+                    mse = mean_squared_error(y_true, y_pred)
                     
                     # Print in scientific notation:
                     try:
@@ -141,21 +144,7 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['mse'] = mse
 
-                    # rmse is not available as function, only class. Use numpy method to convert to value
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/RootMeanSquaredError?authuser=1
-                    # Create the object:
-                    rmse = tf.keras.metrics.RootMeanSquaredError()
-                    # Update its state:
-                    rmse = rmse.update_state(y_true, y_pred)
-                    # Use the numpy method to retrieve only the value:
-                    rmse = rmse.numpy()
-                    # Here, numpy method already returns a scalar
-                    # Print in scientific notation:
-                    
-                    try:
-                        rmse = rmse[0]
-                    except:
-                        pass
+                    rmse = mse**(1/2)
                     
                     try:
                         print(f"Root mean squared error (RMSE) = {rmse:e}")
@@ -164,15 +153,7 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['rmse'] = rmse
 
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_error?authuser=1
-                    mae = tf.keras.metrics.mean_absolute_error(y_true, y_pred)
-                    # The function returns a NumPy array containing a single element. Extract it as
-                    # variable:
-                    
-                    try:
-                        mae = mae[0]
-                    except:
-                        pass
+                    mae = mean_absolute_error(y_true, y_pred)
                     
                     # Print in scientific notation:
                     try:
@@ -181,16 +162,10 @@ class model_checking:
                         print(f"Mean absolute error (MAE) = {mae}")
                     # Add to calculated metrics:
                     calculated_metrics['mae'] = mae
-
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_percentage_error?authuser=1
-                    mape = tf.keras.metrics.mean_absolute_percentage_error(y_true, y_pred)
-                    # The function returns a NumPy array containing a single element. Extract it as
-                    # variable:
                     
-                    try:
-                        mape = mape[0]
-                    except:
-                        pass
+                    # Mean absolute percentage error: non-stable Sklearn function
+                    # y_true and y_pred must be already numpy arrays:
+                    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
                     
                     # Print in scientific notation:
                     try:
@@ -200,96 +175,42 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['mape'] = mape
                     
+                    r2 = r2_score(y_true, y_pred)
+                        
                     try:
-                        import tensorflow_addons as tfa
-                        # https://www.tensorflow.org/addons
-                        # R2 and R2-adj are available only as tfa object:
-                        # https://www.tensorflow.org/addons/api_docs/python/tfa/metrics/RSquare
-                        # Create the object:
-                        r2 = tfa.metrics.RSquare()
-                        # Update its state:
-                        # tfa method returns None, so we must only call the method:
-                        r2.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        r2 = r2.result().numpy() # already a scalar
-                        # for this tfa metrics, the methods result and numpy must be chained
-                        # otherwise, an error will be raised.
-                        
-                        try:
-                            r2 = r2[0]
-                        except:
-                            pass
-                        
-                        try:
-                            print(f"Coefficient of linear correlation R² = {r2:e}")
-                        except:
-                            print(f"Coefficient of linear correlation R² = {r2}")
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared'] = r2
-                        
+                        print(f"Coefficient of linear correlation R² = {r2:e}")
                     except:
-                        r2 = r2_score(y_true.numpy(), y_pred.numpy())
-                        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
-                        try:
-                            r2 = r2[0]
-                        except:
-                            pass
-                        
-                        
-                        try:
-                            print(f"Coefficient of linear correlation R² = {r2:e}")
-                        except:
-                            print(f"Coefficient of linear correlation R² = {r2}")
-                        
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared'] = r2
+                        print(f"Coefficient of linear correlation R² = {r2}")
+                    # Add to calculated metrics:
+                    calculated_metrics['r_squared'] = r2
+                    
+                    # Manually correct R²:
+                    # n_size_train = number of sample size
+                    # k_model = number of independent variables of the defined model
+                    k_model = self.total_predictors
+                    #numer of rows
+                    n_size = len(y_true)
+                    r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
                     
                     try:
-                        # Try to calculate the adjusted R² by accessing the number of predictors:
-                        # This number may not be present.
-                        total_predictors = self.total_predictors
-                        # Create the object:
-                        r2_adj = tfa.metrics.RSquare(num_regressors = total_predictors)
-                        # Update its state. Again, method returns None:
-                        r2_adj.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        r2_adj = r2_adj.result().numpy() # scalar
-                        # Again, the methods result and numpy must be chained
-                        
-                        try:
-                            r2_adj = r2_adj[0]
-                        except:
-                            pass
-                        
-                        try:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                        except:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared_adj'] = r2_adj
-
+                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
                     except:
-                        # Manually correct R²:
-                        # n_size_train = number of sample size
-                        # k_model = number of independent variables of the defined model
-                        k_model = self.total_predictors
-                        #numer of rows
-                        n_size = len(y_true)
-                        r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
+                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
                         
-                        try:
-                            r2_adj = r2_adj[0]
-                        except:
-                            pass
+                    # Add to calculated metrics:
+                    calculated_metrics['r_squared_adj'] = r2_adj
+                    
+                    explained_var = explained_variance_score(y_true, y_pred)
+                    # Print in scientific notation:
+                    try:
+                        print(f"Explained variance = {explained_var:e}")
                         
-                        
-                        try:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                        except:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
-                        
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared_adj'] = r2_adj
+                    except:
+                        print(f"Explained variance = {explained_var}")
+                    
+                    # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
+                    # difference that it does not account for systematic offsets in the prediction.
+                    calculated_metrics['explained_variance'] = explained_var
                     
                     print("\n")
                     # Now, add the metrics to the metrics_dict:
@@ -298,17 +219,8 @@ class model_checking:
                 else:
                     
                     print(f"Metrics for {key}:\n")
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/AUC
-                    # Create the object:
-                    auc = tf.keras.metrics.AUC()
-                    # Update its state:
-                    auc.update_state(y_true, y_pred)
-                    # Use the numpy method to retrieve only the value:
-                    auc = auc.result().numpy() # scalar
-                    try:
-                        auc = auc[0]
-                    except:
-                        pass
+                    
+                    auc = roc_auc_score(y_true, y_pred)
                     
                     try:
                         print(f"AUC = {auc:e}")
@@ -317,17 +229,7 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['auc'] = auc
 
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Accuracy
-                    # Create the object:
-                    acc = tf.keras.metrics.Accuracy()
-                    # Update its state:
-                    acc.update_state(y_true, y_pred)
-                    # Use the numpy method to retrieve only the value:
-                    acc = acc.result().numpy() # scalar
-                    try:
-                        acc = acc[0]
-                    except:
-                        pass
+                    acc = accuracy_score(y_true, y_pred)
                     
                     try:
                         print(f"Accuracy = {acc:e}")
@@ -336,17 +238,7 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['accuracy'] = acc
 
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Precision
-                    # Create the object:
-                    precision = tf.keras.metrics.Precision()
-                    # Update its state:
-                    precision.update_state(y_true, y_pred)
-                    # Use the numpy method to retrieve only the value:
-                    precision = precision.result().numpy() # scalar
-                    try:
-                        precision = precision[0]
-                    except:
-                        pass
+                    precision = precision_score(y_true, y_pred)
                     
                     try:
                         print(f"Precision = {precision:e}")
@@ -355,17 +247,7 @@ class model_checking:
                     # Add to calculated metrics:
                     calculated_metrics['precision'] = precision
 
-                    # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Recall
-                    # Create the object:
-                    recall = tf.keras.metrics.Recall()
-                    # Update its state:
-                    recall.update_state(y_true, y_pred)
-                    # Use the numpy method to retrieve only the value:
-                    recall = recall.result().numpy() # scalar
-                    try:
-                        recall = recall[0]
-                    except:
-                        pass
+                    recall = recall_score(y_true, y_pred)
                     
                     try:
                         print(f"Recall = {recall:e}")
@@ -380,7 +262,7 @@ class model_checking:
                     print("\n")
                     print("Classification Report:\n")
                     # Convert tensors to NumPy arrays
-                    report = classification_report (y_true.numpy(), y_pred.numpy())
+                    report = classification_report (y_true, y_pred)
                     print(report)
                     # Add to calculated metrics:
                     calculated_metrics['classification_report'] = report
@@ -388,7 +270,7 @@ class model_checking:
 
                     # Get the confusion matrix:
                     # Convert tensors to NumPy arrays
-                    matrix = confusion_matrix (y_true.numpy(), y_pred.numpy())
+                    matrix = confusion_matrix (y_true, y_pred)
                     # Add to calculated metrics:
                     calculated_metrics['confusion_matrix'] = report
                     print("Confusion matrix:\n")
@@ -821,7 +703,7 @@ class model_checking:
 
         return self
 
-    def plot_training_history (self, metrics_name = 'mse', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
         import numpy as np
         import pandas as pd
@@ -1239,6 +1121,16 @@ class model_checking:
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html#sklearn.metrics.r2_score
+        from sklearn.metrics import mean_squared_error, mean_absolute_error, explained_variance_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html#sklearn.metrics.mean_squared_error
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html#sklearn.metrics.mean_absolute_error
+        from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html#sklearn.metrics.precision_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html#sklearn.metrics.recall_score
+        
 
         # Retrieve type of problem:
         model_type = self.model_type
@@ -1341,25 +1233,19 @@ class model_checking:
                     # If there is still an extra dimension related to the shift, pick only first value from each
                     # array:
                     try:
-                        y_pred = y_pred[:, 0]
+                        assert (y_pred.shape == y_true.shape)
                     except:
-                        pass
-                    
-                
+                        try:
+                            y_pred = y_pred[:, 0]
+                        except:
+                            pass
+                        
+
                     # Regression metrics:
                     if (model_type == 'regression'):
 
-                        mse = tf.keras.metrics.mean_squared_error(y_true, y_pred)
-                        #https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_squared_error?authuser=1
-                        # The function returns a NumPy array containing a single element. Extract it as
-                        # variable:
-                        # Then, some situations may return numpy arrays instead of scalars. We can convert
-                        # to a scalar by selecting only the first and single element from the array.
-
-                        try:
-                            mse = mse[0]
-                        except:
-                            pass
+                        print(f"Metrics for {key}:\n")
+                        mse = mean_squared_error(y_true, y_pred)
 
                         # Print in scientific notation:
                         try:
@@ -1369,21 +1255,7 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['mse'] = mse
 
-                        # rmse is not available as function, only class. Use numpy method to convert to value
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/RootMeanSquaredError?authuser=1
-                        # Create the object:
-                        rmse = tf.keras.metrics.RootMeanSquaredError()
-                        # Update its state:
-                        rmse = rmse.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        rmse = rmse.numpy()
-                        # Here, numpy method already returns a scalar
-                        # Print in scientific notation:
-
-                        try:
-                            rmse = rmse[0]
-                        except:
-                            pass
+                        rmse = mse**(1/2)
 
                         try:
                             print(f"Root mean squared error (RMSE) = {rmse:e}")
@@ -1392,15 +1264,7 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['rmse'] = rmse
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_error?authuser=1
-                        mae = tf.keras.metrics.mean_absolute_error(y_true, y_pred)
-                        # The function returns a NumPy array containing a single element. Extract it as
-                        # variable:
-
-                        try:
-                            mae = mae[0]
-                        except:
-                            pass
+                        mae = mean_absolute_error(y_true, y_pred)
 
                         # Print in scientific notation:
                         try:
@@ -1410,15 +1274,9 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['mae'] = mae
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/mean_absolute_percentage_error?authuser=1
-                        mape = tf.keras.metrics.mean_absolute_percentage_error(y_true, y_pred)
-                        # The function returns a NumPy array containing a single element. Extract it as
-                        # variable:
-
-                        try:
-                            mape = mape[0]
-                        except:
-                            pass
+                        # Mean absolute percentage error: non-stable Sklearn function
+                        # y_true and y_pred must be already numpy arrays:
+                        mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
                         # Print in scientific notation:
                         try:
@@ -1428,112 +1286,50 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['mape'] = mape
 
-                        try:
-                            import tensorflow_addons as tfa
-                            # https://www.tensorflow.org/addons
-                            # R2 and R2-adj are available only as tfa object:
-                            # https://www.tensorflow.org/addons/api_docs/python/tfa/metrics/RSquare
-                            # Create the object:
-                            r2 = tfa.metrics.RSquare()
-                            # Update its state:
-                            # tfa method returns None, so we must only call the method:
-                            r2.update_state(y_true, y_pred)
-                            # Use the numpy method to retrieve only the value:
-                            r2 = r2.result().numpy() # already a scalar
-                            # for this tfa metrics, the methods result and numpy must be chained
-                            # otherwise, an error will be raised.
-
-                            try:
-                                r2 = r2[0]
-                            except:
-                                pass
-
-                            try:
-                                print(f"Coefficient of linear correlation R² = {r2:e}")
-                            except:
-                                print(f"Coefficient of linear correlation R² = {r2}")
-                            # Add to calculated metrics:
-                            calculated_metrics['r_squared'] = r2
-
-                        except:
-                            r2 = r2_score(y_true, y_pred)
-                            # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
-                            try:
-                                r2 = r2[0]
-                            except:
-                                pass
-
-
-                            try:
-                                print(f"Coefficient of linear correlation R² = {r2:e}")
-                            except:
-                                print(f"Coefficient of linear correlation R² = {r2}")
-
-                            # Add to calculated metrics:
-                            calculated_metrics['r_squared'] = r2
+                        r2 = r2_score(y_true, y_pred)
 
                         try:
-                            # Try to calculate the adjusted R² by accessing the number of predictors:
-                            # This number may not be present.
-                            total_predictors = self.total_predictors
-                            # Create the object:
-                            r2_adj = tfa.metrics.RSquare(num_regressors = total_predictors)
-                            # Update its state. Again, method returns None:
-                            r2_adj.update_state(y_true, y_pred)
-                            # Use the numpy method to retrieve only the value:
-                            r2_adj = r2_adj.result().numpy() # scalar
-                            # Again, the methods result and numpy must be chained
+                            print(f"Coefficient of linear correlation R² = {r2:e}")
+                        except:
+                            print(f"Coefficient of linear correlation R² = {r2}")
+                        # Add to calculated metrics:
+                        calculated_metrics['r_squared'] = r2
 
-                            try:
-                                r2_adj = r2_adj[0]
-                            except:
-                                pass
+                        # Manually correct R²:
+                        # n_size_train = number of sample size
+                        # k_model = number of independent variables of the defined model
+                        k_model = self.total_predictors
+                        #numer of rows
+                        n_size = len(y_true)
+                        r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
 
-                            try:
-                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                            except:
-                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
-                            # Add to calculated metrics:
-                            calculated_metrics['r_squared_adj'] = r2_adj
+                        try:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        except:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+
+                        # Add to calculated metrics:
+                        calculated_metrics['r_squared_adj'] = r2_adj
+
+                        explained_var = explained_variance_score(y_true, y_pred)
+                        # Print in scientific notation:
+                        try:
+                            print(f"Explained variance = {explained_var:e}")
 
                         except:
-                            # Manually correct R²:
-                            # n_size_train = number of sample size
-                            # k_model = number of independent variables of the defined model
-                            k_model = self.total_predictors
-                            #numer of rows
-                            n_size = len(y_true)
-                            r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
+                            print(f"Explained variance = {explained_var}")
 
-                            try:
-                                r2_adj = r2_adj[0]
-                            except:
-                                pass
-
-
-                            try:
-                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                            except:
-                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
-
-                            # Add to calculated metrics:
-                            calculated_metrics['r_squared_adj'] = r2_adj
+                        # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
+                        # difference that it does not account for systematic offsets in the prediction.
+                        calculated_metrics['explained_variance'] = explained_var
 
                         print("\n")
 
                     else:
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/AUC
-                        # Create the object:
-                        auc = tf.keras.metrics.AUC()
-                        # Update its state:
-                        auc.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        auc = auc.result().numpy() # scalar
-                        try:
-                            auc = auc[0]
-                        except:
-                            pass
+                        print(f"Metrics for {key}:\n")
+                    
+                        auc = roc_auc_score(y_true, y_pred)
 
                         try:
                             print(f"AUC = {auc:e}")
@@ -1542,17 +1338,7 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['auc'] = auc
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Accuracy
-                        # Create the object:
-                        acc = tf.keras.metrics.Accuracy()
-                        # Update its state:
-                        acc.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        acc = acc.result().numpy() # scalar
-                        try:
-                            acc = acc[0]
-                        except:
-                            pass
+                        acc = accuracy_score(y_true, y_pred)
 
                         try:
                             print(f"Accuracy = {acc:e}")
@@ -1561,17 +1347,7 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['accuracy'] = acc
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Precision
-                        # Create the object:
-                        precision = tf.keras.metrics.Precision()
-                        # Update its state:
-                        precision.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        precision = precision.result().numpy() # scalar
-                        try:
-                            precision = precision[0]
-                        except:
-                            pass
+                        precision = precision_score(y_true, y_pred)
 
                         try:
                             print(f"Precision = {precision:e}")
@@ -1580,17 +1356,7 @@ class model_checking:
                         # Add to calculated metrics:
                         calculated_metrics['precision'] = precision
 
-                        # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Recall
-                        # Create the object:
-                        recall = tf.keras.metrics.Recall()
-                        # Update its state:
-                        recall.update_state(y_true, y_pred)
-                        # Use the numpy method to retrieve only the value:
-                        recall = recall.result().numpy() # scalar
-                        try:
-                            recall = recall[0]
-                        except:
-                            pass
+                        recall = recall_score(y_true, y_pred)
 
                         try:
                             print(f"Recall = {recall:e}")
@@ -1936,10 +1702,11 @@ class tf_models:
         self.number_of_classes = number_of_classes
         
         if (type_of_problem == 'regression'):    
-            self.metrics = 'mse'
+            self.metrics = [tf.keras.metrics.MeanAbsoluteError()]
+            # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/MeanAbsoluteError
             self.loss = 'mse'
             self.output_layer = tf.keras.layers.Dense(units = 1, name = 'output')
-            self.metrics_name = 'mse'
+            self.metrics_name = 'mean_absolute_error'
         
         elif (type_of_problem == 'classification'):
             
@@ -1959,7 +1726,7 @@ class tf_models:
         
         else: # both
             
-            self.metrics_regression = 'mse'
+            self.metrics_regression = [tf.keras.metrics.MeanAbsoluteError()]
             self.loss_regression = 'mse'
             self.output_regression_layer = tf.keras.layers.Dense(units = 1, name = 'output_regression')
             
@@ -2790,7 +2557,8 @@ class siamese_networks:
             # or as the attribute ._name, which contains the correspondent string
         
             if (type_of_problem == 'regression'):    
-                metrics = 'mse'
+                metrics = tf.keras.metrics.MeanAbsoluteError()
+                # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/MeanAbsoluteError
                 loss = 'mse'
                 # Add it to the losses and metrics dictionaries:
                 # Concatenate "output_" since the names of the output layers start as this
@@ -4523,25 +4291,51 @@ class modelling_workflow:
         history = tf_model_obj.history
         
         # Get predictions for training, testing, and validation:
-        y_preds_for_train = model.predict(X_train)
+        y_preds_for_train = np.array(model.predict(X_train))
+        total_dimensions = len(y_preds_for_train.shape)
         
         if (architecture == 'encoder_decoder'):
             # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
             # the first position (index 0) of 2nd dimension
             y_preds_for_train = y_preds_for_train[:,0]
-
+        
+        last_dim = y_preds_for_train.shape[(total_dimensions - 1)] # indexing starts from zero
+        if (last_dim == 1): # remove last dimension
+            if (total_dimensions == 4):
+                y_preds_for_train = y_preds_for_train[:,:,:,0]
+            elif (total_dimensions == 3):
+                y_preds_for_train = y_preds_for_train[:,:,0]
+            elif (total_dimensions == 2):
+                y_preds_for_train = y_preds_for_train[:,0]
+        
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = model.predict(X_test)
+            y_preds_for_test = np.array(model.predict(X_test))
+            last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
             if (architecture == 'encoder_decoder'):
                 y_preds_for_test = y_preds_for_test[:,0]
+            if (last_dim == 1): # remove last dimension
+                if (total_dimensions == 4):
+                    y_preds_for_test = y_preds_for_test[:,:,:,0]
+                elif (total_dimensions == 3):
+                    y_preds_for_test = y_preds_for_test[:,:,0]
+                elif (total_dimensions == 2):
+                    y_preds_for_test = y_preds_for_test[:,0]
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
-            y_preds_for_validation = model.predict(X_valid)
+            y_preds_for_validation = np.array(model.predict(X_valid))
+            last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
             if (architecture == 'encoder_decoder'):
                 y_preds_for_validation = y_preds_for_validation[:,0]
+            if (last_dim == 1): # remove last dimension
+                if (total_dimensions == 4):
+                    y_preds_for_validation = y_preds_for_validation[:,:,:,0]
+                elif (total_dimensions == 3):
+                    y_preds_for_validation = y_preds_for_validation[:,:,0]
+                elif (total_dimensions == 2):
+                    y_preds_for_validation = y_preds_for_validation[:,0]
 
         else:
             y_preds_for_validation = None
@@ -4555,6 +4349,9 @@ class modelling_workflow:
         metrics_dict = model_check.metrics_dict
 
         print("Check the training loss and metrics curve below:\n")
+        print("Regression models: metrics = MAE; loss = MSE.")
+        print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
+        
         model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
         print("\n")
         
@@ -4679,13 +4476,13 @@ class modelling_workflow:
         
         
         # Get predictions for training, testing, and validation:
-        y_preds_for_train = model.predict(X_train)
+        y_preds_for_train = np.array(model.predict(X_train))
+        
+        total_dimensions = len(y_preds_for_train.shape)
         
         if (architecture == 'encoder_decoder'):
             # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
             # the first position (index 0) of 2nd dimension
-            # Convert to Numpy array:
-            y_preds_for_train = np.array(y_preds_for_train)
             # This array has dimensions like (4, 48, 2, 1) for a 4-response model output.
             # Notice that the 3rd dimension contains 2 dimensions, due to the parameter return_sequences = True.
             # We want only the first value correspondent to this dimension.
@@ -4693,21 +4490,44 @@ class modelling_workflow:
             # correspondent to return_sequences = True would be the 2nd dim.
             # Pick only the first value from third dimension:
             y_preds_for_train = y_preds_for_train[:,:,0]
-
+        
+        last_dim = y_preds_for_train.shape[(total_dimensions - 1)] # indexing starts from zero
+        if (last_dim == 1): # remove last dimension
+            if (total_dimensions == 4):
+                y_preds_for_train = y_preds_for_train[:,:,:,0]
+            elif (total_dimensions == 3):
+                y_preds_for_train = y_preds_for_train[:,:,0]
+            elif (total_dimensions == 2):
+                y_preds_for_train = y_preds_for_train[:,0]
+        
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = model.predict(X_test)
+            y_preds_for_test = np.array(model.predict(X_test))
+            last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
             if (architecture == 'encoder_decoder'):
-                y_preds_for_test = np.array(y_preds_for_test)
                 y_preds_for_test = y_preds_for_test[:,:,0]
+            if (last_dim == 1): # remove last dimension
+                if (total_dimensions == 4):
+                    y_preds_for_test = y_preds_for_test[:,:,:,0]
+                elif (total_dimensions == 3):
+                    y_preds_for_test = y_preds_for_test[:,:,0]
+                elif (total_dimensions == 2):
+                    y_preds_for_test = y_preds_for_test[:,0]
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
-            y_preds_for_validation = model.predict(X_valid)
+            y_preds_for_validation = np.array(model.predict(X_valid))
+            last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
             if (architecture == 'encoder_decoder'):
-                y_preds_for_validation = np.array(y_preds_for_validation)
                 y_preds_for_validation = y_preds_for_validation[:,:,0]
+            if (last_dim == 1): # remove last dimension
+                if (total_dimensions == 4):
+                    y_preds_for_validation = y_preds_for_validation[:,:,:,0]
+                elif (total_dimensions == 3):
+                    y_preds_for_validation = y_preds_for_validation[:,:,0]
+                elif (total_dimensions == 2):
+                    y_preds_for_validation = y_preds_for_validation[:,0]
 
         else:
             y_preds_for_validation = None
@@ -4719,7 +4539,13 @@ class modelling_workflow:
         # Retrieve model metrics:
         metrics_dict = model_check.metrics_dict
         
+        print("Check the training loss and metrics curve below:\n")
+        print("Regression models: metrics = MAE; loss = MSE.")
+        print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
+        
         model_check = model_check.plot_history_multiresponses (x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+        
+        
         print("\n")
 
         print("Notice that:")
@@ -4846,13 +4672,26 @@ class modelling_workflow:
             # generates an array like array([[1, 2, 3, 4]])
             # The reshape (-1, 1) generates an array like ([1], [2], ...) with format for the y-vector
             # used for training.
+        
+        # Total of entries in the dataset:
+        # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
+        total_data = len(X)
+        
+        if (len(list_of_responses) == 0):
+            total_of_responses = 1
+        else:
+            total_of_responses = len(list_of_responses)
             
+        print(f"Predicting {total_of_responses} responses for a total of {total_data} entries.\n")
         
         # prediction for a subset
-        y_pred = model_object.predict(X)
+        y_pred = np.array(model_object.predict(X))
         print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.\n")
         print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.\n")
-            
+        
+        total_dimensions = len(y_pred.shape)
+        last_dim = y_pred.shape[(total_dimensions - 1)] # indexing starts from zero
+        
         # If y_pred came from a RNN with the parameter return_sequences = True and/or
         # return_states = True, then the hidden and/or cell states from the LSTMs
         # were returned. So, the returned array has at least one extra dimensions (two
@@ -4871,9 +4710,39 @@ class modelling_workflow:
         
         if (function_used_for_fitting_dl_model == 'get_siamese_networks_model'):
             
-            y_pred = np.array(y_pred)
-            # Total of entries in the dataset:
-            # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
+            y_pred_array = y_pred # save in another variable for re-using later
+            
+            # If the prediction was generated from a 3D-tensor, it may have 4 dimensions, with the last dimension
+            # equals to 1. So, let's check this possibility (y_pred_array.shape is a tuple):
+            try:
+                if ((len(y_pred_array.shape) == 4) & (y_pred_array.shape[3] == 1)):
+                        # Pick only first index from last dimension:
+                        y_pred_array = y_pred_array[:,:,:,0]
+            except:
+                pass
+                
+            try:
+                # Either if it was processed through previous if-statement or if it came from a 2D-tensor, 
+                # it may have a third dimension equals to 1:
+                if ((len(y_pred_array.shape) == 3) & (y_pred_array.shape[2] == 1)):
+                    # Pick only first index from last dimension:
+                    y_pred_array = y_pred_array[:,:,0]
+            except:
+                pass
+                
+            try:
+                y_pred_array = y_pred_array.reshape(total_data, total_of_responses)
+                dim = 1
+                    # the variable dim maps the position of the shape tuple correspondent to the total of responses
+            except:
+                # let's assume that the first dimension (index 0) is the total_of_responses
+                dim = 0
+                    
+                # check the dimension correspondent to the total of responses, and correct it if it
+                # is not zero:
+                for tuple_index, tuple_value in enumerate(y_pred_array.shape):
+                    if(tuple_value == total_of_responses):
+                        dim = tuple_index
             
             if (architecture == 'encoder_decoder'):
                 # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
@@ -4884,32 +4753,39 @@ class modelling_workflow:
                 # Also, notice that a single response model would have dimensions as (48, 2, 1), and the extra dimension
                 # correspondent to return_sequences = True would be the 2nd dim.
                 # Pick only the first value from third dimension:
-                y_pred = y_pred[:,:,0]
+                y_pred_array = y_pred_array[:,:,0]
             
-            total_data = len(y_pred[:, 0])
-            # It is equivalent to picking the first dimension of the X tensor or array
-            
-            total_of_responses = len(list_of_responses)
-            # Reshape y_pred so that it is in the correct format
-            # The predictions may come in a different shape, depending on the algorithm that
-            # generates them.
-            y_pred_array = y_pred.reshape(total_data, total_of_responses)
-            # the name was changed because the array must be used for several responses.
-            
+
             # Now, loop through each response:
             for index, response in enumerate(list_of_responses):
                 
-                # select only the arrays in position 'index' of the tensor y_pred
-                y_pred = y_pred_array[:, index]
+                if (dim == 1):
+                    y_pred = y_pred_array[:, index]
+                
+                elif (dim == 0):
+                    y_pred = y_pred_array[index]
+                
                 # add it to the dictionary as the key response:
                 response_dict[('y_pred' + response)] = y_pred
 
         else: # general case
             
-            if ((function_used_for_fitting_dl_model == 'get_deep_learning_tf_model') & (architecture == 'encoder_decoder')):
-                # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
-                # the first position (index 0) of 2nd dimension
-                y_pred = y_pred[:,0]
+            if (function_used_for_fitting_dl_model == 'get_deep_learning_tf_model'):
+                
+                if (architecture == 'encoder_decoder'):
+                    # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
+                    # the first position (index 0) of 2nd dimension
+                    y_pred = y_pred[:,0]
+                    total_dimensions = len(y_pred.shape)
+                    last_dim = y_pred.shape[(total_dimensions - 1)]
+                
+                if (last_dim == 1): # remove last dimension
+                    if (total_dimensions == 4):
+                        y_pred = y_pred[:,:,:,0]
+                    elif (total_dimensions == 3):
+                        y_pred = y_pred[:,:,0]
+                    elif (total_dimensions == 2):
+                        y_pred = y_pred[:,0]
             
             # check if there is a suffix:
             if not (column_with_predictions_suffix is None):
