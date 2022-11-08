@@ -4766,7 +4766,7 @@ class modelling_workflow:
                     y_pred = y_pred_array[index]
                 
                 # add it to the dictionary as the key response:
-                response_dict[('y_pred' + response)] = y_pred
+                response_dict[('y_pred_' + response)] = y_pred
 
         else: # general case
             
@@ -4791,7 +4791,7 @@ class modelling_workflow:
             if not (column_with_predictions_suffix is None):
                 # There is a suffix declared
                 # Since there is a suffix, concatenate it to 'y_pred':
-                response_dict[( "y_pred" + column_with_predictions_suffix)] = y_pred
+                response_dict[( "y_pred_" + column_with_predictions_suffix)] = y_pred
                 
             else:
                 # Create the column name as the standard.
