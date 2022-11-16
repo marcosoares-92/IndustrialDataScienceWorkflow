@@ -41,27 +41,45 @@ class model_checking:
         # Add the y series for computing general metrics:
         # Guarantee that they are tensorflow tensors
         if (y_train is not None):
-            self.y_train = tf.constant(y_train)
+            if (len(y_train) > 0):
+                self.y_train = tf.constant(y_train)
+            else:
+                self.y_train = None
         else:
             self.y_train = None
         if (y_preds_for_train is not None):
-            self.y_preds_for_train = tf.constant(y_preds_for_train)
+            if (len(y_preds_for_train) > 0):
+                self.y_preds_for_train = tf.constant(y_preds_for_train)
+            else:
+                self.y_train = None
         else:
             self.y_train = None
         if (y_test is not None):
-            self.y_test = tf.constant(y_test)
+            if (len(y_test) > 0):
+                self.y_test = tf.constant(y_test)
+            else:
+                self.y_test = None
         else:
             self.y_test = None
         if (y_preds_for_test is not None):
-            self.y_preds_for_test = tf.constant(y_preds_for_test)
+            if (len(y_preds_for_test) > 0):
+                self.y_preds_for_test = tf.constant(y_preds_for_test)
+            else:
+                self.y_preds_for_test = None
         else:
             self.y_preds_for_test = None
         if (y_valid is not None):
-            self.y_valid = tf.constant(y_valid)
+            if (len(y_valid) > 0):
+                self.y_valid = tf.constant(y_valid)
+            else:
+                self.y_valid = None
         else:
             self.y_valid = None
         if (y_preds_for_validation is not None):
-            self.y_preds_for_validation = tf.constant(y_preds_for_validation)
+            if (len(y_preds_for_validation) > 0):
+                self.y_preds_for_validation = tf.constant(y_preds_for_validation)
+            else:
+                self.y_preds_for_validation = None
         else:
             self.y_preds_for_validation = None
 
@@ -69,10 +87,13 @@ class model_checking:
         # We only want to obtain the total number of predictors. X.shape is like:
         # TensorShape([253, 11]). Second index [1] is the number of predictors:
         if (X is not None):
-            # make sure it is a tensor:
-            X = tf.constant(X)
-            total_predictors = X.shape[1]
-            self.total_predictors = total_predictors
+            if (len(X) > 0):
+                # make sure it is a tensor:
+                X = tf.constant(X)
+                total_predictors = X.shape[1]
+                self.total_predictors = total_predictors
+            else:
+                X = None
 
         # to check the class attributes, use the __dict__ method or the vars function. Examples:
         ## object.__dict__ will show all attributes from object
@@ -123,222 +144,229 @@ class model_checking:
             y_true =  nested_dict['actual']
             y_pred = nested_dict['predictions']
             # Check if there is no None value stored:
+            
             if ((y_true is not None) & (y_pred is not None)):
 
                 calculated_metrics = {}
                 
                 y_true = np.array(y_true)
                 y_pred = np.array(y_pred)
+                
+                try:
+                
+                    # Regression metrics:
+                    if (model_type == 'regression'):
 
-                # Regression metrics:
-                if (model_type == 'regression'):
+                        print(f"Metrics for {key}:\n")
+                        mse = mean_squared_error(y_true, y_pred)
 
-                    print(f"Metrics for {key}:\n")
-                    mse = mean_squared_error(y_true, y_pred)
-                    
-                    # Print in scientific notation:
-                    try:
-                        print(f"Mean squared error (MSE) = {mse:e}")
-                    except:
-                        print(f"Mean squared error (MSE) = {mse}")
-                    # Add to calculated metrics:
-                    calculated_metrics['mse'] = mse
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean squared error (MSE) = {mse:e}")
+                        except:
+                            print(f"Mean squared error (MSE) = {mse}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mse'] = mse
 
-                    rmse = mse**(1/2)
-                    
-                    try:
-                        print(f"Root mean squared error (RMSE) = {rmse:e}")
-                    except:
-                        print(f"Root mean squared error (RMSE) = {rmse}")
-                    # Add to calculated metrics:
-                    calculated_metrics['rmse'] = rmse
+                        rmse = mse**(1/2)
 
-                    mae = mean_absolute_error(y_true, y_pred)
-                    
-                    # Print in scientific notation:
-                    try:
-                        print(f"Mean absolute error (MAE) = {mae:e}")
-                    except:
-                        print(f"Mean absolute error (MAE) = {mae}")
-                    # Add to calculated metrics:
-                    calculated_metrics['mae'] = mae
-                    
-                    # Mean absolute percentage error: non-stable Sklearn function
-                    # y_true and y_pred must be already numpy arrays:
-                    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-                    
-                    # Print in scientific notation:
-                    try:
-                        print(f"Mean absolute percentage error (MAPE) = {mape:e}")
-                    except:
-                        print(f"Mean absolute percentage error (MAPE) = {mape}")
-                    # Add to calculated metrics:
-                    calculated_metrics['mape'] = mape
-                    
-                    r2 = r2_score(y_true, y_pred)
-                        
-                    try:
-                        print(f"Coefficient of linear correlation R² = {r2:e}")
-                    except:
-                        print(f"Coefficient of linear correlation R² = {r2}")
-                    # Add to calculated metrics:
-                    calculated_metrics['r_squared'] = r2
-                    
-                    # Manually correct R²:
-                    # n_size_train = number of sample size
-                    # k_model = number of independent variables of the defined model
-                    k_model = self.total_predictors
-                    #numer of rows
-                    n_size = len(y_true)
-                    r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
-                    
-                    try:
-                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                    except:
-                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
-                        
-                    # Add to calculated metrics:
-                    calculated_metrics['r_squared_adj'] = r2_adj
-                    
-                    explained_var = explained_variance_score(y_true, y_pred)
-                    # Print in scientific notation:
-                    try:
-                        print(f"Explained variance = {explained_var:e}")
-                        
-                    except:
-                        print(f"Explained variance = {explained_var}")
-                    
-                    # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
-                    # difference that it does not account for systematic offsets in the prediction.
-                    calculated_metrics['explained_variance'] = explained_var
-                    
-                    print("\n")
-                    # Now, add the metrics to the metrics_dict:
-                    metrics_dict[key] = calculated_metrics
+                        try:
+                            print(f"Root mean squared error (RMSE) = {rmse:e}")
+                        except:
+                            print(f"Root mean squared error (RMSE) = {rmse}")
+                        # Add to calculated metrics:
+                        calculated_metrics['rmse'] = rmse
 
-                else:
-                    
-                    print(f"Metrics for {key}:\n")
-                    
-                    auc = roc_auc_score(y_true, y_pred)
-                    
-                    try:
-                        print(f"AUC = {auc:e}")
-                    except:
-                        print(f"AUC = {auc}")
-                    # Add to calculated metrics:
-                    calculated_metrics['auc'] = auc
+                        mae = mean_absolute_error(y_true, y_pred)
 
-                    acc = accuracy_score(y_true, y_pred)
-                    
-                    try:
-                        print(f"Accuracy = {acc:e}")
-                    except:
-                        print(f"Accuracy = {acc}")
-                    # Add to calculated metrics:
-                    calculated_metrics['accuracy'] = acc
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean absolute error (MAE) = {mae:e}")
+                        except:
+                            print(f"Mean absolute error (MAE) = {mae}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mae'] = mae
 
-                    precision = precision_score(y_true, y_pred)
-                    
-                    try:
-                        print(f"Precision = {precision:e}")
-                    except:
-                        print(f"Precision = {precision}")
-                    # Add to calculated metrics:
-                    calculated_metrics['precision'] = precision
+                        # Mean absolute percentage error: non-stable Sklearn function
+                        # y_true and y_pred must be already numpy arrays:
+                        mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-                    recall = recall_score(y_true, y_pred)
-                    
-                    try:
-                        print(f"Recall = {recall:e}")
-                    except:
-                        print(f"Recall = {recall}")
-                    # Add to calculated metrics:
-                    calculated_metrics['recall'] = recall
-                    
-                    # The method update_state returns None, so it must be called without and equality
+                        # Print in scientific notation:
+                        try:
+                            print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                        except:
+                            print(f"Mean absolute percentage error (MAPE) = {mape}")
+                        # Add to calculated metrics:
+                        calculated_metrics['mape'] = mape
 
-                    # Get the classification report:
-                    print("\n")
-                    print("Classification Report:\n")
-                    # Convert tensors to NumPy arrays
-                    report = classification_report (y_true, y_pred)
-                    print(report)
-                    # Add to calculated metrics:
-                    calculated_metrics['classification_report'] = report
-                    print("\n")
+                        r2 = r2_score(y_true, y_pred)
 
-                    # Get the confusion matrix:
-                    # Convert tensors to NumPy arrays
-                    matrix = confusion_matrix (y_true, y_pred)
-                    # Add to calculated metrics:
-                    calculated_metrics['confusion_matrix'] = report
-                    print("Confusion matrix:\n")
+                        try:
+                            print(f"Coefficient of linear correlation R² = {r2:e}")
+                        except:
+                            print(f"Coefficient of linear correlation R² = {r2}")
+                        # Add to calculated metrics:
+                        calculated_metrics['r_squared'] = r2
 
-                    fig, ax = plt.subplots(figsize = (12, 8))
-                    # possible color schemes (cmap) for the heat map: None, 'Blues_r',
-                    # "YlGnBu",
-                    # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
-                    # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
-                    ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
-                    #annot = True: shows the number corresponding to each square
-                    #annot = False: do not show the number
-                    plot_title = f"Accuracy Score for {key} = {acc:.2f}"
-                    ax.set_title(plot_title)
-                    ax.set_ylabel('Actual class')
-                    ax.set_xlabel('Predicted class')
-                    
-                    if (export_png == True):
-                        # Image will be exported
-                        import os
-                        
-                        #check if the user defined a directory path. If not, set as the default root path:
-                        if (directory_to_save is None):
-                            #set as the default
-                            directory_to_save = ""
-                        
-                        #check if the user defined a file name. If not, set as the default name for this
-                        # function.
-                        if (file_name is None):
-                            #set as the default
-                            file_name = "confusion_matrix_" + key
-                        
-                        else:
-                            # add the train suffix, to differentiate from the test matrix:
-                            file_name = file_name + "_" + key
-                        
-                        #check if the user defined an image resolution. If not, set as the default 110 dpi
-                        # resolution.
-                        if (png_resolution_dpi is None):
-                            #set as 330 dpi
-                            png_resolution_dpi = 330
-                        
-                        #Get the new_file_path
-                        new_file_path = os.path.join(directory_to_save, file_name)
-                        
-                        #Export the file to this new path:
-                        # The extension will be automatically added by the savefig method:
-                        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-                        #quality could be set from 1 to 100, where 100 is the best quality
-                        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                        #transparent = True or False
-                        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
-                        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-                    
-                    #fig.tight_layout()
-                    
-                    ## Show an image read from an image file:
-                    ## import matplotlib.image as pltimg
-                    ## img=pltimg.imread('mydecisiontree.png')
-                    ## imgplot = plt.imshow(img)
-                    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-                    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-                    ##  '03_05_END.ipynb'
-                    plt.show()
+                        # Manually correct R²:
+                        # n_size_train = number of sample size
+                        # k_model = number of independent variables of the defined model
+                        k_model = self.total_predictors
+                        #numer of rows
+                        n_size = len(y_true)
+                        r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
 
-                    print("\n")
-                    # Now, add the metrics to the metrics_dict:
-                    metrics_dict[key] = calculated_metrics
+                        try:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                        except:
+                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+
+                        # Add to calculated metrics:
+                        calculated_metrics['r_squared_adj'] = r2_adj
+
+                        explained_var = explained_variance_score(y_true, y_pred)
+                        # Print in scientific notation:
+                        try:
+                            print(f"Explained variance = {explained_var:e}")
+
+                        except:
+                            print(f"Explained variance = {explained_var}")
+
+                        # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
+                        # difference that it does not account for systematic offsets in the prediction.
+                        calculated_metrics['explained_variance'] = explained_var
+
+                        print("\n")
+                        # Now, add the metrics to the metrics_dict:
+                        metrics_dict[key] = calculated_metrics
+
+                    else:
+
+                        print(f"Metrics for {key}:\n")
+
+                        auc = roc_auc_score(y_true, y_pred)
+
+                        try:
+                            print(f"AUC = {auc:e}")
+                        except:
+                            print(f"AUC = {auc}")
+                        # Add to calculated metrics:
+                        calculated_metrics['auc'] = auc
+
+                        acc = accuracy_score(y_true, y_pred)
+
+                        try:
+                            print(f"Accuracy = {acc:e}")
+                        except:
+                            print(f"Accuracy = {acc}")
+                        # Add to calculated metrics:
+                        calculated_metrics['accuracy'] = acc
+
+                        precision = precision_score(y_true, y_pred)
+
+                        try:
+                            print(f"Precision = {precision:e}")
+                        except:
+                            print(f"Precision = {precision}")
+                        # Add to calculated metrics:
+                        calculated_metrics['precision'] = precision
+
+                        recall = recall_score(y_true, y_pred)
+
+                        try:
+                            print(f"Recall = {recall:e}")
+                        except:
+                            print(f"Recall = {recall}")
+                        # Add to calculated metrics:
+                        calculated_metrics['recall'] = recall
+
+                        # The method update_state returns None, so it must be called without and equality
+
+                        # Get the classification report:
+                        print("\n")
+                        print("Classification Report:\n")
+                        # Convert tensors to NumPy arrays
+                        report = classification_report (y_true, y_pred)
+                        print(report)
+                        # Add to calculated metrics:
+                        calculated_metrics['classification_report'] = report
+                        print("\n")
+
+                        # Get the confusion matrix:
+                        # Convert tensors to NumPy arrays
+                        matrix = confusion_matrix (y_true, y_pred)
+                        # Add to calculated metrics:
+                        calculated_metrics['confusion_matrix'] = report
+                        print("Confusion matrix:\n")
+
+                        fig, ax = plt.subplots(figsize = (12, 8))
+                        # possible color schemes (cmap) for the heat map: None, 'Blues_r',
+                        # "YlGnBu",
+                        # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
+                        # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
+                        ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
+                        #annot = True: shows the number corresponding to each square
+                        #annot = False: do not show the number
+                        plot_title = f"Accuracy Score for {key} = {acc:.2f}"
+                        ax.set_title(plot_title)
+                        ax.set_ylabel('Actual class')
+                        ax.set_xlabel('Predicted class')
+
+                        if (export_png == True):
+                            # Image will be exported
+                            import os
+
+                            #check if the user defined a directory path. If not, set as the default root path:
+                            if (directory_to_save is None):
+                                #set as the default
+                                directory_to_save = ""
+
+                            #check if the user defined a file name. If not, set as the default name for this
+                            # function.
+                            if (file_name is None):
+                                #set as the default
+                                file_name = "confusion_matrix_" + key
+
+                            else:
+                                # add the train suffix, to differentiate from the test matrix:
+                                file_name = file_name + "_" + key
+
+                            #check if the user defined an image resolution. If not, set as the default 110 dpi
+                            # resolution.
+                            if (png_resolution_dpi is None):
+                                #set as 330 dpi
+                                png_resolution_dpi = 330
+
+                            #Get the new_file_path
+                            new_file_path = os.path.join(directory_to_save, file_name)
+
+                            #Export the file to this new path:
+                            # The extension will be automatically added by the savefig method:
+                            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                            #quality could be set from 1 to 100, where 100 is the best quality
+                            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                            #transparent = True or False
+                            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+                        #fig.tight_layout()
+
+                        ## Show an image read from an image file:
+                        ## import matplotlib.image as pltimg
+                        ## img=pltimg.imread('mydecisiontree.png')
+                        ## imgplot = plt.imshow(img)
+                        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                        ##  '03_05_END.ipynb'
+                        plt.show()
+
+                        print("\n")
+                        # Now, add the metrics to the metrics_dict:
+                        metrics_dict[key] = calculated_metrics
+                
+                except:
+                    print(f"Unable to retrieve metrics for {key}:\n")
+                    metrics_dict[key] = {'metrics': f'No metrics retrieved for {key}'}
           
         # Now that we finished calculating metrics for all tensors, save the
         # dictionary as a class variable (attribute) and return the object:
@@ -719,13 +747,13 @@ class model_checking:
         # Retrieve data from the history dictionary:
         # Access values for training sample:
         train_metrics = history.history[metrics_name]
-        validation_metrics = history.history[val_metrics_name]
         
         # Try accessing data from validation sample (may not be present):
         has_validation = False
         # Maps if there are validation data: this variable is updated when values are present.
         
         try:
+            validation_metrics = history.history[val_metrics_name]
             train_loss = history.history['loss']
             validation_loss = history.history['val_loss']
             has_validation = True
@@ -748,100 +776,105 @@ class model_checking:
         
         if (loss_vertical_axis_title is None):
             loss_vertical_axis_title = "loss_value"
+        
+        try:
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
 
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            fig = plt.figure(figsize = (12, 8))
+            ax1 = fig.add_subplot(211)
+            #ax1.set_xlabel("Lags")
+            ax1.set_ylabel(metrics_vertical_axis_title)
+
+            # Scatter plot of time series:
+            ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
+            if (has_validation):
+                # If present, plot validation data:
+                ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
+            # Axes.plot documentation:
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+
+            ax1.grid(grid)
+            ax1.legend(loc = "upper right")
+
+            ax2 = fig.add_subplot(212)
+            ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
+
+            if (has_validation):
+                # If present, plot validation data:
+                ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
+
+            ax2.set_xlabel(horizontal_axis_title)
+            ax2.set_ylabel(loss_vertical_axis_title)
+
+            ax2.grid(grid)
+            ax2.legend(loc = "upper right")
+
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "history_loss_and_metrics"
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+
+                #Export the file to this new path:
+                # The extension will be automatically added by the savefig method:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                #quality could be set from 1 to 100, where 100 is the best quality
+                #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #transparent = True or False
+                # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            #plt.figure(figsize = (12, 8))
+            #fig.tight_layout()
+
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+            plt.show()
+        
+        except:
+            print("Unable to plot training history.\n")
             
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        fig = plt.figure(figsize = (12, 8))
-        ax1 = fig.add_subplot(211)
-        #ax1.set_xlabel("Lags")
-        ax1.set_ylabel(metrics_vertical_axis_title)
-        
-        # Scatter plot of time series:
-        ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
-        if (has_validation):
-            # If present, plot validation data:
-            ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
-        # Axes.plot documentation:
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-        
-        ax1.grid(grid)
-        ax1.legend(loc = "upper right")
-        
-        ax2 = fig.add_subplot(212)
-        ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
-        
-        if (has_validation):
-            # If present, plot validation data:
-            ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
-        
-        ax2.set_xlabel(horizontal_axis_title)
-        ax2.set_ylabel(loss_vertical_axis_title)
-        
-        ax2.grid(grid)
-        ax2.legend(loc = "upper right")
-
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "history_loss_and_metrics"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-
-            #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        #plt.figure(figsize = (12, 8))
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        plt.show()
     
     def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -1005,110 +1038,114 @@ class model_checking:
 
             if (loss_vertical_axis_title is None):
                 loss_vertical_axis_title = "loss_value"
-
-            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-            # so that the bars do not completely block other views.
-            OPACITY = 0.95
-
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            fig = plt.figure(figsize = (12, 8))
-            try:
-                ax1 = fig.add_subplot(211)
-                #ax1.set_xlabel("Lags")
-                ax1.set_ylabel(metrics_vertical_axis_title)
-
-                # Scatter plot of time series:
-                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics_" + response[:10]))
-                if (has_validation):
-                    # If present, plot validation data:
-                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics_" + response[:10]))
-                # Axes.plot documentation:
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
-
-                #ROTATE X AXIS IN XX DEGREES
-                plt.xticks(rotation = x_axis_rotation)
-                # XX = 0 DEGREES x_axis (Default)
-                #ROTATE Y AXIS IN XX DEGREES:
-                plt.yticks(rotation = y_axis_rotation)
-                # XX = 0 DEGREES y_axis (Default)
-
-                ax1.grid(grid)
-                ax1.legend(loc = "upper right")
-            
-            except:
-                pass
             
             try:
-                ax2 = fig.add_subplot(212)
-                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
+                # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+                # so that the bars do not completely block other views.
+                OPACITY = 0.95
 
-                if (has_validation):
-                    # If present, plot validation data:
-                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss_" + response[:10]))
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                fig = plt.figure(figsize = (12, 8))
+                try:
+                    ax1 = fig.add_subplot(211)
+                    #ax1.set_xlabel("Lags")
+                    ax1.set_ylabel(metrics_vertical_axis_title)
 
-                ax2.set_xlabel(horizontal_axis_title)
-                ax2.set_ylabel(loss_vertical_axis_title)
+                    # Scatter plot of time series:
+                    ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics_" + response[:10]))
+                    if (has_validation):
+                        # If present, plot validation data:
+                        ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics_" + response[:10]))
+                    # Axes.plot documentation:
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
 
-                ax2.grid(grid)
-                ax2.legend(loc = "upper right")
+                    #ROTATE X AXIS IN XX DEGREES
+                    plt.xticks(rotation = x_axis_rotation)
+                    # XX = 0 DEGREES x_axis (Default)
+                    #ROTATE Y AXIS IN XX DEGREES:
+                    plt.yticks(rotation = y_axis_rotation)
+                    # XX = 0 DEGREES y_axis (Default)
 
-                #ROTATE X AXIS IN XX DEGREES
-                plt.xticks(rotation = x_axis_rotation)
-                # XX = 0 DEGREES x_axis (Default)
-                #ROTATE Y AXIS IN XX DEGREES:
-                plt.yticks(rotation = y_axis_rotation)
-                # XX = 0 DEGREES y_axis (Default)
-            
+                    ax1.grid(grid)
+                    ax1.legend(loc = "upper right")
+
+                except:
+                    pass
+
+                try:
+                    ax2 = fig.add_subplot(212)
+                    ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
+
+                    if (has_validation):
+                        # If present, plot validation data:
+                        ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss_" + response[:10]))
+
+                    ax2.set_xlabel(horizontal_axis_title)
+                    ax2.set_ylabel(loss_vertical_axis_title)
+
+                    ax2.grid(grid)
+                    ax2.legend(loc = "upper right")
+
+                    #ROTATE X AXIS IN XX DEGREES
+                    plt.xticks(rotation = x_axis_rotation)
+                    # XX = 0 DEGREES x_axis (Default)
+                    #ROTATE Y AXIS IN XX DEGREES:
+                    plt.yticks(rotation = y_axis_rotation)
+                    # XX = 0 DEGREES y_axis (Default)
+
+                except:
+                    pass
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = ("history_" + response[:10])
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+
+                    #Export the file to this new path:
+                    # The extension will be automatically added by the savefig method:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                    #quality could be set from 1 to 100, where 100 is the best quality
+                    #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #transparent = True or False
+                    # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                    print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                #plt.figure(figsize = (12, 8))
+                #fig.tight_layout()
+
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+                plt.show()
+                print("\n")
+        
             except:
-                pass
-
-            if (export_png == True):
-                # Image will be exported
-                import os
-
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
-
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = ("history_" + response[:10])
-
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
-
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-
-                #Export the file to this new path:
-                # The extension will be automatically added by the savefig method:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-                #quality could be set from 1 to 100, where 100 is the best quality
-                #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #transparent = True or False
-                # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
-                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            #plt.figure(figsize = (12, 8))
-            #fig.tight_layout()
-
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
-            plt.show()
-            print("\n")
-    
+                print(f"Unable to plot training history for {response}.\n")
+            
     
     def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
@@ -1150,7 +1187,9 @@ class model_checking:
         tensors_dict['validation'] = {'actual': self.y_valid, 'predictions': self.y_preds_for_validation}
 
         metrics_dict = {}
-
+        
+            
+        
         # Loop through the keys:
         for key in tensors_dict.keys():
           
@@ -1161,15 +1200,19 @@ class model_checking:
             y_pred_tensor = nested_dict['predictions']
             
             y_true_array = np.array(y_true_tensor)
-            # Total of entries in the dataset:
-            # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
-            total_data = len(y_true_array[:, 0])
             
             # Reshape y_pred so that it is in the same format as the y_true tensor
             # The predictions may come in a different shape, depending on the algorithm that
             # generates them.
             
             y_pred_array = np.array(y_pred_tensor)
+            
+            # Total of entries in the dataset:
+            # Get the total of values for the first response, by isolating the index 0 of 2nd dimension
+            try:
+                total_data = len(y_pred_array[:, 0])
+            except:
+                total_data = 0
             
             # If the prediction was generated from a 3D-tensor, it may have 4 dimensions, with the last dimension
             # equals to 1. So, let's check this possibility (y_pred_array.shape is a tuple):
@@ -1212,244 +1255,251 @@ class model_checking:
                 nested_metrics = {}
                 
                 for index, response in enumerate(list_of_responses):
-                    # enumerate will get tuples like (0, response1), (1, response2), etc
-                    print(f"Evaluation of metrics for response variable '{response}':\n")
+                    
+                    if (total_data > 0):
+                    
+                        # enumerate will get tuples like (0, response1), (1, response2), etc
+                        print(f"Evaluation of metrics for response variable '{response}':\n")
 
-                    type_of_problem = output_dictionary[response]['type']
-                    # select only the arrays in position 'index' of the tensors y_true_tensor
-                    # and y_pred_tensor:
-                    
-                    try:
-                        y_true = y_true_array[:, index]
-                        
-                        if (dim == 1):
-                            y_pred = y_pred_array[:, index]
-                    except:
-                        pass
-                    
-                    if (dim == 0):
-                        y_pred = y_pred_array[index]
-                    
-                    # If there is still an extra dimension related to the shift, pick only first value from each
-                    # array:
-                    try:
-                        assert (y_pred.shape == y_true.shape)
-                    except:
+                        type_of_problem = output_dictionary[response]['type']
+                        # select only the arrays in position 'index' of the tensors y_true_tensor
+                        # and y_pred_tensor:
+
                         try:
-                            y_pred = y_pred[:, 0]
+                            y_true = y_true_array[:, index]
+
+                            if (dim == 1):
+                                y_pred = y_pred_array[:, index]
                         except:
                             pass
-                        
 
-                    # Regression metrics:
-                    if (model_type == 'regression'):
+                        if (dim == 0):
+                            y_pred = y_pred_array[index]
 
-                        print(f"Metrics for {key}:\n")
-                        mse = mean_squared_error(y_true, y_pred)
-
-                        # Print in scientific notation:
+                        # If there is still an extra dimension related to the shift, pick only first value from each
+                        # array:
                         try:
-                            print(f"Mean squared error (MSE) = {mse:e}")
+                            assert (y_pred.shape == y_true.shape)
                         except:
-                            print(f"Mean squared error (MSE) = {mse}")
-                        # Add to calculated metrics:
-                        calculated_metrics['mse'] = mse
-
-                        rmse = mse**(1/2)
+                            try:
+                                y_pred = y_pred[:, 0]
+                            except:
+                                pass
 
                         try:
-                            print(f"Root mean squared error (RMSE) = {rmse:e}")
-                        except:
-                            print(f"Root mean squared error (RMSE) = {rmse}")
-                        # Add to calculated metrics:
-                        calculated_metrics['rmse'] = rmse
+                            # Regression metrics:
+                            if (model_type == 'regression'):
 
-                        mae = mean_absolute_error(y_true, y_pred)
+                                print(f"Metrics for {key}:\n")
+                                mse = mean_squared_error(y_true, y_pred)
 
-                        # Print in scientific notation:
-                        try:
-                            print(f"Mean absolute error (MAE) = {mae:e}")
-                        except:
-                            print(f"Mean absolute error (MAE) = {mae}")
-                        # Add to calculated metrics:
-                        calculated_metrics['mae'] = mae
+                                # Print in scientific notation:
+                                try:
+                                    print(f"Mean squared error (MSE) = {mse:e}")
+                                except:
+                                    print(f"Mean squared error (MSE) = {mse}")
+                                # Add to calculated metrics:
+                                calculated_metrics['mse'] = mse
 
-                        # Mean absolute percentage error: non-stable Sklearn function
-                        # y_true and y_pred must be already numpy arrays:
-                        mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+                                rmse = mse**(1/2)
 
-                        # Print in scientific notation:
-                        try:
-                            print(f"Mean absolute percentage error (MAPE) = {mape:e}")
-                        except:
-                            print(f"Mean absolute percentage error (MAPE) = {mape}")
-                        # Add to calculated metrics:
-                        calculated_metrics['mape'] = mape
+                                try:
+                                    print(f"Root mean squared error (RMSE) = {rmse:e}")
+                                except:
+                                    print(f"Root mean squared error (RMSE) = {rmse}")
+                                # Add to calculated metrics:
+                                calculated_metrics['rmse'] = rmse
 
-                        r2 = r2_score(y_true, y_pred)
+                                mae = mean_absolute_error(y_true, y_pred)
 
-                        try:
-                            print(f"Coefficient of linear correlation R² = {r2:e}")
-                        except:
-                            print(f"Coefficient of linear correlation R² = {r2}")
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared'] = r2
+                                # Print in scientific notation:
+                                try:
+                                    print(f"Mean absolute error (MAE) = {mae:e}")
+                                except:
+                                    print(f"Mean absolute error (MAE) = {mae}")
+                                # Add to calculated metrics:
+                                calculated_metrics['mae'] = mae
 
-                        # Manually correct R²:
-                        # n_size_train = number of sample size
-                        # k_model = number of independent variables of the defined model
-                        k_model = self.total_predictors
-                        #numer of rows
-                        n_size = len(y_true)
-                        r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
+                                # Mean absolute percentage error: non-stable Sklearn function
+                                # y_true and y_pred must be already numpy arrays:
+                                mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-                        try:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                        except:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+                                # Print in scientific notation:
+                                try:
+                                    print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                                except:
+                                    print(f"Mean absolute percentage error (MAPE) = {mape}")
+                                # Add to calculated metrics:
+                                calculated_metrics['mape'] = mape
 
-                        # Add to calculated metrics:
-                        calculated_metrics['r_squared_adj'] = r2_adj
+                                r2 = r2_score(y_true, y_pred)
 
-                        explained_var = explained_variance_score(y_true, y_pred)
-                        # Print in scientific notation:
-                        try:
-                            print(f"Explained variance = {explained_var:e}")
+                                try:
+                                    print(f"Coefficient of linear correlation R² = {r2:e}")
+                                except:
+                                    print(f"Coefficient of linear correlation R² = {r2}")
+                                # Add to calculated metrics:
+                                calculated_metrics['r_squared'] = r2
 
-                        except:
-                            print(f"Explained variance = {explained_var}")
+                                # Manually correct R²:
+                                # n_size_train = number of sample size
+                                # k_model = number of independent variables of the defined model
+                                k_model = self.total_predictors
+                                #numer of rows
+                                n_size = len(y_true)
+                                r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
 
-                        # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
-                        # difference that it does not account for systematic offsets in the prediction.
-                        calculated_metrics['explained_variance'] = explained_var
+                                try:
+                                    print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                                except:
+                                    print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
 
-                        print("\n")
+                                # Add to calculated metrics:
+                                calculated_metrics['r_squared_adj'] = r2_adj
 
-                    else:
+                                explained_var = explained_variance_score(y_true, y_pred)
+                                # Print in scientific notation:
+                                try:
+                                    print(f"Explained variance = {explained_var:e}")
 
-                        print(f"Metrics for {key}:\n")
-                    
-                        auc = roc_auc_score(y_true, y_pred)
+                                except:
+                                    print(f"Explained variance = {explained_var}")
 
-                        try:
-                            print(f"AUC = {auc:e}")
-                        except:
-                            print(f"AUC = {auc}")
-                        # Add to calculated metrics:
-                        calculated_metrics['auc'] = auc
+                                # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
+                                # difference that it does not account for systematic offsets in the prediction.
+                                calculated_metrics['explained_variance'] = explained_var
 
-                        acc = accuracy_score(y_true, y_pred)
-
-                        try:
-                            print(f"Accuracy = {acc:e}")
-                        except:
-                            print(f"Accuracy = {acc}")
-                        # Add to calculated metrics:
-                        calculated_metrics['accuracy'] = acc
-
-                        precision = precision_score(y_true, y_pred)
-
-                        try:
-                            print(f"Precision = {precision:e}")
-                        except:
-                            print(f"Precision = {precision}")
-                        # Add to calculated metrics:
-                        calculated_metrics['precision'] = precision
-
-                        recall = recall_score(y_true, y_pred)
-
-                        try:
-                            print(f"Recall = {recall:e}")
-                        except:
-                            print(f"Recall = {recall}")
-                        # Add to calculated metrics:
-                        calculated_metrics['recall'] = recall
-
-                        # The method update_state returns None, so it must be called without and equality
-
-                        # Get the classification report:
-                        print("\n")
-                        print("Classification Report:\n")
-                        # Convert tensors to NumPy arrays
-                        report = classification_report (y_true, y_pred)
-                        print(report)
-                        # Add to calculated metrics:
-                        calculated_metrics['classification_report'] = report
-                        print("\n")
-
-                        # Get the confusion matrix:
-                        # Convert tensors to NumPy arrays
-                        matrix = confusion_matrix (y_true, y_pred)
-                        # Add to calculated metrics:
-                        calculated_metrics['confusion_matrix'] = report
-                        print("Confusion matrix:\n")
-
-                        fig, ax = plt.subplots(figsize = (12, 8))
-                        # possible color schemes (cmap) for the heat map: None, 'Blues_r',
-                        # "YlGnBu",
-                        # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
-                        # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
-                        ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
-                        #annot = True: shows the number corresponding to each square
-                        #annot = False: do not show the number
-                        plot_title = f"Accuracy Score for {key} = {acc:.2f}"
-                        ax.set_title(plot_title)
-                        ax.set_ylabel('Actual class')
-                        ax.set_xlabel('Predicted class')
-
-                        if (export_png == True):
-                            # Image will be exported
-                            import os
-
-                            #check if the user defined a directory path. If not, set as the default root path:
-                            if (directory_to_save is None):
-                                #set as the default
-                                directory_to_save = ""
-
-                            #check if the user defined a file name. If not, set as the default name for this
-                            # function.
-                            if (file_name is None):
-                                #set as the default
-                                file_name = "confusion_matrix_" + response
+                                print("\n")
 
                             else:
-                                # add the train suffix, to differentiate from the test matrix:
-                                file_name = file_name + "_" + key
 
-                            #check if the user defined an image resolution. If not, set as the default 110 dpi
-                            # resolution.
-                            if (png_resolution_dpi is None):
-                                #set as 330 dpi
-                                png_resolution_dpi = 330
+                                print(f"Metrics for {key}:\n")
 
-                            #Get the new_file_path
-                            new_file_path = os.path.join(directory_to_save, file_name)
+                                auc = roc_auc_score(y_true, y_pred)
 
-                            #Export the file to this new path:
-                            # The extension will be automatically added by the savefig method:
-                            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-                            #quality could be set from 1 to 100, where 100 is the best quality
-                            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                            #transparent = True or False
-                            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
-                            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                                try:
+                                    print(f"AUC = {auc:e}")
+                                except:
+                                    print(f"AUC = {auc}")
+                                # Add to calculated metrics:
+                                calculated_metrics['auc'] = auc
 
-                        #fig.tight_layout()
+                                acc = accuracy_score(y_true, y_pred)
 
-                        ## Show an image read from an image file:
-                        ## import matplotlib.image as pltimg
-                        ## img=pltimg.imread('mydecisiontree.png')
-                        ## imgplot = plt.imshow(img)
-                        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-                        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-                        ##  '03_05_END.ipynb'
-                        plt.show()
+                                try:
+                                    print(f"Accuracy = {acc:e}")
+                                except:
+                                    print(f"Accuracy = {acc}")
+                                # Add to calculated metrics:
+                                calculated_metrics['accuracy'] = acc
 
-                        print("\n")
-                        # Now, add the metrics to the metrics_dict:
-                        
-                    nested_metrics[response] = calculated_metrics
-                        
+                                precision = precision_score(y_true, y_pred)
+
+                                try:
+                                    print(f"Precision = {precision:e}")
+                                except:
+                                    print(f"Precision = {precision}")
+                                # Add to calculated metrics:
+                                calculated_metrics['precision'] = precision
+
+                                recall = recall_score(y_true, y_pred)
+
+                                try:
+                                    print(f"Recall = {recall:e}")
+                                except:
+                                    print(f"Recall = {recall}")
+                                # Add to calculated metrics:
+                                calculated_metrics['recall'] = recall
+
+                                # The method update_state returns None, so it must be called without and equality
+
+                                # Get the classification report:
+                                print("\n")
+                                print("Classification Report:\n")
+                                # Convert tensors to NumPy arrays
+                                report = classification_report (y_true, y_pred)
+                                print(report)
+                                # Add to calculated metrics:
+                                calculated_metrics['classification_report'] = report
+                                print("\n")
+
+                                # Get the confusion matrix:
+                                # Convert tensors to NumPy arrays
+                                matrix = confusion_matrix (y_true, y_pred)
+                                # Add to calculated metrics:
+                                calculated_metrics['confusion_matrix'] = report
+                                print("Confusion matrix:\n")
+
+                                fig, ax = plt.subplots(figsize = (12, 8))
+                                # possible color schemes (cmap) for the heat map: None, 'Blues_r',
+                                # "YlGnBu",
+                                # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
+                                # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
+                                ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
+                                #annot = True: shows the number corresponding to each square
+                                #annot = False: do not show the number
+                                plot_title = f"Accuracy Score for {key} = {acc:.2f}"
+                                ax.set_title(plot_title)
+                                ax.set_ylabel('Actual class')
+                                ax.set_xlabel('Predicted class')
+
+                                if (export_png == True):
+                                    # Image will be exported
+                                    import os
+
+                                    #check if the user defined a directory path. If not, set as the default root path:
+                                    if (directory_to_save is None):
+                                        #set as the default
+                                        directory_to_save = ""
+
+                                    #check if the user defined a file name. If not, set as the default name for this
+                                    # function.
+                                    if (file_name is None):
+                                        #set as the default
+                                        file_name = "confusion_matrix_" + response
+
+                                    else:
+                                        # add the train suffix, to differentiate from the test matrix:
+                                        file_name = file_name + "_" + key
+
+                                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                                    # resolution.
+                                    if (png_resolution_dpi is None):
+                                        #set as 330 dpi
+                                        png_resolution_dpi = 330
+
+                                    #Get the new_file_path
+                                    new_file_path = os.path.join(directory_to_save, file_name)
+
+                                    #Export the file to this new path:
+                                    # The extension will be automatically added by the savefig method:
+                                    plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+                                    #quality could be set from 1 to 100, where 100 is the best quality
+                                    #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                                    #transparent = True or False
+                                    # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                                    print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+                                #fig.tight_layout()
+
+                                ## Show an image read from an image file:
+                                ## import matplotlib.image as pltimg
+                                ## img=pltimg.imread('mydecisiontree.png')
+                                ## imgplot = plt.imshow(img)
+                                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                                ##  '03_05_END.ipynb'
+                                plt.show()
+
+                                print("\n")
+                                # Now, add the metrics to the metrics_dict:
+
+                            nested_metrics[response] = calculated_metrics
+
+                        except:
+                            print(f"Unable to retrieve metrics for {key}:\n")
+                            nested_metrics[response] = {f'metrics for {key}': f'No metrics retrieved for {response}'}
+
                 metrics_dict[key] = nested_metrics
           
         # Now that we finished calculating metrics for all tensors, save the
@@ -1690,9 +1740,13 @@ class tf_models:
         self.input_layer = tf.keras.layers.Input(shape = (X_train.shape)[1:], name = "input_layer")
         
         if ((X_valid is not None) & (y_valid is not None)):
+            if ((len(X_valid) > 0) & (len(y_valid) > 0)):
             
-            self.X_valid = np.array(X_valid)
-            self.y_valid = np.array(y_valid)
+                self.X_valid = np.array(X_valid)
+                self.y_valid = np.array(y_valid)
+            else:
+                self.X_valid = None
+                self.y_valid = None
         
         else:
             self.X_valid = None
@@ -2249,9 +2303,13 @@ class siamese_networks:
     
         
         if ((X_valid is not None) & (y_valid is not None)):
+            if ((len(X_valid) > 0) & (len(y_valid) > 0)):
             
-            self.X_valid = np.array(X_valid)
-            self.y_valid = format_output(data = y_valid, list_of_responses = self.list_of_responses)
+                self.X_valid = np.array(X_valid)
+                self.y_valid = format_output(data = y_valid, list_of_responses = self.list_of_responses)
+            else:
+                self.X_valid = None
+                self.y_valid = None
         
         else:
             self.X_valid = None
@@ -2871,9 +2929,9 @@ class modelling_workflow:
 
     def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_training = 75, percent_of_training_data_used_for_model_validation = 0):
         
+        import random
         import numpy as np
         import tensorflow as tf
-        from sklearn.model_selection import train_test_split
         
         # X = tensor or array of predictive variables.
         # y = tensor or array of response variables.
@@ -2884,42 +2942,94 @@ class modelling_workflow:
         # If you want to use cross-validation, separate a percent of the training data for validation.
         # Declare this percent as percent_of_training_data_used_for_model_validation (float from 0 to 100).
         
+        # Convert to tuples to save memory:
+        X = tuple(np.array(X))
+        y = tuple(np.array(y))
+        
         # Convert the percent to fraction.
         train_fraction = (percent_of_data_used_for_model_training / 100)
-        # Calculate the test fraction:
-        test_fraction = (1 - train_fraction)
+        
+        if (train_fraction > 1):
+            train_fraction = 1
+        
+        elif (train_fraction < 0):
+            train_fraction = 0
         
         # Convert the percent of validation to fraction:
         validation_fraction = (percent_of_training_data_used_for_model_validation / 100)
+        if (validation_fraction > 1):
+            validation_fraction = 1
         
-        # Apply numpy method to convert tensors to numpy arrays (required by sklearn):
-        X_train, X_test, y_train, y_test  = train_test_split (X.numpy(), y.numpy(), test_size = test_fraction, random_state = 0)
-        #test_size: proportion: 0.25 used for test
-        #test_size = 0.25 = 25% of data used for tests 
-        #-> then, 0.75 = 75% of data used for training the Machine Learning model
+        elif (validation_fraction < 0):
+            validation_fraction = 0
         
-        print(f"X and y successfully splitted into train: X_train, y_train ({percent_of_data_used_for_model_training}% of data); and test subsets: X_test, y_test ({100 - percent_of_data_used_for_model_training}% of data).")
+        # Calculate the test fraction:
+        test_fraction = (1 - train_fraction - validation_fraction)
         
-        # Reconvert to Tensors before storage:
-        X_train = tf.constant(X_train)
-        X_test = tf.constant(X_test)
-        y_train = tf.constant(y_train)
-        y_test = tf.constant(y_test)
+        try:
+            assert test_fraction >= 0
+            assert train_fraction + test_fraction + validation_fraction == 1
         
-        split_dictionary = {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test}
+        except:
+            if ((train_fraction + validation_fraction) > 1):
+                if (train_fraction == 1):
+                    validation_fraction = 0
+                    test_fraction = 0
+                
+                else:
+                    test_fraction = (1 - train_fraction)
+                    validation_fraction = 0
         
-        # Check if there is a fraction for validation
-        if (validation_fraction > 0):
+        if (train_fraction == 1):
+            X_train, y_train = np.array(X), np.array(y)
+            X_test, y_test = np.array([]), np.array([])
+            X_valid, y_valid = np.array([]), np.array([])
         
-            # Apply numpy method to convert tensors to numpy arrays (required by sklearn):
-            X_train, X_valid, y_train, y_valid = train_test_split (X_train.numpy(), y_train.numpy(), test_size = test_fraction, random_state = 0)
-            # Convert to tensors:
-            X_train, X_valid, y_train, y_valid = tf.constant(X_train), tf.constant(X_valid), tf.constant(y_train), tf.constant(y_valid)
-            # Update the dictionary:
-            split_dictionary['X_train'] = X_train
-            split_dictionary['y_train'] = y_train
-            split_dictionary['X_valid'] = X_valid
-            split_dictionary['y_valid'] = y_valid
+        elif (validation_fraction == 0):
+            X_valid, y_valid = np.array([]), np.array([])
+        
+        if (train_fraction < 1):
+            # Create a list of indices:
+            indices = [i for i in range(0, len(X))]
+            # Shuffle the indices:
+            random.shuffle(indices)
+
+            total_indices = len(indices)
+            total_for_training = int(np.rint(train_fraction*total_indices))
+
+            # Set the indexes used for training:
+            train_idx, other_idx = indices[:total_for_training], indices[total_for_training:]
+            if (validation_fraction == 0):
+                test_idx = other_idx
+                valid_idx = []
+
+            else:
+                total_for_testing = int(np.rint(test_fraction*total_indices))
+                test_idx, valid_idx = other_idx[:total_for_testing], indices[total_for_testing:]
+        
+            
+            # Now, create the lists of splitted elements
+            # [element for ... if ...]
+            X_train = [X[i] for i in train_idx]
+            y_train = [y[i] for i in train_idx]
+            X_train, y_train = np.array(X_train), np.array(y_train)
+            X_train, y_train = tf.constant(X_train), tf.constant(y_train)
+            
+            X_test = [X[i] for i in test_idx]
+            y_test = [y[i] for i in test_idx]
+            X_test, y_test = np.array(X_test), np.array(y_test)
+            X_test, y_test = tf.constant(X_test), tf.constant(y_test)
+            
+            if (len(valid_idx) > 0):
+                X_valid = [X[i] for i in valid_idx]
+                y_valid = [y[i] for i in valid_idx]
+                X_valid, y_valid = np.array(X_valid), np.array(y_valid)
+                X_valid, y_valid = tf.constant(X_valid), tf.constant(y_valid)
+                
+        
+        print(f"X and y successfully splitted into train: X_train, y_train ({train_fraction*100:.1f}% of data); test: X_test, y_test ({test_fraction*100:.1f}% of data); and validation subsets: X_valid, y_valid ({validation_fraction*100:.1f}% of data).")
+        
+        split_dictionary = {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test, 'X_valid': X_valid, 'y_valid': y_valid}
         
         for subset in split_dictionary.keys():
             
@@ -4298,6 +4408,7 @@ class modelling_workflow:
             # Since return_sequences = True, the model returns arrays containing two elements. We must pick only
             # the first position (index 0) of 2nd dimension
             y_preds_for_train = y_preds_for_train[:,0]
+            total_dimensions = len(y_preds_for_train.shape)
         
         last_dim = y_preds_for_train.shape[(total_dimensions - 1)] # indexing starts from zero
         if (last_dim == 1): # remove last dimension
@@ -4309,33 +4420,41 @@ class modelling_workflow:
                 y_preds_for_train = y_preds_for_train[:,0]
         
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = np.array(model.predict(X_test))
-            last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
-            if (architecture == 'encoder_decoder'):
-                y_preds_for_test = y_preds_for_test[:,0]
-            if (last_dim == 1): # remove last dimension
-                if (total_dimensions == 4):
-                    y_preds_for_test = y_preds_for_test[:,:,:,0]
-                elif (total_dimensions == 3):
-                    y_preds_for_test = y_preds_for_test[:,:,0]
-                elif (total_dimensions == 2):
+            if ((len(X_test) > 0) & ((len(y_test) >0))):
+                y_preds_for_test = np.array(model.predict(X_test))
+                last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
+                if (architecture == 'encoder_decoder'):
                     y_preds_for_test = y_preds_for_test[:,0]
+                if (last_dim == 1): # remove last dimension
+                    if (total_dimensions == 4):
+                        y_preds_for_test = y_preds_for_test[:,:,:,0]
+                    elif (total_dimensions == 3):
+                        y_preds_for_test = y_preds_for_test[:,:,0]
+                    elif (total_dimensions == 2):
+                        y_preds_for_test = y_preds_for_test[:,0]
+            
+            else:
+                X_test, y_test, y_preds_for_test = None, None, None
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
-            y_preds_for_validation = np.array(model.predict(X_valid))
-            last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
-            if (architecture == 'encoder_decoder'):
-                y_preds_for_validation = y_preds_for_validation[:,0]
-            if (last_dim == 1): # remove last dimension
-                if (total_dimensions == 4):
-                    y_preds_for_validation = y_preds_for_validation[:,:,:,0]
-                elif (total_dimensions == 3):
-                    y_preds_for_validation = y_preds_for_validation[:,:,0]
-                elif (total_dimensions == 2):
+            if ((len(X_valid) > 0) & ((len(X_valid) >0))):
+                y_preds_for_validation = np.array(model.predict(X_valid))
+                last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
+                if (architecture == 'encoder_decoder'):
                     y_preds_for_validation = y_preds_for_validation[:,0]
+                if (last_dim == 1): # remove last dimension
+                    if (total_dimensions == 4):
+                        y_preds_for_validation = y_preds_for_validation[:,:,:,0]
+                    elif (total_dimensions == 3):
+                        y_preds_for_validation = y_preds_for_validation[:,:,0]
+                    elif (total_dimensions == 2):
+                        y_preds_for_validation = y_preds_for_validation[:,0]
+            
+            else:
+                X_valid, y_valid, y_preds_for_validation = None, None, None
 
         else:
             y_preds_for_validation = None
@@ -4345,8 +4464,13 @@ class modelling_workflow:
                 
         # Calculate model metrics:
         model_check = model_check.model_metrics()
-        # Retrieve model metrics:
-        metrics_dict = model_check.metrics_dict
+        
+        try:
+            # Retrieve model metrics:
+            metrics_dict = model_check.metrics_dict
+        
+        except:
+            print("Unable to retrieve metrics.\n")
 
         print("Check the training loss and metrics curve below:\n")
         print("Regression models: metrics = MAE; loss = MSE.")
@@ -4490,6 +4614,7 @@ class modelling_workflow:
             # correspondent to return_sequences = True would be the 2nd dim.
             # Pick only the first value from third dimension:
             y_preds_for_train = y_preds_for_train[:,:,0]
+            total_dimensions = len(y_preds_for_train.shape)
         
         last_dim = y_preds_for_train.shape[(total_dimensions - 1)] # indexing starts from zero
         if (last_dim == 1): # remove last dimension
@@ -4501,33 +4626,41 @@ class modelling_workflow:
                 y_preds_for_train = y_preds_for_train[:,0]
         
         if ((X_test is not None) & ((y_test is not None))):
-            y_preds_for_test = np.array(model.predict(X_test))
-            last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
-            if (architecture == 'encoder_decoder'):
-                y_preds_for_test = y_preds_for_test[:,:,0]
-            if (last_dim == 1): # remove last dimension
-                if (total_dimensions == 4):
-                    y_preds_for_test = y_preds_for_test[:,:,:,0]
-                elif (total_dimensions == 3):
+            if ((len(X_test) > 0) & ((len(y_test) >0))):
+                y_preds_for_test = np.array(model.predict(X_test))
+                last_dim = y_preds_for_test.shape[(total_dimensions - 1)]
+                if (architecture == 'encoder_decoder'):
                     y_preds_for_test = y_preds_for_test[:,:,0]
-                elif (total_dimensions == 2):
-                    y_preds_for_test = y_preds_for_test[:,0]
+                if (last_dim == 1): # remove last dimension
+                    if (total_dimensions == 4):
+                        y_preds_for_test = y_preds_for_test[:,:,:,0]
+                    elif (total_dimensions == 3):
+                        y_preds_for_test = y_preds_for_test[:,:,0]
+                    elif (total_dimensions == 2):
+                        y_preds_for_test = y_preds_for_test[:,0]
+            
+            else:
+                X_test, y_test, y_preds_for_test = None, None, None
 
         else:
             y_preds_for_test = None
 
         if ((X_valid is not None) & ((y_valid is not None))):
-            y_preds_for_validation = np.array(model.predict(X_valid))
-            last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
-            if (architecture == 'encoder_decoder'):
-                y_preds_for_validation = y_preds_for_validation[:,:,0]
-            if (last_dim == 1): # remove last dimension
-                if (total_dimensions == 4):
-                    y_preds_for_validation = y_preds_for_validation[:,:,:,0]
-                elif (total_dimensions == 3):
+            if ((len(X_valid) > 0) & ((len(X_valid) > 0))):
+                y_preds_for_validation = np.array(model.predict(X_valid))
+                last_dim = y_preds_for_validation.shape[(total_dimensions - 1)]
+                if (architecture == 'encoder_decoder'):
                     y_preds_for_validation = y_preds_for_validation[:,:,0]
-                elif (total_dimensions == 2):
-                    y_preds_for_validation = y_preds_for_validation[:,0]
+                if (last_dim == 1): # remove last dimension
+                    if (total_dimensions == 4):
+                        y_preds_for_validation = y_preds_for_validation[:,:,:,0]
+                    elif (total_dimensions == 3):
+                        y_preds_for_validation = y_preds_for_validation[:,:,0]
+                    elif (total_dimensions == 2):
+                        y_preds_for_validation = y_preds_for_validation[:,0]
+            
+            else:
+                X_valid, y_valid, y_preds_for_validation = None, None, None
 
         else:
             y_preds_for_validation = None
@@ -4536,8 +4669,11 @@ class modelling_workflow:
         
         model_check = model_check.model_metrics_multiresponses (output_dictionary = output_dictionary)
         
-        # Retrieve model metrics:
-        metrics_dict = model_check.metrics_dict
+        try:
+            # Retrieve model metrics:
+            metrics_dict = model_check.metrics_dict
+        except:
+            print("Unable to retrieve metrics.\n")
         
         print("Check the training loss and metrics curve below:\n")
         print("Regression models: metrics = MAE; loss = MSE.")
