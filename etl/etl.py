@@ -13975,13 +13975,10 @@ class etl_workflow:
         return DATASET, timestamp_dict
 
 
-    def log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_log"):
+    def log_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_log"):
         
         import numpy as np
         import pandas as pd
-        
-        #### WARNING: This function will eliminate rows where the selected variables present 
-        #### values lower or equal to zero (condition for the logarithm to be applied).
         
         # subset = None
         # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
@@ -13994,6 +13991,13 @@ class etl_workflow:
         # Alternatively, set create_new_columns = True to store the transformed data into new
         # columns. Or set create_new_columns = False to overwrite the existing columns
         
+        # add_constant = False - If True, the transformation log(x + C) where C is a constant will be applied.
+        # constant_to_add = 0 - float number which will be added to each value that will be transformed.
+        # Attention: if no constant is added, but there is a negative value, the minimum needed for making
+        # every value positive will be added automatically. If the constant to add results in negative or
+        # zero values, it will be also modified to make all values non-negative (condition for applying
+        # log transform).
+        
         # new_columns_suffix = "_log"
         # This value has effect only if create_new_column = True.
         # The new column name will be set as column + new_columns_suffix. Then, if the original
@@ -14002,6 +14006,8 @@ class etl_workflow:
         # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
         # start the suffix with "_" to separate it from the original name.
         
+        if (constant_to_add is None):
+            constant_to_add = 0
         
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
@@ -14037,19 +14043,27 @@ class etl_workflow:
         # Finally, make the columns_list support_list itself:
         columns_list = support_list
         
+        # Let's define the value of the constant that must be sum:
+        minimum_values = [DATASET[column].min() for column in columns_list]
+        global_min = min(minimum_values)
+        
+        if (add_constant == False):
+            if (global_min <= 0):
+                constant_to_add = (0 - global_min) + 10**(-8)
+                # the increment 10**-8 guarantees that it is a very low, but positive number
+                print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+            
+            else:
+                constant_to_add = 0
+            
+        else:
+            if ((global_min + constant_to_add) <= 0):
+                constant_to_add = (0 - (global_min + constant_to_add)) + 10**(-8)
+                # the increment 10**-8 guarantees that it is a very low, but positive number
+                print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+        
         #Loop through each column to apply the transform:
         for column in columns_list:
-            #access each element in the list column_list. The element is named 'column'.
-            
-            #boolean filter to check if the entry is higher than zero, condition for the log
-            # to be applied
-            boolean_filter = (DATASET[column] > 0)
-            #This filter is equals True only for the rows where the column is higher than zero.
-            
-            #Apply the boolean filter to the dataframe, removing the entries where the column
-            # cannot be log transformed.
-            # The boolean_filter selects only the rows for which the filter values are True.
-            DATASET = DATASET[boolean_filter]
             
             #Check if a new column will be created, or if the original column should be
             # substituted.
@@ -14064,12 +14078,12 @@ class etl_workflow:
                 new_column_name = column
             
             # Calculate the column value as the log transform of the original series (column)
-            DATASET[new_column_name] = np.log(DATASET[column])
+            DATASET[new_column_name] = np.log(np.array(DATASET[column]) + constant_to_add)
         
         # Reset the index:
         DATASET.reset_index(drop = True)
         
-        print("The columns were successfully log-transformed. Check the 10 first rows of the new dataset:\n")
+        print(f"The columns X were successfully log-transformed as log(X + {constant_to_add:.6f}). Check the 10 first rows of the new dataset:\n")
         
         try:
             # only works in Jupyter Notebook:
@@ -14095,13 +14109,10 @@ class etl_workflow:
         # value, where most outputs from the log transformation are.
 
 
-    def reverse_log_transform (df, subset = None, create_new_columns = True, new_columns_suffix = "_originalScale"):
+    def reverse_log_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
         
         import numpy as np
         import pandas as pd
-        
-        #### WARNING: This function will eliminate rows where the selected variables present 
-        #### values lower or equal to zero (condition for the logarithm to be applied).
         
         # subset = None
         # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
@@ -14114,6 +14125,9 @@ class etl_workflow:
         # Alternatively, set create_new_columns = True to store the transformed data into new
         # columns. Or set create_new_columns = False to overwrite the existing columns
         
+        # added_constant: constant C added for making the transformation log(x + C). Check the
+        # output of log transform function to verify if a constant was automatically added.
+        
         # new_columns_suffix = "_originalScale"
         # This value has effect only if create_new_column = True.
         # The new column name will be set as column + new_columns_suffix. Then, if the original
@@ -14122,6 +14136,8 @@ class etl_workflow:
         # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
         # start the suffix with "_" to separate it from the original name.
         
+        if (added_constant is None):
+            added_constant = 0
         
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
@@ -14177,7 +14193,7 @@ class etl_workflow:
                 new_column_name = column
             
             # Calculate the column value as the log transform of the original series (column)
-            DATASET[new_column_name] = np.exp(DATASET[column])
+            DATASET[new_column_name] = np.exp(np.array(DATASET[column])) - added_constant
         
         print("The log_transform was successfully reversed through the exponential transformation. Check the 10 first rows of the new dataset:\n")
         
@@ -14192,7 +14208,7 @@ class etl_workflow:
         return DATASET
 
 
-    def box_cox_transform (df, column_to_transform, mode = 'calculate_and_apply', lambda_boxcox = None, suffix = '_BoxCoxTransf', specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}):
+    def box_cox_transform (df, column_to_transform, add_constant = False, constant_to_add = 0, mode = 'calculate_and_apply', lambda_boxcox = None, suffix = '_BoxCoxTransf', specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}):
         
         import numpy as np
         import pandas as pd
@@ -14209,6 +14225,14 @@ class etl_workflow:
         
         # column_to_transform must be a string with the name of the column.
         # e.g. column_to_transform = 'column1' to transform a column named as 'column1'
+        
+        
+        # add_constant = False - If True, the transformation log(x + C) where C is a constant will be applied.
+        # constant_to_add = 0 - float number which will be added to each value that will be transformed.
+        # Attention: if no constant is added, but there is a negative value, the minimum needed for making
+        # every value positive will be added automatically. If the constant to add results in negative or
+        # zero values, it will be also modified to make all values non-negative (condition for applying
+        # log transform).
         
         # mode = 'calculate_and_apply'
         # Aternatively, mode = 'calculate_and_apply' to calculate lambda and apply Box-Cox
@@ -14246,6 +14270,10 @@ class etl_workflow:
         # specification_limits = {'lower_spec_lim': 10, 'upper_spec_lim': None}. Finally, suppose
         # a liquid which pH must be between 6.8 and 7.2:
         # specification_limits = {'lower_spec_lim': 6.8, 'upper_spec_lim': 7.2}
+
+        if (constant_to_add is None):
+            constant_to_add = 0
+            
         
         if not (suffix is None):
             #only if a suffix was declared
@@ -14271,16 +14299,32 @@ class etl_workflow:
         
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
+        y = np.array(DATASET[column_to_transform])
         
-        print("Box-Cox transformation must be applied only to values higher than zero.\n")
-        print("That is because it is a logarithmic transformation.\n")
-        print(f"So, filtering out all values from {column_to_transform} lower than or equal to zero.\n")
-        DATASET = DATASET[DATASET[column_to_transform] > 0]
-        DATASET = DATASET.reset_index(drop = True)
+        # Check the minimum value assumed by y
+        global_min = min(y)
         
-        y = DATASET[column_to_transform]
-        
-        
+        if (add_constant == False):
+            if (global_min <= 0):
+                constant_to_add = (0 - global_min) + 10**(-8)
+                # the increment 10**-8 guarantees that it is a very low, but positive number
+                print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.")
+                print(f"So, the constant {constant_to_add:.6f} was added to each value from {column_to_transform} before transforming the data.\n")
+                
+                # increment the variable y:
+                y = y + constant_to_add
+                
+            else:
+                if ((global_min + constant_to_add) <= 0):
+                    constant_to_add = (0 - (global_min + constant_to_add)) + 10**(-8)
+                    # the increment 10**-8 guarantees that it is a very low, but positive number
+                    print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.")
+                    print(f"So, the constant {constant_to_add:.6f} was added to each value from {column_to_transform} before transforming the data.\n")
+
+                # increment the variable y:
+                y = y + constant_to_add
+                    
+            
         if (mode == 'calculate_and_apply'):
             # Calculate lambda_boxcox
             lambda_boxcox = stats.boxcox_normmax(y, method = 'pearsonr')
@@ -14312,6 +14356,8 @@ class etl_workflow:
         # Start a dictionary to store the summary results of the transform and the normality
         # tests:
         data_sum_dict = {'lambda_boxcox': lambda_boxcox}
+        
+        data_sum_dict['added_constant'] = constant_to_add
         
         # Test normality of the transformed variable:
         # Scipy.stats’ normality test
@@ -14408,7 +14454,7 @@ class etl_workflow:
         return DATASET, data_sum_dict
 
 
-    def reverse_box_cox (df, column_to_transform, lambda_boxcox, suffix = '_ReversedBoxCox'):
+    def reverse_box_cox (df, column_to_transform, lambda_boxcox, added_constant = 0, suffix = '_ReversedBoxCox'):
         
         import numpy as np
         import pandas as pd
@@ -14435,6 +14481,11 @@ class etl_workflow:
         # the inferior specification limit transformed; and spec_lim_dict['Sup_spec_lim_transf'] 
         # access the superior specification limit transformed.
         
+        
+        # added_constant: constant C added for making the transformation log(x + C). Check the
+        # output of Box-Cox transform function to verify if a constant was automatically added.
+            
+        
         #suffix: string (inside quotes).
         # How the transformed column will be identified in the returned data_transformed_df.
         # If y_label = 'Y' and suffix = '_ReversedBoxCox', the transformed column will be
@@ -14442,7 +14493,10 @@ class etl_workflow:
         # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
         # start the suffix with "_" to separate it from the original name
         
-        
+        if (added_constant is None):
+            added_constant = 0
+            
+            
         # Start a local copy of the dataframe:
         DATASET = df.copy(deep = True)
 
@@ -14471,6 +14525,9 @@ class etl_workflow:
             #concatenate the column name to the standard '_ReversedBoxCox' suffix
             new_col = column_to_transform + '_ReversedBoxCox'
         
+        # remove the constant from the variable y_transform:
+        y_transform = y_transform - added_constant
+        
         DATASET[new_col] = y_transform
         #dataframe contendo os dados transformados
         
@@ -14486,6 +14543,689 @@ class etl_workflow:
         
         print("\n") #line break
     
+        return DATASET
+
+
+    def square_root_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_sqrt"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # add_constant = False - If True, the transformation sqrt(x + C) where C is a constant will be applied.
+        # constant_to_add = 0 - float number which will be added to each value that will be transformed.
+        # Attention: if no constant is added, but there is a negative value, the minimum needed for making
+        # every value positive will be added automatically. If the constant to add results in negative or
+        # zero values, it will be also modified to make all values non-negative (condition for applying
+        # square root).
+        
+        # new_columns_suffix = "_sqrt"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_log", the new column will be named as
+        # "column1_log".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (constant_to_add is None):
+            constant_to_add = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+        
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        # Let's define the value of the constant that must be sum:
+        minimum_values = [DATASET[column].min() for column in columns_list]
+        global_min = min(minimum_values)
+        
+        if (add_constant == False):
+            if (global_min <= 0):
+                constant_to_add = (0 - global_min) + 10**(-8)
+                # the increment 10**-8 guarantees that it is a very low, but positive number
+                print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+            
+            else:
+                constant_to_add = 0
+            
+        else:
+            if ((global_min + constant_to_add) <= 0):
+                constant_to_add = (0 - (global_min + constant_to_add)) + 10**(-8)
+                # the increment 10**-8 guarantees that it is a very low, but positive number
+                print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+        
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = np.sqrt(np.array(DATASET[column]) + constant_to_add)
+        
+        # Reset the index:
+        DATASET.reset_index(drop = True)
+        
+        print(f"The columns X were successfully transformed as square_root(X + {constant_to_add:.6f}). Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        return DATASET
+
+
+    def reverse_square_root_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # added_constant: constant C added for making the transformation sqrt(x + C). Check the
+        # output of sqrt transform function to verify if a constant was automatically added.
+        
+        # new_columns_suffix = "_originalScale"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_originalScale", the new column will be named 
+        # as "column1_originalScale".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (added_constant is None):
+            added_constant = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            #access each element in the list column_list. The element is named 'column'.
+            
+            # The exponential transformation can be applied to zero and negative values,
+            # so we remove the boolean filter.
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = np.power(np.array(DATASET[column]), 2) - added_constant
+        
+        print("The square root transform was successfully reversed through the power transformation. Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        return DATASET
+
+
+    def cube_root_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_cbrt"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # add_constant = False - If True, the transformation cbrt(x + C) where C is a constant will be applied.
+        # constant_to_add = 0 - float number which will be added to each value that will be transformed.
+        
+        # new_columns_suffix = "_cbrt"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_log", the new column will be named as
+        # "column1_log".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (constant_to_add is None):
+            constant_to_add = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+        
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = np.cbrt(np.array(DATASET[column]) + constant_to_add)
+        
+        # Reset the index:
+        DATASET.reset_index(drop = True)
+        
+        print(f"The columns X were successfully transformed as cube_root(X + {constant_to_add:.6f}). Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        return DATASET
+
+
+    def reverse_cube_root_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # added_constant: constant C added for making the transformation cbrt(x + C). Check the
+        # output of cbrt transform function to verify if a constant was automatically added.
+        
+        # new_columns_suffix = "_originalScale"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_originalScale", the new column will be named 
+        # as "column1_originalScale".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (added_constant is None):
+            added_constant = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            #access each element in the list column_list. The element is named 'column'.
+            
+            # The exponential transformation can be applied to zero and negative values,
+            # so we remove the boolean filter.
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = np.power(np.array(DATASET[column]), 3) - added_constant
+        
+        print("The cube root transform was successfully reversed through the power transformation. Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        return DATASET
+
+
+    def power_transform (df, exponent = 2, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_pow"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # exponent = 2 - the exponent of the power function. Positive values or fractions may be used
+        # as exponents. Example: exponent = 10 raises X to 10th power (X^10), exponent = 0.5 raises to 0.5 
+        # (X^0.5 = X ^(1/2) = square root (X)). 
+        # exponent = 1/10 calculates the 10th root (X^(1/10))
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # add_constant = False - If True, the transformation power(x + C) where C is a constant will be applied.
+        # constant_to_add = 0 - float number which will be added to each value that will be transformed.
+        # Attention: if no constant is added, but there is a negative value that makes it impossible to
+        # apply the power function, the minimum needed for making
+        # every value positive will be added automatically. If the constant to add results in negative or
+        # zero values, it will be also modified to make all values non-negative.
+        
+        # new_columns_suffix = "_pow"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_log", the new column will be named as
+        # "column1_log".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (exponent == 0):
+            exponent = 1
+            print("Zero-power not allowed for this function. Exponent set to 1.\n")
+        
+        if (constant_to_add is None):
+            constant_to_add = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+        
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        # Let's define the value of the constant that must be sum:
+        minimum_values = [DATASET[column].min() for column in columns_list]
+        global_min = min(minimum_values)
+        
+        # check if the selected power may be applied to this global_min or if it is a negative or zero-value
+        # and the power do not accept such value:
+        try:
+            test = float(global_min**exponent)
+            # if test passed (no error was raised), there are no restrictions
+            # The test will fail if the operation results in a complex instead of real number
+        
+        except:
+
+            if (add_constant == False):
+                if (global_min <= 0):
+                    constant_to_add = (0 - global_min) + 10**(-8)
+                    # the increment 10**-8 guarantees that it is a very low, but positive number
+                    print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+
+                else:
+                    constant_to_add = 0
+
+            else:
+                if ((global_min + constant_to_add) <= 0):
+                    constant_to_add = (0 - (global_min + constant_to_add)) + 10**(-8)
+                    # the increment 10**-8 guarantees that it is a very low, but positive number
+                    print(f"Attention! The constant {constant_to_add:.6f} was added for making the transformation, guaranteeing that all values are positive.\n")
+
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = (np.array(DATASET[column]) + constant_to_add)**exponent
+        
+        # Reset the index:
+        DATASET.reset_index(drop = True)
+        
+        print(f"The columns X were successfully transformed as (X + {constant_to_add:.6f})^{exponent:.6f}. Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        return DATASET
+
+
+    def reverse_power_transform (df, original_exponent = 2, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
+        
+        import numpy as np
+        import pandas as pd
+        
+        # subset = None
+        # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
+        # columns names for the transformation to be applied. For instance:
+        # subset = ['col1', 'col2', 'col3'] will apply the transformation to the columns named
+        # as 'col1', 'col2', and 'col3'. Declare the names inside quotes.
+        # Declaring the full list of columns is equivalent to setting subset = None.
+        
+        # original_exponent = 2 - the exponent of the power function used for transforming. 
+        # Positive values or fractions may be used
+        # as exponents. Set the exact same number used on the original transformation in order to
+        # reverse it. It corresponds to apply the power function with the inverted exponent
+        
+        # create_new_columns = True
+        # Alternatively, set create_new_columns = True to store the transformed data into new
+        # columns. Or set create_new_columns = False to overwrite the existing columns
+        
+        # added_constant: constant C added for making the transformation power(x + C). Check the
+        # output of power transform function to verify if a constant was automatically added.
+        
+        # new_columns_suffix = "_originalScale"
+        # This value has effect only if create_new_column = True.
+        # The new column name will be set as column + new_columns_suffix. Then, if the original
+        # column was "column1" and the suffix is "_originalScale", the new column will be named 
+        # as "column1_originalScale".
+        # Alternatively, input inside quotes a string with the desired suffix. Recommendation:
+        # start the suffix with "_" to separate it from the original name.
+        
+        if (original_exponent == 0):
+            exponent = 1
+            print("Zero-power not allowed for this function. Exponent set to 1.\n")
+        else:
+            # Reverse the exponent
+            exponent = 1/original_exponent
+        
+        
+        if (added_constant is None):
+            added_constant = 0
+        
+        # Start a local copy of the dataframe:
+        DATASET = df.copy(deep = True)
+        
+        # Check if a subset was defined. If so, make columns_list = subset 
+        if not (subset is None):
+            
+            columns_list = subset
+        
+        else:
+            #There is no declared subset. Then, make columns_list equals to the list of
+            # numeric columns of the dataframe.
+            columns_list = list(DATASET.columns)
+            
+        # Let's check if there are categorical columns in columns_list. Only numerical
+        # columns should remain
+        # Start a support list:
+        support_list = []
+        # List the possible numeric data types for a Pandas dataframe column:
+        numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+
+        # Loop through each column in columns_list:
+        for column in columns_list:
+            
+            # Check the Pandas series (column) data type:
+            column_type = DATASET[column].dtype
+                
+            # If it is not categorical (object), append it to the support list:
+            if (column_type in numeric_dtypes):
+                    
+                support_list.append(column)
+        
+        # Finally, make the columns_list support_list itself:
+        columns_list = support_list
+        
+        # Let's define the value of the constant that must be sum:
+        minimum_values = [DATASET[column].min() for column in columns_list]
+        global_min = min(minimum_values)
+            
+        # check if the selected power may be applied to this global_min or if it is a negative or zero-value
+        # and the power do not accept such value:
+        try:
+            test = float(global_min**exponent)
+            # if test passed (no error was raised), there are no restrictions
+            # The test will fail if the operation results in a complex instead of real number
+            
+        except:
+            print(f"Detected a value {global_min} in the data that cannot be submitted to the inversion ({exponent}-power).\n")
+            
+        #Loop through each column to apply the transform:
+        for column in columns_list:
+            #access each element in the list column_list. The element is named 'column'.
+            
+            # The exponential transformation can be applied to zero and negative values,
+            # so we remove the boolean filter.
+            
+            #Check if a new column will be created, or if the original column should be
+            # substituted.
+            if (create_new_columns == True):
+                # Create a new column.
+                
+                # The new column name will be set as column + new_columns_suffix
+                new_column_name = column + new_columns_suffix
+            
+            else:
+                # Overwrite the existing column. Simply set new_column_name as the value 'column'
+                new_column_name = column
+            
+            # Calculate the column value as the log transform of the original series (column)
+            DATASET[new_column_name] = (np.array(DATASET[column]))**exponent - added_constant
+        
+        print("The power was successfully reversed through the exponential transformation. Check the 10 first rows of the new dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
         return DATASET
 
 
