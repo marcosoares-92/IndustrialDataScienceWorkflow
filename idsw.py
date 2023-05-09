@@ -995,7 +995,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     from pandas import json_normalize
     
     ## WARNING: Use this function to load dataframes stored on Excel (xls, xlsx, xlsm, xlsb, odf, ods and odt), 
-    ## JSON, txt, or CSV (comma separated values) files.
+    ## JSON, txt, or CSV (comma separated values) files. Tables in webpages or html files can also be read.
     
     # file_directory_path - (string, in quotes): input the path of the directory (e.g. folder path) 
     # where the file is stored. e.g. file_directory_path = "/" or file_directory_path = "/folder"
@@ -1003,7 +1003,14 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     # FILE_NAME_WITH_EXTENSION - (string, in quotes): input the name of the file with the 
     # extension. e.g. FILE_NAME_WITH_EXTENSION = "file.xlsx", or, 
     # FILE_NAME_WITH_EXTENSION = "file.csv", "file.txt", or "file.json"
-    # Again, the extensions may be: xls, xlsx, xlsm, xlsb, odf, ods, odt, json, txt or csv.
+    # Again, the extensions may be: xls, xlsx, xlsm, xlsb, odf, ods, odt, json, txt or csv. Also,
+    # html files and webpages may be also read.
+    
+    # You may input the path for an HTML file containing a table to be read; or 
+    # a string containing the address for a webpage containing the table. The address must start
+    # with www or htpp. If a website is input, the full address can be input as FILE_DIRECTORY_PATH
+    # or as FILE_NAME_WITH_EXTENSION.
+    
     
     # load_txt_file_with_json_format = False. Set load_txt_file_with_json_format = True 
     # if you want to read a file with txt extension containing a text formatted as JSON 
@@ -1092,9 +1099,14 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     # Then, json_record_path = 'books'
     # json_metadata_prefix_list = ['name', 'last']
     
+    if (file_directory_path is None):
+        file_directory_path = ''
+    if (file_name_with_extension is None):
+        file_name_with_extension = ''
     
     # Create the complete file path:
     file_path = os.path.join(file_directory_path, file_name_with_extension)
+    
     # Extract the file extension
     file_extension = os.path.splitext(file_path)[1][1:]
     # os.path.splitext(file_path) is a tuple of strings: the first is the complete file
@@ -1103,6 +1115,20 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     # the tuple. By selecting os.path.splitext(file_path)[1][1:], we are taking this string
     # from the second character (index 1), eliminating the dot: 'txt'
     
+    if(file_extension not in ['xls', 'xlsx', 'xlsm', 'xlsb', 'odf',
+                              'ods', 'odt', 'json', 'txt', 'csv', 'html']):
+        
+        # Check if it is a webpage by evaluating the 3 to 5 initial characters:
+        # Notice that 'https' contains 'http'
+        if ((file_path[:3] == 'www') | (file_path[:4] == '/www') | (file_path[:4] == 'http')| (file_path[:5] == '/http'):
+            file_extension = 'html'
+
+            # If the address starts with a slash (1st character), remove it:
+            if (file_path[0] == '/'):
+                # Pick all characters from index 1:
+                file_path = file_path[1:]
+    
+        
     # Check if the decimal separator is None. If it is, set it as '.' (period):
     if (decimal_separator is None):
         decimal_separator = '.'
@@ -1209,6 +1235,18 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
         # check: https://www.pythonpip.com/python-tutorials/how-to-load-json-file-using-python/#:~:text=The%20json.load%20%28%29%20is%20used%20to%20read%20the,and%20alter%20data%20in%20our%20application%20or%20system.   
         dataset = json_normalize(json_file, record_path = json_record_path, sep = json_field_separator, meta = json_metadata_prefix_list)
     
+            
+    elif (file_extension == 'html'):    
+        
+        if (has_header == True):
+            
+            dataset = pd.read_html(file_path, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
+            
+        else:
+            
+            dataset = pd.read_html(file_path, header = None, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
+        
+        
     else:
         # If it is not neither a csv nor a txt file, let's assume it is one of different
         # possible Excel files.
