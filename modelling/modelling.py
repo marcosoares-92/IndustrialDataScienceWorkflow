@@ -3282,6 +3282,30 @@ class modelling_workflow:
         # There is no parameter to pass to the constructor of this class:
         ols_linear_reg_model = LinearRegression()
         
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+                y_train tensor original format:
+                    <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                    array([[1.],
+                        [0.], ....,
+                        [0.]])>
+                
+                Reshape to unidimensional format. First step:
+                y_train.numpy().reshape(1, -1)
+                Now, it has format:
+                    array([[1., 0.,..., 0.]]), shape = (1, 87)
+                    (if we make reshape(-1, 1), we turn it again to the original tensor format)
+                
+                Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+                # So we make:
+                y_train[0] to select only it.
+        """
+                
+        y_train = np.array(y_train).reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        y_train = y_train[0]
+        
         # Fit the model:
         ols_linear_reg_model = ols_linear_reg_model.fit(X_train, y_train)
         
@@ -3322,7 +3346,7 @@ class modelling_workflow:
         return ols_linear_reg_model, metrics_dict, feature_importance_df
 
 
-    def ridge_linear_reg (X_train, y_train, alpha_hyperparameter = 1.0, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def ridge_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.Ridge
@@ -3349,9 +3373,44 @@ class modelling_workflow:
         # object. For numerical reasons, using alpha = 0 is not advised. 
         # Given this, you should use the ols_linear_reg function instead.
         
+        # The regularizer tends to bring all coefficients of the regression to zero, i.e., with higher
+        # regularization terms, the model can become a constant line. On the other hand, it reduces the
+        # impact of high-coefficient features like X^4, reducing overfitting (high variance problem).
+        
+        # So, apply low regularizers, like 0.001, specially if the data was previously normalized. alpha=1
+        # may bring the equivalence to a constant line (underfitting, high bias problem).
+        
+        
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+        
         # Create an instance (object) from the class Ridge:
         # Pass the appropriate parameters to the class constructor:
-        ridge_linear_reg_model = Ridge(alpha = alpha_hyperparameter, max_iter = maximum_of_allowed_iterations)
+        ridge_linear_reg_model = Ridge(alpha = alpha_hyperparameter, max_iter = maximum_of_allowed_iterations, random_state = RANDOM_STATE)
+        
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+                y_train tensor original format:
+                    <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                    array([[1.],
+                        [0.], ....,
+                        [0.]])>
+                
+                Reshape to unidimensional format. First step:
+                y_train.numpy().reshape(1, -1)
+                Now, it has format:
+                    array([[1., 0.,..., 0.]]), shape = (1, 87)
+                    (if we make reshape(-1, 1), we turn it again to the original tensor format)
+                
+                Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+                # So we make:
+                y_train[0] to select only it.
+        """
+                
+        y_train = np.array(y_train).reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        y_train = y_train[0]
         
         # Fit the model:
         ridge_linear_reg_model = ridge_linear_reg_model.fit(X_train, y_train)
@@ -3398,7 +3457,7 @@ class modelling_workflow:
         return ridge_linear_reg_model, metrics_dict, feature_importance_df
 
 
-    def lasso_linear_reg (X_train, y_train, alpha_hyperparameter = 1.0, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def lasso_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.Lasso
@@ -3425,10 +3484,45 @@ class modelling_workflow:
         # object. For numerical reasons, using alpha = 0 is not advised. 
         # Given this, you should use the ols_linear_reg function instead.
         
+        # The regularizer tends to bring all coefficients of the regression to zero, i.e., with higher
+        # regularization terms, the model can become a constant line. On the other hand, it reduces the
+        # impact of high-coefficient features like X^4, reducing overfitting (high variance problem).
+        
+        # So, apply low regularizers, like 0.001, specially if the data was previously normalized. alpha=1
+        # may bring the equivalence to a constant line (underfitting, high bias problem).
+        
+        
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+        
         # Create an instance (object) from the class Lasso:
         # Pass the appropriate parameters to the class constructor:
-        lasso_linear_reg_model = Lasso(alpha = alpha_hyperparameter, max_iter = maximum_of_allowed_iterations)
+        lasso_linear_reg_model = Lasso(alpha = alpha_hyperparameter, max_iter = maximum_of_allowed_iterations, random_state = RANDOM_STATE)
         # verbose = True to debug mode (show training status during training)
+        
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+                y_train tensor original format:
+                    <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                    array([[1.],
+                        [0.], ....,
+                        [0.]])>
+                
+                Reshape to unidimensional format. First step:
+                y_train.numpy().reshape(1, -1)
+                Now, it has format:
+                    array([[1., 0.,..., 0.]]), shape = (1, 87)
+                    (if we make reshape(-1, 1), we turn it again to the original tensor format)
+                
+                Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+                # So we make:
+                y_train[0] to select only it.
+        """
+                
+        y_train = np.array(y_train).reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        y_train = y_train[0]
         
         # Fit the model:
         lasso_linear_reg_model = lasso_linear_reg_model.fit(X_train, y_train)
@@ -3475,7 +3569,7 @@ class modelling_workflow:
         return lasso_linear_reg_model, metrics_dict, feature_importance_df
 
 
-    def elastic_net_linear_reg (X_train, y_train, alpha_hyperparameter = 1.0, l1_ratio_hyperparameter = 0.5, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def elastic_net_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, l1_ratio_hyperparameter = 0.02, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNet
@@ -3502,15 +3596,51 @@ class modelling_workflow:
         # l1_ratio is The ElasticNet mixing parameter (float), with 0 <= l1_ratio <= 1. 
         # For l1_ratio = 0 the penalty is an L2 penalty. For l1_ratio = 1 it is an L1 penalty. 
         # For 0 < l1_ratio < 1, the penalty is a combination of L1 and L2.
+        # Currently, l1_ratio <= 0.01 is not reliable, unless you supply your own sequence of alpha.
         
         # alpha = 0 and l1_ratio = 0 is equivalent to an ordinary least square, solved by 
         # the LinearRegression object. For numerical reasons, using alpha = 0 and 
         # l1_ratio = 0 is not advised. Given this, you should use the ols_linear_reg function instead.
         
+        # The regularizer tends to bring all coefficients of the regression to zero, i.e., with higher
+        # regularization terms, the model can become a constant line. On the other hand, it reduces the
+        # impact of high-coefficient features like X^4, reducing overfitting (high variance problem).
+            
+        # So, apply low regularizers, like 0.001, specially if the data was previously normalized. alpha=1
+        # may bring the equivalence to a constant line (underfitting, high bias problem).
+        
+        
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+        
         # Create an instance (object) from the class ElasticNet:
         # Pass the appropriate parameters to the class constructor:
-        elastic_net_linear_reg_model = ElasticNet(alpha = alpha_hyperparameter, l1_ratio = l1_ratio_hyperparameter, max_iter = maximum_of_allowed_iterations)
+        elastic_net_linear_reg_model = ElasticNet(alpha = alpha_hyperparameter, l1_ratio = l1_ratio_hyperparameter, max_iter = maximum_of_allowed_iterations, random_state = RANDOM_STATE)
         # verbose = True to debug mode (show training status during training)
+        
+        # Sklearn requires a 1-dimensional vector for training the classifier.
+        """
+                y_train tensor original format:
+                    <tf.Tensor: shape=(87, 1), dtype=float64, numpy=
+                    array([[1.],
+                        [0.], ....,
+                        [0.]])>
+                
+                Reshape to unidimensional format. First step:
+                y_train.numpy().reshape(1, -1)
+                Now, it has format:
+                    array([[1., 0.,..., 0.]]), shape = (1, 87)
+                    (if we make reshape(-1, 1), we turn it again to the original tensor format)
+                
+                Notice that we want only the internal 1-dimensional array (with 87 values in the example)
+                # So we make:
+                y_train[0] to select only it.
+        """
+                
+        y_train = np.array(y_train).reshape(1, -1)
+        # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
+        # only the first array:
+        y_train = y_train[0]
         
         # Fit the model:
         elastic_net_linear_reg_model = elastic_net_linear_reg_model.fit(X_train, y_train)
@@ -3557,7 +3687,7 @@ class modelling_workflow:
         return elastic_net_linear_reg_model, metrics_dict, feature_importance_df
 
 
-    def logistic_reg (X_train, y_train, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def logistic_reg (X_train, y_train, regularization = 'l2', l1_ratio_hyperparameter = 0.02, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?msclkid=6bede8a8c1a011ecad332ec5eb711355
@@ -3574,8 +3704,27 @@ class modelling_workflow:
         # MAXIMUM_OF_ALLOWED_ITERATIONS = integer representing the maximum number of iterations
         # that the optimization algorithm can perform. Depending on data, convergence may not be
         # reached within this limit, so you may need to increase this hyperparameter.
+        # REGULARIZATION is the norm of the penalty:
+        # REGULARIZATION = None: no penalty is added; REGULARIZATION = 'l2': add a L2 penalty term and 
+        # it is the default choice; REGULARIZATION = 'l1': add a L1 penalty term; 
+        # REGULARIZATION = 'elasticnet': both L1 and L2 penalty terms are added.
+        
+        # The regularizer tends to bring all coefficients of the regression to zero, i.e., with higher
+        # regularization terms, the model can become a constant line. On the other hand, it reduces the
+        # impact of high-coefficient features like X^4, reducing overfitting (high variance problem).        
+        # So, apply low regularizers, like 0.001, specially if the data was previously normalized. alpha=1
+        # may bring the equivalence to a constant line (underfitting, high bias problem).
+        # L1_RATIO_HYPERPARAMETER is The ElasticNet mixing parameter (float), with 0 <= l1_ratio <= 1. 
+        # For L1_RATIO_HYPERPARAMETER = 0 the penalty is an L2 penalty. For l1_ratio = 1 it is an L1 penalty. 
+        # For 0 < L1_RATIO_HYPERPARAMETER < 1, the penalty is a combination of L1 and L2.
+        
+        # Currently, l1_ratio <= 0.01 is not reliable, unless you supply your own sequence of alpha.
         
         print("Attention: logistic regression is a binary classifier. It results in probabilities, instead of on scalar (real numbers) like other regression algorithms from linear models class.\n")
+        
+        
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
         
         # Instantiate a model checker object to verify if there are only two classes:
         check_classes = model_checking()
@@ -3597,7 +3746,7 @@ class modelling_workflow:
             # Since the number of classes is correct, we can proceed.
             
             # Pass the appropriate parameters to the class constructor:
-            logistic_reg_model = LogisticRegression(max_iter = maximum_of_allowed_iterations)
+            logistic_reg_model = LogisticRegression(penalty = regularization, max_iter = maximum_of_allowed_iterations, random_state = RANDOM_STATE, l1_ratio = l1_ratio_hyperparameter)
             # verbose = 1 to debug mode is not available for 'saga' solver
 
             # Fit the model:
@@ -3620,7 +3769,7 @@ class modelling_workflow:
             y_train[0] to select only it.
             """
             
-            reshaped_y_train = y_train.numpy().reshape(1, -1)
+            reshaped_y_train = np.array(y_train).reshape(1, -1)
             # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
             # only the first array:
             reshaped_y_train = reshaped_y_train[0]
@@ -3678,7 +3827,7 @@ class modelling_workflow:
             return None, None, None, classes_dict
 
 
-    def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_trees = 100, max_tree_depth = None, min_samples_to_split_node = 2, min_samples_to_make_leaf = 2, bootstrap_samples = True, use_out_of_bag_error = True, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_trees = 128, max_tree_depth = 20, min_samples_to_split_node = 2, min_samples_to_make_leaf = 2, bootstrap_samples = True, use_out_of_bag_error = True, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
         # check Random Forest documentation on Scikit-learn:
@@ -3692,6 +3841,9 @@ class modelling_workflow:
         from sklearn.ensemble import RandomForestRegressor
         from sklearn.ensemble import RandomForestClassifier
         
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+        
         # X_train = subset of predictive variables (dataframe).
         # y_train = subset of response variable (series).
         
@@ -3699,10 +3851,11 @@ class modelling_workflow:
         # The default is 'regression', which will be used if no type is
         # provided.
         
-        # NUMBER_OF_TREES = 100 (integer) - number of trees in the forest
+        # NUMBER_OF_TREES = 128 (integer) - number of trees in the forest
         # it is the n_estimators parameter of the model.
+        # Usually, a number from 64 to 128 is used.
 
-        # MAX_TREE_DEPTH = None - integer representing the maximum depth 
+        # MAX_TREE_DEPTH = 20 - integer representing the maximum depth 
         # permitted for the trees (base learners). If None, then nodes are expanded 
         # until all leaves are pure or until all leaves contain less 
         # than MIN_SAMPLES_TO_SPLIT_NODE samples.
@@ -3761,7 +3914,7 @@ class modelling_workflow:
         if (type_of_problem == "regression"):
             # Create an instance (object) from the class RandomForestRegressor()
             # Pass the appropriate parameters to the class constructor:
-            rf_model = RandomForestRegressor(n_estimators = number_of_trees, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
+            rf_model = RandomForestRegressor(n_estimators = number_of_trees, random_state = RANDOM_STATE, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
             # verbose = 1 for debug mode (show training process details)
             
         elif (type_of_problem == "classification"):
@@ -3786,7 +3939,7 @@ class modelling_workflow:
             
             # Create an instance (object) from the class RandomForestClassifier()
             # Pass the appropriate parameters to the class constructor:
-            rf_model = RandomForestClassifier(n_estimators = number_of_trees, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
+            rf_model = RandomForestClassifier(n_estimators = number_of_trees, random_state = RANDOM_STATE, max_depth = max_tree_depth, min_samples_split = min_samples_to_split_node, min_samples_leaf = min_samples_to_make_leaf, bootstrap = bootstrap_samples, oob_score = use_out_of_bag_error)
             # verbose = 1 for debug mode (show training process details)
 
             
@@ -3814,7 +3967,7 @@ class modelling_workflow:
             y_train[0] to select only it.
         """
             
-        reshaped_y_train = y_train.numpy().reshape(1, -1)
+        reshaped_y_train = np.array(y_train).reshape(1, -1)
         # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
         # only the first array:
         reshaped_y_train = reshaped_y_train[0]
@@ -3850,7 +4003,7 @@ class modelling_workflow:
         model_check = model_check.model_metrics()
         # Retrieve model metrics:
         metrics_dict = model_check.metrics_dict
-
+        
         # Store the metrics dictionary in the summary dictionary:
         summary_dict['metrics_dict'] = metrics_dict
 
@@ -3881,7 +4034,7 @@ class modelling_workflow:
         return rf_model, summary_dict
 
 
-    def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees = 100, max_tree_depth = None, percent_of_training_set_to_subsample = 75, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees = 128, max_tree_depth = None, percent_of_training_set_to_subsample = 75, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
         # check XGBoost documentation:
@@ -3893,6 +4046,9 @@ class modelling_workflow:
         from xgboost import XGBRegressor
         from xgboost import XGBClassifier
         
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+            
         # X_train = subset of predictive variables (dataframe).
         # y_train = subset of response variable (series).
         
@@ -3900,9 +4056,10 @@ class modelling_workflow:
         # The default is 'regression', which will be used if no type is
         # provided.
         
-        # number_of_trees = 100 (integer) - number of gradient boosted trees. 
+        # number_of_trees = 128 (integer) - number of gradient boosted trees. 
         # Equivalent to number of boosting rounds.
         # it is the n_estimators parameter of the model.
+        # Usually, a number from 64 to 128 is used.
         
         # max_tree_depth = None - integer representing the maximum depth 
         # permitted for the trees (base learners).
@@ -3948,7 +4105,7 @@ class modelling_workflow:
         if (type_of_problem == "regression"):
             # Create an instance (object) from the class RandomForestRegressor()
             # Pass the appropriate parameters to the class constructor:
-            xgb_model = XGBRegressor(n_estimators = number_of_trees, max_depth = max_tree_depth, subsample = fraction_to_subsample)
+            xgb_model = XGBRegressor(n_estimators = number_of_trees, random_state = RANDOM_STATE, max_depth = max_tree_depth, subsample = fraction_to_subsample)
             # verbosity = 3 for debug mode (show training details)
             
         elif (type_of_problem == "classification"):
@@ -3973,7 +4130,7 @@ class modelling_workflow:
             
             # Create an instance (object) from the class RandomForestClassifier()
             # Pass the appropriate parameters to the class constructor:
-            xgb_model = XGBClassifier(n_estimators = number_of_trees, max_depth = max_tree_depth, subsample = fraction_to_subsample)
+            xgb_model = XGBClassifier(n_estimators = number_of_trees, random_state = RANDOM_STATE, max_depth = max_tree_depth, subsample = fraction_to_subsample)
             # verbosity = 3 for debug mode (show training details)
             
         else:
@@ -4001,7 +4158,7 @@ class modelling_workflow:
             y_train[0] to select only it.
         """
             
-        reshaped_y_train = y_train.numpy().reshape(1, -1)
+        reshaped_y_train = np.array(y_train).reshape(1, -1)
         # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
         # only the first array:
         reshaped_y_train = reshaped_y_train[0]
@@ -4114,6 +4271,10 @@ class modelling_workflow:
         # hidden_layer_sizes=[100, 100] - 2 hidden layers with 100 neurons per layer
         # hidden_layer_sizes=[100, 100, 100] - 3 hidden layers with 100 neurons per layer.
         
+        RANDOM_STATE = 55 
+        ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+            
+        
         if (number_of_hidden_layers == 1):
             
             # Simply copy the value input as number_of_neurons_per_hidden_layer
@@ -4138,7 +4299,7 @@ class modelling_workflow:
         if (type_of_problem == "regression"):
             # Create an instance (object) from the class MLPRegressor()
             # Pass the appropriate parameters to the class constructor:
-            mlp_model = MLPRegressor(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True)
+            mlp_model = MLPRegressor(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True, random_state = RANDOM_STATE)
             # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
             # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
             # 'identity' or 'linear' is equivalent to the use of no-activation function (no-op activation)
@@ -4151,7 +4312,7 @@ class modelling_workflow:
         elif (type_of_problem == "classification"):
             # Create an instance (object) from the class MLPClassifier()
             # Pass the appropriate parameters to the class constructor:
-            mlp_model = MLPClassifier(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True)
+            mlp_model = MLPClassifier(hidden_layer_sizes = HIDDEN_LAYER_SIZES, activation = 'relu', solver = 'adam', batch_size = size_of_training_batch, max_iter = maximum_of_allowed_iterations, verbose = True, random_state = RANDOM_STATE)
         
         else:
             
@@ -4178,7 +4339,7 @@ class modelling_workflow:
                 y_train[0] to select only it.
         """
                 
-        reshaped_y_train = y_train.numpy().reshape(1, -1)
+        reshaped_y_train = np.array(y_train).reshape(1, -1)
         # This array has format([[val1, val2, ...]]) - i.e., it has two dimensions. Let's pick
         # only the first array:
         reshaped_y_train = reshaped_y_train[0]
