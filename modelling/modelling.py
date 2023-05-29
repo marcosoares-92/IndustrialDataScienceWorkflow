@@ -3352,6 +3352,28 @@ class modelling_workflow:
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#sklearn.linear_model.Ridge
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
         
+        """
+        The regularizer tends to bring the coefficients to zero: the model will behave as a constant line 
+        for higher regularization terms.
+        - The Regularization term can be either:
+            - Lasso: absolute value of the coefficients.
+                - Force the coefficients of the regression to zero.
+            - Ridge: square of the coefficients.
+                - Bring the coefficients of the regression closer to zero.
+            - Elastic net: combination of Ridge and Lasso.
+
+            - Both shrink the coefficients related to unimportant predictors.
+
+        - Regularization term `alpha`:
+            - `alpha = 0`: no regularization (standard regression);
+            - `alpha tending to infinite`: complete regularization (all coefficients to zero).
+                - Regression becomes a constant line.
+
+            - If all coefficients are different from zero, all variables are being considered important for the prediction.
+            - The regularizer may bring coefficients to zero, selecting those which are effectively the most important parameters.
+
+        """
+        
         import numpy as np
         import pandas as pd
         from sklearn.linear_model import Ridge
@@ -3462,6 +3484,28 @@ class modelling_workflow:
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#sklearn.linear_model.Lasso
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
+        
+        """
+        The regularizer tends to bring the coefficients to zero: the model will behave as a constant line 
+        for higher regularization terms.
+        - The Regularization term can be either:
+            - Lasso: absolute value of the coefficients.
+                - Force the coefficients of the regression to zero.
+            - Ridge: square of the coefficients.
+                - Bring the coefficients of the regression closer to zero.
+            - Elastic net: combination of Ridge and Lasso.
+
+            - Both shrink the coefficients related to unimportant predictors.
+
+        - Regularization term `alpha`:
+            - `alpha = 0`: no regularization (standard regression);
+            - `alpha tending to infinite`: complete regularization (all coefficients to zero).
+                - Regression becomes a constant line.
+
+            - If all coefficients are different from zero, all variables are being considered important for the prediction.
+            - The regularizer may bring coefficients to zero, selecting those which are effectively the most important parameters.
+
+        """
         
         import numpy as np
         import pandas as pd
@@ -3574,6 +3618,28 @@ class modelling_workflow:
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html#sklearn.linear_model.ElasticNet
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
+        
+        """
+        The regularizer tends to bring the coefficients to zero: the model will behave as a constant line 
+        for higher regularization terms.
+        - The Regularization term can be either:
+            - Lasso: absolute value of the coefficients.
+                - Force the coefficients of the regression to zero.
+            - Ridge: square of the coefficients.
+                - Bring the coefficients of the regression closer to zero.
+            - Elastic net: combination of Ridge and Lasso.
+
+            - Both shrink the coefficients related to unimportant predictors.
+
+        - Regularization term `alpha`:
+            - `alpha = 0`: no regularization (standard regression);
+            - `alpha tending to infinite`: complete regularization (all coefficients to zero).
+                - Regression becomes a constant line.
+
+            - If all coefficients are different from zero, all variables are being considered important for the prediction.
+            - The regularizer may bring coefficients to zero, selecting those which are effectively the most important parameters.
+
+        """
         
         import numpy as np
         import pandas as pd
@@ -3692,6 +3758,28 @@ class modelling_workflow:
         # check Scikit-learn documentation: 
         # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html?msclkid=6bede8a8c1a011ecad332ec5eb711355
         # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
+        
+        """
+        The regularizer tends to bring the coefficients to zero: the model will behave as a constant line 
+        for higher regularization terms.
+        - The Regularization term can be either:
+            - Lasso: absolute value of the coefficients.
+                - Force the coefficients of the regression to zero.
+            - Ridge: square of the coefficients.
+                - Bring the coefficients of the regression closer to zero.
+            - Elastic net: combination of Ridge and Lasso.
+
+            - Both shrink the coefficients related to unimportant predictors.
+
+        - Regularization term `alpha`:
+            - `alpha = 0`: no regularization (standard regression);
+            - `alpha tending to infinite`: complete regularization (all coefficients to zero).
+                - Regression becomes a constant line.
+
+            - If all coefficients are different from zero, all variables are being considered important for the prediction.
+            - The regularizer may bring coefficients to zero, selecting those which are effectively the most important parameters.
+
+        """
         
         import numpy as np
         import pandas as pd
