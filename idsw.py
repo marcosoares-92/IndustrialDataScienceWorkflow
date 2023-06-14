@@ -5,6 +5,11 @@
 # marcosoares.feq@gmail.com
 # marco.soares@bayer.com
 
+# Import all functions from etl and modelling with no alias
+from pims import *
+from etl import *
+from modelling import *
+
 def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '', s3_bucket_name = None, s3_obj_prefix = None):
     
     # source = 'google' for mounting the google drive;
@@ -585,7 +590,7 @@ def export_files_to_s3 (list_of_file_names_with_extensions, directory_of_noteboo
     # Other examples:
     # list_of_file_names_with_extensions = ['Screen_Shot.png', 'dataset.csv']
     # list_of_file_names_with_extensions = ["dictionary.pkl", "model.h5"]
-    # list_of_file_names_with_extensions = ['doc.pdf', 'model.dill']
+    # list_of_file_names_with_extensions = ['doc.pdf', 'model.pkl']
     
     # directory_of_notebook_workspace_storing_files_to_export: directory from notebook's workspace
     # from which the files will be exported to S3. Keep it None, or
@@ -1120,7 +1125,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
         
         # Check if it is a webpage by evaluating the 3 to 5 initial characters:
         # Notice that 'https' contains 'http'
-        if ((file_path[:3] == 'www') | (file_path[:4] == '/www') | (file_path[:4] == 'http')| (file_path[:5] == '/http'):
+        if ((file_path[:3] == 'www') | (file_path[:4] == '/www') | (file_path[:4] == 'http')| (file_path[:5] == '/http')):
             file_extension = 'html'
 
             # If the address starts with a slash (1st character), remove it:
@@ -1468,21 +1473,14 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     
     import os
     import pickle
-    import dill
+    # import dill
     import tarfile
-    import tensorflow as tf
     from zipfile import ZipFile
     # https://docs.python.org/3/library/tarfile.html#tar-examples
     # https://docs.python.org/3/library/zipfile.html#zipfile-objects
     # pickle and dill save the file in binary (bits) serialized mode. So, we must use
     # open 'rb' or 'wb' when calling the context manager. The 'b' stands for 'binary',
     # informing the context manager (with statement) that a bit-file will be processed
-    from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
-    from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, MinMaxScaler
-    from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
-    from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-    from sklearn.neural_network import MLPRegressor, MLPClassifier
-    from xgboost import XGBRegressor, XGBClassifier
     
     # action = 'import' for importing a model and/or a dictionary;
     # action = 'export' for exporting a model and/or a dictionary.
@@ -1521,6 +1519,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     # model_type = 'xgb_regressor' for XGBoost regression models (non-deep learning)
     # model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
     # model_type = 'arima' for ARIMA model (Statsmodels)
+    # model_type = 'prophet' for Facebook Prophet model
     
     # dict_or_list_to_export and model_to_export: 
     # These two parameters have effect only when ACTION == 'export'. In this case, they
@@ -1557,6 +1556,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     
     if (bool_check1 == True):
         #manipulate a dictionary
+        from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, MinMaxScaler
         
         if (dictionary_or_list_file_name is None):
             print("Please, enter a name for the dictionary or list.")
@@ -1585,26 +1585,38 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             
             #check model_type:
             if (model_type == 'keras'):
+                import tensorflow as tf
                 model_extension = 'h5'
             
             elif (model_type == 'sklearn'):
-                model_extension = 'dill'
-                #it could be 'pkl', though
+                from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
+                from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+                from sklearn.neural_network import MLPRegressor, MLPClassifier
+                model_extension = 'pkl'
+                #it could be 'dill', though
             
             elif (model_type == 'xgb_regressor'):
+                from xgboost import XGBRegressor
                 model_extension = 'json'
                 #it could be 'ubj', though
             
             elif (model_type == 'xgb_classifier'):
+                from xgboost import XGBClassifier
                 model_extension = 'json'
                 #it could be 'ubj', though
             
-            elif (model_type == 'arima'):
+            elif (model_type == 'arima'):       
+                from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
                 model_extension = 'pkl'
+            
+            elif (model_type == 'prophet'):
+                from prophet.serialize import model_to_json, model_from_json
+                # https://facebook.github.io/prophet/docs/additional_topics.html
+                model_extension = 'json'
             
             # Finally, check if it is not the only one which can have several extensions:
             elif (model_type != 'tensorflow_general'):
-                print("Enter a valid model_type: keras, tensorflow_general, sklearn, xgb_regressor, xgb_classifier, or arima.")
+                print("Enter a valid model_type: keras, tensorflow_general, sklearn, xgb_regressor, xgb_classifier, arima, or prophet.")
                 return "error2"
             
         # If there is an extension, add it:
@@ -1711,6 +1723,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     print(f"Keras/TensorFlow model successfully imported from {model_path}.")
             
             elif (model_type == 'tensorflow_general'):
+                import tensorflow as tf
                 
                 print("Warning, save the model in a directory called 'saved_model' (before compressing.)\n")
                 # Create a temporary folder in case it does not exist:
@@ -1860,8 +1873,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
 
                             except:
                                 print("Failed to load the model. Save it in a directory named 'saved_model' before compressing.\n")
-
-                    
+  
             elif (model_type == 'sklearn'):
                 
                 if (use_colab_memory == True):
@@ -1869,7 +1881,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     
                     with open(colab_files_dict[key], 'rb') as opened_file:
             
-                        model = dill.load(opened_file)
+                        model = pickle.load(opened_file)
                     
                     print(f"Scikit-learn model: {key} successfully imported to Colab environment.")
             
@@ -1877,7 +1889,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     #standard method
                     with open(model_path, 'rb') as opened_file:
             
-                        model = dill.load(opened_file)
+                        model = pickle.load(opened_file)
                 
                     print(f"Scikit-learn model successfully imported from {model_path}.")
                     # For loading a pickle model:
@@ -1936,6 +1948,24 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     model = ARIMAResults.load(model_path)
                     print(f"ARIMA model successfully imported from {model_path}.")
             
+            elif (model_type == 'prophet'):
+                
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    
+                    with open(colab_files_dict[key], 'r') as opened_file:
+                        model = model_from_json(opened_file.read())  # Load model
+
+                    print(f"Prophet model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    with open(model_path, 'r') as fin:
+                        model = model_from_json(fin.read())  # Load model
+
+                    print(f"Prophet model successfully imported from {model_path}.")
+            
+
             if (objects_manipulated == 'model_only'):
                 # only the model should be returned
                 return model
@@ -2005,6 +2035,8 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     print(f"Keras/TensorFlow model successfully exported as {model_path}.")
             
             elif (model_type == 'tensorflow_general'):
+
+                import tensorflow as tf
                 
                 # Save your model in the SavedModel format
                 # Save as a directory named 'saved_model'
@@ -2054,7 +2086,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     
                     with open(key, 'wb') as opened_file:
 
-                        dill.dump(model_to_export, opened_file)
+                        pickle.dump(model_to_export, opened_file)
                     
                     #to save the file, the mode must be set as 'wb' (write binary)
                     files.download(key)
@@ -2064,7 +2096,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     #standard method
                     with open(model_path, 'wb') as opened_file:
 
-                        dill.dump(model_to_export, opened_file)
+                        pickle.dump(model_to_export, opened_file)
                     
                     print(f"Scikit-learn model successfully exported as {model_path}.")
                     # For exporting a pickle model:
@@ -2105,6 +2137,24 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     #standard method
                     model_to_export.save(model_path)
                     print(f"ARIMA model successfully exported as {model_path}.")
+        
+            elif (model_type == 'prophet'):
+                    
+                    if (use_colab_memory == True):
+                        ## Download the model
+                        key = model_file_name + "." + model_extension
+                        with open(key, 'w') as opened_file:
+                            opened_file.write(model_to_json(model_to_export))  # Save model
+                        
+                        files.download(key)
+                        print(f"Prophet model: {key} successfully downloaded from Colab environment.")
+                
+                    else:
+                        #standard method
+                        with open(model_path, 'w') as opened_file:
+                            opened_file.write(model_to_json(model_to_export))  # Save model
+
+                        print(f"Prophet model successfully exported as {model_path}.")
         
         print("Export of files completed.")
     

@@ -10,7 +10,7 @@ with open("requirements.txt", "r") as file:
 
 setuptools.setup(
     name="idsw",
-    version="1.0.3",
+    version="1.1",
     author="Marco César Prado Soares, Gabriel Fernandes Luz",
     author_email="marcosoares.feq@gmail.com, gfluz94@gmail.com",
     description=long_description,
