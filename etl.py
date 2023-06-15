@@ -8396,7 +8396,7 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
         plt.show()
 
-    #Oncee the pandas method .corr() calculates R, we raised it to the second power 
+    #Once the pandas method .corr() calculates R, we raised it to the second power 
     # to obtain R². R² goes from zero to 1, where 1 represents the perfect correlation.
     
     else:
@@ -8461,28 +8461,32 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
         if (type(responses_to_return_corr) == str):
             # If a string was input, put it inside a list
             responses_to_return_corr = [responses_to_return_corr]
-        
-        #Select only the desired responses, by passing the list responses_to_return_corr
-        # as parameter for column filtering:
-        correlation_matrix = correlation_matrix[responses_to_return_corr]
-        # By passing a list as argument, we assure that the output is a dataframe
-        # and not a series, even if the list contains a single element.
-        
-        # Create a list of boolean variables == False, one False correspondent to
-        # each one of the responses
-        ascending_modes = [False for i in range(0, len(responses_to_return_corr))]
-        
-        #Now sort the values according to the responses, by passing the list
-        # response
-        correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = ascending_modes)
-        
-        # If a limit of coefficients was determined, apply it:
-        if (set_returned_limit is not None):
-                
-                correlation_matrix = correlation_matrix.head(set_returned_limit)
-                #Pandas .head(X) method returns the first X rows of the dataframe.
-                # Here, it returns the defined limit of coefficients, set_returned_limit.
-                # The default .head() is X = 5.
+
+    else:
+        # Use all columns
+        responses_to_return_corr = list(DATASET.columns)
+
+    #Select only the desired responses, by passing the list responses_to_return_corr
+    # as parameter for column filtering:
+    correlation_matrix = correlation_matrix[responses_to_return_corr]
+    # By passing a list as argument, we assure that the output is a dataframe
+    # and not a series, even if the list contains a single element.
+    
+    # Create a list of boolean variables == False, one False correspondent to
+    # each one of the responses
+    ascending_modes = [False for i in range(0, len(responses_to_return_corr))]
+    
+    #Now sort the values according to the responses, by passing the list
+    # response
+    correlation_matrix = correlation_matrix.sort_values(by = responses_to_return_corr, ascending = ascending_modes)
+    
+    # If a limit of coefficients was determined, apply it:
+    if (set_returned_limit is not None):
+            
+            correlation_matrix = correlation_matrix.head(set_returned_limit)
+            #Pandas .head(X) method returns the first X rows of the dataframe.
+            # Here, it returns the defined limit of coefficients, set_returned_limit.
+            # The default .head() is X = 5.
     
     print("ATTENTION: The correlation plots show the linear correlations R², which go from 0 (none correlation) to 1 (perfect correlation). Obviously, the main diagonal always shows R² = 1, since the data is perfectly correlated to itself.\n")
     print("The returned correlation matrix, on the other hand, presents the linear coefficients of correlation R, not R². R values go from -1 (perfect negative correlation) to 1 (perfect positive correlation).\n")
@@ -8498,6 +8502,291 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
         print(correlation_matrix)
     
     return correlation_matrix
+
+
+def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    
+    #show_masked_plot = True - keep as True if you want to see a cleaned version of the plot
+    # where a mask is applied.
+    
+    #responses_to_return_cov - keep as None to return the full covariance tensor.
+    # If you want to display the covariance for a particular group of features, input them
+    # as a list, even if this list contains a single element. Examples:
+    # responses_to_return_cov = ['response1'] for a single response
+    # responses_to_return_cov = ['response1', 'response2', 'response3'] for multiple
+    # responses. Notice that 'response1',... should be substituted by the name ('string')
+    # of a column of the dataset that represents a response variable.
+    # WARNING: The returned coefficients will be ordered according to the order of the list
+    # of responses. i.e., they will be firstly ordered based on 'response1'
+    
+    
+    # set a local copy of the dataset to perform the calculations:
+    DATASET = df.copy(deep = True)
+    
+    covariance_matrix = DATASET.cov(min_periods = None, ddof = 1, numeric_only = False)
+    # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.cov.html
+    
+    if (show_masked_plot == False):
+        #Show standard plot
+        
+        plt.figure(figsize = (12, 8))
+        sns.heatmap(covariance_matrix, annot = True, fmt = ".2f")
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "covariance_matrix"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    else:
+        
+        # Show masked (cleaner) plot instead of the standard one
+        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        plt.figure(figsize = (12, 8))
+        # Mask for the upper triangle
+        mask = np.zeros_like(covariance_matrix)
+
+        mask[np.triu_indices_from(mask)] = True
+
+        # Generate a custom diverging colormap
+        cmap = sns.diverging_palette(220, 10, as_cmap = True)
+
+        # Heatmap with mask and correct aspect ratio
+        sns.heatmap((covariance_matrix), mask = mask, cmap = cmap, center = 0,
+                    linewidths = .5)
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "covariance_matrix"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+
+            #Export the file to this new path:
+            # The extension will be automatically added by the savefig method:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+            #quality could be set from 1 to 100, where 100 is the best quality
+            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #transparent = True or False
+            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    
+    #Sort the values of covariance_matrix in Descending order:
+    
+    if (responses_to_return_cov is not None):
+        
+        if (type(responses_to_return_cov) == str):
+            # If a string was input, put it inside a list
+            responses_to_return_cov = [responses_to_return_cov]
+
+    else:
+        # Use all columns
+        responses_to_return_cov = list(DATASET.columns)
+
+    #Select only the desired responses, by passing the list responses_to_return_cov
+    # as parameter for column filtering:
+    covariance_matrix = covariance_matrix[responses_to_return_cov]
+    # By passing a list as argument, we assure that the output is a dataframe
+    # and not a series, even if the list contains a single element.
+    
+    # Create a list of boolean variables == False, one False correspondent to
+    # each one of the responses
+    ascending_modes = [False for i in range(0, len(responses_to_return_cov))]
+    
+    #Now sort the values according to the responses, by passing the list
+    # response
+    covariance_matrix = covariance_matrix.sort_values(by = responses_to_return_cov, ascending = ascending_modes)
+   
+    explain = """
+
+    Theory
+    -----------------------------------------------------------------------------------------------------------------
+
+    Given that E(X) = mu is the expectation (expected value) from a random variable X, the variance Var(X) is defined as:
+
+        Var(X) = E(X²) - [E(X)]²
+    
+    Analogously, the covariance between X and Y, a statistic that reflects how they vary together, is defined by:
+
+        Cov(X,Y) = E(X.Y) - E(X).E(Y)
+    
+    From these equations, we notice that Cov(X,X) = Var(X)
+
+    Thus, the covariance matrix between X and Y is given by the matrix:
+
+        Cov = [[Var(X) Cov(Y,X)]
+                    [Cov(X,Y) Var(Y)]]
+
+        where, in general, Cov(Y,X) = Cov(X,Y)
+    
+    For n samples with same probability of occurrence, the covariance may be calculated as:
+
+        Cov(X,Y) = (1/n)*SUM((Xi - Mean(X))*(Yi - Mean(Y))),
+        
+        where (Xi,Yi) represents a single data point. In the case of events with different probabilities,
+        the formula is modified to take this effect in account. 
+
+    ---------------------------------------------------------------------------------------------------------------------
+
+    Interpretation of the matrix
+    ---------------------------------------------------------------------------------------------------------------------
+
+    For randomly spread data:
+
+    1. Cov(X,Y) ~ 0 (close to zero)
+        Variables are independent from each other
+    
+    2. Cov(X,Y) > 0
+        There is a positive correlation between variables.
+
+    3. Cov(X,Y) < 0
+        There is a negativ correlation between variables. 
+    
+    """
+
+    print(explain)
+     
+    print("Covariance matrix - numeric results:\n")
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(covariance_matrix)
+            
+    except: # regular mode
+        print(covariance_matrix)
+    
+    return covariance_matrix
+
+
+def calculate_vif (df):
+
+    import numpy as np
+    import pandas as pd
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    # https://towardsdatascience.com/collinearity-measures-6543d8597a2e
+    # https://www.geeksforgeeks.org/detecting-multicollinearity-with-vif-python/
+    # https://www.statsmodels.org/stable/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html#statsmodels-stats-outliers-influence-variance-inflation-factor
+
+    # set a local copy of the dataset to perform the calculations:
+    X = df.copy(deep = True)
+
+    X_columns = list(X.columns)
+    # Calculate VIF for each variable:
+    vifs = [variance_inflation_factor(X.values, i) for i in range(len(X_columns))]
+    """
+    The attribute values from a dataframe stores the correspondent NumPy array, i.e., a matrix containing the data table.
+    Example:
+    x = pd.DataFrame(data = {'a': [1, 2], 'v':[3,4]})
+    x.values returns:
+    array([[1, 3],
+       [2, 4]], dtype=int64)
+    """
+
+    # Obtain the dataframe
+    variance_inflation_factor_matrix = pd.DataFrame(data = {'feature': X_columns, 'VIF': vifs})
+    # Set the feature column as index
+    variance_inflation_factor_matrix = variance_inflation_factor_matrix.set_index('feature')
+    # Organize in descending order:
+    variance_inflation_factor_matrix = variance_inflation_factor_matrix.sort_values(by = ['VIF'], ascending = [False])
+
+    explain = """
+    - When selecting variables for a model, we want them to be independent from each other.
+    - In cases where selected predictor variables are not independent of each other, we would not be able to determine or attribute the contribution from the various predictor variables towards the target variable. 
+        — Interpretability of the model coefficients becomes an issue.
+    - The presence of multicollinearity can mask the importance of the respective variable contributions to the target variable.
+    - Collinear variables introduce basically the same information to the model, inflating the importance of a given variable.
+    - One approach to identify multicollinearity is via the Variance Inflation Factor (VIF). 
+    - VIF indicates the percentage of the variance inflated for each variable’s coefficient. 
+    
+    In VIF method, we pick each feature and regress it against all of the other features. 
+    For each regression, the factor is calculated as:
+
+        VIF = 1/(1-R²)
+
+    Where, R-squared is the coefficient of determination in linear regression. Its value lies between 0 and 1.
+
+    1. VIF = 1
+        - No collinearity (R² = 0).
+    2. < VIF < 5
+        - Moderate collinearity.
+    3. VIF >= 5
+        - High collinearity.
+        - Some cases where high VIF would be acceptable:
+            - Use of interaction terms, polynomial terms, or dummy variables (nominal variables with three or more categories).
+    
+    - Correlation matrices enable the identification of correlation among variable pairs. 
+    - VIF enables the overall assessment of multicollinearity. 
+    
+    Variables showing high VIFs are usually variables with high collinearity.
+
+    """
+    
+    print(explain)
+     
+    print("Calculated Variance Inflation Factors (VIFs):\n")
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(variance_inflation_factor_matrix)
+            
+    except: # regular mode
+        print(variance_inflation_factor_matrix)
+    
+    return variance_inflation_factor_matrix
 
 
 def bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -19185,6 +19474,466 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
             # https://en.wikipedia.org/wiki/Violin_plot#:~:text=A%20violin%20plot%20is%20a%20method%20of%20plotting,values%2C%20usually%20smoothed%20by%20a%20kernel%20density%20estimator.
             
         return anova_summary_dict, plot_returned_dict
+
+
+def AB_testing(what_to_compare = 'mean', confidence_level_pct = 95, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
+
+    """
+    - Compare if different groups present significant difference of means or proportions using t-test.
+    - For comparison of binary (categorical) results, the compared column must have been labelled with 0 for failure and 1 for success.
+    - Only compare 2 series.
+    """
+
+    # Main reference: Luis Serrano with DeepLearning.AI (Coursera): Probability & Statistics for Machine Learning & Data Science
+    # https://www.coursera.org/learn/machine-learning-probability-and-statistics
+    import numpy as np
+    import pandas as pd
+    import scipy.stats as stats
+    # https://sphweb.bumc.bu.edu/otlt/mph-modules/bs/bs704_confidence_intervals/bs704_confidence_intervals_print.html
+
+    # what_to_compare = 'mean' for comparing differences between mean values.
+    # what_to_compare = 'proportion' for comparing differences between proportions.
+
+    # confidence_level_pct = 95 = 95% confidence
+    # It is the percent of confidence for the analysis.
+    # Set confidence_level_pct = 90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce confidence_level_pct
+    # to get less restrictive results.
+    alpha = 1 - (confidence_level_pct/100)
+
+    # data_in_same_column: set as True if all the values to plot are in a same column.
+    # If data_in_same_column = True, you must specify the dataframe containing the data as df;
+    # the column containing the label or group indication as column_with_labels_or_groups; and the column 
+    # containing the variable to analyze as variable_to_analyze.
+    # If column_with_labels_or_groups is None, the analysis will not be performed.
+    
+    # df is an object, so do not declare it in quotes. The other three arguments (columns' names) 
+    # are strings, so declare in quotes. 
+    
+    # Example: suppose you have a dataframe saved as dataset, and two groups A and B to compare. 
+    # All the results for both groups are in a column named 'results'. If the result is for
+    # an entry from group A, then a column named 'group' has the value 'A'. If it is for group B,
+    # column 'group' shows the value 'B'. In this example:
+    # data_in_same_column = True,
+    # df = dataset,
+    # column_with_labels_or_groups = 'group',
+    # variable_to_analyze = 'results'.
+    # If you want to declare a list of dictionaries, keep data_in_same_column = False and keep
+    # df = None (the other arguments may be set as None, but it is not mandatory: 
+    # column_with_labels_or_groups = None, variable_to_analyze = None).
+    
+    # Parameter to input when DATA_IN_SAME_COLUMN = False:
+    # list_of_dictionaries_with_series_to_analyze {'values_to_analyze': None, 'label': None}:
+    # if data is already converted to series, lists or arrays, provide them as a list of dictionaries. 
+    # It must be declared as a list, in brackets, even if there is a single dictionary.
+    # Use always the same keys: 'values_to_analyze' for values that will be analyzed, and 'label' for
+    # the label or group correspondent to the series (may be a number or a string). 
+    # If you do not want to declare a series, simply keep as None, but do not remove or rename a 
+    # key (ALWAYS USE THE KEYS SHOWN AS MODEL).
+    # If you want, you can remove elements (dictionaries) from the list to declare fewer elements;
+    # and you can also add more elements (dictionaries) to the lists, if you need to plot more series.
+    # Simply put a comma after the last element from the list and declare a new dictionary, keeping the
+    # same keys: {'values_to_analyze': y, 'label': 'series_y'}, where y represents the values
+    # to analyze, and 'series_y' is the label 
+    # (you can pass 'label': None, but if values_to_analyze' is None, the new 
+    # dictionary will be ignored).
+    
+    # Example:
+    # list_of_dictionaries_with_series_to_analyze = 
+    # [{'values_to_analyze': DATASET['Y1'], 'label': 'label1'}, 
+    # {'values_to_analyze': DATASET['Y2'], 'label': 'label2'}]
+    # will test two series, Y1 and Y2.
+    # Always use only two dictionaries
+
+    
+    if (data_in_same_column == True):
+        
+        print("Data in a same column.\n")
+        
+        if (df is None):
+            
+            print("Please, input a valid dataframe as df.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+            # The code will check the size of this list on the next block.
+            # If it is zero, code is simply interrupted.
+            # Instead of returning an error, we use this code structure that can be applied
+            # on other graphic functions that do not return a summary (and so we should not
+            # return a value like 'error' to interrupt the function).
+        
+        elif (variable_to_analyze is None):
+            
+            print("Please, input a valid column name as variable_to_analyze.\n")
+            list_of_dictionaries_with_series_to_analyze = []
+        
+        else:
+            
+            # set a local copy of the dataframe:
+            DATASET = df.copy(deep = True)
+            
+            if (column_with_labels_or_groups is None):
+            
+                 print("Please, input a valid column name as column_with_labels_or_groups.\n")
+                list_of_dictionaries_with_series_to_analyze = []
+            
+            # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
+            # all in Ascending order
+            # Since we sort by label (group), it is easier to separate the groups.
+            DATASET = DATASET.sort_values(by = [column_with_labels_or_groups, variable_to_analyze], ascending = [True, True])
+            
+            # Drop rows containing missing values in column_with_labels_or_groups or variable_to_analyze:
+            DATASET = DATASET.dropna(how = 'any', subset = [column_with_labels_or_groups, variable_to_analyze])
+            
+            # Reset indices:
+            DATASET = DATASET.reset_index(drop = True)
+            
+            # Get a series of unique values of the labels, and save it as a list using the
+            # list attribute:
+            unique_labels = list(DATASET[column_with_labels_or_groups].unique())
+            print(f"{len(unique_labels)} different labels detected: {unique_labels}.\n")
+            
+            # Start a list to store the dictionaries containing the keys:
+            # 'values_to_analyze' and 'label'
+            list_of_dictionaries_with_series_to_analyze = []
+            
+            # Loop through each possible label:
+            for lab in unique_labels:
+                # loop through each element from the list unique_labels, referred as lab
+                
+                # Set a filter for the dataset, to select only rows correspondent to that
+                # label:
+                boolean_filter = (DATASET[column_with_labels_or_groups] == lab)
+                
+                # Create a copy of the dataset, with entries selected by that filter:
+                ds_copy = (DATASET[boolean_filter]).copy(deep = True)
+                # Sort again by X and Y, to guarantee the results are in order:
+                ds_copy = ds_copy.sort_values(by = [column_with_labels_or_groups, variable_to_analyze], ascending = [True, True])
+                # Restart the index of the copy:
+                ds_copy = ds_copy.reset_index(drop = True)
+                
+                # Re-extract the analyzed series and convert it to NumPy array: 
+                # (these arrays will be important later in the function):
+                y = np.array(ds_copy[variable_to_analyze])
+            
+                # Then, create the dictionary:
+                dict_of_values = {'values_to_analyze': y, 'label': lab}
+                
+                # Now, append dict_of_values to list_of_dictionaries_with_series_to_analyze:
+                list_of_dictionaries_with_series_to_analyze.append(dict_of_values)
+                
+            # Now, we have a list of dictionaries with the same format of the input list.
+            
+    else:
+        
+        # The user input a list_of_dictionaries_with_series_to_analyze
+        # Create a support list:
+        support_list = []
+        
+        # Loop through each element on the list list_of_dictionaries_with_series_to_analyze:
+        
+        for i in range (0, len(list_of_dictionaries_with_series_to_analyze)):
+            # from i = 0 to i = len(list_of_dictionaries_with_series_to_analyze) - 1, index of the
+            # last element from the list
+            
+            # pick the i-th dictionary from the list:
+            dictionary = list_of_dictionaries_with_series_to_analyze[i]
+            
+            # access 'values_to_analyze' and 'label' keys from the dictionary:
+            values_to_analyze = dictionary['values_to_analyze']
+            lab = dictionary['label']
+            # Remember that all this variables are series from a dataframe, so we can apply
+            # the astype function:
+            # https://www.askpython.com/python/built-in-methods/python-astype?msclkid=8f3de8afd0d411ec86a9c1a1e290f37c
+            
+            # check if at least values_to_analyze is not None:
+            if (values_to_analyze is not None):
+            
+                # Possibly, series is a not ordered Pandas series, and may contain missing values.
+                # Let's order it and clean it, if it is a Pandas object:
+                try:
+                    # Create a local copy to manipulate
+                    series = values_to_analyze.copy(deep = True)
+                    series = series.sort_values(ascending = True)
+                    series = series.dropna()
+                
+                except:
+                    # It is not a Pandas object. Simply copy to use the same variable name:
+                    series = values_to_analyze
+                
+                # Re-extract Y series and convert it to NumPy array 
+                # (these arrays will be important later in the function):
+                y = np.array(series)
+                
+                # check if label is None:
+                if (lab is None):
+                    # input a default label.
+                    # Use the str attribute to convert the integer to string, allowing it
+                    # to be concatenated
+                    lab = "series_" + str(i)
+                    
+                # Then, create the dictionary:
+                dict_of_values = {'values_to_analyze': y, 'label': lab} 
+                                
+                # Now, append dict_of_values to support list:
+                support_list.append(dict_of_values)
+        
+        # Now, support_list contains only the dictionaries with valid entries, as well
+        # as labels for each collection of data. The values are independent from their origin,
+        # and now they are ordered and in the same format of the data extracted directly from
+        # the dataframe.
+        # So, make the list_of_dictionaries_with_series_to_analyze the support_list itself:
+        list_of_dictionaries_with_series_to_analyze = support_list
+        # Pick only the first 2, since test AB compares only two series
+        list_of_dictionaries_with_series_to_analyze = list_of_dictionaries_with_series_to_analyze[:2]
+        # Slice list until index 2, excluding index 2 (3rd element)
+
+        print(f"Attention! Since test AB compares 2 series, only the two first series are considered here.\n")
+
+        
+    # Now that both methods of input resulted in the same format of list, we can process both
+    # with the same code.
+    
+    # Each dictionary in list_of_dictionaries_with_series_to_analyze represents a series to
+    # plot. So, the total of series to plot is:
+    total_of_series = len(list_of_dictionaries_with_series_to_analyze)
+    
+    if (total_of_series != 2):
+        
+        print("There are not 2 series to compare. Please, provide valid arguments.\n")
+    
+    else:
+                
+        """
+        When computing the standard deviation be sure to compute the sample one instead of the population one. 
+        To accomplish this you can set the parameter ddof=1 within the np.std function. 
+        This ensures that the denominator of the expression for the standard deviation is N-1 rather than N.
+        """
+
+        y1, y2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['y']), np.array(list_of_dictionaries_with_series_to_analyze[1]['y'])
+        lab1, lab2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['label']), np.array(list_of_dictionaries_with_series_to_analyze[1]['label'])
+        
+        summary_dict = {'alpha': alpha}
+        # Perform the t-test
+
+        p_meaning = "p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.\n"
+
+        if (what_to_compare == 'mean'):
+
+            h0 = "There is no difference between the mean values obtained for each tested subgroup."
+            summary_dict['comparison'] = what_to_compare
+            summary_dict['h0'] = h0
+
+            """
+            Perform a hypothesis test to know if there is a significant difference between the **means** of these two segments. 
+            You can do this by computing the t-statistic and using the null hypothesis that there is **not** a statistically significant 
+            difference between the means of the two samples:
+
+            $$t = \frac{(\bar{x}_{1} - \bar{x}_{2}) - (\mu_1 - \mu_2)}{\sqrt{\frac{s_{1}^2}{n_1} + \frac{s_{2}^2}{n_2}}}$$
+
+            Notice that by computing the metric at a row level you ensure that the independence criteria is met since each row is 
+            independent of one another. Also, although even if the data is not strictly normal you might have a large enough sample size 
+            to justify the use of the t-test.
+            """
+
+            n1, xbar1, s1 = len(y1), np.mean(y1), np.std(y1, ddof = 1)
+            n2, xbar2, s2 = len(y2), np.mean(y2), np.std(y2, ddof = 1)
+            
+            dict1 = {'n': n1, 'xbar': xbar1, 's': s1}
+            dict2 = {'n': n2, 'xbar': xbar2, 's': s2}
+
+            # Calculate degrees of freedom
+            """
+            Another important piece of information when performing a t-test is the degrees of freedom, which can be computed as follows:
+
+            $$\text{Degrees of freedom } = \frac{\left[\frac{s_{1}^2}{n_1} + \frac{s_{2}^2}{n_2} \right]^2}{\frac{(s_{1}^2/n_1)^2}{n_1-1} + \frac{(s_{2}^2/n_2)^2}{n_2-1}}$$
+            """
+            
+            dof = (np.square(np.square(s1)/n1 + np.square(s2)/n2))/(np.square(np.square(s1)/n1)/(n1 - 1) + np.square(np.square(s2)/n2)/(n2 - 1))
+            
+            summary_dict['degrees_of_freedom'] = dof
+
+            # t-statistic difference of means
+            """
+            Now you have everything you need to perform the hypothesis testing. 
+            Complete the `t_statistic_diff_means` which given two samples should return the t-statistic, which should be computed like this:
+
+            $$t = \frac{(\bar{x}_{1} - \bar{x}_{2}) - (\mu_1 - \mu_2)}{\sqrt{\frac{s_{1}^2}{n_1} + \frac{s_{2}^2}{n_2}}}$$
+
+            - The value for the difference of $(\mu_1 - \mu_2)$ should be replaced by the value of this difference under the null hypothesis.
+            """
+            # NULL HYPOTHESIS: the means are the same. So, mu1 - mu2 = 0
+
+            t_statistic = (xbar1 - xbar2)/np.sqrt(np.square(s1)/n1 + np.square(s2)/n2)
+
+            summary_dict['t_statistic'] = t_statistic
+
+            """
+            With the ability to calculate the t-statistic now you need a way to determine if you should reject (or not) the null hypothesis. 
+            This function should return whether to reject (or not) the null hypothesis by using the p-value method given the value of the 
+            t-statistic, the degrees of freedom and a level of significance. 
+            
+            **This should be a two-sided test.**
+
+            In this case the p-value represents the probability of obtaining a value of the t-statistic as extreme (or more extreme) 
+            as the observed value under the null hypothesis. You can use the fact that the `CDF` of a distribution provides the probability 
+            of getting a value as extreme or less extreme than the one provided, so the p-value can be computed as `1 - CDF(current_value)`. 
+            If you are conducting a two-sided test, you must use the absolute value of the current value since the "extreme" condition can 
+            be attained by either side. In this case you must also multiply said probability by 2 so you can compare against $\alpha$ rather 
+            than against $\frac{\alpha}{2}$.
+
+            - You can use the `cdf` method from the [stats.t](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.t.html) class 
+            to compute the p-value given the degrees of freedom. Don't forget to multiply your result by 2 since this is a two-sided test.
+            
+            - When passing the value of the t-statistic to the `cdf` function, you should provide the absolute value. 
+            You can achieve this by using Python's built-in `abs` function.
+
+            - If the p-value is lower to `alpha` then you should reject the null hypothesis.
+            """
+
+            reject = False
+            p_value = 2*(1 - stats.t.cdf(abs(t_statistic), dof))
+            
+            if (p_value < alpha):
+                reject = True
+
+            summary_dict['p_value'] = p_value
+            summary_dict['reject_H0'] = reject
+
+            # Calculate confidence intervals for each group
+            """
+            You would like to create confidence intervals for each one of the two groups. 
+            You can compute such interval for a proportion like this:
+            
+            Xbar +- t.s/(sqrt(n))
+
+            - You can use the `ppf` method from the [stats.t](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.t.html) 
+            class to compute the value of t
+
+            """
+
+            distance1 = (stats.t.ppf(1 - alpha/2), df = (n1 - 1))*s1/(np.sqrt(n1))
+            lower1 = xbar1 - distance1
+            upper1 = xbar1 + distance1
+            ci1 = np.array([lower1, upper1])
+            
+            distance2 = (stats.t.ppf(1 - alpha/2), df = (n2 - 1))*s2/(np.sqrt(n2))
+            lower2 = xbar2 - distance2
+            upper2 = xbar2 + distance2
+            ci2 = np.array([lower2, upper2])
+
+            dict1['confidence_interval'] = ci1
+            dict2['confidence_interval'] = ci2
+            summary_dict[lab1] = dict1
+            summary_dict[lab2] = dict2
+        
+
+        elif (what_to_compare == 'proportion'):
+
+            h0 = "There is no difference between the proportions obtained for each tested subgroup."
+            summary_dict['comparison'] = what_to_compare
+            summary_dict['h0'] = h0
+
+            """
+            Perform a hypothesis test to know if there is a significant difference between the **rates (proportions)** of these two 
+            segments. You can do this by computing the z-statistic:
+
+            $$ z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})\left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}$$
+
+            where $\hat{p}$ is the pooled proportion: $\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}$
+            """
+
+            n1, x1, p1 = len(y1), np.sum(y1), np.sum(y1)/len(y1)
+            n2, x2, p2 = len(y2), np.sum(y2), np.sum(y2)/len(y2)
+            
+            dict1 = {'n': n1, 'x': x1, 'p': p1}
+            dict2 = {'n': n2, 'x': x2, 'p': p2}
+
+            # Pooled proportion
+            """
+            The pooled proportiohe pooled proportion can be computed like this: 
+
+            $\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}$
+            """
+            
+            pp = (x1 + x2)/(n1 + n2)
+
+            summary_dict['pooled_proportion'] = pp
+
+            #Z-statistic for different proportions
+            """
+            Calculate the z-statistic for the difference between proportions. Remember that this statistic can be computed like this:
+
+            $$ z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})\left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}$$
+
+            where $\hat{p}$ is the pooled proportion: $\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}$
+            """
+
+            z_statistic = (p1 - p2)/np.sqrt(pp*(1 - pp)*(1/n1 + 1/n2))
+
+            summary_dict['z_statistic'] = z_statistic
+
+            """
+            Decide whether to reject (or not) the null hypothesis by using the p-value method given the value of the z-statistic and 
+            a level of significance. This should be a two-sided test.
+
+            You can use the cdf method from the stats.norm class to compute the p-value. Don't forget to multiply your result by 
+            2 since this is a two-sided test.
+            When passing the value of the z-statistic to the cdf function, you should provide the absolute value. 
+            You can achieve this by using Python's built-in abs function.
+            If the p-value is lower to alpha then you should reject the null hypothesis.
+            """
+
+            reject = False
+            p_value = 2*(1 - stats.norm.cdf(abs(z_statistic)))
+            
+            if (p_value < alpha):
+                reject = True
+            
+            summary_dict['p_value'] = p_value
+            summary_dict['reject_H0'] = reject
+
+            # Calculate confidence intervals for each group
+            """
+            You would like to create confidence intervals for each one of the two groups. 
+            You can compute such interval for a proportion like this:
+
+            $$ \hat{p} \pm z_{1-\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$$
+
+            - You can use the `ppf` method from the [stats.norm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html) 
+            class to compute the value of $z$
+            """
+
+            distance1 = (stats.norm.ppf(1 - alpha/2))*np.sqrt(p1*(1 - p1)/n1)
+            lower1 = p1 - distance1
+            upper1 = p1 + distance1
+            ci1 = np.array([lower1, upper1])
+            
+            distance2 = (stats.norm.ppf(1 - alpha/2))*np.sqrt(p2*(1 - p2)/n2)
+            lower2 = p2 - distance2
+            upper2 = p2 + distance2
+            ci2 = np.array([lower2, upper2])
+            
+            dict1['confidence_interval'] = ci1
+            dict2['confidence_interval'] = ci2
+            summary_dict[lab1] = dict1
+            summary_dict[lab2] = dict2
+
+        print("Finished AB Testing. Check the full analysis on the returned summary dictionary.")
+        print(f"Compared difference between {what_to_compare}.")
+        print(f"Null hypothesis H0: {h0}.")
+        print(p_meaning)
+        print("\n")
+        print(f"Calculated p-value for the test: {p_value:e} = {(p_value)*100:.2f}%")
+        print("\n")
+
+        if (reject):
+            print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to support H0.")
+            print("Recommendation: REJECT the null hypothesis H0.")
+        
+        else:
+           print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to reject H0.")
+           print("Recommendation: ACCEPT the null hypothesis H0.")
+        
+        return summary_dict
 
 
 def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
