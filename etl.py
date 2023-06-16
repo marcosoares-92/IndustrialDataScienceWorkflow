@@ -18739,6 +18739,199 @@ def LABEL_DATAFRAME_SUBSETS (df, list_of_labels = [{'filter': None, 'value_to_ap
     return DATASET
 
 
+def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion = None, current_standard_deviation = None, what_to_test = 'proportion', confidence_level_pct = 95, test_power_pct = 20, perform_two_sided_test = True, df = None, variable_to_analyze = None):
+    
+    """
+    Evaluate the sample size required to get a significant result out of your AB or ANOVA test. 
+    
+    **Example: you are working for a food delivery app to determine if a new feature which provides custom suggestions to each user 
+    based on their preferences will increase the `conversion rate` of the app. This rate measures the rate of users who "converted" or 
+    placed an order using the app. The current CVR of the app is 12% and the stakeholders would like the new feature to increase it 
+    up to a 14%**. Given this expectation you can compute the required sample size.
+
+    - For comparison of proportions of success on binary (categorical) results, the compared column must have been labelled with 0 
+    for failure and 1 for success.
+    """
+    # Main reference: Luis Serrano with DeepLearning.AI (Coursera): Probability & Statistics for Machine Learning & Data Science
+    # https://www.coursera.org/learn/machine-learning-probability-and-statistics
+    import math
+    import numpy as np
+    import pandas as pd
+    import scipy.stats as stats
+    
+    # target_mean_or_proportion is a numeric value correspondent to the mean or proportion that the user wants to observe.
+    # If it is a proportion, p must be input as a fraction. For example, if the user wants to perform a test to verify
+    # a modification of conversion rate from 12 to 14%, then the target proportion is 0.14, i.e., target_mean_or_proportion = 0.14.
+    # If the target is a mean, any real number may be input. For instance, if user wants to verify a decrease of 200 to 150ºC
+    # of temperature, target_mean_or_proportion = 150.
+
+    # current_mean_or_proportion is a numeric value correspondent to the mean or proportion that the user observes now.
+    # User may directly input it or the value can be retrieved from the response column on the dataset. To calculate from the
+    # response on dataset, keep current_mean_or_proportion = None
+
+    # IN CASE OF INPUT OF PARAMETER CURRENT_MEAN_OR_PROPORTION
+    # If it is a proportion, p must be input as a fraction. For example, if the user wants to perform a test to verify
+    # a modification of conversion rate from 12 to 14%, then the current proportion is 0.12, i.e., current_mean_or_proportion = 0.12.
+    # If the target is a mean, any real number may be input. For instance, if user wants to verify a decrease of 200 to 150ºC
+    # of temperature, current_mean_or_proportion = 200.
+
+    # ATTENTION: If a manual input is provided as current_mean_or_proportion, the dataframe will not be evaluated in terms of
+    # mean or proportion, even if the dataframe and its column are provided.
+
+
+    # current_standard_deviation = None - numeric (real) value representing the current standard deviation of the response variable.
+    # If user wants to retrieve the information from the response column on the dataset, current_standard_deviation is kept as None.
+    # If user wants to input the current mean value as current_mean_or_proportion (manual input) to check difference of mean,
+    # a real number representing the current standard deviation must be also input. Example: current_standard_deviation = 2.51
+    # Notice that this parameter only matters for the tests of mean difference, and is ignored when evaluating different proportions.
+    # If no value is provided, but a column and a dataset are pointed, then the function will try to retrieve the value from the 
+    # dataframe, even if a manual value of mean is provided.
+
+
+    # what_to_test = 'proportion' for verifying differences between proportions.
+    # what_to_test = 'mean' for verifying differences between mean values.
+
+    # confidence_level_pct = 95 = 95% confidence
+    # It is the percent of confidence for the analysis.
+    # Set confidence_level_pct = 90 to get 0.90 = 90% confidence in the analysis.
+    # Notice that, when less trust is needed, we can reduce confidence_level_pct
+    # to get less restrictive results.
+    alpha = 1 - (confidence_level_pct/100)
+
+    # test_power_pct = 20 = 20% power
+    # It is the percent of power of the test.
+    # Set test_power_pct = 20 to get 0.20 = 20% power in the analysis.
+    # Notice that, when less trust is needed, we can reduce the power
+    # to get less restrictive results.
+    beta = 1 - (test_power_pct/100)
+
+    # perform_two_sided_test = True. Wether or not to perform a two-sided test. Keep it
+    # True to use the 2-sided test, which will evaluate if there is a significant difference (higher
+    # or lower). This is the recommended configuration
+    # If PERFORM_TWO_SIDED_TEST = False, a one-sided test will be used instead (not recommended configuration).
+
+    # IN CASE A MANUAL INPUT OF CURRENT MEAN OR PROPORTION WAS NOT PROVIDED:
+    # A dataframe object must be input as df. Example: df = dataset
+    # Also the column containing the current values of the variable to analyze must be provided as 
+    # variable_to_analyze.
+    # df is an object, so do not declare it in quotes. variable_to_analyze is a string, so declare it in quotes.
+    # Example: variable_to_analyze = 'response'
+    # If manual inputs are provided, you may keep df = None and variable_to_analyze = None
+
+
+    # Define subfunctions to calculate the sample size:
+    def sample_size_diff_proportions(p1, p2, alpha = 0.05, beta = 0.20, two_sided = True):
+        
+        """
+        EVALUATING DIFFERENCES OF PROPORTIONS
+        Sample Size Needed to Compare Two Binomial Proportions Using a Two-Sided Test with Significance Level $\alpha$ and 
+        Power $1 - \beta$ Where One Sample $(n_2)$ is $k$ times as Large as the Other Sample $(n_1)$ (Independent-Sample Case)
+
+        To test the hypothesis $H_0:p_1 = p_2$ vs. $H_1: p_1 \neq p_2$ for the specific alternative 
+        $\mid p_1 - p_2 \mid = \Delta$, with significance level $\alpha$ and power $1 - \beta$, for the following sample size is required
+
+        $$n_1 = \frac{\left[\sqrt{\bar{p}\bar{q}\left(1 + \frac{1}{k} \right)}z_{1- \alpha/2} + \sqrt{p_1 q_1 + \frac{p_2q_2}{k}}z_{1-\beta}\right]^2}{\Delta^2}$$
+        $$n_2 = k n_1$$
+        where $p_1,p_2 = $ projected true probabilities of success in the two groups
+        $$q_1,q_2 = 1 - p_1, 1 - p_2$$
+        $$\Delta  = \mid p_2 - p_1 \mid$$
+        $$\overline{p} = \frac{p_1 + kp_2}{1+ k}$$
+        """
+
+        k = 1
+
+        q1, q2 = (1 - p1), (1 - p2)
+        p_bar = (p1 + k * p2) / (1 + k)
+        q_bar = 1 - p_bar
+        delta = abs(p2 - p1)
+
+        if two_sided:
+            alpha = alpha / 2
+
+        n = np.square(
+            np.sqrt(p_bar * q_bar * (1 + (1 / k))) * stats.norm.ppf(1 - (alpha))
+            + np.sqrt((p1 * q1) + (p2 * q2 / k)) * stats.norm.ppf(1 - beta)
+        ) / np.square(delta)
+
+        return math.ceil(n)
+
+    def sample_size_diff_means(mu1, mu2, sigma, alpha = 0.05, beta = 0.20, two_sided = True):
+
+        """
+        EVALUATING DIFFERENCES OF MEANS
+        Sample Size Needed for Comparing the Means of Two Normally Distributed Samples of Equal Size Using a Two-Sided Test with 
+        Significance Level $\alpha$ and Power $1 - \beta$.
+
+        $$ n = \frac{\left(\sigma_{1}^{2} + \sigma_{2}^2 \right) \left(z_{1-\alpha/2} + z_{1-\beta} \right)^2}{\Delta^2} = 
+        \text{sample size for each group}$$
+
+        where $\Delta = \mid \mu_{2} - \mu_{1} \mid$. 
+        The means and variances of the two representative groups are $(\mu_1,\sigma_{1}^2)$ and $(\mu_2,\sigma_{2}^2)$.
+        """
+        
+        delta = abs(mu2 - mu1)
+
+        if two_sided:
+            alpha = alpha / 2
+
+        n = (
+            (np.square(sigma) + np.square(sigma))
+            * np.square(stats.norm.ppf(1 - alpha) + stats.norm.ppf(1 - beta))
+        ) / np.square(delta)
+
+        return math.ceil(n)
+
+    # check if a manual input was not provided:
+    if (current_mean_or_proportion is None):
+        # There is no manual input. Try to retrieve from the dataframe
+        # Check if there is a column and a dataframe:
+        
+        if ((df is not None) & (variable_to_analyze is not None)):
+            # Save the column as a NumPy array to manipulate it independently from the dataframe
+            if (what_to_test == 'mean'):
+                current_mean_or_proportion = np.mean(np.array(df[variable_to_analyze]))
+            
+            elif (what_to_test == 'proportion'):
+                current_mean_or_proportion = np.sum(np.array(df[variable_to_analyze]))/len(np.array(df[variable_to_analyze]))
+
+        else:
+            print("Manually input a mean or proportion or add a dataframe with a column name as string to perform the analysis.")
+            return "error"
+
+
+    if (what_to_test == 'mean'):
+
+        # Check if a standard deviation value was input
+        if (current_standard_deviation is None):
+        # There is no manual input. Try to retrieve from the dataframe
+        # Check if there is a column and a dataframe:
+        
+            if ((df is not None) & (variable_to_analyze is not None)):
+                # Save the column as a NumPy array to manipulate it independently from the dataframe
+                current_standard_deviation = np.std(np.array(df[variable_to_analyze]))
+                # Standard deviation will only be effectly used when the mean is tested.
+            
+            else:
+                print("Manually input a standard deviation or add a dataframe with a column name as string to perform the analysis.")
+                return "error"
+
+        required_sample_size = sample_size_diff_means(mu1 = current_mean_or_proportion, mu2 = target_mean_or_proportion, sigma = current_standard_deviation, alpha = alpha, beta = beta, two_sided = perform_two_sided_test)
+    
+
+    elif (what_to_test == 'proportion'):
+
+        if (target_mean_or_proportion > 1):
+            print(f"The target proportion must be input as a fraction. Not as a percent. Suggestion: input target_mean_or_proportion = {target_mean_or_proportion/100} instead of {target_mean_or_proportion}.")
+            return "error"
+    
+        required_sample_size = sample_size_diff_proportions(p1 = current_mean_or_proportion, p2 = target_mean_or_proportion, alpha = alpha, beta = beta, two_sided = perform_two_sided_test)
+
+    print("Finished estimation. The sample size was returned as the variable 'required_sample_size'.")
+    print(f"At least {required_sample_size} samples are needed to verify a modification of {what_to_test} from {current_mean_or_proportion:.2f} to {target_mean_or_proportion}.\n")
+
+    return required_sample_size
+
+
 def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
     print ("If an error message is shown, update statsmodels to a version >= 0.13.2. To update to this version, declare and run a cell as the following command; or run it on command line without magic character '!':")
@@ -19476,11 +19669,12 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
         return anova_summary_dict, plot_returned_dict
 
 
-def AB_testing(what_to_compare = 'mean', confidence_level_pct = 95, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
+def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
 
     """
     - Compare if different groups present significant difference of means or proportions using t-test.
-    - For comparison of binary (categorical) results, the compared column must have been labelled with 0 for failure and 1 for success.
+    - For comparison of proportions of success on binary (categorical) results, the compared column must have been 
+    labelled with 0 for failure and 1 for success.
     - Only compare 2 series.
     """
 
