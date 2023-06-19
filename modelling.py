@@ -2688,6 +2688,258 @@ class siamese_networks:
     # Make predictions and visualize models.
 
 
+class anomaly_detector:
+    
+    # This class uses the same Sklearn API
+
+    # Initialize instance attributes.
+    # define the Class constructor, i.e., how are its objects:
+    def __init__ (self, epsilon = 0.00001):
+        
+        self.epsilon = epsilon 
+        
+        """
+        ### Gaussian distribution
+        To perform anomaly detection, you will first need to fit a model to the data’s distribution.
+
+        * Given a training set $\{x^{(1)}, ..., x^{(m)}\}$ you want to estimate the Gaussian distribution for each
+        of the features $x_i$. 
+
+        * Recall that the Gaussian distribution is given by
+
+        $$ p(x ; \mu,\sigma ^2) = \frac{1}{\sqrt{2 \pi \sigma ^2}}\exp^{ - \frac{(x - \mu)^2}{2 \sigma ^2} }$$
+
+        where $\mu$ is the mean and $\sigma^2$ is the variance.
+        
+        * For each feature $i = 1\ldots n$, you need to find parameters $\mu_i$ and $\sigma_i^2$ that fit the data in the 
+        $i$-th dimension $\{x_i^{(1)}, ..., x_i^{(m)}\}$ (the $i$-th dimension of each example).
+
+        ### Estimating parameters for a Gaussian distribution
+
+        You can estimate the parameters, ($\mu_i$, $\sigma_i^2$), of the $i$-th
+        feature by using the following equations. To estimate the mean, you will
+        use:
+
+        $$\mu_i = \frac{1}{m} \sum_{j=1}^m x_i^{(j)}$$
+
+        and for the variance you will use:
+        $$\sigma_i^2 = \frac{1}{m} \sum_{j=1}^m (x_i^{(j)} - \mu_i)^2$$
+        """
+    
+
+    def fit (self, X):
+     
+        """
+        Calculates mean and variance of all features 
+        in the dataset
+        
+        Args:
+            X (ndarray): (m, n) Data matrix
+        
+        Returns:
+            mu (ndarray): (n,) Mean of all features
+            var (ndarray): (n,) Variance of all features
+        """
+        X = np.array(X)
+        # Check if it is a single-dimension array
+        if(len(X) == 1):
+            #  Reshape it as a matrix
+            # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
+            X = X.reshape(-1,1)
+
+        self.X = X
+        self.m, self.n = X.shape
+        # m rows and n columns
+        n = self.n
+        
+        #start lists to store the arrays
+        mu = [np.mean(X[:, j]) for j in range(0, n)]
+        var = [np.var(X[:, j]) for j in range (0, n)]
+        # compute for all rows from column j, where j is one of the columns from the dataset
+        # https://numpy.org/doc/stable/reference/generated/numpy.var.html
+        
+        # Convert to numpy:
+        self.mu = np.array(mu)
+        self.var = np.array(var)
+
+        return self
+        
+
+    def select_threshold (self, y_val, p_val): 
+        
+        """
+        Finds the best threshold to use for selecting outliers 
+        based on the results from a validation set (p_val) 
+        and the ground truth (y_val)
+        
+        Args:
+            y_val (ndarray): Ground truth on validation set - ytrue
+            p_val (ndarray): Results on validation set
+            
+        Returns:
+            epsilon (float): Threshold chosen 
+            F1 (float):      F1 score by choosing epsilon as threshold
+        """ 
+        from sklearn.metrics import f1_score
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+        
+        best_epsilon = 0
+        best_F1 = 0
+        F1 = 0
+        
+        # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
+        if(len(y_val.shape) == 1):
+            #  Reshape it as a matrix
+            y_val = y_val.reshape(-1,1)
+
+        step_size = (max(p_val) - min(p_val)) / 1000
+        
+        # Create a vector of epsilons to be tested
+        epsilons_tested = np.arange(min(p_val), max(p_val), step_size)
+        # Create an array of f1_scores
+        
+        for epsilon in epsilons_tested:
+            
+            # Make an array with the boolean when comparing p_val with the selected epsilon
+            y_pred = (p_val < epsilon).astype('int')
+            # It will check every value from array p_val: if p_val > epsilon, we do not have an 
+            # anomaly, so the response is zero (integer). If it is lower, the response is 1 (anomaly).
+            # By setting the type, we guarantee it is an integer.
+            # This array is saved as the predictions array y_pred
+            
+            F1 = f1_score(y_val, y_pred)
+            # Inside the loop, we used a vectorized implementation
+            
+            ### END CODE HERE ### 
+            
+            if F1 > best_F1:
+                best_F1 = F1
+                best_epsilon = epsilon
+        
+        """
+        Now that you have estimated the Gaussian parameters, you can investigate which examples have a very high probability given 
+        this distribution and which examples have a very low probability.  
+
+        * The low probability examples are more likely to be the anomalies in our dataset. 
+        * One way to determine which examples are anomalies is to select a threshold based on a cross validation set. 
+
+        In this section, you select the threshold $\varepsilon$ using the $F_1$ score on a cross validation set.
+
+        * For this, we will use a cross validation set
+        $\{(x_{\rm cv}^{(1)}, y_{\rm cv}^{(1)}),\ldots, (x_{\rm cv}^{(m_{\rm cv})}, y_{\rm cv}^{(m_{\rm cv})})\}$, 
+        where the label $y=1$ corresponds to an anomalous example, and $y=0$ corresponds to a normal example. 
+        * For each cross validation example, we will compute $p(x_{\rm cv}^{(i)})$. The vector of all of these probabilities 
+        $p(x_{\rm cv}^{(1)}), \ldots, p(x_{\rm cv}^{(m_{\rm cv})})$ is passed to `select_threshold` in the vector `p_val`. 
+        * The corresponding labels $y_{\rm cv}^{(1)}, \ldots, y_{\rm cv}^{(m_{\rm cv})}$ are passed to the same function in the 
+        vector `y_val`.
+        
+        * In the provided code `select_threshold`, there is already a loop that will try many different values of $\varepsilon$ 
+        and select the best $\varepsilon$ based on the $F_1$ score. 
+
+        * You need to calculate the F1 score from choosing `epsilon` as the threshold and place the value in `F1`. 
+
+        * Recall that if an example $x$ has a low probability $p(x) < \varepsilon$, then it is classified as an anomaly. 
+                
+        * Then, you can compute precision and recall by: 
+        $$\begin{aligned}
+        prec&=&\frac{tp}{tp+fp}\\
+        rec&=&\frac{tp}{tp+fn},
+        \end{aligned}$$ where
+            * $tp$ is the number of true positives: the ground truth label says it’s an anomaly and our algorithm correctly classified 
+            it as an anomaly.
+            * $fp$ is the number of false positives: the ground truth label says it’s not an anomaly, but our algorithm incorrectly 
+            classified it as an anomaly.
+            * $fn$ is the number of false negatives: the ground truth label says it’s an anomaly, but our algorithm incorrectly 
+            classified it as not being anomalous.
+
+        * The $F_1$ score is computed using precision ($prec$) and recall ($rec$) as follows:
+            $$F_1 = \frac{2\cdot prec \cdot rec}{prec + rec}$$ 
+
+        **Implementation Note:** 
+        In order to compute $tp$, $fp$ and $fn$, you may be able to use a vectorized implementation rather than loop over 
+        all the examples.        
+        """
+        self.epsilon = best_epsilon
+        self.F1 = best_F1
+
+        return self
+
+
+    def calculate_probabilities (self, X_tensor):
+
+        # Calculate probabilities for a tensor X
+        
+        """
+        Computes the probability 
+        density function of the examples X under the multivariate gaussian 
+        distribution with parameters mu and var. If var is a matrix, it is
+        treated as the covariance matrix. If var is a vector, it is treated
+        as the var values of the variances in each dimension (a diagonal
+        covariance matrix
+        """
+        
+        import numpy as np
+
+        X = np.array(X_tensor)
+        # Check if it is a single-dimension array
+        if(len(X) == 1):
+            #  Reshape it as a matrix
+            # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
+            X = X.reshape(-1,1)
+
+        mu = self.mu
+        var = self.var
+        
+        k = len(mu)
+        
+        if var.ndim == 1:
+            var = np.diag(var)
+            
+        X = X - mu
+        p = (2* np.pi)**(-k/2) * np.linalg.det(var)**(-0.5) * \
+            np.exp(-0.5 * np.sum(np.matmul(X, np.linalg.pinv(var)) * X, axis = 1))
+        
+        self.estimated_probabilities = p
+
+        # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
+        if(len(p.shape) == 1):
+            #  Reshape it as a matrix
+            p = p.reshape(-1,1)
+    
+        return self
+
+
+    def predict (self, X_tensor):
+
+        epsilon = self.epsilon
+        # Calculate the probabilities associated to X_tensor:
+        self = self.calculate_probabilities(X_tensor = X_tensor)
+        # Retrieve the probabilities:
+        p = self.estimated_probabilities
+
+        # Find the outliers in the training set 
+        outliers = (p < epsilon)
+        # Convert to numpy array
+        outliers = np.array(outliers)
+        # Change type from boolean to integer:
+        outliers = outliers.astype('int64')
+        # Now, True values (p lower than epsilon) are labelled as 1; False (p >= epsilon) are
+        # labelled as 0.
+
+        # Return the predictions:
+        return outliers
+
+
+    def save (self, path_to_save):
+
+        import pickle
+
+        #Save the dictionary of attributes:
+        attributes = vars(self)
+        with open(path_to_save, 'wb') as opened_file:
+            pickle.dump(attributes, opened_file)
+
+
 def separate_and_prepare_features_and_responses (df, features_columns, response_columns):
 
     import numpy as np
@@ -5515,4 +5767,206 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
                 print(probabilities_df.head(10))
             
             return probabilities_df
+
+
+def distances_between_each_data_point (df_tensor_or_array, list_of_new_arrays_to_compare = None, what_to_compare = 'only_original_array', distance_metrics = 'euclidean'):
+
+    """
+    - Compute distances between data points.
+    - Smaller distances in the n-dimensional space indicate closer (more similar) points.
+    - You may compute distance between new points and the original dataset, new points themselves, or between each point from 
+    the original dataset.
+    - This function will return the matrix of distances between each tensor data point.
+    """
+
+    # df_tensor_or_array = dataframe, array, or tensor with the data points. At least one array must be provided as 
+    # df_tensor_or_array
+    
+    # list_of_new_arrays_to_compare: if you want to compare new data points with the original dataset, input them as a
+    # collection (array-like or list) of arrays. Each value in the array is the correspondent value of a given variable for that new
+    # entry (i.e., a component of the vector). For example, if you have a dataset with 3 columns, 'A', 'B', and 'C' and you want to
+    # find the distance between the points (A, B, C) = (1, 2, 3) and (A, B, C) = (1.2, 2.4, 3.6) with each point of the original array,
+    # then:
+    # list_of_new_arrays_to_compare = [[1, 2, 3], [1.2, 2.4, 3.6]]
+    # If you want only to compare the data points in the original dataset, you may keep list_of_new_arrays_to_compare = None
+
+    # NOTICE THAT you may input a single array in df_tensor_or_array and a single array as list_of_new_arrays_to_compare.
+    # This will calculate the distance between two data points.
+
+    # what_to_compare = 'only_original_array' - if what_to_compare = 'only_original_array', the function will calculate the distance
+    # between each point in the original dataset only (even if you input new arrays to compare).
+    # If what_to_compare = 'only_new_with_original' - in this case, only the comparison between new arrays input as 
+    # list_of_new_arrays_to_compare and the original arrays will be performed. Notice that it will not calculate the distances between
+    # the data points of the original dataset, except if no data was input as list_of_new_arrays_to_compare. In this case, the default
+    # 'only_original_array' will be performed.
+    # If what_to_compare = 'everything', new data will be stacked on the bottom of the original array and the distance between each data
+    # point will be obtained.
+
+    # distance_metrics = 'euclidean' - string with the distance metrics that will be used.
+    # The distance function can be ‘braycurtis’, ‘canberra’, ‘chebyshev’, ‘cityblock’, ‘correlation’, ‘cosine’, 
+    # ‘dice’, ‘euclidean’, ‘hamming’, ‘jaccard’, ‘jensenshannon’, ‘kulczynski1’, ‘mahalanobis’, ‘matching’, ‘minkowski’, 
+    # ‘rogerstanimoto’, ‘russellrao’, ‘seuclidean’, ‘sokalmichener’, ‘sokalsneath’, ‘sqeuclidean’, ‘yule’.
+    ## ATTENTION: METRICS ARE CALCULATED AS DEFAULT, it is not possible to modify extra parameters of each one.
+    # Explanaition of each one in:
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html#scipy.spatial.distance.pdist
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html#scipy.spatial.distance.cdist
+    # https://docs.scipy.org/doc/scipy/reference/spatial.distance.html
+
+
+    import numpy as np
+    from scipy.spacial.distance import pdist, cdist
+
+    df = np.array(df_tensor_or_array)
+
+    if (list_of_new_arrays_to_compare is not None):
+
+        if (len(list_of_new_arrays_to_compare) > 0):
+
+            new_data = np.array(list_of_new_arrays_to_compare)
+
+            if (what_to_compare == 'only_new_with_original'):
+
+                distance_matrix = cdist(df, new_data, metric = distance_metrics)
+                print("Distances between new data points and the original ones were calculated and returned as distance_matrix.\n")
+            
+            elif (what_to_compare == 'everything'):
+                # https://numpy.org/doc/stable/reference/generated/numpy.row_stack.html
+                df = np.row_stack((df, new_data))
+
+                distance_matrix = pdist(df, metric = distance_metrics)
+                print("New data points added to the the dataset.")
+                print("Distances between each point on the dataset were calculated and returned as distance_matrix.\n")
+    
+    else:
+        print(f"Mode set as what_to_compare = 'only_original_array'.")
+        distance_matrix = pdist(df, metric = distance_metrics)
+        print("Distances between each point on the dataset were calculated and returned as distance_matrix.\n")
+
+    print("Check the 10 first rows from the returned distance matrix:\n")
+    print(distance_matrix[:10])
+
+    return distance_matrix
+
+
+def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializations = 10, maximum_of_allowed_iterations = 20000, kmeans_algorithm = 'lloyd', tolerance = 0.0001):
+
+    """
+    - Unsupervised learning method for assigning clusters to each data point.
+    - Notice that the response predicted by the model is simply the cluster for a given entry.
+    """
+
+    import numpy as np
+    import pandas as pd
+    from sklearn.cluster import KMeans
+    
+    RANDOM_STATE = 55 
+    ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+    
+    # X_tensor = subset of predictive variables (dataframe). Since this is a non-supervised algorithm, you may pass the full dataset.
+    
+    # number_of_clusters = 8 (integer). The number of clusters to form as well as the number of centroids to generate.
+    # Manipulates the parameter n_clusters from KMeans Sklearn class.
+    
+    # number_of_initializations = 10 (integer). Number of times the k-means algorithm is run with different centroid seeds. 
+    # The final results is the best output of n_init consecutive runs in terms of inertia. Several runs are recommended for 
+    # sparse high-dimensional problems. Manipulates the parameter n_init from KMeans Sklearn class.
+
+    # MAXIMUM_OF_ALLOWED_ITERATIONS = integer representing the maximum number of iterations
+    # that the optimization algorithm can perform. Depending on data, convergence may not be
+    # reached within this limit, so you may need to increase this hyperparameter.
+
+    # kmeans_algorithm = 'lloyd'. K-means algorithm to use. The classical EM-style algorithm is "lloyd". The 
+    # "elkan" variation can be more efficient on some datasets with well-defined clusters, by using the triangle inequality. 
+    # However it’s more memory intensive due to the allocation of an extra array of shape (n_samples, n_clusters).
+    # Options: “lloyd”, “elkan”, “auto”, “full”. Manipulates the parameter algorithm from KMeans Sklearn class.
+
+    # tolerance = 0.0001. Relative tolerance with regards to Frobenius norm of the difference in the cluster centers 
+    # of two consecutive iterations to declare convergence. Manipulates the parameter tol from KMeans Sklearn class.
+
+
+    X = np.array(X_tensor)
+    # Check if it is a single-dimension array
+    if(len(X) == 1):
+        #  Reshape it as a matrix
+        X = X.reshape(-1,1)
+
+    # Start K-Means object:
+    kmeans_model = KMeans(n_clusters = number_of_clusters, random_state = RANDOM_STATE, n_init = number_of_initializations, max_iter = maximum_of_allowed_iterations, tol = tolerance, verbose = 1, algorithm = kmeans_algorithm)
+    # Fit kmeans object to the array:
+    kmeans_model = kmeans_model.fit(X)
+    # Obtain the cluster correspondent to each entry:
+    X_labels = kmeans_model.labels_
+    # obtain clusters centroids:
+    centroids = kmeans_model.cluster_centers_
+
+    print("Finished obtaining the K-Means cluster model.")
+    print("The model object that may be used for predicting the clusters for new data was returned as kmeans_model.")
+    print("The labels (clusters) correspondent to each entry in the input tensor was returned as X_labels, and the model's centroids were returned as centroids.")
+    print("Notice that the response predicted by the model is simply the cluster for a given entry.\n")
+
+    print("Check the centroids of the clusters:\n")
+    print(centroids)
+    print("/n")
+    print("Check the 10 first entries from the dataset and the correspondent labels (clusters):\n")
+    print(f"{[tuple for tuple in zip(X[:10], X_labels[:10])]}")
+
+    return kmeans_model, X_labels, centroids
+
+
+def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_test = None):
+    
+    # defined_threshold = 0.00001 - represents the minimum value of the combined probabilities for a given value
+    # to be considered anomalous. If no test/validation set is provided, the threshold must be defined by the user.
+    # If test/validation sets are provided, the best threshold will be calculated from it.
+    # Notice that the response set is an array containing the label 1 for anomalous (and validated) points, and 0 for
+    # non-anomalous ones.
+
+    """
+    - Unsupervised learning method for detecting anomaly points, based on the assumption that each variable is normal and independent.
+    - Data points considered anomalous are labelled as 1; non-anomalous are labelled as 0.
+    """
+
+    import numpy as np
+    X = np.array(X_tensor)
+
+    # Instantiate the anomaly_detector object:
+    anomaly_detection_model = anomaly_detector(epsilon = defined_threshold)
+    # Fit the detector:
+    anomaly_detection_model = anomaly_detection_model.fit(X = X)
+    
+    if ((X_test is not None) & (y_test is not None)):
+        X_test = np.array(X_test)
+        y_test = np.array(y_test)
+
+        # Estimate the probabilities for X_test
+        anomaly_detection_model = anomaly_detection_model.calculate_probabilities(X_tensor = X_test)
+        anomaly_detection_model = anomaly_detection_model.select_threshold(y_val = y_test, p_val = detector.estimated_probabilities)
+        array_of_outliers = np.array(anomaly_detection_model.predict(X_tensor = X))
+        print(f"Found {np.sum(outliers)} in the array X_tensor.")
+        print("The outliers are the elements correspondent to label 1 in the returned array named as 'outliers'.\n")
+
+    else:
+        # Apply user defined threshold
+        outliers = detector.predict(X_tensor = X_tensor)
+        print(f"Found {np.sum(outliers)} in the array X_tensor.")
+        print("The outliers are the elements correspondent to label 1 in the returned array named as 'outliers'.\n")
+    
+    return anomaly_detection_model, outliers
+
+
+def load_anomaly_detector (saved_file):
+
+    import pickle
+    with open(saved_file, 'rb') as opened_file:
+            
+        attributes = pickle.load(opened_file)
+    
+    # Instantiate the anomaly_detector object:
+    anomaly_detection_model = anomaly_detector()
+    # With vars function, it is possible to access the attributes from an object as the keys of a dictionary.
+    # Fill each attribute of the anomaly_detection_model:
+    for attribute, value in attributes.items():
+        vars(anomaly_detection_model)[attribute] = value
+    
+    return anomaly_detection_model
 

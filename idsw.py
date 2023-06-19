@@ -1520,6 +1520,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
     # model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
     # model_type = 'arima' for ARIMA model (Statsmodels)
     # model_type = 'prophet' for Facebook Prophet model
+    # model_type = 'anomaly_detector' for the Anomaly Detection model
     
     # dict_or_list_to_export and model_to_export: 
     # These two parameters have effect only when ACTION == 'export'. In this case, they
@@ -1594,6 +1595,9 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                 from sklearn.neural_network import MLPRegressor, MLPClassifier
                 model_extension = 'pkl'
                 #it could be 'dill', though
+            
+            elif (model_type == 'anomaly_detector'):
+                model_extension = 'pkl'
             
             elif (model_type == 'xgb_regressor'):
                 from xgboost import XGBRegressor
@@ -1896,6 +1900,20 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     ## model = pkl.load(open(model_path, 'rb'))
                     # 'rb' stands for read binary (read mode). For writing mode, 'wb', 'write binary'
 
+            elif (model_type == 'anomaly_detector'):
+
+                if (use_colab_memory == True):
+                    key = model_file_name + "." + model_extension
+                    model = load_anomaly_detector (saved_file = colab_files_dict[key])
+                    
+                    print(f"Anomaly detection model: {key} successfully imported to Colab environment.")
+            
+                else:
+                    #standard method
+                    model = load_anomaly_detector (saved_file = model_path)
+                
+                    print(f"Anomaly detection model successfully imported from {model_path}.")
+
             elif (model_type == 'xgb_regressor'):
                 
                 # Create an instance (object) from the class XGBRegressor:
@@ -2101,6 +2119,23 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     print(f"Scikit-learn model successfully exported as {model_path}.")
                     # For exporting a pickle model:
                     ## pkl.dump(model_to_export, open(model_path, 'wb'))
+            
+            elif (model_type == 'anomaly_detector'):
+                
+                if (use_colab_memory == True):
+                    ## Download the model
+                    key = model_file_name + "." + model_extension
+                    model_to_export.save(path_to_save = key)
+                    
+                    #to save the file, the mode must be set as 'wb' (write binary)
+                    files.download(key)
+                    print(f"Anomaly detection model: {key} successfully downloaded from Colab environment.")
+            
+                else:
+                    #standard method
+                    model_to_export.save(path_to_save = model_path)
+                    
+                    print(f"Anomaly detection model successfully exported as {model_path}.")
             
             elif ((model_type == 'xgb_regressor')|(model_type == 'xgb_classifier')):
                 # In both cases, the XGBoost object is already loaded in global
