@@ -1,6 +1,7 @@
 # FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
 # Extract data from Plant Information Management (PIMS) systems
 # AspenTech IP21
+# Connect to SQLite Database
 
 # Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
 # marcosoares.feq@gmail.com
@@ -786,3 +787,122 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
     
     return returned_dfs_list
 
+
+def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_created_engine = None, df = None):
+
+    # file_path: full path of the SQLite file. It may start with './' or '/', but with no more than 2 slashes.
+    # It is a string: input in quotes. Example: file_path = '/my_db.db'
+    # table_name: string with the name of the table that will be fetched or updated.
+    # Example: table_name = 'main_table'
+
+    # action = 'fetch_table' to access a table named table_name from the database.
+    # action = 'update_table' to update a table named table_name from the database.
+
+    # pre_created_engine = None - If None, a new engine will be created. If an engine was already created, pass it as argument:
+    # pre_created_engine = engine
+
+    # df = None - if a table is going to be updated, input here the new Pandas dataframe (object) correspondent to the table.
+    # Example: df = dataset.
+
+    # Make imports and create the engine for the database
+    import pandas as pd
+    # Configure the SQLite engine
+    from sqlalchemy import create_engine
+    
+    # SQLAlchemy engines documentation
+    # https://docs.sqlalchemy.org/en/20/core/engines.html
+    # SQLite connects to file-based databases, using the Python built-in module sqlite3 by default.
+    # As SQLite connects to local files, the URL format is slightly different. 
+    # The “file” portion of the URL is the filename of the database. For a relative file path, this requires 
+    # three slashes:
+    # sqlite://<nohostname>/<path>
+    # where <path> is relative:
+    if (pre_created_engine is None):
+
+        try:
+                    
+            if (file_path[:2] == './'):
+                # Add a slash, since sqlite engine requires 3 slashes
+                file_path = '/' + file_path[1:]
+                
+            if (file_path[0] != '/'):
+                # Add a slash, since sqlite engine requires 3 slashes
+                file_path = '/' + file_path
+                        
+            file_path = "sqlite://" + file_path
+            # file_path = "sqlite:///my_db.db"
+                    
+            engine = create_engine(file_path)
+            #And for an absolute file path, the three slashes are followed by the absolute path:
+                
+            """
+            # Unix/Mac - 4 initial slashes in total
+            engine = create_engine("sqlite:////absolute/path/to/foo.db")
+                
+            # Windows
+            engine = create_engine("sqlite:///C:\\path\\to\\foo.db")
+                
+            # Windows alternative using raw string
+            engine = create_engine(r"sqlite:///C:\path\to\foo.db")
+            To use a SQLite :memory: database, specify an empty URL:
+                
+            engine = create_engine("sqlite://")
+            More notes on connecting to SQLite at SQLite.
+            """
+        
+        except:
+            print("Error trying to create SQLite Engine Database. Check if no more than one slash was added to file path.\n")
+            return "error", "error"
+    
+    else:
+        engine = pre_created_engine
+            
+
+    if (action == 'fetch_table'):
+
+        try:
+            # Access the table from the database
+            df = pd.read_sql(table_name, engine)
+
+            print(f"Successfully retrieved table {table_name} from the database." 
+            print("Check the 10 first rows of the dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(df.head(10))
+                    
+            except: # regular mode
+                print(df.head(10))
+           
+            return df, engine
+        
+        except:
+            print("Error trying to fetch SQLite Engine Database. If an pre-created engine was provided, check if it is correct and working.\n")
+            return "error", "error"
+        
+
+    elif (action == 'update_table'):
+
+        try:
+            # Set index = False not to add extra indices in the database:
+            df.to_sql(table_name, con = engine, if_exists = 'replace', index = False)
+            
+            print(f"Successfully updated table {table_name} on the SQLite database." 
+            print("Check the 10 first rows from this table:\n")
+                
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(df.head(10))
+                        
+            except: # regular mode
+                print(df.head(10))
+
+            return df, engine
+        
+        except:
+            print("Error trying to update SQLite Engine Database. If an pre-created engine was provided, check if it is correct and working.\n")
+            return "error", "error"
+
+        
