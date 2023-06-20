@@ -19766,7 +19766,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             
             if (column_with_labels_or_groups is None):
             
-                 print("Please, input a valid column name as column_with_labels_or_groups.\n")
+                print("Please, input a valid column name as column_with_labels_or_groups.\n")
                 list_of_dictionaries_with_series_to_analyze = []
             
             # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
@@ -20003,13 +20003,28 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             class to compute the value of t
 
             """
-
-            distance1 = (stats.t.ppf(1 - alpha/2), df = (n1 - 1))*s1/(np.sqrt(n1))
+            # ppf(q, df, loc=0, scale=1) - Percent point function (inverse of cdf — percentiles).
+            # Example: t.ppf(0.01, df)
+            # https://statcalculators.com/t-distribution-table/
+            
+            distance1 = (stats.t.ppf((1 - alpha/2), df = (n1 - 1)))*s1/(np.sqrt(n1))
             lower1 = xbar1 - distance1
             upper1 = xbar1 + distance1
             ci1 = np.array([lower1, upper1])
+
+            """
+            alpha = 0.05
+            n1 = 12
+            stats.t.ppf((1 - alpha/2), df = (n1 - 1))
+            >> 2.200985160082949
+
+            https://statcalculators.com/t-distribution-table/
+            In this table, we see that this is indeed the result of the 95% confidence interval around the mean (the 2-tail test).
+            That is because there is only 5% (2.5% in each tail side) out of the mean confidence interval. These 5% are limited by
+            the t points in each tail.
+            """
             
-            distance2 = (stats.t.ppf(1 - alpha/2), df = (n2 - 1))*s2/(np.sqrt(n2))
+            distance2 = (stats.t.ppf((1 - alpha/2), df = (n2 - 1)))*s2/(np.sqrt(n2))
             lower2 = xbar2 - distance2
             upper2 = xbar2 + distance2
             ci2 = np.array([lower2, upper2])

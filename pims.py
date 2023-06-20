@@ -864,7 +864,7 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
             # Access the table from the database
             df = pd.read_sql(table_name, engine)
 
-            print(f"Successfully retrieved table {table_name} from the database." 
+            print(f"Successfully retrieved table {table_name} from the database.")
             print("Check the 10 first rows of the dataframe:\n")
             
             try:
@@ -888,7 +888,7 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
             # Set index = False not to add extra indices in the database:
             df.to_sql(table_name, con = engine, if_exists = 'replace', index = False)
             
-            print(f"Successfully updated table {table_name} on the SQLite database." 
+            print(f"Successfully updated table {table_name} on the SQLite database.")
             print("Check the 10 first rows from this table:\n")
                 
             try:
