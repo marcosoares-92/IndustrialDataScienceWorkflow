@@ -552,7 +552,7 @@ class ip21_extractor:
             
             self.need_next_call = True
             # Update the start timestamp to be the last_element plus 1 unit (1 milisecond):
-            self.start_ip21_scale = start_ip21_scale + 1
+            self.start_ip21_scale = last_element + 1
         
         else:
             self.need_next_call = False
@@ -587,6 +587,8 @@ class ip21_extractor:
             else:
                 # Concatenate all dataframes (append rows):
                 dataset = pd.concat([previous_df, dataset], axis = 0, join = "inner")
+                # Reset previous indices so that numeration is continuous:
+                dataset = dataset.reset_index(drop = True)
 
         # Finally, save the concatenated dataset as dataset attribute and return the object:
         self.dataset = dataset
@@ -764,9 +766,6 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
             # Get a dictionary with the returned information:
             returned_data = tag_dict
             returned_data['dataset'] = extracted_df
-            # Append this dictionary to returned_dfs_list:
-            returned_dfs_list.append(returned_data)
-            
             
             if (actual_tag_name is not None):
                 print(f"Check the the dataframe returned from tag {tag_to_extract} ('{actual_tag_name}') on API call {api_call_number}:\n")
@@ -783,8 +782,14 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
                 print(extracted_df)
             
             api_call_number = api_call_number + 1
+        
+        # Save the last version of the dataset and go to next tag to query.
+        # For that, append the dictionary to returned_dfs_list:
+        returned_dfs_list.append(returned_data)
     
+    # At this level, all tags were saved (finished 'for' loop)
     
+    # Return all queried tags. If a single query was queried, there is only one dictionary in the list.
     return returned_dfs_list
 
 
