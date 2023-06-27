@@ -3,8 +3,6 @@ MANIFEST.in
 README.md
 requirements.txt
 setup.py
-etl/__init__.py
-etl/etl.py
 idsw.egg-info/PKG-INFO
 idsw.egg-info/SOURCES.txt
 idsw.egg-info/dependency_links.txt

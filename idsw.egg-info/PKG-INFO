@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: idsw
-Version: 1.0.3
+Version: 1.1
 Summary: Industrial Data Science Workflow: full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
 Author: Marco César Prado Soares, Gabriel Fernandes Luz
 Author-email: marcosoares.feq@gmail.com, gfluz94@gmail.com
