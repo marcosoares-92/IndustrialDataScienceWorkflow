@@ -1469,6 +1469,23 @@ def export_pd_dataframe_as_csv (dataframe_obj_to_be_exported, new_file_name_with
     print("Warning: if there was a file in this file path, it was replaced by the exported dataframe.")
 
 
+def load_anomaly_detector (saved_file):
+
+    import pickle
+    with open(saved_file, 'rb') as opened_file:
+            
+        attributes = pickle.load(opened_file)
+    
+    # Instantiate the anomaly_detector object:
+    anomaly_detection_model = anomaly_detector()
+    # With vars function, it is possible to access the attributes from an object as the keys of a dictionary.
+    # Fill each attribute of the anomaly_detection_model:
+    for attribute, value in attributes.items():
+        vars(anomaly_detection_model)[attribute] = value
+    
+    return anomaly_detection_model
+
+
 def import_export_model_list_dict (action = 'import', objects_manipulated = 'model_only', model_file_name = None, dictionary_or_list_file_name = None, directory_path = '', model_type = 'keras', dict_or_list_to_export = None, model_to_export = None, use_colab_memory = False):
     
     import os

@@ -1,6 +1,13 @@
 # FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
 # Modelling and Machine Learning
 
+# Prepare features and responses tensors.
+# Split into train and test tensors.
+# Define and train the model.
+# Evaluate models' metrics and feature importance.
+# Make predictions and visualize models.
+
+
 # Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
 # marcosoares.feq@gmail.com
 # marco.soares@bayer.com
@@ -372,7 +379,8 @@ class model_checking:
         self.metrics_dict = metrics_dict
         
         return self
-    
+
+
     def feature_importance_ranking (self, model_class = 'linear', orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
         import numpy as np
@@ -729,6 +737,7 @@ class model_checking:
             print("AUC (Area under the curve) of the ROC (Receiver operating characteristic; default) or PR (Precision Recall) curves are quality measures of binary classifiers.\n")
 
         return self
+
 
     def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -1626,6 +1635,7 @@ class WindowGenerator:
         
         """
     
+
     def split_as_labels_and_inputs (self, X, y):
         
         import numpy as np
@@ -1891,6 +1901,7 @@ class tf_models:
         
         return self
     
+
     def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -1935,6 +1946,7 @@ class tf_models:
         
         return self
     
+
     def tf_simple_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -1994,6 +2006,7 @@ class tf_models:
         # return compiled model:
         return self
     
+
     def tf_double_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
  
         import tensorflow as tf
@@ -2031,6 +2044,7 @@ class tf_models:
         
         return self
     
+
     def tf_cnn_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -2084,6 +2098,7 @@ class tf_models:
         # return compiled model:
         return self
     
+
     def tf_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -2124,6 +2139,7 @@ class tf_models:
         # return compiled model:
         return self
     
+
     def tf_encoder_decoder_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import tensorflow as tf
@@ -2172,6 +2188,7 @@ class tf_models:
         # return compiled model:
         return self
     
+
     def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         import numpy as np
@@ -2681,12 +2698,6 @@ class siamese_networks:
         
         return self
 
-    # Prepare features and responses tensors.
-    # Split into train and test tensors.
-    # Define and train the model.
-    # Evaluate models' metrics and feature importance.
-    # Make predictions and visualize models.
-
 
 class anomaly_detector:
     
@@ -2728,7 +2739,8 @@ class anomaly_detector:
     
 
     def fit (self, X):
-     
+        
+        import numpy as np
         """
         Calculates mean and variance of all features 
         in the dataset
@@ -2780,6 +2792,7 @@ class anomaly_detector:
             epsilon (float): Threshold chosen 
             F1 (float):      F1 score by choosing epsilon as threshold
         """ 
+        import numpy as np
         from sklearn.metrics import f1_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
         
@@ -2910,6 +2923,8 @@ class anomaly_detector:
 
 
     def predict (self, X_tensor):
+
+        import numpy as np
 
         epsilon = self.epsilon
         # Calculate the probabilities associated to X_tensor:
@@ -5952,21 +5967,4 @@ def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_t
         print("The outliers are the elements correspondent to label 1 in the returned array named as 'outliers'.\n")
     
     return anomaly_detection_model, outliers
-
-
-def load_anomaly_detector (saved_file):
-
-    import pickle
-    with open(saved_file, 'rb') as opened_file:
-            
-        attributes = pickle.load(opened_file)
-    
-    # Instantiate the anomaly_detector object:
-    anomaly_detection_model = anomaly_detector()
-    # With vars function, it is possible to access the attributes from an object as the keys of a dictionary.
-    # Fill each attribute of the anomaly_detection_model:
-    for attribute, value in attributes.items():
-        vars(anomaly_detection_model)[attribute] = value
-    
-    return anomaly_detection_model
 

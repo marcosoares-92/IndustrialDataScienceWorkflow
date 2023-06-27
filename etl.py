@@ -96,6 +96,7 @@ class spc_chart_assistant:
         
         return self
 
+
     def delete_assistant_imgs (self):
                 
         import os
@@ -124,6 +125,7 @@ class spc_chart_assistant:
         if ((size == 0) & (len(list_of_contents) == 0)):
             
             os.rmdir(self.new_dir)
+
 
     def print_screen_legend (self):
         
@@ -432,7 +434,8 @@ class spc_chart_assistant:
             print("then the average number of nonconformities per inspection unit will be:")
             print("u = x/n")
             print("\n")
-               
+
+
     def open_chart_assistant_screen (self):
                 
         import os
@@ -494,7 +497,8 @@ class spc_chart_assistant:
         
         # Return the booleans to the main function:
         return self
-        
+
+
     def chart_selection (self):
                 
         # Only if the screen is in the tuple numbers_to_end_assistant:
@@ -743,6 +747,7 @@ class spc_plot:
         
         return self
     
+
     def chart_i_mr (self):
         
         import numpy as np
@@ -830,6 +835,7 @@ class spc_plot:
         
         return self
 
+
     def chart_3s (self):
         
         import numpy as np
@@ -871,7 +877,8 @@ class spc_plot:
         self.df = df
         
         return self
-    
+
+
     def chart_std_error (self):
         
         import numpy as np
@@ -1108,7 +1115,8 @@ class spc_plot:
         self.number_of_labels = dictionary['count']
         
         return self
-            
+
+
     def chart_x_bar_s (self):
         
         import numpy as np
@@ -1160,6 +1168,7 @@ class spc_plot:
         
         return self
     
+
     def chart_p (self):
         
         import numpy as np
@@ -1208,6 +1217,7 @@ class spc_plot:
         self.df = df
         
         return self
+
 
     def chart_np (self):
         
@@ -1270,7 +1280,8 @@ class spc_plot:
         self.df = df
         
         return self
-    
+
+
     def chart_c (self):
         
         import numpy as np
@@ -1320,7 +1331,8 @@ class spc_plot:
         self.df = df
         
         return self
-    
+
+
     def chart_u (self):
         
         import numpy as np
@@ -1366,7 +1378,8 @@ class spc_plot:
         self.df = df
         
         return self
-    
+
+
     def rare_events_chart (self):
         
         import numpy as np
@@ -1847,6 +1860,7 @@ class capability_analysis:
             
             return self
     
+
     def get_constants (self):
         
         if (self.sample_size < 2):
@@ -1903,6 +1917,7 @@ class capability_analysis:
         
         return self
     
+
     def get_histogram_array (self):
         
         import numpy as np
@@ -2037,6 +2052,7 @@ class capability_analysis:
         
         return self
     
+
     def get_desired_normal (self):
         
         import numpy as np
@@ -2143,6 +2159,7 @@ class capability_analysis:
         
         return self
     
+
     def get_fitted_normal (self):
         
         import numpy as np
@@ -2213,6 +2230,7 @@ class capability_analysis:
         
         return self
     
+
     def get_actual_pdf (self):
         
         # PDF: probability density function.
@@ -2296,6 +2314,7 @@ class capability_analysis:
         
         return self
     
+
     def get_capability_indicators (self):
         
         import numpy as np
@@ -2352,6 +2371,7 @@ class capability_analysis:
         
         return self
     
+
     def capability_interpretation (self):
        
         print("Capable process: a process which attends its specifications.")
@@ -3308,6 +3328,7 @@ class regex_help:
                 print(number)
             
                 """
+        
         
     def show_screen (self):
             
@@ -21496,3 +21517,4 @@ def process_capability (df, column_with_variable_to_be_analyzed, specification_l
     plt.show()
 
     return stats_dict
+
