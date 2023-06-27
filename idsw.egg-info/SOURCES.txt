@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST.in
+README.md
+requirements.txt
+setup.py
+etl/__init__.py
+etl/etl.py
+idsw.egg-info/PKG-INFO
+idsw.egg-info/SOURCES.txt
+idsw.egg-info/dependency_links.txt
+idsw.egg-info/requires.txt
+idsw.egg-info/top_level.txt
+text_preprocessing/__init__.py
+text_preprocessing/text_preprocessing.py

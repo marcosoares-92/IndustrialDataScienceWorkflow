@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: idsw
+Version: 1.0.3
+Summary: Industrial Data Science Workflow: full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
+Author: Marco César Prado Soares, Gabriel Fernandes Luz
+Author-email: marcosoares.feq@gmail.com, gfluz94@gmail.com
+Classifier: Programming Language :: Python :: 3.7
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+License-File: LICENSE
+
+
+Industrial Data Science Workflow: full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
+
+Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
