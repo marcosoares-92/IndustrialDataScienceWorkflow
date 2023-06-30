@@ -1033,7 +1033,7 @@ class spc_plot:
                 
                     # try to convert to datetime64 (case it is not anymore):
                     try:
-                        df_agg_mode[col_mode] = df_agg_mode[col_mode].astype(np.datetime64)    
+                        df_agg_mode[col_mode] = df_agg_mode[col_mode].astype('datetime64[ns]')    
 
                     except:
                         # simply ignore this step in case it is not possible to parse
@@ -3547,8 +3547,8 @@ def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "i
     
     # try parsing as np.datetime64:
     try:
-        DF_LEFT[left_key] = DF_LEFT[left_key].astype(np.datetime64)
-        DF_RIGHT[right_key] = DF_RIGHT[right_key].astype(np.datetime64)
+        DF_LEFT[left_key] = DF_LEFT[left_key].astype('datetime64[ns]')
+        DF_RIGHT[right_key] = DF_RIGHT[right_key].astype('datetime64[ns]')
     
     except:
         # Try conversion to pd.Timestamp (less efficient, involves looping)
@@ -4939,7 +4939,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
     
     # try parsing as np.datetime64 (more efficient, without loops):
     try:
-        df_copy['timestamp_obj'] = df_copy[timestamp_tag_column].astype(np.datetime64)
+        df_copy['timestamp_obj'] = df_copy[timestamp_tag_column].astype('datetime64[ns]')
     
     except:
         # Obtain pd.Timestamp objects
@@ -5689,7 +5689,7 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
     
     # try parsing as np.datetime64 (more efficient, without loops):
     try:
-        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype('datetime64[ns]')
         
         timestamp_list = list(DATASET[timestamp_tag_column])
         
@@ -5885,7 +5885,7 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
     
     # try parsing as np.datetime64 (more efficient, without loops):
     try:
-        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype('datetime64[ns]')
         
         timestamp_list = list(DATASET[timestamp_tag_column])
         
@@ -6215,8 +6215,8 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
     
     # try parsing as np.datetime64 (more efficient, without loops):
     try:
-        DATASET[timestamp_tag_column1] = DATASET[timestamp_tag_column1].astype(np.datetime64)
-        DATASET[timestamp_tag_column2] = DATASET[timestamp_tag_column2].astype(np.datetime64)
+        DATASET[timestamp_tag_column1] = DATASET[timestamp_tag_column1].astype('datetime64[ns]')
+        DATASET[timestamp_tag_column2] = DATASET[timestamp_tag_column2].astype('datetime64[ns]')
         
     except:
         # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.  
@@ -6524,7 +6524,7 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     
     # try parsing as np.datetime64 (more efficient, without loops):
     try:
-        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+        DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype('datetime64[ns]')
         
     except:
         # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
@@ -9844,7 +9844,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # Check if the elements from array x are np.datetime64 objects. Pick the first
             # element to check:
             
-            if (type(x[0]) == np.datetime64):
+            if (type(np.array(x)[0]) == np.datetime64):
                 
                 x_is_datetime = True
                 
@@ -10448,7 +10448,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             # Check if the elements from array x are np.datetime64 objects. Pick the first
             # element to check:
             
-            if (type(x[0]) == np.datetime64):
+            if (type(np.array(x)[0]) == np.datetime64):
                 
                 x_is_datetime = True
             
@@ -12517,7 +12517,7 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
         
         elif (new_variable_type == 'datetime'):
             
-            new_type = np.datetime64
+            new_type = 'datetime64[ns]'
         
         elif (new_variable_type == 'category'):
             
@@ -13078,7 +13078,7 @@ def left_characters (df, column_to_analyze, number_of_characters_to_retrieve = 1
         
         elif (new_variable_type == 'datetime'):
             
-            new_type = np.datetime64
+            new_type = 'datetime64[ns]'
         
         elif (new_variable_type == 'category'):
             
@@ -13196,7 +13196,7 @@ def right_characters (df, column_to_analyze, number_of_characters_to_retrieve = 
         
         elif (new_variable_type == 'datetime'):
             
-            new_type = np.datetime64
+            new_type = 'datetime64[ns]'
         
         elif (new_variable_type == 'category'):
             
@@ -14202,7 +14202,7 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
     DATASET = df.copy(deep = True)
     
     # Guarantee that the timestamp column has a datetime object, and not a string
-    DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype(np.datetime64)
+    DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype('datetime64[ns]')
     
     # Return POSIX timestamp as float
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
@@ -17433,7 +17433,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
             last_x = x_original_series[(len(x_original_series) - 1)]
             
             # Check the case where it is a timestamp:
-            if (type(x_original_series[0]) == np.datetime64):
+            if (type(np.array(x_original_series)[0]) == np.datetime64):
                 
                 # Let's obtain the mean value of the timedeltas between each measurement:
                 TIMESTAMP_TAG_COLUMN = timestamp_tag_column
@@ -17442,7 +17442,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
                 # If it is none, the value will be returned in nanoseconds.
                 # keep it None, for the results in nanoseconds
                 RETURN_AVG_DELAY = True
-                _, avg_delay = etl.CALCULATE_DELAY (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
+                _, avg_delay = CALCULATE_DELAY (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
                 # The underscore indicates that we will not keep the returned dataframe
                 # only the average time delay in nanoseconds.
                 print("\n")
@@ -17576,7 +17576,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
         IGNORE_INDEX_ON_UNION = True
         SORT_VALUES_ON_UNION = True
         UNION_JOIN_TYPE = None
-        forecast_df = etl.UNION_DATAFRAMES (list_of_dataframes = LIST_OF_DATAFRAMES, ignore_index_on_union = IGNORE_INDEX_ON_UNION, sort_values_on_union = SORT_VALUES_ON_UNION, union_join_type = UNION_JOIN_TYPE)
+        forecast_df = UNION_DATAFRAMES (list_of_dataframes = LIST_OF_DATAFRAMES, ignore_index_on_union = IGNORE_INDEX_ON_UNION, sort_values_on_union = SORT_VALUES_ON_UNION, union_join_type = UNION_JOIN_TYPE)
         
         # Full series, with input data and forecasts:
         x = forecast_df[x_forecast_label]
@@ -18218,7 +18218,7 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
         
         # try to convert it to datetime:
         try:
-            x = x.astype(np.datetime64)
+            x = x.astype('datetime64[ns]')
         
         except:
             pass
@@ -20543,7 +20543,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         # The timestamp_tag_column was read as an object, indicating that it is probably a timestamp.
         # Try to convert it to datetime64:
         try:
-            DATASET[timestamp_tag_column] = (DATASET[timestamp_tag_column]).astype(np.datetime64)
+            DATASET[timestamp_tag_column] = (DATASET[timestamp_tag_column]).astype('datetime64[ns]')
             print(f"Variable {timestamp_tag_column} successfully converted to datetime64[ns].\n")
 
         except:
