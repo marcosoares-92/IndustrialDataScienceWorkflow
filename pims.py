@@ -505,7 +505,7 @@ class ip21_extractor:
         json_field_separator = "_"
         dataset = json_normalize(json_file, record_path = json_record_path, sep = json_field_separator)
         
-        if (("er" in dataset.columns) | ("ec" in dataset.columns) | ("es" in dataset.columns)):
+        if ((dataset is None) | ("er" in dataset.columns) | ("ec" in dataset.columns) | ("es" in dataset.columns) | (len(dataset) == 0)):
             
             print("There is no data available for the defined time window.\n")
             
@@ -828,13 +828,13 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
                     
             if (file_path[:2] == './'):
                 # Add a slash, since sqlite engine requires 3 slashes
-                file_path = '/' + file_path[1:]
+                file_path = file_path[2:]
                 
-            if (file_path[0] != '/'):
+            if (file_path[0] == '/'):
                 # Add a slash, since sqlite engine requires 3 slashes
-                file_path = '/' + file_path
+                file_path = file_path[1:]
                         
-            file_path = "sqlite://" + file_path
+            file_path = """sqlite:///""" + file_path
             # file_path = "sqlite:///my_db.db"
                     
             engine = create_engine(file_path)
@@ -883,7 +883,7 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
             return df, engine
         
         except:
-            print("Error trying to fetch SQLite Engine Database. If an pre-created engine was provided, check if it is correct and working.\n")
+            print("Error trying to fetch SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
             return "error", "error"
         
 
@@ -907,7 +907,7 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
             return df, engine
         
         except:
-            print("Error trying to update SQLite Engine Database. If an pre-created engine was provided, check if it is correct and working.\n")
+            print("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
             return "error", "error"
 
         

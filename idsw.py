@@ -1535,7 +1535,7 @@ def set_schema_pd_df (df, schema_list = [{'column_name': None, 'column_type': No
     
     print("\n")
     df_dtypes = dataset.dtypes
-    # Now, the df_dtypes seroes has the original columns set as index, but this index has no name.
+    # Now, the df_dtypes series has the original columns set as index, but this index has no name.
     # Let's rename it using the .rename method from Pandas Index object:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Index.rename.html#pandas.Index.rename
     # To access the Index object, we call the index attribute from Pandas dataframe.

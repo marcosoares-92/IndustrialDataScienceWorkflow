@@ -996,6 +996,12 @@ class spc_plot:
             
             df_agg_mode = df.copy(deep = True)
             df_agg_mode = df_agg_mode[categorical_cols]
+            # stats.mode now only works for numerically encoded variables (the previous ordinal
+            # encoding is required)
+            DATASET = df_agg_mode
+            SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_cols
+            df_agg_mode, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+
             df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
             
             # 6. df_agg_mode processing:
@@ -1018,9 +1024,10 @@ class spc_plot:
                         try:
                             # try accessing the mode
                             # mode array is like:
-                            # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                            # To retrieve only the mode, we must access the element [0][0] from this array:
-                            mode = mode_array[0][0]
+                            # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
+                            # To retrieve only the mode, we must access the element [0] from this array
+                            # or attribute mode:
+                            mode = mode_array.mode
 
                         except:
                             mode = np.nan
@@ -1031,15 +1038,11 @@ class spc_plot:
                     # Finally, make the column the list of modes itself:
                     df_agg_mode[col_mode] = list_of_modes
                 
-                    # try to convert to datetime64 (case it is not anymore):
-                    try:
-                        df_agg_mode[col_mode] = df_agg_mode[col_mode].astype('datetime64[ns]')    
-
-                    except:
-                        # simply ignore this step in case it is not possible to parse
-                        # because it is a string:
-                        pass
-                
+            # Now, reverse the encoding:
+            DATASET = df_agg_mode
+            ENCODING_LIST = ordinal_encoding_list
+            df_agg_mode = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+                            
         if (is_numeric == 1):
             
             df_agg_mean = df.copy(deep = True)
@@ -5117,8 +5120,14 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         # The mode is the first element from this array. To access it, we add another index:
         # series[0][0][0]. The result will be: mode_for_that_row
         
-        ## Aggregate the df_categorical dataframe in terms of mode:
+        ## Aggregate the df_categorical dataframe in terms of mode: 
         
+        # stats.mode now only works for numerically encoded variables (the previous ordinal
+        # encoding is required)
+        DATASET = df_categorical
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
+        df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+    
         if (start_time is not None):
 
             df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = False, sort = True).agg(stats.mode)
@@ -5151,11 +5160,16 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
             # and append it to the list_of_modes:
             for i in range(0, len(cat_var_series)):
                 # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
-                # Append the element [0][0] from row [i]
+                #  try accessing the mode
+                # mode array is like:
+                # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
+                # To retrieve only the mode, we must access the element [0] from this array
+                # or attribute mode:
+                
                 try:
-                    list_of_modes.append(cat_var_series[i][0][0])
+                    list_of_modes.append(cat_var_series[i].mode)
 
-                except IndexError:
+                except:
                     # This error is generated when trying to access an array storing no values.
                     # (i.e., with missing values). Since there is no dimension, it is not possible
                     # to access the [0][0] position. In this case, simply append the np.nan (missing value):
@@ -5165,6 +5179,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
 
             # Make the column cat_var the list_of_modes itself:
             df_categorical[cat_var] = list_of_modes
+        
 
         # Again, it is not possible to set as_index = False so, the timestamp becomes the index. 
         # Let's create a column 'timestamp_grouped' to store this index:
@@ -5177,6 +5192,11 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         
         # Select the columns in the new order by passing the list as argument:
         df_categorical = df_categorical[grouped_cat_cols]
+
+        # Now, reverse the encoding:
+        DATASET = df_categorical
+        ENCODING_LIST = ordinal_encoding_list
+        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -5535,9 +5555,15 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
     
     if (is_categorical == 1):
         # Let's aggregate the categorical subset
+        # stats.mode now only works for numerically encoded variables (the previous ordinal
+        # encoding is required)
+        DATASET = df_categorical
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
+        df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+
 
         if (categorical_aggregate == 'mode'):
-
+            
             df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.mode)
             
             # Loop through each categorical variable:
@@ -5553,10 +5579,16 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                 for i in range(0, len(cat_var_series)):
                     # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
                     # Append the element [0][0] from row [i]
+                    # try accessing the mode
+                    # mode array is like:
+                    # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
+                    # To retrieve only the mode, we must access the element [0] from this array
+                    # or attribute mode:
+                        
                     try:
-                        list_of_modes.append(cat_var_series[i][0][0])
+                        list_of_modes.append(cat_var_series[i].mode)
 
-                    except IndexError:
+                    except:
                         # This error is generated when trying to access an array storing no values.
                         # (i.e., with missing values). Since there is no dimension, it is not possible
                         # to access the [0][0] position. In this case, simply append the np.nan (missing value):
@@ -5567,7 +5599,6 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                 # Make the column cat_var the list_of_modes itself:
                 df_categorical[cat_var] = list_of_modes
 
-            
         elif (categorical_aggregate == 'count'):
 
             df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).count()
@@ -5575,7 +5606,12 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
         elif (categorical_aggregate == 'entropy'):
 
             df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.entropy)
-            
+        
+        # Now, reverse encoding:
+        DATASET = df_categorical
+        ENCODING_LIST = ordinal_encoding_list
+        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -7745,13 +7781,17 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 if (len(categorical_list) > 0):
 
                     # Has at least one column:
-                    df_categorical = df_copy.copy(deep = True)
+                    df_categorical = cleaned_df.copy(deep = True)
                     df_categorical = df_categorical[categorical_list]
                     is_categorical = 1
+                    # scipy.stats.mode requires numeric values, so the ordinal encoding is necessary.
+                    DATASET = df_categorical
+                    SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
+                    df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
 
                 if (len(numeric_list) > 0):
 
-                    df_numeric = df_copy.copy(deep = True)
+                    df_numeric = cleaned_df.copy(deep = True)
                     df_numeric = df_numeric[numeric_list]
                     is_numeric = 1
                 
@@ -7783,22 +7823,15 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                         
                         for column in categorical_list:
                             
-                            mode_array = stats.mode(df_categorical[column])
-                            
                             # The function stats.mode(X) returns an array as: 
-                            # ModeResult(mode=array(['a'], dtype='<U1'), count=array([2]))
-                            # If we select the first element from this array, stats.mode(X)[0], 
-                            # the function will return an array as array(['a'], dtype='<U1'). 
-                            # We want the first element from this array stats.mode(X)[0][0], 
+                            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
+                            # ModeResult(mode=3, count=5) ac, axis = None, cess mode attribute       
                             # which will return a string like 'a':
                             try:
-                                fill_dict[column] = mode_array[0][0]
+                                fill_dict[column] = stats.mode(df_categorical[column], axis = None, keepdims = False).mode
 
-                            except IndexError:
+                            except:
                                 # This error is generated when trying to access an array storing no values.
-                                # (i.e., with missing values). Since there is no dimension, it is not possible
-                                # to access the [0][0] position. In this case, simply append the np.nan 
-                                # the (missing value):
                                 fill_dict[column] = np.nan
                     
                     # Now, fill_dict contains the mapping of columns (keys) and 
@@ -7862,11 +7895,19 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     
                     if (is_cat_num == 2):
                         # Both subsets are present.
+                        # Reverse ordinal encoding
+                        DATASET = df_categorical
+                        ENCODING_LIST = ordinal_encoding_list
+                        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
                         # Concatenate the dataframes in the columns axis (append columns):
                         cleaned_df = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
 
                     elif (is_categorical == 1):
                         # There is only the categorical subset:
+                        # Reverse ordinal encoding
+                        DATASET = df_categorical
+                        ENCODING_LIST = ordinal_encoding_list
+                        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
                         cleaned_df = df_categorical
 
                     elif (is_numeric == 1):
@@ -8985,8 +9026,15 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     
     elif (aggregate_function == 'mode'):
         
+        # stats.mode now only works for numerically encoded variables (the previous ordinal
+        # encoding is required)
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = columns_list
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.mode)
-    
+        
+        ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+
     elif (aggregate_function == 'sum'):
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].sum()
@@ -9062,23 +9110,26 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     elif (aggregate_function == 'kurtosis'):
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.kurtosis)
-    
+
+
     elif (aggregate_function == 'skew'):
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
-
+        
     elif (aggregate_function == 'interquartile_range'):
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.iqr)
-    
+        
     elif (aggregate_function == 'mean_standard_error'):
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.sem)
-    
-    else: # entropy
         
+    else: # entropy
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = columns_list
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.entropy)
-
+        ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
     
     # List of columns of the aggregated dataset:
     list_of_columns = list(DATASET.columns) # convert to a list
@@ -9115,13 +9166,16 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
             
             # Loop through each element from the list of arrays:
             for mode_array in list_of_modes_arrays:
+                # try accessing the mode
                 # mode array is like:
-                # ModeResult(mode=array([calculated_mode]), count=array([counting_of_occurrences]))
-                # To retrieve only the mode, we must access the element [0][0] from this array:
+                # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
+                # To retrieve only the mode, we must access the element [0] from this array
+                # or attribute mode:
+                    
                 try:
-                    list_of_modes.append(mode_array[0][0])
+                    list_of_modes.append(mode_array.mode)
                 
-                except IndexError:
+                except:
                     # This error is generated when trying to access an array storing no values.
                     # (i.e., with missing values). Since there is no dimension, it is not possible
                     # to access the [0][0] position. In this case, simply append the np.nan 
@@ -9130,6 +9184,12 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
             
             # Make the list of modes the column itself:
             DATASET[column] = list_of_modes
+
+        # Reverse encoding
+        columns_list = DATASET.columns
+        DATASET = ord_enc.inverse_transform(DATASET)
+        DATASET = pd.DataFrame(DATASET)
+        DATASET.columns = columns_list
     
             
     # the name of the response variable is now the second element from the list of column:
@@ -11712,11 +11772,9 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
 
         #Calculate the mode of the distribution:
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
-        data_mode = stats.mode(y, axis = None)[0][0]
-        # returns an array of arrays. The first array is called mode=array and contains the mode.
-        # Axis: Default is 0. If None, compute over the whole array.
-        # we set axis = None to compute the general mode.
-
+        # ModeResult(mode=3, count=5) access mode attribute
+        data_mode = stats.mode(y, axis = None, keepdims = False).mode
+        
         #Create general statistics dictionary:
         general_statistics_dict = {
 
@@ -11926,10 +11984,8 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
 
             #Calculate the mode of the distribution:
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
-            data_mode = stats.mode(y, axis = None)[0][0]
-            # returns an array of arrays. The first array is called mode=array and contains the mode.
-            # Axis: Default is 0. If None, compute over the whole array.
-            # we set axis = None to compute the general mode.
+            # ModeResult(mode=3, count=5) access mode attribute
+            data_mode = stats.mode(y, axis = None, keepdims = False).mode
             
             # Access the object correspondent to the distribution provided. To do so,
             # simply access dict['key1'], where 'key1' is a key from a dictionary dict ={"key1": 'val1'}
@@ -15654,7 +15710,7 @@ def reverse_power_transform (df, original_exponent = 2, subset = None, create_ne
     return DATASET
 
 
-def OneHotEncode_df (df, subset_of_features_to_be_encoded):
+def OneHotEncoding_df (df, subset_of_features_to_be_encoded):
 
     import numpy as np
     import pandas as pd
@@ -15820,7 +15876,7 @@ def OneHotEncode_df (df, subset_of_features_to_be_encoded):
     return new_df, encoding_list
 
 
-def reverse_OneHotEncode (df, encoding_list):
+def reverse_OneHotEncoding (df, encoding_list):
 
     import pandas as pd
     from sklearn.preprocessing import OneHotEncoder
@@ -15903,7 +15959,7 @@ def reverse_OneHotEncode (df, encoding_list):
     return new_df
 
 
-def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
+def OrdinalEncoding_df (df, subset_of_features_to_be_encoded):
 
     # Ordinal encoding: let's associate integer sequential numbers to the categorical column
     # to apply the advanced encoding techniques. Even though the one-hot encoding could perform
@@ -15945,9 +16001,9 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
         nested_dict = {}
         
         # Add the column to encoding_dict as the key 'column':
-        encoding_dict['column'] = column
+        encoding_dict['original_column_label'] = column
         
-        # Loop through each element (named 'column') of the list of columns to analyze,
+        # Loop through each element (named 'original_column_label') of the list of columns to analyze,
         # subset_of_features_to_be_encoded
         
         # We could process the whole subset at once, but it could make us lose information
@@ -15991,6 +16047,7 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
         # Store the encoder object as the key 'ordinal_enc_obj'
         # Add the encoder object to the dictionary:
         nested_dict['ordinal_enc_obj'] = ordinal_enc_obj
+        nested_dict['encoded_column'] = new_column
         
         # Store the nested dictionary in the encoding_dict as the key 'ordinal_encoder':
         encoding_dict['ordinal_encoder'] = nested_dict
@@ -16024,17 +16081,18 @@ def OrdinalEncode_df (df, subset_of_features_to_be_encoded):
     return new_df, encoding_list
 
 
-def reverse_OrdinalEncode (df, encoding_list):
+def reverse_OrdinalEncoding (df, encoding_list):
 
+    import numpy as np
     import pandas as pd
     from sklearn.preprocessing import OrdinalEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#sklearn.preprocessing.OrdinalEncoder
     
     # df: the whole dataframe to be processed.
     
-    # encoding_list: list in the same format of the one generated by OrdinalEncode_df function:
+    # ENCODING_LIST: list in the same format of the one generated by OrdinalEncode_df function:
     # it must be a list of dictionaries where each dictionary contains two keys:
-    # key 'column': string with the original column name (in quotes); 
+    # key 'original_column_label': string with the original column name (in quotes); 
     # key 'ordinal_encoder': this key must store a nested dictionary.
     # Even though the nested dictionaries generates by the encoding function present
     # two keys:  'categories', storing an array with the different categories;
@@ -16042,7 +16100,37 @@ def reverse_OrdinalEncode (df, encoding_list):
     ## On the other hand, a third key is needed in the nested dictionary:
     ## key 'encoded_column': this key must store a string with the name of the column
     # obtained from Encoding.
+    # If 'encoded_column' is None, the name of the original column will be used.
+    # On the other hand, when 'original_column_label' is None, the 'encoded_column'
+    # will be used for both. So, at least one of them must be present for the
+    # element not to be ignored.
     
+    """"
+        ENCODING_LIST = [
+                        {'original_column_label': None,
+                        'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None}},
+                        {'original_column_label': None,
+                        'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None}},]
+    """
+    
+    # Alternatively, the list may have the following format:
+    """"
+    ENCODING_LIST = 
+    [
+            {'original_column_label': None,
+            'encoding': [{'actual_label': None, 'encoded_value': None},]},
+            {'original_column_label': None,
+            'encoding': [{'actual_label': None, 'encoded_value': None},]},
+    ]
+    """
+    # The difference is that the key 'ordinal_encoder' is replaced by the key
+    # 'encoding', which stores a list of dictionaries with encoding information.
+    # You must input a dictionary by possible encoded value (as a list element). 
+    # Each dictionary will contain a key 'actual_label' with the real value of the 
+    # label, and 'encoded_val'with the correspondent encoding. For example, 
+    # if the category 'yellow' was encoded as value 3, then the dictionary would be: 
+    # {'actual_label': 'yellow', 'encoded_value': 3}
+
     
     # Start a copy of the original dataframe. This copy will be updated to create the new
     # transformed dataframe. Then, we avoid manipulating the original object.
@@ -16058,42 +16146,113 @@ def reverse_OrdinalEncode (df, encoding_list):
         
         try:
             # Check if the required arguments are present:
-            if ((encoder_dict['column'] is not None) & (encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None) & (encoder_dict['ordinal_encoder']['encoded_column'] is not None)):
+            if ((encoder_dict['original_column_label'] is not None) | (encoder_dict['ordinal_encoder']['encoded_column'] is not None)):
 
-                # Access the column name:
-                col_name = encoder_dict['column']
+                if encoder_dict['original_column_label'] is None:
+                    encoder_dict['original_column_label'] = encoder_dict['ordinal_encoder']['encoded_column']
+                
+                if ((encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None)):
+                    
+                    # Access the column name:
+                    col_name = encoder_dict['column']
 
-                # Access the nested dictionary:
-                nested_dict = encoder_dict['ordinal_encoder']
-                # Access the encoder object on the dictionary
-                ordinal_enc_obj = nested_dict['ordinal_enc_obj']
-                # Access the encoded column and save it as a list:
-                list_of_encoded_cols = [nested_dict['encoded_column']]
-                # In OneHotEncoding we have an array of strings. Applying the list
-                # attribute would convert the array to list. Here, in turns, we have a simple
-                # string, which is also an iterable object. Applying the list attribute to a string
-                # creates a list of characters of that string.
-                # So, here we create a list with the string as its single element.
+                    # Access the nested dictionary:
+                    nested_dict = encoder_dict['ordinal_encoder']
+                    # Access the encoder object on the dictionary
+                    ordinal_enc_obj = nested_dict['ordinal_enc_obj']
+                    # Access the encoded column and save it as a list:
+                    encoded_col = nested_dict['encoded_column']
+                    # If it is None, repeat the original colum name
+                    
+                    if encoded_col is None:
+                        encoded_col = encoder_dict['original_column_label']
 
-                # Get a subset of the encoded column
-                X = new_df.copy(deep = True)
-                X = X[list_of_encoded_cols]
+                    list_of_encoded_cols = [encoded_col]
+                    # In OneHotEncoding we have an array of strings. Applying the list
+                    # attribute would convert the array to list. Here, in turns, we have a simple
+                    # string, which is also an iterable object. Applying the list attribute to a string
+                    # creates a list of characters of that string.
+                    # So, here we create a list with the string as its single element.
 
-                # Reverse the encoding:
-                reversed_array = ordinal_enc_obj.inverse_transform(X)
+                    # Get a subset of the encoded column
+                    X = new_df.copy(deep = True)
+                    X = X[list_of_encoded_cols]
+                    
+                    # Round every value to the closest integer before trying to inverse the transformation:
+                    X = np.rint(X)
+                    # Get minimum and maximum encoded values:
+                    categories = ordinal_enc_obj.categories_
+                    min_encoded = 0 # always from zero
+                    max_encoded = len(categories) - 1 # counting starts from zero
 
+                    # Replace values higher than max_encoded by max_encoded, and values lower than
+                    # min_encoded by min_encoded, avoiding errors on the reverse operation.
+                    # https://numpy.org/doc/stable/reference/generated/numpy.where.html
+                    X = np.where(X > max_encoded, max_encoded, X)
+                    # max_encoded is broadcast. If X > max_encoded, returns max_encoded. 
+                    # Else, returns X element itself.
+                    X = np.where(X < min_encoded, min_encoded, X)
+                    # Replaces each value lower than minimum encoded by minimum encooded itself.
+                    # Avoids losing information.
+
+                    # Reverse the encoding:
+                    reversed_array = ordinal_enc_obj.inverse_transform(X)
+                
+                else:
+                    # Try accessing the individual encoding information with format 
+                    # {'column': None,
+                    # 'ordinal_encoder': {'encoded_column': None, 'encoding': [{'actual_label': None, 'encoded_value': None},]}
+                    # Access the column name:
+                    col_name = encoder_dict['column']
+                    # Access the nested dictionary:
+                    nested_dict = encoder_dict['ordinal_encoder']
+                    # Access the encoding list on the dictionary
+                    encoding_list = nested_dict['encoding']
+                    # Access the encoded column and save it as a list:
+                    
+                    # Pick all possible encodings
+                    list_of_vals = [dictionary['encoded_value'] for dictionary in encoding_list]
+                    min_encoded = min(list_of_vals)
+                    max_encoded = max(list_of_vals)
+
+                    encoded_col = nested_dict['encoded_column']
+                    # If it is None, repeat the original colum name
+                    
+                    if encoded_col is None:
+                        encoded_col = encoder_dict['original_column_label']
+
+                    list_of_encoded_cols = [encoded_col]
+
+                    # Get a subset of the encoded column
+                    X = new_df.copy(deep = True)
+                    X = X[list_of_encoded_cols]
+
+                    # Round every value to the closest integer before trying to inverse the transformation:
+                    X = np.rint(X)
+                    X = np.where(X > max_encoded, max_encoded, X)
+                    X = np.where(X < min_encoded, min_encoded, X)
+                    
+                    # Reverse the encoding:
+                    # Pick first element from list. If X is the first encoding, replace it by the corresponding label.
+                    reversed_array = np.where(X == list_of_vals[0]['encoded_value'], list_of_vals[0]['actual_label'], X)
+                    # Now, loop through all possible encodings:
+                    for i in range(1, len(reversed_array)):
+                        # Starts from 1, since element 0 was already picked
+                        reversed_array = np.where(X == list_of_vals[i]['encoded_value'], list_of_vals[i]['actual_label'], reversed_array)
+                
+                
                 # Add the reversed array as the column col_name on the dataframe:
                 new_df[col_name] = reversed_array
-                    
+                        
                 print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
-                
+                    
                 try:
                     display(new_df[[col_name]].head())
                 except:
                     print(new_df[[col_name]].head())
 
                 print("\n")
-                
+        
         except:
             print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
     
