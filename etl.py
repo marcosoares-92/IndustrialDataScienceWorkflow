@@ -11,7 +11,8 @@
 # Analyze the time series.
 # Seggregate the dataset and check for differences.
 # Process diagnosis: statistical process control charts and capability analysis.
-
+import numpy as np
+import pandas as pd
 
 class spc_chart_assistant:
             
@@ -439,8 +440,6 @@ class spc_chart_assistant:
     def open_chart_assistant_screen (self):
                 
         import os
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
         from html2image import Html2Image
         from tensorflow.keras.preprocessing.image import img_to_array, load_img
@@ -652,9 +651,6 @@ class spc_plot:
     # define the Class constructor, i.e., how are its objects:
     def __init__ (self, dictionary, column_with_variable_to_be_analyzed, timestamp_tag_column, chart_to_use, column_with_labels_or_subgroups = None, consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day'):
                 
-        import numpy as np
-        import pandas as pd
-        
         # If the user passes the argument, use them. Otherwise, use the standard values.
         # Set the class objects' attributes.
         # Suppose the object is named plot. We can access the attribute as:
@@ -750,9 +746,6 @@ class spc_plot:
 
     def chart_i_mr (self):
         
-        import numpy as np
-        import pandas as pd
-        
         # access the dataframe:
         
         dictionary = self.dictionary
@@ -838,9 +831,6 @@ class spc_plot:
 
     def chart_3s (self):
         
-        import numpy as np
-        import pandas as pd
-        
         dictionary = self.dictionary
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -880,9 +870,6 @@ class spc_plot:
 
 
     def chart_std_error (self):
-        
-        import numpy as np
-        import pandas as pd
         
         dictionary = self.dictionary
         df = self.df
@@ -930,8 +917,6 @@ class spc_plot:
     
     def create_grouped_df (self):
         
-        import numpy as np
-        import pandas as pd
         from scipy import stats
         
         dictionary = self.dictionary
@@ -1001,6 +986,13 @@ class spc_plot:
             DATASET = df_agg_mode
             SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_cols
             df_agg_mode, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+            # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
+            # avoiding that scipy try to aggregate them and raise an error:
+            # Remove the columns that do not have numeric variables before grouping
+            df_agg_mode = df_agg_mode.drop(columns = categorical_cols)
+
+            if column_with_labels_or_subgroups in categorical_list:
+                column_with_labels_or_subgroups = column_with_labels_or_subgroups + "_OrdinalEnc"
 
             df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
             
@@ -1041,8 +1033,10 @@ class spc_plot:
             # Now, reverse the encoding:
             DATASET = df_agg_mode
             ENCODING_LIST = ordinal_encoding_list
+            # Now, reverse encoding and keep only the original column names:
             df_agg_mode = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-                            
+            df_agg_mode = df_agg_mode[categorical_cols]
+                  
         if (is_numeric == 1):
             
             df_agg_mean = df.copy(deep = True)
@@ -1122,9 +1116,6 @@ class spc_plot:
 
     def chart_x_bar_s (self):
         
-        import numpy as np
-        import pandas as pd
-        
         dictionary = self.dictionary
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -1174,9 +1165,6 @@ class spc_plot:
 
     def chart_p (self):
         
-        import numpy as np
-        import pandas as pd
-        
         dictionary = self.dictionary
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -1223,9 +1211,6 @@ class spc_plot:
 
 
     def chart_np (self):
-        
-        import numpy as np
-        import pandas as pd
         
         dictionary = self.dictionary
         df = self.df
@@ -1287,9 +1272,6 @@ class spc_plot:
 
     def chart_c (self):
         
-        import numpy as np
-        import pandas as pd
-        
         dictionary = self.dictionary
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -1338,9 +1320,6 @@ class spc_plot:
 
     def chart_u (self):
         
-        import numpy as np
-        import pandas as pd
-        
         dictionary = self.dictionary
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -1384,9 +1363,6 @@ class spc_plot:
 
 
     def rare_events_chart (self):
-        
-        import numpy as np
-        import pandas as pd
         
         dictionary = self.dictionary
         df = self.df
@@ -1687,9 +1663,6 @@ class capability_analysis:
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
     def __init__ (self, df, column_with_variable_to_be_analyzed, specification_limits, total_of_bins = 10, alpha = 0.10):
-                
-        import numpy as np
-        import pandas as pd
         
         # If the user passes the argument, use them. Otherwise, use the standard values.
         # Set the class objects' attributes.
@@ -1727,8 +1700,6 @@ class capability_analysis:
     
     def check_data_normality (self):
         
-        import numpy as np
-        import pandas as pd
         from scipy import stats
         from statsmodels.stats import diagnostic
         
@@ -1923,8 +1894,6 @@ class capability_analysis:
 
     def get_histogram_array (self):
         
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
         
         df = self.df
@@ -2058,9 +2027,6 @@ class capability_analysis:
 
     def get_desired_normal (self):
         
-        import numpy as np
-        import pandas as pd
-        
         # Get a normal completely (6s) in the specifications, and centered
         # within these limits
         
@@ -2165,9 +2131,6 @@ class capability_analysis:
 
     def get_fitted_normal (self):
         
-        import numpy as np
-        import pandas as pd
-        
         # Get a normal completely (6s) in the specifications, and centered
         # within these limits
         
@@ -2240,8 +2203,6 @@ class capability_analysis:
         # KDE: Kernel density estimation: estimation of the actual probability density
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html#scipy.stats.gaussian_kde
         
-        import numpy as np
-        import pandas as pd
         from scipy import stats
         
         df = self.df
@@ -2319,9 +2280,6 @@ class capability_analysis:
     
 
     def get_capability_indicators (self):
-        
-        import numpy as np
-        import pandas as pd
         
         # Get a normal completely (6s) in the specifications, and centered
         # within these limits
@@ -3389,9 +3347,6 @@ class regex_help:
 
 def APPLY_ROW_FILTERS_LIST (df, list_of_row_filters):
         
-        import numpy as np
-        import pandas as pd
-        
         print("Warning: this function filter the rows and results into a smaller dataset, since it removes the non-selected entries.")
         print("If you want to pass a filter to simply label the selected rows, use the function LABEL_DATAFRAME_SUBSETS, which do not eliminate entries from the dataframe.")
         
@@ -3505,9 +3460,6 @@ def APPLY_ROW_FILTERS_LIST (df, list_of_row_filters):
 def MERGE_ON_TIMESTAMP (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
     
     #WARNING: Only two dataframes can be merged on each call of the function.
-    
-    import numpy as np
-    import pandas as pd
     
     # df_left: dataframe to be joined as the left one.
     
@@ -3641,9 +3593,6 @@ def MERGE_AND_SORT_DATAFRAMES (df_left, df_right, left_key, right_key, how_to_jo
     
     #WARNING: Only two dataframes can be merged on each call of the function.
     
-    import numpy as np
-    import pandas as pd
-    
     # df_left: dataframe to be joined as the left one.
     
     # df_right: dataframe to be joined as the right one
@@ -3744,8 +3693,6 @@ def RECORD_LINKAGE (df_left, df_right, columns_to_block_as_basis_for_comparison 
     
     #WARNING: Only two dataframes can be merged on each call of the function.
     
-    import numpy as np
-    import pandas as pd
     import recordlinkage
     
     # Record linkage is the act of linking data from different sources regarding the same entity.
@@ -4053,7 +4000,6 @@ def RECORD_LINKAGE (df_left, df_right, columns_to_block_as_basis_for_comparison 
 
 def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_on_union = True, sort_values_on_union = True, union_join_type = None):
     
-    import pandas as pd
     #JOIN can be 'inner' to perform an inner join, eliminating the missing values
     #The default (None) is 'outer': the dataframes will be stacked on the columns with
     #same names but, in case there is no correspondence, the row will present a missing
@@ -4194,8 +4140,6 @@ def UNION_DATAFRAMES (list_of_dataframes, what_to_append = 'rows', ignore_index_
 
 def df_general_characterization (df):
     
-    import pandas as pd
-
     # Set a local copy of the dataframe:
     DATASET = df.copy(deep = True)
 
@@ -4310,8 +4254,6 @@ def df_general_characterization (df):
 
 def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_index_list = None, reset_index_after_drop = True):
     
-    import pandas as pd
-    
     # check https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.drop.html?highlight=drop
     
     # what_to_drop = 'columns' for removing the columns specified by their names (headers)
@@ -4392,7 +4334,6 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
 
 def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_keep = 'first', reset_index_after_drop = True):
     
-    import pandas as pd
     # check https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.drop_duplicates.html
     
     # if list_of_columns_to_analyze = None, the whole dataset will be analyzed, i.e., rows
@@ -4485,9 +4426,6 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
 
 
 def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = None):
-    
-    import numpy as np
-    import pandas as pd
     
     # list_of_columns_to_ignore: if you do not want to check a specific column, pass its name
     # (header) as an element from this list. It should be declared as a list even if it contains
@@ -4585,8 +4523,6 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
 
 def characterize_categorical_variables (df, timestamp_tag_column = None):
     
-    import numpy as np
-    import pandas as pd
     from pandas import json_normalize
     
     # df: dataframe that will be analyzed
@@ -4669,7 +4605,7 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
         boolean_filter = DATASET[categorical_var].isna()
 
         # Calculate the total of elements when applying the filter:
-        total_na = len(DATASET[boolean_filter])
+        total_na = DATASET[categorical_var].isna().sum()
 
         # Create a dictionary for the missing values:
         na_dict = {
@@ -4802,8 +4738,6 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
 
 def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to_aggregate = None, grouping_frequency_unit = 'day', number_of_periods_to_group = 1, aggregate_function = 'mean', start_time = None, offset_time = None, add_suffix_to_aggregated_col = True, suffix = None):
     
-    import numpy as np
-    import pandas as pd
     from scipy import stats
     # numpy has no function mode, but scipy's stats module has.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html?msclkid=ccd9aaf2cb1b11ecb57c6f4b3e03a341
@@ -5125,9 +5059,15 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
         DATASET = df_categorical
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list[1:] # Do not pick the timestamp to encode
         df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-    
+        # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
+        # avoiding that scipy try to aggregate them and raise an error:
+        # Remove the columns that do not have numeric variables before grouping
+        df_categorical = df_categorical.drop(columns = categorical_list[1:])
+        # Get the new columns generated from Ordinal Encoding:
+        new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list[1:]]
+
         if (start_time is not None):
 
             df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = False, sort = True).agg(stats.mode)
@@ -5149,7 +5089,7 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         del categorical_list[0]
         
         # Loop through each categorical variable:
-        for cat_var in categorical_list:
+        for cat_var in new_encoded_cols:
             
             # save as a series:
             cat_var_series = df_categorical[cat_var].copy()
@@ -5196,7 +5136,9 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
         # Now, reverse the encoding:
         DATASET = df_categorical
         ENCODING_LIST = ordinal_encoding_list
+        # Now, reverse encoding and keep only the original column names:
         df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        df_categorical = df_categorical[categorical_list]
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -5253,8 +5195,6 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
 
 def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
 
-    import numpy as np
-    import pandas as pd
     from scipy import stats
     
     print("WARNING: Do not use this function to group the dataframe in terms of a timestamp. For this purpose, use function GROUP_VARIABLES_BY_TIMESTAMP.\n")
@@ -5560,14 +5500,22 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
         DATASET = df_categorical
         SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
         df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
+        # avoiding that scipy try to aggregate them and raise an error:
+        # Remove the columns that do not have numeric variables before grouping
+        df_categorical = df_categorical.drop(columns = categorical_list)
+        # Get the new columns generated from Ordinal Encoding:
+        new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list]
 
+        if variable_to_group_by in categorical_list:
+            variable_to_group_by = variable_to_group_by + "_OrdinalEnc"
 
         if (categorical_aggregate == 'mode'):
             
             df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.mode)
             
             # Loop through each categorical variable:
-            for cat_var in categorical_list:
+            for cat_var in new_encoded_cols:
 
                 # save as a series:
                 cat_var_series = df_categorical[cat_var].copy()
@@ -5610,8 +5558,9 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
         # Now, reverse encoding:
         DATASET = df_categorical
         ENCODING_LIST = ordinal_encoding_list
+        # Now, reverse encoding and keep only the original column names:
         df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-
+        df_categorical = df_categorical[categorical_list]
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -5684,9 +5633,6 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
 
     
 def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, list_of_new_column_names = None):
-    
-    import numpy as np
-    import pandas as pd
     
     # df: dataframe containing the timestamp.
     
@@ -5874,9 +5820,6 @@ def EXTRACT_TIMESTAMP_INFO (df, timestamp_tag_column, list_of_info_to_extract, l
 
 
 def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None, returned_timedelta_unit = None, return_avg_delay = True):
-    
-    import numpy as np
-    import pandas as pd
     
     #THIS FUNCTION CALCULATES THE DIFFERENCE (timedelta - delay) BETWEEN TWO SUCCESSIVE
     # Timestamps from a same column
@@ -6203,9 +6146,6 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
 
 def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timedelta_column_name  = None, returned_timedelta_unit = None):
     
-    import numpy as np
-    import pandas as pd
-    
     #THIS FUNCTION PERFORMS THE OPERATION df[timestamp_tag_column1] - df[timestamp_tag_colum2]
     #The declaration order will determine the sign of the output.
     
@@ -6507,9 +6447,6 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
 
 def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = None, timedelta_unit = None):
     
-    import numpy as np
-    import pandas as pd
-    
     #THIS FUNCTION PERFORMS THE OPERATION ADDING A FIXED TIMEDELTA (difference of time
     # or offset) to a timestamp.
     
@@ -6653,9 +6590,6 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
 
 
 def SLICE_DATAFRAME (df, from_row = 'first_only', to_row = 'only', restart_index_of_the_sliced_dataframe = False):
-    
-    import numpy as np
-    import pandas as pd
     
     # restart_index_of_the_sliced_dataframe = False to keep the 
     # same row index of the original dataframe; or 
@@ -6895,8 +6829,6 @@ def SLICE_DATAFRAME (df, from_row = 'first_only', to_row = 'only', restart_index
 
 def visualize_and_characterize_missing_values (df, slice_time_window_from = None, slice_time_window_to = None, aggregate_time_in_terms_of = None):
 
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import missingno as msno
     # misssingno package is built for visualizing missing values. 
@@ -7138,8 +7070,6 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # Two conditions require the os library, so we import it at the beginning of the function,
     # to avoid importing it twice.
     import shutil # component of the standard library to move or copy files.
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     
     # column_to_analyze, column_to_compare_with: strings (in quotes).
@@ -7514,8 +7444,6 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
 
 def handle_missing_values (df, subset_columns_list = None, drop_missing_val = True, fill_missing_val = False, eliminate_only_completely_empty_rows = False, min_number_of_non_missing_val_for_a_row_to_be_kept = None, value_to_fill = None, fill_method = "fill_with_zeros", interpolation_order = 'linear'):
     
-    import numpy as np
-    import pandas as pd
     from scipy import stats
     # numpy has no function mode, but scipy's stats module has.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html?msclkid=ccd9aaf2cb1b11ecb57c6f4b3e03a341
@@ -7788,6 +7716,10 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     DATASET = df_categorical
                     SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
                     df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+                    # Get the new columns generated from Ordinal Encoding:
+                    new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list]
+                    # Remove the columns that do not have numeric variables before grouping
+                    df_categorical = df_categorical.drop(columns = categorical_list)
 
                 if (len(numeric_list) > 0):
 
@@ -7821,14 +7753,14 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     
                     if (is_categorical == 1):
                         
-                        for column in categorical_list:
+                        for column in new_encoded_cols:
                             
                             # The function stats.mode(X) returns an array as: 
                             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
                             # ModeResult(mode=3, count=5) ac, axis = None, cess mode attribute       
                             # which will return a string like 'a':
                             try:
-                                fill_dict[column] = stats.mode(df_categorical[column], axis = None, keepdims = False).mode
+                                fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False).mode
 
                             except:
                                 # This error is generated when trying to access an array storing no values.
@@ -7898,7 +7830,9 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                         # Reverse ordinal encoding
                         DATASET = df_categorical
                         ENCODING_LIST = ordinal_encoding_list
+                        # Now, reverse encoding and keep only the original column names:
                         df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+                        df_categorical = df_categorical[categorical_list]
                         # Concatenate the dataframes in the columns axis (append columns):
                         cleaned_df = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
 
@@ -7907,7 +7841,9 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                         # Reverse ordinal encoding
                         DATASET = df_categorical
                         ENCODING_LIST = ordinal_encoding_list
+                        # Now, reverse encoding and keep only the original column names:
                         df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+                        df_categorical = df_categorical[categorical_list]
                         cleaned_df = df_categorical
 
                     elif (is_numeric == 1):
@@ -7966,8 +7902,6 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     # This function will search for the best imputer for a given column.
     # It can process both numerical and categorical columns.
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from scipy.stats import linregress
     from sklearn.impute import SimpleImputer
@@ -8388,8 +8322,6 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
 
 def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import seaborn as sns
     
@@ -8414,7 +8346,29 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
     
     # set a local copy of the dataset to perform the calculations:
     DATASET = df.copy(deep = True)
+
+    # Let's remove the categorical columns
+    print("ATTENTION! The analysis will be performed only for the numeric variables.")
+    print("Categorical columns will be automatically ignored.\n")
+
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    numeric_cols = []
+    # Loop through all valid columns (cols_list)
+    for column in DATASET.columns:
+        
+        # Check if the column is neither in timestamp_list nor in
+        # categorical_list yet:
+        column_data_type = DATASET[column].dtype
+            
+        if (column_data_type in numeric_dtypes):
+            # Append to categorical columns list:
+            numeric_cols.append(column)
     
+    # Filter the dataset to include only numeric variables:
+    DATASET = DATASET[numeric_cols]
+    
+    # Now, obtain the matrix
     correlation_matrix = DATASET.corr(method = 'pearson')
     
     if (show_masked_plot == False):
@@ -8568,8 +8522,6 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
 def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import seaborn as sns
     
@@ -8590,6 +8542,28 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
     # set a local copy of the dataset to perform the calculations:
     DATASET = df.copy(deep = True)
     
+    # Let's remove the categorical columns
+    print("ATTENTION! The analysis will be performed only for the numeric variables.")
+    print("Categorical columns will be automatically ignored.\n")
+
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    numeric_cols = []
+    # Loop through all valid columns (cols_list)
+    for column in DATASET.columns:
+        
+        # Check if the column is neither in timestamp_list nor in
+        # categorical_list yet:
+        column_data_type = DATASET[column].dtype
+            
+        if (column_data_type in numeric_dtypes):
+            # Append to categorical columns list:
+            numeric_cols.append(column)
+    
+    # Filter the dataset to include only numeric variables:
+    DATASET = DATASET[numeric_cols]
+    
+    # Now, obtain the matrix
     covariance_matrix = DATASET.cov(min_periods = None, ddof = 1, numeric_only = False)
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.cov.html
     
@@ -8776,8 +8750,6 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
 
 def calculate_vif (df):
 
-    import numpy as np
-    import pandas as pd
     from statsmodels.stats.outliers_influence import variance_inflation_factor
     # https://towardsdatascience.com/collinearity-measures-6543d8597a2e
     # https://www.geeksforgeeks.org/detecting-multicollinearity-with-vif-python/
@@ -8785,6 +8757,29 @@ def calculate_vif (df):
 
     # set a local copy of the dataset to perform the calculations:
     X = df.copy(deep = True)
+    
+    # Let's remove the categorical columns
+    print("ATTENTION! The analysis will be performed only for the numeric variables.")
+    print("Categorical columns will be automatically ignored.\n")
+
+    # List the possible numeric data types for a Pandas dataframe column:
+    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    numeric_cols = []
+    # Loop through all valid columns (cols_list)
+    for column in X.columns:
+        
+        # Check if the column is neither in timestamp_list nor in
+        # categorical_list yet:
+        column_data_type = X[column].dtype
+            
+        if (column_data_type in numeric_dtypes):
+            # Append to categorical columns list:
+            numeric_cols.append(column)
+    
+    # Filter the dataset to include only numeric variables:
+    X = X[numeric_cols]
+    
+    # Now, obtain the VIFs
 
     X_columns = list(X.columns)
     # Calculate VIF for each variable:
@@ -8853,8 +8848,6 @@ def calculate_vif (df):
 
 def bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from scipy import stats
     
@@ -9028,12 +9021,42 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = columns_list
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name, response_var_name]
         DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
+        response_var_name = response_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.mode)
-        
         ENCODING_LIST = ordinal_encoding_list
+
+        # Save the series as a list:
+        list_of_modes_arrays = list(DATASET[response_var_name])
+        # Start a list of modes:
+        list_of_modes = []
+            
+        # Loop through each element from the list of arrays:
+        for mode_array in list_of_modes_arrays:
+            # try accessing the mode
+            # mode array is like:
+            # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
+            # To retrieve only the mode, we must access the element [0] from this array
+            # or attribute mode:
+                
+            try:
+                list_of_modes.append(mode_array.mode)
+            
+            except:
+                # This error is generated when trying to access an array storing no values.
+                # (i.e., with missing values). Since there is no dimension, it is not possible
+                # to access the [0][0] position. In this case, simply append the np.nan 
+                # the (missing value):
+                list_of_modes.append(np.nan)
+        
+        # Make the list of modes the column itself:
+        DATASET[response_var_name] = list_of_modes
+        
         DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = [categorical_var_name, response_var_name])
 
     elif (aggregate_function == 'sum'):
         
@@ -9108,28 +9131,56 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.95)
 
     elif (aggregate_function == 'kurtosis'):
-        
+        # Numeric aggregate
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.kurtosis)
-
+        ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = categorical_var_name)
 
     elif (aggregate_function == 'skew'):
-        
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
-        
-    elif (aggregate_function == 'interquartile_range'):
-        
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.iqr)
-        
-    elif (aggregate_function == 'mean_standard_error'):
-        
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.sem)
-        
-    else: # entropy
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = columns_list
+        # Numeric aggregate
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
         DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
+        ENCODING_LIST = ordinal_encoding_list
+
+    elif (aggregate_function == 'interquartile_range'):
+        # Numeric aggregate
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.iqr)
+        ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = categorical_var_name)
+
+    elif (aggregate_function == 'mean_standard_error'):
+        # Numeric aggregate
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.sem)
+        ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = categorical_var_name)
+
+    else: # entropy
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
+        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
+        response_var_name = response_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.entropy)
         ENCODING_LIST = ordinal_encoding_list
         DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = [categorical_var_name, response_var_name])
     
     # List of columns of the aggregated dataset:
     list_of_columns = list(DATASET.columns) # convert to a list
@@ -9149,49 +9200,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         # Update the list of columns:
         list_of_columns = DATASET.columns
     
-    if (aggregate_function == 'mode'):
-        
-        # The columns was saved as a series of Tuples. Each row contains a tuple like:
-        # ([calculated_mode], [counting_of_occurrences]). We want only the calculated mode.
-        # On the other hand, if we do column[0], we will get the columns first row. So, we have to
-        # go through each column, retrieving only the mode:
-        
-        # Loop through each column:
-        for column in list_of_columns:
-            
-            # Save the series as a list:
-            list_of_modes_arrays = list(DATASET[column])
-            # Start a list of modes:
-            list_of_modes = []
-            
-            # Loop through each element from the list of arrays:
-            for mode_array in list_of_modes_arrays:
-                # try accessing the mode
-                # mode array is like:
-                # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
-                # To retrieve only the mode, we must access the element [0] from this array
-                # or attribute mode:
-                    
-                try:
-                    list_of_modes.append(mode_array.mode)
-                
-                except:
-                    # This error is generated when trying to access an array storing no values.
-                    # (i.e., with missing values). Since there is no dimension, it is not possible
-                    # to access the [0][0] position. In this case, simply append the np.nan 
-                    # the (missing value):
-                    list_of_modes.append(np.nan)
-            
-            # Make the list of modes the column itself:
-            DATASET[column] = list_of_modes
-
-        # Reverse encoding
-        columns_list = DATASET.columns
-        DATASET = ord_enc.inverse_transform(DATASET)
-        DATASET = pd.DataFrame(DATASET)
-        DATASET.columns = columns_list
-    
-            
+          
     # the name of the response variable is now the second element from the list of column:
     response_var_name = list(DATASET.columns)[1]
     # the categorical variable name was not changed.
@@ -9541,9 +9550,6 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
 
 def calculate_cumulative_stats (df, column_to_analyze, cumulative_statistic = 'sum', new_cum_stats_col_name = None):
     
-    import numpy as np
-    import pandas as pd
-    
     # df: the whole dataframe to be processed.
     
     # column_to_analyze: string (inside quotes), 
@@ -9624,8 +9630,6 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
     import random
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     from scipy import stats
@@ -10223,9 +10227,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
     import random
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
-    import numpy as np
     from numpy.polynomial.polynomial import Polynomial
-    import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     
@@ -10879,8 +10881,6 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
     import random
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     
@@ -11312,8 +11312,6 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
 
 def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     
     # column_to_analyze: string with the name of the column that will be analyzed.
@@ -11535,8 +11533,6 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
 
 def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from statsmodels.stats import diagnostic
     from scipy import stats
@@ -11801,8 +11797,6 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
 
 def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal'):
         
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from statsmodels.stats import diagnostic
     from scipy import stats
@@ -12245,9 +12239,6 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
 
 def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_columns'):
     
-    import numpy as np
-    import pandas as pd
-    
     # MODE = 'select_or_order_columns' for filtering only the list of columns passed as columns_list,
     # and setting a new column order. In this mode, you can pass the columns in any order: 
     # the order of elements on the list will be the new order of columns.
@@ -12325,8 +12316,6 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
 
 def rename_or_clean_columns_labels (df, mode = 'set_new_names', substring_to_be_replaced = ' ', new_substring_for_replacement = '_', trailing_substring = None, list_of_columns_labels = [{'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}, {'column_name': None, 'new_column_name': None}]):
     
-    import numpy as np
-    import pandas as pd
     # Pandas .rename method:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rename.html
     
@@ -12498,9 +12487,6 @@ def rename_or_clean_columns_labels (df, mode = 'set_new_names', substring_to_be_
 
 def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, method = 'trim', substring_to_eliminate = None, create_new_column = True, new_column_suffix = "_trim"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -12616,9 +12602,6 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
 
 def capitalize_or_lower_string_case (df, column_to_analyze, method = 'lowercase', create_new_column = True, new_column_suffix = "_homogenized"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -12732,8 +12715,6 @@ def add_contractions_to_library (list_of_contractions = [{'contracted_expression
 
 def correct_contracted_strings (df, column_to_analyze, create_new_column = True, new_column_suffix = "_contractionsFixed"):
     
-    import numpy as np
-    import pandas as pd
     import contractions
     
     # contractions library: https://github.com/kootenpv/contractions
@@ -12793,9 +12774,6 @@ def correct_contracted_strings (df, column_to_analyze, create_new_column = True,
 
 
 def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, new_substring_for_replacement = '', create_new_column = True, new_column_suffix = "_substringReplaced"):
-    
-    import numpy as np
-    import pandas as pd
     
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
@@ -12877,9 +12855,6 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
 
 def invert_strings (df, column_to_analyze, create_new_column = True, new_column_suffix = "_stringInverted"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -12937,9 +12912,6 @@ def invert_strings (df, column_to_analyze, create_new_column = True, new_column_
 
 
 def slice_strings (df, column_to_analyze, first_character_index = None, last_character_index = None, step = 1, create_new_column = True, new_column_suffix = "_slicedString"):
-    
-    import numpy as np
-    import pandas as pd
     
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
@@ -13060,9 +13032,6 @@ def slice_strings (df, column_to_analyze, first_character_index = None, last_cha
 
 def left_characters (df, column_to_analyze, number_of_characters_to_retrieve = 1, new_variable_type = None, create_new_column = True, new_column_suffix = "_leftChars"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -13177,9 +13146,6 @@ def left_characters (df, column_to_analyze, number_of_characters_to_retrieve = 1
 
 
 def right_characters (df, column_to_analyze, number_of_characters_to_retrieve = 1, new_variable_type = None, create_new_column = True, new_column_suffix = "_rightChars"):
-    
-    import numpy as np
-    import pandas as pd
     
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
@@ -13296,9 +13262,6 @@ def right_characters (df, column_to_analyze, number_of_characters_to_retrieve = 
 
 def join_strings_from_column (df, column_to_analyze, separator = " "):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -13337,9 +13300,6 @@ def join_strings_from_column (df, column_to_analyze, separator = " "):
 
 
 def join_string_columns (df, list_of_columns_to_join, separator = " ", new_column_suffix = "_stringConcat"):
-    
-    import numpy as np
-    import pandas as pd
     
     # list_of_columns_to_join: list of strings (inside quotes), 
     # containing the name of the columns with strings to be joined.
@@ -13388,6 +13348,7 @@ def join_string_columns (df, list_of_columns_to_join, separator = " ", new_colum
         # We already picked the 1st column (index 0). Now, we pick the second one and go
         # until len(list_of_columns_to_join) - 1, index of the last column of the list.
         
+        col = list_of_columns_to_join[i]
         # concatenate the column with new_series, adding the separator to the left.
         # As we add the separator before, there will be no extra separator after the last string.
         # Convert the columns to strings for concatenation.
@@ -13418,9 +13379,6 @@ def join_string_columns (df, list_of_columns_to_join, separator = " ", new_colum
 
 
 def split_strings (df, column_to_analyze, separator = " ", create_new_column = True, new_column_suffix = "_stringSplitted"):
-    
-    import numpy as np
-    import pandas as pd
     
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
@@ -13483,9 +13441,6 @@ def split_strings (df, column_to_analyze, separator = " ", create_new_column = T
 
 
 def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_strings_and_replacements = [{'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}, {'original_string': None, 'new_string': None}], create_new_column = True, new_column_suffix = "_stringReplaced"):
-    
-    import numpy as np
-    import pandas as pd
     
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
@@ -13624,8 +13579,6 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
 
 def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', threshold_for_percent_of_similarity = 80.0, list_of_dictionaries_with_standard_strings_for_replacement = [{'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}], create_new_column = True, new_column_suffix = "_stringReplaced"):
     
-    import numpy as np
-    import pandas as pd
     from fuzzywuzzy import process
     
     # column_to_analyze: string (inside quotes), 
@@ -13827,9 +13780,6 @@ def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', thr
 
 def regex_search (df, column_to_analyze, regex_to_search = r"", show_regex_helper = False, create_new_column = True, new_column_suffix = "_regex"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -13956,9 +13906,6 @@ def regex_search (df, column_to_analyze, regex_to_search = r"", show_regex_helpe
 
 def regex_replacement (df, column_to_analyze, regex_to_search = r"", string_for_replacement = "", show_regex_helper = False, create_new_column = True, new_column_suffix = "_regex"):
     
-    import numpy as np
-    import pandas as pd
-    
     # column_to_analyze: string (inside quotes), 
     # containing the name of the column that will be analyzed. 
     # e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
@@ -14054,8 +14001,6 @@ def regex_replacement (df, column_to_analyze, regex_to_search = r"", string_for_
 
 def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import tensorflow as tf
     
@@ -14235,8 +14180,6 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
 
 def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, max_number_of_entries_to_plot = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     
     # important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}]
@@ -14458,9 +14401,6 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
 
 def log_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_log"):
     
-    import numpy as np
-    import pandas as pd
-    
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
     # columns names for the transformation to be applied. For instance:
@@ -14592,9 +14532,6 @@ def log_transform (df, subset = None, create_new_columns = True, add_constant = 
 
 def reverse_log_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
     
-    import numpy as np
-    import pandas as pd
-    
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
     # columns names for the transformation to be applied. For instance:
@@ -14691,8 +14628,6 @@ def reverse_log_transform (df, subset = None, create_new_columns = True, added_c
 
 def box_cox_transform (df, column_to_transform, add_constant = False, constant_to_add = 0, mode = 'calculate_and_apply', lambda_boxcox = None, suffix = '_BoxCoxTransf', specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}):
     
-    import numpy as np
-    import pandas as pd
     from statsmodels.stats import diagnostic
     from scipy import stats
     
@@ -14937,9 +14872,6 @@ def box_cox_transform (df, column_to_transform, add_constant = False, constant_t
 
 def reverse_box_cox (df, column_to_transform, lambda_boxcox, added_constant = 0, suffix = '_ReversedBoxCox'):
     
-    import numpy as np
-    import pandas as pd
-    
     # This function will process a single column column_to_transform 
     # of the dataframe df per call.
     
@@ -15028,9 +14960,6 @@ def reverse_box_cox (df, column_to_transform, lambda_boxcox, added_constant = 0,
 
 
 def square_root_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_sqrt"):
-    
-    import numpy as np
-    import pandas as pd
     
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
@@ -15150,9 +15079,6 @@ def square_root_transform (df, subset = None, create_new_columns = True, add_con
 
 def reverse_square_root_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
     
-    import numpy as np
-    import pandas as pd
-    
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
     # columns names for the transformation to be applied. For instance:
@@ -15248,9 +15174,6 @@ def reverse_square_root_transform (df, subset = None, create_new_columns = True,
 
 
 def cube_root_transform (df, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_cbrt"):
-    
-    import numpy as np
-    import pandas as pd
     
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
@@ -15348,9 +15271,6 @@ def cube_root_transform (df, subset = None, create_new_columns = True, add_const
 
 def reverse_cube_root_transform (df, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
     
-    import numpy as np
-    import pandas as pd
-    
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
     # columns names for the transformation to be applied. For instance:
@@ -15446,9 +15366,6 @@ def reverse_cube_root_transform (df, subset = None, create_new_columns = True, a
 
 
 def power_transform (df, exponent = 2, subset = None, create_new_columns = True, add_constant = False, constant_to_add = 0, new_columns_suffix = "_pow"):
-    
-    import numpy as np
-    import pandas as pd
     
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
@@ -15586,9 +15503,6 @@ def power_transform (df, exponent = 2, subset = None, create_new_columns = True,
 
 def reverse_power_transform (df, original_exponent = 2, subset = None, create_new_columns = True, added_constant = 0, new_columns_suffix = "_originalScale"):
     
-    import numpy as np
-    import pandas as pd
-    
     # subset = None
     # Set subset = None to transform the whole dataset. Alternatively, pass a list with 
     # columns names for the transformation to be applied. For instance:
@@ -15712,8 +15626,6 @@ def reverse_power_transform (df, original_exponent = 2, subset = None, create_ne
 
 def OneHotEncoding_df (df, subset_of_features_to_be_encoded):
 
-    import numpy as np
-    import pandas as pd
     from sklearn.preprocessing import OneHotEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
     
@@ -15804,6 +15716,15 @@ def OneHotEncoding_df (df, subset_of_features_to_be_encoded):
         encoding_dict['OneHot_encoder'] = nested_dict
         # Append the encoding_dict as an element from list encoding_list:
         encoding_list.append(encoding_dict)
+
+        """
+            ENCODING_LIST = [
+
+                {'column': column,
+                'OneHot_encoder': {'OneHot_enc_obj': OneHot_enc_obj,
+                                    'categories': new_columns}}
+            ]
+        """
         
         # Now we saved all encoding information, let's transform the data:
         
@@ -15878,7 +15799,6 @@ def OneHotEncoding_df (df, subset_of_features_to_be_encoded):
 
 def reverse_OneHotEncoding (df, encoding_list):
 
-    import pandas as pd
     from sklearn.preprocessing import OneHotEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
     
@@ -15895,6 +15815,14 @@ def reverse_OneHotEncoding (df, encoding_list):
     ## key 'encoded_columns': this key must store a list or array with the names of the columns
     # obtained from Encoding.
     
+    """
+            ENCODING_LIST = [
+
+                {'column': column,
+                'OneHot_encoder': {'OneHot_enc_obj': OneHot_enc_obj,
+                                    'categories': new_columns}}
+            ]
+    """
     
     # Start a copy of the original dataframe. This copy will be updated to create the new
     # transformed dataframe. Then, we avoid manipulating the original object.
@@ -15910,8 +15838,8 @@ def reverse_OneHotEncoding (df, encoding_list):
         
         try:
             # Check if the required arguments are present:
-            if ((encoder_dict['column'] is not None) & (encoder_dict['OneHot_encoder']['OneHot_enc_obj'] is not None) & (encoder_dict['OneHot_encoder']['encoded_columns'] is not None)):
-
+            if ((encoder_dict['column'] is not None) & (encoder_dict['OneHot_encoder']['OneHot_enc_obj'] is not None) & (encoder_dict['OneHot_encoder']['categories'] is not None)):
+                
                 # Access the column name:
                 col_name = encoder_dict['column']
 
@@ -15920,14 +15848,24 @@ def reverse_OneHotEncoding (df, encoding_list):
                 # Access the encoder object on the dictionary
                 OneHot_enc_obj = nested_dict['OneHot_enc_obj']
                 # Access the list of encoded columns:
-                list_of_encoded_cols = list(nested_dict['encoded_columns'])
+                list_of_encoded_cols = list(encoder_dict['OneHot_encoder']['categories'])
 
+                # Remember that the categories may have been saved before including the alias + "_" + str(encoded_col) + "_OneHotEnc"
                 # Get a subset of the encoded columns
                 X = new_df.copy(deep = True)
-                X = X[list_of_encoded_cols]
+                try:
+                    list_of_encoded_cols = [(col_name +  "_" + str(col) + "_OneHotEnc") for col in list_of_encoded_cols]
+                    X = X[list_of_encoded_cols]
+                
+                except:
+                    try:
+                        X = X[list_of_encoded_cols]
+                    except:
+                        print("Save 'categories' with the correct name of the categories or use the same name as the columns from the function that One-Hot Encodes the dataframe.")
+                        print("You may simply input the list that is output together with the One-Hot Encoded dataframe.\n")
 
                 # Reverse the encoding:
-                reversed_array = OneHot_enc_obj.inverse_transform(X)
+                reversed_array = OneHot_enc_obj.inverse_transform(np.array(X))
 
                 # Add the reversed array as the column col_name on the dataframe:
                 new_df[col_name] = reversed_array
@@ -15965,8 +15903,6 @@ def OrdinalEncoding_df (df, subset_of_features_to_be_encoded):
     # to apply the advanced encoding techniques. Even though the one-hot encoding could perform
     # the same task and would, in fact, better, since there may be no ordering relation, the
     # ordinal encoding is simpler and more suitable for this particular task:    
-    
-    import pandas as pd
     from sklearn.preprocessing import OrdinalEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#sklearn.preprocessing.OrdinalEncoder 
     
@@ -16083,8 +16019,6 @@ def OrdinalEncoding_df (df, subset_of_features_to_be_encoded):
 
 def reverse_OrdinalEncoding (df, encoding_list):
 
-    import numpy as np
-    import pandas as pd
     from sklearn.preprocessing import OrdinalEncoder
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#sklearn.preprocessing.OrdinalEncoder
     
@@ -16105,7 +16039,7 @@ def reverse_OrdinalEncoding (df, encoding_list):
     # will be used for both. So, at least one of them must be present for the
     # element not to be ignored.
     
-    """"
+    """
         ENCODING_LIST = [
                         {'original_column_label': None,
                         'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None}},
@@ -16114,14 +16048,14 @@ def reverse_OrdinalEncoding (df, encoding_list):
     """
     
     # Alternatively, the list may have the following format:
-    """"
-    ENCODING_LIST = 
-    [
-            {'original_column_label': None,
-            'encoding': [{'actual_label': None, 'encoded_value': None},]},
-            {'original_column_label': None,
-            'encoding': [{'actual_label': None, 'encoded_value': None},]},
-    ]
+    """
+        ENCODING_LIST = 
+            [
+                    {'original_column_label': None,
+                    'encoding': [{'actual_label': None, 'encoded_value': None},]},
+                    {'original_column_label': None,
+                    'encoding': [{'actual_label': None, 'encoded_value': None},]},
+            ]
     """
     # The difference is that the key 'ordinal_encoder' is replaced by the key
     # 'encoding', which stores a list of dictionaries with encoding information.
@@ -16154,7 +16088,7 @@ def reverse_OrdinalEncoding (df, encoding_list):
                 if ((encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None)):
                     
                     # Access the column name:
-                    col_name = encoder_dict['column']
+                    col_name = encoder_dict['original_column_label']
 
                     # Access the nested dictionary:
                     nested_dict = encoder_dict['ordinal_encoder']
@@ -16167,24 +16101,26 @@ def reverse_OrdinalEncoding (df, encoding_list):
                     if encoded_col is None:
                         encoded_col = encoder_dict['original_column_label']
 
-                    list_of_encoded_cols = [encoded_col]
-                    # In OneHotEncoding we have an array of strings. Applying the list
-                    # attribute would convert the array to list. Here, in turns, we have a simple
-                    # string, which is also an iterable object. Applying the list attribute to a string
-                    # creates a list of characters of that string.
-                    # So, here we create a list with the string as its single element.
-
                     # Get a subset of the encoded column
                     X = new_df.copy(deep = True)
-                    X = X[list_of_encoded_cols]
-                    
+                    X = X[encoded_col]
+                    X = np.array(X).reshape(-1,1) 
+                    # Put the array in the form of a matrix containing one element (column) per row: [[val1], [val2], ...]
+
                     # Round every value to the closest integer before trying to inverse the transformation:
                     X = np.rint(X)
                     # Get minimum and maximum encoded values:
                     categories = ordinal_enc_obj.categories_
+
+                    """
+                        The categories_ attribute stores a list containing an array:
+                        [array(['apple', 'banana', 'blackgram', 'chickpea', 'coconut', 'coffee'], dtype=object)],
+                        To access such array, we must access the element with index 0 from this list
+                    """
+                    categories = categories[0]
+
                     min_encoded = 0 # always from zero
                     max_encoded = len(categories) - 1 # counting starts from zero
-
                     # Replace values higher than max_encoded by max_encoded, and values lower than
                     # min_encoded by min_encoded, avoiding errors on the reverse operation.
                     # https://numpy.org/doc/stable/reference/generated/numpy.where.html
@@ -16194,16 +16130,20 @@ def reverse_OrdinalEncoding (df, encoding_list):
                     X = np.where(X < min_encoded, min_encoded, X)
                     # Replaces each value lower than minimum encoded by minimum encooded itself.
                     # Avoids losing information.
-
-                    # Reverse the encoding:
-                    reversed_array = ordinal_enc_obj.inverse_transform(X)
+                    
+                    try:
+                        # Reverse the encoding:
+                        reversed_array = ordinal_enc_obj.inverse_transform(X)
+                    except:
+                        # Make a column of missing values:
+                        reversed_array = np.nan
                 
                 else:
                     # Try accessing the individual encoding information with format 
                     # {'column': None,
                     # 'ordinal_encoder': {'encoded_column': None, 'encoding': [{'actual_label': None, 'encoded_value': None},]}
                     # Access the column name:
-                    col_name = encoder_dict['column']
+                    col_name = encoder_dict['original_column_label']
                     # Access the nested dictionary:
                     nested_dict = encoder_dict['ordinal_encoder']
                     # Access the encoding list on the dictionary
@@ -16221,25 +16161,29 @@ def reverse_OrdinalEncoding (df, encoding_list):
                     if encoded_col is None:
                         encoded_col = encoder_dict['original_column_label']
 
-                    list_of_encoded_cols = [encoded_col]
-
                     # Get a subset of the encoded column
                     X = new_df.copy(deep = True)
-                    X = X[list_of_encoded_cols]
+                    X = X[encoded_col]
+                    X = np.array(X).reshape(-1,1) 
+                    # Put the array in the form of a matrix containing one element (column) per row: [[val1], [val2], ...]
 
-                    # Round every value to the closest integer before trying to inverse the transformation:
-                    X = np.rint(X)
-                    X = np.where(X > max_encoded, max_encoded, X)
-                    X = np.where(X < min_encoded, min_encoded, X)
+                    try:
+                        # Round every value to the closest integer before trying to inverse the transformation:
+                        X = np.rint(X)
+                        X = np.where(X > max_encoded, max_encoded, X)
+                        X = np.where(X < min_encoded, min_encoded, X)
+                        
+                        # Reverse the encoding:
+                        # Pick first element from list. If X is the first encoding, replace it by the corresponding label.
+                        reversed_array = np.where(X == list_of_vals[0]['encoded_value'], list_of_vals[0]['actual_label'], X)
+                        # Now, loop through all possible encodings:
+                        for i in range(1, len(reversed_array)):
+                            # Starts from 1, since element 0 was already picked
+                            reversed_array = np.where(X == list_of_vals[i]['encoded_value'], list_of_vals[i]['actual_label'], reversed_array)
                     
-                    # Reverse the encoding:
-                    # Pick first element from list. If X is the first encoding, replace it by the corresponding label.
-                    reversed_array = np.where(X == list_of_vals[0]['encoded_value'], list_of_vals[0]['actual_label'], X)
-                    # Now, loop through all possible encodings:
-                    for i in range(1, len(reversed_array)):
-                        # Starts from 1, since element 0 was already picked
-                        reversed_array = np.where(X == list_of_vals[i]['encoded_value'], list_of_vals[i]['actual_label'], reversed_array)
-                
+                    except:
+                        # Make a column of missing values:
+                        reversed_array = np.nan
                 
                 # Add the reversed array as the column col_name on the dataframe:
                 new_df[col_name] = reversed_array
@@ -16271,8 +16215,6 @@ def reverse_OrdinalEncoding (df, encoding_list):
 
 def feature_scaling (df, subset_of_features_to_scale, mode = 'min_max', scale_with_new_params = True, list_of_scaling_params = None, suffix = '_scaled'):
     
-    import numpy as np
-    import pandas as pd
     from sklearn.preprocessing import StandardScaler
     from sklearn.preprocessing import MinMaxScaler
     # Scikit-learn Preprocessing data guide:
@@ -16544,7 +16486,6 @@ def feature_scaling (df, subset_of_features_to_scale, mode = 'min_max', scale_wi
 
 def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_params, mode = 'min_max', suffix = '_reverseScaling'):
     
-    import pandas as pd
     from sklearn.preprocessing import StandardScaler
     from sklearn.preprocessing import MinMaxScaler
     # Scikit-learn Preprocessing data guide:
@@ -16740,8 +16681,6 @@ def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_pa
 
 def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import statsmodels.api as sm
     
@@ -16850,8 +16789,6 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
 
 def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import statsmodels.api as sm
     from statsmodels.tsa.stattools import adfuller
@@ -17008,8 +16945,6 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     
     ## d = 0 corresponds to the ARMA model
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import statsmodels as sm
     from statsmodels.graphics.tsaplots import plot_predict
@@ -17342,8 +17277,6 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
 
 def arima_forecasting (arima_model_object, df = None, column_to_forecast = None, timestamp_tag_column = None, time_unit = None, number_of_periods_to_forecast = 7, confidence_level = 0.95, plot_predicted_time_series = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import statsmodels as sm
     from statsmodels.graphics.tsaplots import plot_predict
@@ -17897,8 +17830,6 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     # https://machinelearningmastery.com/time-series-forecasting-with-prophet-in-python/
     
-    import numpy as np
-    import pandas as pd
     from prophet import Prophet
     
     #df: the whole dataframe to be processed.
@@ -17937,8 +17868,6 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
 
 def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 365, plot_predicted_time_series = True, get_interactive_plot = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     
     from prophet import Prophet
@@ -18105,9 +18034,6 @@ def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 3
 
 
 def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', min_periods_required = None, window_center = False, window_type = None, window_on = None, row_accross = 'rows', how_to_close_window = None, drop_missing_values = True):
-    
-    import numpy as np
-    import pandas as pd
     
     # Check Pandas rolling statistics documentation:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html
@@ -18311,8 +18237,6 @@ def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', mi
 
 def seasonal_decomposition (df, response_column_to_analyze, column_with_timestamps = None, decomposition_mode = "additive", maximum_number_of_cycles_or_periods_to_test = 100, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     import statsmodels as sm
     from statsmodels.tsa.seasonal import DecomposeResult
@@ -18605,9 +18529,6 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
 
 def COLUMN_GENERAL_STATISTICS (df, column_to_analyze):
     
-    import numpy as np
-    import pandas as pd
-    
     #df: dataframe to be analyzed.
     
     #column_to_analyze: name of the new column. e.g. column_to_analyze = 'col1'
@@ -18660,9 +18581,6 @@ def COLUMN_GENERAL_STATISTICS (df, column_to_analyze):
 
 
 def GET_QUANTILES_FOR_COLUMN (df, column_to_analyze):
-    
-    import numpy as np
-    import pandas as pd
     
     #df: dataframe to be analyzed.
     
@@ -18722,10 +18640,7 @@ def GET_QUANTILES_FOR_COLUMN (df, column_to_analyze):
 
 
 def GET_P_PERCENT_QUANTILE_LIM_FOR_COLUMN (df, column_to_analyze, p_percent = 100):
-    
-    import numpy as np
-    import pandas as pd
-    
+
     #df: dataframe to be analyzed.
     
     #column_to_analyze: name of the new column. e.g. column_to_analyze = 'col1'
@@ -18770,9 +18685,6 @@ def GET_P_PERCENT_QUANTILE_LIM_FOR_COLUMN (df, column_to_analyze, p_percent = 10
 
 
 def LABEL_DATAFRAME_SUBSETS (df, list_of_labels = [{'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}, {'filter': None, 'value_to_apply': None, 'new_column_name': None}]):
-    
-    import numpy as np
-    import pandas as pd
     
     print("Attention: this function selects subsets from the dataframe and label them, allowing the seggregation of the data.\n")
     print("If you want to filter the dataframe to eliminate non-selected rows, use the function APPLY_ROW_FILTERS_LIST\n")
@@ -18935,8 +18847,6 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
     # Main reference: Luis Serrano with DeepLearning.AI (Coursera): Probability & Statistics for Machine Learning & Data Science
     # https://www.coursera.org/learn/machine-learning-probability-and-statistics
     import math
-    import numpy as np
-    import pandas as pd
     import scipy.stats as stats
     
     # target_mean_or_proportion is a numeric value correspondent to the mean or proportion that the user wants to observe.
@@ -19119,8 +19029,6 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
     print ("Also, update matplotlib to a version >= 3.5.2 by running:")
     print ("!pip install matplotlib==3.5.2 --upgrade\n")
     import random
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from statsmodels.stats.oneway import anova_oneway
         
@@ -19860,8 +19768,6 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
 
     # Main reference: Luis Serrano with DeepLearning.AI (Coursera): Probability & Statistics for Machine Learning & Data Science
     # https://www.coursera.org/learn/machine-learning-probability-and-statistics
-    import numpy as np
-    import pandas as pd
     import scipy.stats as stats
     # https://sphweb.bumc.bu.edu/otlt/mph-modules/bs/bs704_confidence_intervals/bs704_confidence_intervals_print.html
 
@@ -20327,8 +20233,6 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
 
 def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from scipy import stats
     
@@ -21432,8 +21336,6 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
 
 def process_capability (df, column_with_variable_to_be_analyzed, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import matplotlib.pyplot as plt
     from scipy import stats
     

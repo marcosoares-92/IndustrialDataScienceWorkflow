@@ -11,7 +11,8 @@
 # Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
 # marcosoares.feq@gmail.com
 # marco.soares@bayer.com
-
+import numpy as np
+import pandas as pd
 
 class model_checking:
             
@@ -19,7 +20,6 @@ class model_checking:
     # define the Class constructor, i.e., how are its objects:
     def __init__(self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_object = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
         
-        import numpy as np
         import tensorflow as tf
 
         # Add the model:        
@@ -110,8 +110,6 @@ class model_checking:
     
     def model_metrics (self, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
         import seaborn as sns
         import tensorflow as tf
@@ -383,8 +381,6 @@ class model_checking:
 
     def feature_importance_ranking (self, model_class = 'linear', orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
 
         # model_class = 'linear' or model_class = 'tree'
@@ -741,8 +737,6 @@ class model_checking:
 
     def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
 
         # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
@@ -886,8 +880,6 @@ class model_checking:
     
     def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
 
         # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
@@ -1157,8 +1149,6 @@ class model_checking:
     
     def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
-        import numpy as np
-        import pandas as pd
         import matplotlib.pyplot as plt
         import seaborn as sns
         import tensorflow as tf
@@ -1518,9 +1508,6 @@ class model_checking:
     
     
     def retrieve_classes_used_for_training (self):
-        
-        import numpy as np
-        import pandas as pd
 
         # Retrieve attributes:
         # Add the model:        
@@ -1557,8 +1544,6 @@ class WindowGenerator:
                  sequence_stride = 1, sampling_rate = 1, label_columns = None, 
                  train_pct = 70, val_pct = 10):
         
-        import numpy as np
-        import pandas as pd
         import tensorflow as tf
         
         # Return an error if the percents are out of the allowable range:
@@ -1637,8 +1622,7 @@ class WindowGenerator:
     
 
     def split_as_labels_and_inputs (self, X, y):
-        
-        import numpy as np
+       
         import tensorflow as tf
         
         shift = self.shift
@@ -2191,7 +2175,6 @@ class tf_models:
 
     def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
-        import numpy as np
         import tensorflow as tf
         
         input_layer = self.input_layer
@@ -2276,8 +2259,6 @@ class siamese_networks:
         # 'number_of_classes': integer. This key may not be declared for regression problems. Do not
         # include the key, set as 1, or set the number of classes used for training.
         
-        import numpy as np
-        import pandas as pd
         import tensorflow as tf
         
         self.output_dictionary = output_dictionary
@@ -2483,7 +2464,6 @@ class siamese_networks:
     
     def base_model_cnn_lstm_time_series (self, input_layer, response):
         
-        import numpy as np
         import tensorflow as tf
         
         convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
@@ -2586,8 +2566,6 @@ class siamese_networks:
     
     def compile_model (self, architecture, optimizer = None):
         
-        import numpy as np
-        import pandas as pd
         import tensorflow as tf
         
         # output_dictionary structure:
@@ -2740,7 +2718,6 @@ class anomaly_detector:
 
     def fit (self, X):
         
-        import numpy as np
         """
         Calculates mean and variance of all features 
         in the dataset
@@ -2792,7 +2769,6 @@ class anomaly_detector:
             epsilon (float): Threshold chosen 
             F1 (float):      F1 score by choosing epsilon as threshold
         """ 
-        import numpy as np
         from sklearn.metrics import f1_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
         
@@ -2890,8 +2866,6 @@ class anomaly_detector:
         as the var values of the variances in each dimension (a diagonal
         covariance matrix
         """
-        
-        import numpy as np
 
         X = np.array(X_tensor)
         # Check if it is a single-dimension array
@@ -2924,8 +2898,6 @@ class anomaly_detector:
 
     def predict (self, X_tensor):
 
-        import numpy as np
-
         epsilon = self.epsilon
         # Calculate the probabilities associated to X_tensor:
         self = self.calculate_probabilities(X_tensor = X_tensor)
@@ -2956,9 +2928,6 @@ class anomaly_detector:
 
 
 def separate_and_prepare_features_and_responses (df, features_columns, response_columns):
-
-    import numpy as np
-    import pandas as pd
 
     try:
         import tensorflow as tf
@@ -3073,9 +3042,6 @@ def separate_and_prepare_features_and_responses (df, features_columns, response_
 
 
 def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, columns_to_exclude = None):
-
-    import numpy as np
-    import pandas as pd
 
     try:
         import tensorflow as tf
@@ -3193,7 +3159,6 @@ def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, column
 def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_training = 75, percent_of_training_data_used_for_model_validation = 0):
     
     import random
-    import numpy as np
     import tensorflow as tf
     
     # X = tensor or array of predictive variables.
@@ -3305,8 +3270,6 @@ def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_trainin
 
 def time_series_train_test_split (X, y, percent_of_data_used_for_model_training = 75, percent_of_training_data_used_for_model_validation = 0):
     
-    import numpy as np
-
     # X = tensor or array of predictive variables.
     # y = tensor or array of response variables.
     
@@ -3394,8 +3357,6 @@ def multi_columns_time_series_tensors (df, response_columns, sequence_stride = 1
     # original algorithm: 
     # https://www.tensorflow.org/tutorials/structured_data/time_series?hl=en&%3Bauthuser=1&authuser=1
     
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # response_columns: string or list of strings with the response columns
@@ -3493,8 +3454,6 @@ def union_1_dim_tensors (list_of_tensors_or_arrays):
     # be converted into a Pandas dataframe where each column would be correspondent to one individual
     # tensor.
     
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # Convert each element from the list to a numpy array, in case they are tensors:
@@ -3534,8 +3493,6 @@ def ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = No
     # https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html?msclkid=636b4046c01b11ec973dee34641f67b0
     # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
     
-    import numpy as np
-    import pandas as pd
     from sklearn.linear_model import LinearRegression
     
     # X_train = subset of predictive variables (dataframe).
@@ -3637,8 +3594,6 @@ def ridge_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, maximum_of
 
     """
     
-    import numpy as np
-    import pandas as pd
     from sklearn.linear_model import Ridge
     
     # X_train = subset of predictive variables (dataframe).
@@ -3770,8 +3725,6 @@ def lasso_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, maximum_of
 
     """
     
-    import numpy as np
-    import pandas as pd
     from sklearn.linear_model import Lasso
     
     # X_train = subset of predictive variables (dataframe).
@@ -3904,8 +3857,6 @@ def elastic_net_linear_reg (X_train, y_train, alpha_hyperparameter = 0.001, l1_r
 
     """
     
-    import numpy as np
-    import pandas as pd
     from sklearn.linear_model import ElasticNet
     
     # X_train = subset of predictive variables (dataframe).
@@ -4043,9 +3994,7 @@ def logistic_reg (X_train, y_train, regularization = 'l2', l1_ratio_hyperparamet
         - The regularizer may bring coefficients to zero, selecting those which are effectively the most important parameters.
 
     """
-    
-    import numpy as np
-    import pandas as pd
+
     import tensorflow as tf
     from sklearn.linear_model import LogisticRegression
     
@@ -4194,8 +4143,6 @@ def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_t
         - The 37% remaining training instances are called out-of-bag (oob) samples, and the 37% are not the same for all predictors. Once the predictor is not exposed to such instances during training, it may be evaluated with them with no need of a separated validation set.
         - The ensemble itself may be evaluated as the average of each predictor regarding the oob evaluations.
     """
-    import numpy as np
-    import pandas as pd
     
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
@@ -4399,9 +4346,6 @@ def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees =
     # This function runs the 'bar_chart' function. Certify that this function was properly loaded.
     # check XGBoost documentation:
     # https://xgboost.readthedocs.io/en/stable/python/python_api.html?highlight=xgbregressor#xgboost.XGBRegressor
-
-    import numpy as np
-    import pandas as pd
     
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
@@ -4575,9 +4519,6 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
     # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html?msclkid=b835e54ec17b11eca3d8febbc0eaeb3a
     # check MLPClassifier documentation on Scikit-learn:
     # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html?msclkid=ecb380ebc17b11ec99b7b8f762c84eab
-    
-    import numpy as np
-    import pandas as pd
     
     # X_train = subset of predictive variables (dataframe).
     # y_train = subset of response variable (series).
@@ -4776,8 +4717,6 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
 
 def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # X_train = subset of predictive variables (dataframe).
@@ -5020,8 +4959,6 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
 
 def get_siamese_networks_model (X_train, y_train, output_dictionary, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, size_of_training_batch = 200, number_of_training_epochs = 2000, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # output_dictionary:
@@ -5226,8 +5163,6 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
 
 def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, function_used_for_fitting_dl_model = 'get_deep_learning_tf_model', architecture = None, list_of_responses = []):
     
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # The function will automatically detect if it is dealing with lists, NumPy arrays
@@ -5498,8 +5433,6 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
 
 def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None, architecture = None):
 
-    import numpy as np
-    import pandas as pd
     import tensorflow as tf
     
     # predict_for = 'subset' or predict_for = 'single_entry'
@@ -5827,8 +5760,6 @@ def distances_between_each_data_point (df_tensor_or_array, list_of_new_arrays_to
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html#scipy.spatial.distance.cdist
     # https://docs.scipy.org/doc/scipy/reference/spatial.distance.html
 
-
-    import numpy as np
     from scipy.spacial.distance import pdist, cdist
 
     df = np.array(df_tensor_or_array)
@@ -5870,8 +5801,6 @@ def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializatio
     - Notice that the response predicted by the model is simply the cluster for a given entry.
     """
 
-    import numpy as np
-    import pandas as pd
     from sklearn.cluster import KMeans
     
     RANDOM_STATE = 55 
@@ -5940,8 +5869,6 @@ def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_t
     - Unsupervised learning method for detecting anomaly points, based on the assumption that each variable is normal and independent.
     - Data points considered anomalous are labelled as 1; non-anomalous are labelled as 0.
     """
-
-    import numpy as np
     X = np.array(X_tensor)
 
     # Instantiate the anomaly_detector object:

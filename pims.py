@@ -6,7 +6,8 @@
 # Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
 # marcosoares.feq@gmail.com
 # marco.soares@bayer.com
-
+import numpy as np
+import pandas as pd
 
 class ip21_extractor:
     
@@ -14,9 +15,6 @@ class ip21_extractor:
     # define the Class constructor, i.e., how are its objects:
 
     def __init__ (self, tag_to_extract = None, actual_tag_name = None, ip21_server = None, data_source = 'localhost', start_timestamp = None, stop_timestamp = None, ip21time_array = [], previous_df_for_concatenation = None, username = None, password = None):
-        
-        import numpy as np
-        import pandas as pd
         
         # If the user passes the argument, use them. Otherwise, use the standard values.
         # Set the class objects' attributes.
@@ -67,9 +65,6 @@ class ip21_extractor:
     # All methods must take an object from the class (self) as one of the parameters
     
     def convert_window_to_ip21_timescale (self):
-        
-        import numpy as np
-        import pandas as pd
         
         start_timestamp = self.start_timestamp 
         stop_timestamp = self.stop_timestamp
@@ -152,9 +147,6 @@ class ip21_extractor:
         
     def convert_ip21_timescale_array_to_timestamp (self):
         
-        import numpy as np
-        import pandas as pd
-        
         # Convert to Pandas series:
         ip21time_window = pd.Series(self.ip21time_array)
         # Guarantee that the series is sorted ascendingly:
@@ -236,8 +228,6 @@ class ip21_extractor:
     
     def set_extracted_time_window (self, start_timedelta_unit = 'day', stop_timedelta_unit = 'day'):
     
-        import numpy as np
-        import pandas as pd
         from datetime import datetime, timedelta
 
         # start_time: dictionary containing start timestamp information.
@@ -386,9 +376,6 @@ class ip21_extractor:
     
     def get_rest_api_url (self):
         
-        import numpy as np
-        import pandas as pd
-        
         server = self.server
         tag = self.tag
         data_source = self.data_source
@@ -430,8 +417,6 @@ class ip21_extractor:
         
         import os
         import json
-        import numpy as np
-        import pandas as pd
         from pandas import json_normalize
         
         json_response = self.json_response
@@ -598,8 +583,6 @@ class ip21_extractor:
 
     def fetch_database (self, request_type = 'get'):
         
-        import numpy as np
-        import pandas as pd
         import requests
         # IP21 uses the NTLM authentication protocol
         from requests_ntlm import HttpNtlmAuth
@@ -810,7 +793,6 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
     # Example: df = dataset.
 
     # Make imports and create the engine for the database
-    import pandas as pd
     # Configure the SQLite engine
     from sqlalchemy import create_engine
     

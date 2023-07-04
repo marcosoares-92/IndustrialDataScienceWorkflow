@@ -995,8 +995,6 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
     
     import os
     import json
-    import numpy as np
-    import pandas as pd
     from pandas import json_normalize
     
     ## WARNING: Use this function to load dataframes stored on Excel (xls, xlsx, xlsm, xlsb, odf, ods and odt), 
@@ -1354,7 +1352,6 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
 def json_obj_to_pandas_dataframe (json_obj_to_convert, json_obj_type = 'list', json_record_path = None, json_field_separator = "_", json_metadata_prefix_list = None):
     
     import json
-    import pandas as pd
     from pandas import json_normalize
     
     # JSON object in terms of Python structure: list of dictionaries, where each value of a
@@ -1455,9 +1452,6 @@ def convert_variable_or_iterable_to_single_column_df (iterable, column_label = N
     # When the parameter is passed, the column will be set as it. If not, the standard read format
     # will be used.
 
-    import numpy as np
-    import pandas as pd
-
     if (column_label is None):
         column_label = 'column1'
     
@@ -1505,9 +1499,6 @@ def set_schema_pd_df (df, schema_list = [{'column_name': None, 'column_type': No
     # schema_list = [{'column_name': 'name', 'column_type': str},
     # {'column_name': 'money', 'column_type': float},] will set column 'name' 
     # as string (text), and column 'money' as float (numeric).
-    
-    import numpy as np
-    import pandas as pd
     
     dataset = df.copy(deep = True)
 
@@ -1557,7 +1548,6 @@ def set_schema_pd_df (df, schema_list = [{'column_name': None, 'column_type': No
 def export_pd_dataframe_as_csv (dataframe_obj_to_be_exported, new_file_name_without_extension, file_directory_path = None):
     
     import os
-    import pandas as pd
     
     ## WARNING: all files exported from this function are .csv (comma separated values)
     
@@ -2334,8 +2324,6 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
 
 def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):
     
-    import numpy as np
-    import pandas as pd
     from scipy import stats
     
     # df: dataset containing historical data, from which the analysis will be generated.
