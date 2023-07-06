@@ -116,9 +116,12 @@ class ip21_extractor:
         # Convert the start timestamp:
         start_timedelta = start_timestamp - reference
         # apply the delta method to convert to nanoseconds:
-        start_timedelta = start_timedelta.delta
+        # The .delta attribute was replaced by .value attribute. 
+        # Both return the number of nanoseconds as an integer.
+        # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+        start_timedelta = start_timedelta.value
         # 1ms = 10^-3 s, 1ns = 10^-9 s, so 1 ns = 1ms/(10^6)
-        # Divide by 10^6 to obtain the total of miliseconds:
+        # Divide by 10^6 to obtain the total of milliseconds:
         start_timedelta = start_timedelta/(10**6)
         # Sum with the reference value in IP21 scale to obtain the converted timestamp:
         start_ip21_scale = reference_ip21 + start_timedelta
@@ -129,8 +132,8 @@ class ip21_extractor:
         # Convert the stop timestamp:
         stop_timedelta = stop_timestamp - reference
         # apply the delta method to convert to nanoseconds:
-        stop_timedelta = stop_timedelta.delta
-        # Divide by 10^6 to obtain the total of miliseconds:
+        stop_timedelta = stop_timedelta.value
+        # Divide by 10^6 to obtain the total of milliseconds:
         stop_timedelta = stop_timedelta/(10**6)
         # Sum with the reference value in IP21 scale to obtain the converted timestamp:
         stop_ip21_scale = reference_ip21 + stop_timedelta
@@ -208,7 +211,7 @@ class ip21_extractor:
         for ip21time_timedelta in ip21time_timedeltas:
             
             # Create a pandas timedelta object, in ms:
-            timedelta_obj = pd.Timedelta(ip21time_timedelta, unit = 'milliseconds')
+            timedelta_obj = pd.Timedelta(ip21time_timedelta, 'ms')
             # Sum this timedelta to reference to obtain the new timestamp:
             new_timestamp = reference + timedelta_obj
             # Append to the list of new_timestamps:
@@ -237,7 +240,7 @@ class ip21_extractor:
         # days before, start_time = -X for - X days before. Units for offsets will be always in days, unless
         # you modify the parameters start_timedelta_unit and stop_timedelta_unit.
         # For the timedelta unit, set 'day' or 'd' for subtracting values in days,'hour' or 'h',
-        # 'minute' or 'm' for minutes, 'second' or 's' for seconds, 'milisecond' or 'ms' for miliseconds.
+        # 'minute' or 'm' for minutes, 'second' or 's' for seconds, 'millisecond' or 'ms' for milliseconds.
         # Put the "-" signal, or the time will be interpreted as a future day from today.
         # Analogously for stop_time.
         # Both dictionaries must contain only float values (for 'year', 'day' and 'month'
@@ -281,7 +284,7 @@ class ip21_extractor:
 
             elif (start_time == "yesterday"):
 
-                delta_t = pd.Timedelta(1, unit = 'd')
+                delta_t = pd.Timedelta(1, 'd')
                 START_TIMESTAMP = today - delta_t
 
         elif  ((type (start_time) == float) | (type (start_time) == int)):
@@ -302,11 +305,11 @@ class ip21_extractor:
 
                     UNIT = 's'
 
-                elif ((start_timedelta_unit == 'milisecond') | (start_timedelta_unit == 'ms')):
+                elif ((start_timedelta_unit == 'millisecond') | (start_timedelta_unit == 'ms')):
 
                     UNIT = 'ms'
 
-                delta_t = pd.Timedelta(start_time, unit = UNIT)
+                delta_t = pd.Timedelta(start_time, UNIT)
                 START_TIMESTAMP = today - delta_t
 
         if (type (stop_time) == dict):
@@ -334,7 +337,7 @@ class ip21_extractor:
 
             elif (stop_time == "yesterday"):
 
-                delta_t = pd.Timedelta(1, unit = 'd')
+                delta_t = pd.Timedelta(1, 'd')
                 STOP_TIMESTAMP = today - delta_t
 
         elif  ((type (stop_time) == float) | (type (stop_time) == int)):
@@ -355,11 +358,11 @@ class ip21_extractor:
 
                     UNIT = 's'
 
-                elif ((stop_timedelta_unit == 'milisecond') | (stop_timedelta_unit == 'ms')):
+                elif ((stop_timedelta_unit == 'millisecond') | (stop_timedelta_unit == 'ms')):
 
                     UNIT = 'ms'
 
-                delta_t = pd.Timedelta(stop_time, unit = UNIT)
+                delta_t = pd.Timedelta(stop_time, UNIT)
                 STOP_TIMESTAMP = today - delta_t
 
         self.start_timestamp = START_TIMESTAMP
@@ -536,7 +539,7 @@ class ip21_extractor:
         if (last_element < stop_ip21_scale):
             
             self.need_next_call = True
-            # Update the start timestamp to be the last_element plus 1 unit (1 milisecond):
+            # Update the start timestamp to be the last_element plus 1 unit (1 millisecond):
             self.start_ip21_scale = last_element + 1
         
         else:
@@ -649,7 +652,7 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
     # days before, start_time = -X for - X days before. Units for offsets will be always in days, unless
     # you modify the parameters start_timedelta_unit and stop_timedelta_unit.
     # For the timedelta unit, set 'day' or 'd' for subtracting values in days,'hour' or 'h',
-    # 'minute' or 'm' for minutes, 'second' or 's' for seconds, 'milisecond' or 'ms' for miliseconds.
+    # 'minute' or 'm' for minutes, 'second' or 's' for seconds, 'millisecond' or 'ms' for milliseconds.
     # Put the "-" signal, or the time will be interpreted as a future day from today.
     # Analogously for stop_time.
     # Both dictionaries must contain only float values (for 'year', 'day' and 'month'
@@ -661,7 +664,7 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
     # start_timedelta_unit = 'day'
     # If start_time was declared as a numeric value (integer or float), specify the timescale units
     # in this parameter. The possible values are: 'day' or 'd'; 'hour' or 'h'; 'minute' or 'm';
-    # 'second' or 's', 'milisecond' or 'ms'.
+    # 'second' or 's', 'millisecond' or 'ms'.
     # stop_timedelta_unit = 'day' - analogous to start_timedelta_unit. Set this parameter when
     # declaring stop_time as a numeric value.
     

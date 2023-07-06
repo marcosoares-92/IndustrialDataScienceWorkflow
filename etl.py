@@ -1412,7 +1412,10 @@ class spc_plot:
                     
                     # Calculate the timedelta:
                     # Convert to an integer representing the total of nanoseconds:
-                    timedelta = pd.Timedelta(t_i_plus - t_i).delta
+                    # The .delta attribute was replaced by .value attribute. 
+                    # Both return the number of nanoseconds as an integer.
+                    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                    timedelta = pd.Timedelta(t_i_plus - t_i).value
                     
                     if (rare_event_timedelta_unit == 'year'):
                         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
@@ -5938,7 +5941,10 @@ def CALCULATE_DELAY (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         #append the element resultant from the delta method application on the
         # i-th element of the list timedelta_obj, i.e., timedelta_obj[i].
-        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).delta)
+        # The .delta attribute was replaced by .value attribute. 
+        # Both return the number of nanoseconds as an integer.
+        # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).value)
     
     #Notice that the loop is needed because Pandas cannot handle a series/list of
     #Timedelta objects simultaneously. It can manipulate a single object
@@ -6262,7 +6268,10 @@ def CALCULATE_TIMEDELTA (df, timestamp_tag_column1, timestamp_tag_column2, timed
         
         #append the element resultant from the delta method application on the
         # i-th element of the list timedelta_obj, i.e., timedelta_obj[i].
-        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).delta)
+        # The .delta attribute was replaced by .value attribute. 
+        # Both return the number of nanoseconds as an integer.
+        # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).value)
     
     #Notice that the loop is needed because Pandas cannot handle a series/list of
     #Timedelta objects simultaneously. It can manipulate a single object
@@ -6529,9 +6538,18 @@ def ADD_TIMEDELTA (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     unit_dict = {
         
         'day': 'd',
+        'd':'d',
         'hour': 'h',
+        'h':'h',
         'minute': 'min',
+        'min':'min',
         'second': 's',
+        's':'s',
+        'millisecond': 'ms',
+        'ms': 'ms',
+        'microsecond':'us',
+        'us':'us',
+        'nanosecond':'ns',
         'ns': 'ns'
         
     }
@@ -8009,7 +8027,10 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
                 # calculate the timedelta between x[i] and x[i-1]:
                 # The delta method from the Timedelta class converts the timedelta to
                 # nanoseconds, guaranteeing the internal compatibility:
-                timedelta = pd.Timedelta(ts_array[i] - ts_array[(i-1)]).delta
+                # The .delta attribute was replaced by .value attribute. 
+                # Both return the number of nanoseconds as an integer.
+                # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                timedelta = pd.Timedelta(ts_array[i] - ts_array[(i-1)]).value
                     
                 # Sum this timedelta (integer number of nanoseconds) to the
                 # previous element from int_timescale, and append the result to the list:
@@ -8705,7 +8726,7 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
     Thus, the covariance matrix between X and Y is given by the matrix:
 
         Cov = [[Var(X) Cov(Y,X)]
-                    [Cov(X,Y) Var(Y)]]
+                [Cov(X,Y) Var(Y)]]
 
         where, in general, Cov(Y,X) = Cov(X,Y)
     
@@ -8730,7 +8751,7 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
         There is a positive correlation between variables.
 
     3. Cov(X,Y) < 0
-        There is a negativ correlation between variables. 
+        There is a negative correlation between variables. 
     
     """
 
@@ -9931,7 +9952,10 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                     # calculate the timedelta between x[i] and x[i-1]:
                     # The delta method from the Timedelta class converts the timedelta to
                     # nanoseconds, guaranteeing the internal compatibility:
-                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).delta
+                    # The .delta attribute was replaced by .value attribute. 
+                    # Both return the number of nanoseconds as an integer.
+                    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).value
                     
                     # Sum this timedelta (integer number of nanoseconds) to the
                     # previous element from int_timescale, and append the result to the list:
@@ -10533,7 +10557,10 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                     # calculate the timedelta between x[i] and x[i-1]:
                     # The delta method from the Timedelta class converts the timedelta to
                     # nanoseconds, guaranteeing the internal compatibility:
-                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).delta
+                    # The .delta attribute was replaced by .value attribute. 
+                    # Both return the number of nanoseconds as an integer.
+                    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).value
                     
                     # Sum this timedelta (integer number of nanoseconds) to the
                     # previous element from int_timescale, and append the result to the list:
@@ -14173,7 +14200,8 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
     plt.show()
     
     print("Attention: the frequency is in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.\n")
-    
+    print("Plot starts in 0 counts per year; goes from 0.1 to 1 per year (log scale); and grows to 365.2524 = 1 count per day; to the limit defined.\n")
+
     # Also, return a tuple combining the absolute value of fft with the corresponding count per year
     return fft, tuple(zip(abs_fft, f_per_year))
 
@@ -15806,7 +15834,8 @@ def reverse_OneHotEncoding (df, encoding_list):
     
     # encoding_list: list in the same format of the one generated by OneHotEncode_df function:
     # it must be a list of dictionaries where each dictionary contains two keys:
-    # key 'column': string with the original column name (in quotes); 
+    # key 'column': string with the original column name (in quotes). If it is None, a column named 
+    # 'category_column_i', where i is the index of the dictionary in the encoding_list will be created; 
     # key 'OneHot_encoder': this key must store a nested dictionary.
     # Even though the nested dictionaries generates by the encoding function present
     # two keys:  'categories', storing an array with the different categories;
@@ -15824,6 +15853,29 @@ def reverse_OneHotEncoding (df, encoding_list):
             ]
     """
     
+    # Alternatively
+    
+    """
+            ENCODING_LIST = [
+
+                {'column': None,
+                'OneHot_encoder': [{'category': None,
+                                    'encoded_column': column},]}
+            ]
+    """
+    # Here, enconding_list will be a list of dictionaries, where each dictionary corresponds to one
+    # of the new columns to be encoded. The first key ('column') contains the name of the new column
+    # that will be created. If the value is None, a column named 'category_column_i', where i is the index of
+    # the dictionary in the encoding_list will be created.
+    # The second key, 'OneHot_encoder' will store a list of dictionaries. Each dictionary contains one of the
+    # columns obtained after the One-Hot Encoding, i.e., one of the binary columns that informs if the category
+    # is present or not. Each dictionary contains two keys: 'category' is the category that is encoded by such column.
+    # If the value is None, the category will be labeled as 'i' (string), where i is the index of the category in the
+    # 'OneHot_encoder' list. The 'encoded_column' must contain a string indicating the name (label) of the encoded column
+    # in the original dataset. For instance, suppose column "label_horse" is a One-Hot Encoded column that stores value 1
+    # if the label is "horse", and value 0 otherwise.  In this case, 'category': 'horse, 'encoded_column': 'label_horse'.
+
+
     # Start a copy of the original dataframe. This copy will be updated to create the new
     # transformed dataframe. Then, we avoid manipulating the original object.
     new_df = df.copy(deep = True)
@@ -15836,52 +15888,188 @@ def reverse_OneHotEncoding (df, encoding_list):
     
     for encoder_dict in encoding_list:
         
+        # Start a counter for the valid encoders
+        i = 0
         try:
             # Check if the required arguments are present:
-            if ((encoder_dict['column'] is not None) & (encoder_dict['OneHot_encoder']['OneHot_enc_obj'] is not None) & (encoder_dict['OneHot_encoder']['categories'] is not None)):
+            if ((encoder_dict['OneHot_encoder']['OneHot_enc_obj'] is not None) & (encoder_dict['OneHot_encoder']['categories'] is not None)):
                 
-                # Access the column name:
-                col_name = encoder_dict['column']
+                if (encoder_dict['column'] is not None):
+                    # Access the column name:
+                    col_name = encoder_dict['column']
 
-                # Access the nested dictionary:
-                nested_dict = encoder_dict['OneHot_encoder']
-                # Access the encoder object on the dictionary
-                OneHot_enc_obj = nested_dict['OneHot_enc_obj']
-                # Access the list of encoded columns:
-                list_of_encoded_cols = list(encoder_dict['OneHot_encoder']['categories'])
-
-                # Remember that the categories may have been saved before including the alias + "_" + str(encoded_col) + "_OneHotEnc"
-                # Get a subset of the encoded columns
-                X = new_df.copy(deep = True)
+                else:
+                    col_name = 'category_column' + str(i)
+                
                 try:
-                    list_of_encoded_cols = [(col_name +  "_" + str(col) + "_OneHotEnc") for col in list_of_encoded_cols]
-                    X = X[list_of_encoded_cols]
-                
-                except:
+                    # Access the nested dictionary:
+                    nested_dict = encoder_dict['OneHot_encoder']
+                    # Access the encoder object on the dictionary
+                    OneHot_enc_obj = nested_dict['OneHot_enc_obj']
+                    # Access the list of encoded columns:
+                    list_of_encoded_cols = list(encoder_dict['OneHot_encoder']['categories'])
+
+                    # Remember that the categories may have been saved before including the alias + "_" + str(encoded_col) + "_OneHotEnc"
+                    # Get a subset of the encoded columns
+                    X = new_df.copy(deep = True)
                     try:
-                        X = X[list_of_encoded_cols]
+                        list_of_encoded_cols = [(col_name +  "_" + str(col) + "_OneHotEnc") for col in list_of_encoded_cols]
+                        X = np.array(X[list_of_encoded_cols])
+                    
                     except:
-                        print("Save 'categories' with the correct name of the categories or use the same name as the columns from the function that One-Hot Encodes the dataframe.")
-                        print("You may simply input the list that is output together with the One-Hot Encoded dataframe.\n")
+                        try:
+                            X = np.array(X[list_of_encoded_cols])
+                        except:
+                            print("Save 'categories' with the correct name of the categories or use the same name as the columns from the function that One-Hot Encodes the dataframe.")
+                            print("You may simply input the list that is output together with the One-Hot Encoded dataframe.\n")
+                    
+                    # Round every value to the closest integer before trying to inverse the transformation:
+                    X = np.rint(X)
+                        
+                    # Replace values higher than max_encoded = 1 by max_encoded, and values lower than
+                    # min_encoded = 0 by min_encoded, avoiding errors on the reverse operation.
+                    # https://numpy.org/doc/stable/reference/generated/numpy.where.html
+                    X = np.where(X > 1, 1, X)
+                    # max_encoded is broadcast. If X > max_encoded, returns max_encoded = 1. 
+                    # Else, returns X element itself.
+                    X = np.where(X < 0, 0, X)
+                    # Replaces each value lower than minimum encoded by minimum encooded itself.
+                    # Avoids losing information.
+                    # Reverse the encoding:
+                    reversed_array = OneHot_enc_obj.inverse_transform(np.array(X))
 
-                # Reverse the encoding:
-                reversed_array = OneHot_enc_obj.inverse_transform(np.array(X))
+                    # Add the reversed array as the column col_name on the dataframe:
+                    new_df[col_name] = reversed_array
+                    
+                    print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
+                    
+                    try:
+                        display(new_df[[col_name]].head())
+                    except:
+                        print(new_df[[col_name]].head())
+                    
+                    print("\n")
+                    # Update the counter, since a valid encoder was accessed:
+                    i = i + 1
 
-                # Add the reversed array as the column col_name on the dataframe:
-                new_df[col_name] = reversed_array
-                
-                print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
-                
-                try:
-                    display(new_df[[col_name]].head())
                 except:
-                    print(new_df[[col_name]].head())
-                
-                print("\n")
-            
+                    print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
+        
         except:
-            print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
-    
+            
+            try:
+
+                if (len(encoder_dict['OneHot_encoder']) > 0):
+                    # There is at least one dictionary stored.
+                        
+                    if (encoder_dict['column'] is not None):
+                        # Access the column name:
+                        col_name = encoder_dict['column']
+                    else:
+                        col_name = 'category_column' + str(i)
+
+                    list_of_encoded_cols = []
+                    list_of_categories = []
+                    # Start a counter for the valid categories
+                    j = 0
+
+                    try:
+                        for encoder in encoder_dict['OneHot_encoder']:
+                            
+                            if (encoder['encoded_column'] is not None):
+                                list_of_encoded_cols.append(encoder['encoded_column'])
+
+                                if (encoder['category'] is not None):
+                                    list_of_categories.append(encoder['category'])
+                                else:
+                                    list_of_categories.append(str(j))
+                                # Update the counter with a valid category:
+                                j = j + 1
+                        
+
+                        if (len(list_of_encoded_cols) > 0):
+
+                            X = new_df.copy(deep = True)
+                            X = np.array(X[list_of_encoded_cols])
+                            X = np.rint(X)
+                            X = np.where(X > 1, 1, X)
+                            X = np.where(X < 0, 0, X)
+
+                            # Store the number of rows:
+                            n_rows = X.shape[0]
+
+                            # Create an array of zeros with same length as the dataset, i.e.,
+                            # 1 element per row of the dataset. Use the same dtype as 
+                            # The list of categories may be formed by only integers. In this case,
+                            # convert it to integer type to save memory:
+                            
+                            try:
+                                list_of_categories = np.float32(np.array(list_of_categories))
+                                # The categories are numeric
+                                reversed_array = np.zeros(n_rows)
+                                # array of zeros with one element per row of the dataframe
+                                reversed_array[:] = np.nan
+                                # All elements were replaced by missing values
+                            except:
+                                # The categories are not numeric
+                                reversed_array = np.zeros(n_rows, dtype = str)
+                                # https://numpy.org/doc/stable/reference/generated/numpy.zeros.html
+                                # The array is composed of empty strings
+                            
+                            # X is a matrix like:
+                            # X = [[0, 0, 1], [1, 0, 0], [0, 1, 0]] with shape (n, m), where n is the  number
+                            # of rows (internal arrays) and m is the number of columns (values per array),
+                            # Suppose the 1st column (0) represents category 1. To access all rows for column zero,
+                            # we do:
+                            # col0 = X[:,0], obtaining an array like array([0, 1, 0]). Notice that it indicates that
+                            # the category 1 is present in the row of index 1, i.e., the 2nd row. Analogously, column
+                            # 2 (index 1) would be accessed as X[:,1].
+                            # On the other hand, if X = [0, 0, 1], its shape is (n, ), so the second dimension is not
+                            # available
+                            
+                            # Store the number of columns as n_cols
+                            # Try accessing 2nd dimension:
+                            try:
+                                n_cols = X.shape[1]
+                            except:
+                                # single dimensional array:
+                                n_cols = 1
+                                X = X.reshape(-1, 1)
+                                # Now, X is in the form of a matrix: X = [[0],[0],[1]] and we can slice it as X[:,k]
+                            
+                            for k in range(0, n_cols):
+                                # Check where column k has value 1:
+                                # Each encoded column corresponds to a category in the array list_of_categories
+                                # So, give the reversed array the value stored as index k in list_of_categories.
+                                # for the positions where the column k has value 1. X[:,k] == 1 would be a single
+                                # dimension array like array([False,  True, False]), each element corresponding
+                                # to one row.
+                                # If the column is not 1 (i.e, it is zero), keep the original value, which is nan
+                                # or empty string.
+                                reversed_array = np.where((X[:,k] == 1), list_of_categories[k], reversed_array)
+                        
+                        # Add the reversed array as the column col_name on the dataframe:
+                        new_df[col_name] = reversed_array
+                        
+                        print(f"Reversed the encoding for {col_name}. Check the 5 first rows of the re-transformed series:\n")
+                        
+                        try:
+                            display(new_df[[col_name]].head())
+                        except:
+                            print(new_df[[col_name]].head())
+                        
+                        print("\n")
+                            # Update the counter, since a valid encoder was accessed:
+                        i = i + 1
+                    
+                    except:
+                        print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
+                
+        
+            except:
+                print("Detected dictionary with incorrect keys or format. Unable to reverse encoding. Please, correct it.\n")
+        
+
     print("Finished reversing One-Hot Encoding. Returning the new transformed dataframe.\n")
     print("Check the first 10 rows of the new dataframe:\n")
     
@@ -20633,7 +20821,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         if (rare_event_timedelta_unit is None):
             print("No valid timedelta unit provided, so selecting \'day\' for analysis of rare events.\n")
             rare_event_timedelta_unit = 'day'
-        elif (rare_event_timedelta_unit not in ['day', 'second', 'nanosecond', 'milisecond', 'hour', 'week', 'month', 'year']):
+        elif (rare_event_timedelta_unit not in ['day', 'second', 'nanosecond', 'millisecond', 'hour', 'week', 'month', 'year']):
             print("No valid timedelta unit provided, so selecting \'day\' for analysis of rare events.\n")
             rare_event_timedelta_unit = 'day'
             
