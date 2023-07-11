@@ -14234,7 +14234,10 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
     # Return POSIX timestamp as float
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.html
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Timestamp.timestamp.html#pandas.Timestamp.timestamp
-    # It is a variation of UNIX timestamp
+    # It is a variation of UNIX timestamp]
+    # Pandas Timestamp.timestamp() function return the time expressed as the number of seconds that have passed.
+    # https://www.geeksforgeeks.org/python-pandas-timestamp-timestamp/
+    # since January 1, 1970. That zero moment is known as the epoch.
     timestamp_s = DATASET[timestamp_tag_column].map(pd.Timestamp.timestamp)
     # the time in seconds is not a useful model input. 
     # It may have daily and yearly periodicity, for instance. 
@@ -14252,8 +14255,8 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
             
             unit = str(unit).lower()
             
-            column_name1 = unit + "_sin"
-            column_name2 = unit + "_cos"
+            column_name1 = str(value) + "_" + unit + "_sin"
+            column_name2 = str(value) + "_" + unit + "_cos"
             
             column_tuple = (column_name1, column_name2)
             columns_to_plot.append(column_tuple)
@@ -14292,8 +14295,11 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
                 # convert to seconds:
                 factor = 60 * 60 * 24
             
-            DATASET[column_name1] = np.sin(timestamp_s * (2 * np.pi / factor))
-            DATASET[column_name2] = np.cos(timestamp_s * (2 * np.pi / factor))
+            # Convert to total of seconds and so use the frequency in Hertz to obtain the periodic functions.
+            # Since timestamp_s is already in seconds, it is necessary to make it adimensional.
+            # X days correspond to X * 60 * 60 * 24 seconds, for instance, where X == value.
+            DATASET[column_name1] = np.sin(timestamp_s * (2 * np.pi / (factor * value)))
+            DATASET[column_name2] = np.cos(timestamp_s * (2 * np.pi / (factor * value)))
             
     # There are 8 possible frequencies to plot, i.e, 16 possible sin and cos plots.
     # List of tuples, containing the pairs of colors to be used:
@@ -18610,14 +18616,29 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     
     # Plot parameters:
     x = decompose_dict['timestamp']
-    y1 = decompose_dict['observed_data']
-    lab1 = "observed_data"
-    y2 = decompose_dict['seasonal_component']
-    lab2 = 'seasonal_component'
-    y3 = decompose_dict['trend_component']
-    lab3 = 'trend_component'
-    y4 = decompose_dict['residuals']
-    lab4 = 'residuals'
+    try:
+        y1 = decompose_dict['observed_data']
+        lab1 = "observed_data"
+    except:
+        pass
+    
+    try:
+        y2 = decompose_dict['seasonal_component']
+        lab2 = 'seasonal_component'
+    except:
+        pass
+    
+    try:    
+        y3 = decompose_dict['trend_component']
+        lab3 = 'trend_component'
+    except:
+        pass
+    
+    try:
+        y4 = decompose_dict['residuals']
+        lab4 = 'residuals'
+    except:
+        pass
     
     plot_title = "seasonal_decomposition_for_" + response_column_to_analyze
     
@@ -18630,33 +18651,44 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     fig, ax = plt.subplots(4, 1, sharex = True, figsize = (12, 8)) 
     # sharex = share axis X
     # number of subplots equals to the total of series to plot (in this case, 4)
+    try:
+        ax[0].plot(x, y1, linestyle = '-', marker = '', color = 'darkblue', alpha = OPACITY, label = lab1)
+        # Set title only for this subplot:
+        ax[0].set_title(plot_title)
+        ax[0].grid(grid)
+        ax[0].legend(loc = 'upper right')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
+    except:
+        pass
+
+    try:  
+        ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'crimson', alpha = OPACITY, label = lab2)
+        # Add the y-title only for this subplot:
+        ax[1].set_ylabel(response_column_to_analyze)
+        ax[1].grid(grid)
+        ax[1].legend(loc = 'upper right')
+    except:
+        pass
     
-    ax[0].plot(x, y1, linestyle = '-', marker = '', color = 'darkblue', alpha = OPACITY, label = lab1)
-    # Set title only for this subplot:
-    ax[0].set_title(plot_title)
-    ax[0].grid(grid)
-    ax[0].legend(loc = 'upper right')
-    # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-    # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-    # https://www.statology.org/matplotlib-legend-position/
+    try:
+        ax[2].plot(x, y3, linestyle = '-', marker = '', color = 'darkgreen', alpha = OPACITY, label = lab3)
+        ax[2].grid(grid)
+        ax[2].legend(loc = 'upper right')
+    except:
+        pass
     
-    ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'crimson', alpha = OPACITY, label = lab2)
-    # Add the y-title only for this subplot:
-    ax[1].set_ylabel(response_column_to_analyze)
-    ax[1].grid(grid)
-    ax[1].legend(loc = 'upper right')
-    
-    ax[2].plot(x, y3, linestyle = '-', marker = '', color = 'darkgreen', alpha = OPACITY, label = lab3)
-    ax[2].grid(grid)
-    ax[2].legend(loc = 'upper right')
-    
-    ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'red', alpha = OPACITY, label = lab4)
-    # Add an horizontal line in y = zero:
-    ax[3].axhline(0, color = 'black', linestyle = 'dashed', alpha = OPACITY)
-    # Set the x label only for this subplot
-    ax[3].set_xlabel('timestamp')
-    ax[3].grid(grid)
-    ax[3].legend(loc = 'upper right')
+    try:
+        ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'red', alpha = OPACITY, label = lab4)
+        # Add an horizontal line in y = zero:
+        ax[3].axhline(0, color = 'black', linestyle = 'dashed', alpha = OPACITY)
+        # Set the x label only for this subplot
+        ax[3].set_xlabel('timestamp')
+        ax[3].grid(grid)
+        ax[3].legend(loc = 'upper right')
+    except:
+        pass
     
     #ROTATE X AXIS IN XX DEGREES
     plt.xticks(rotation = x_axis_rotation)
