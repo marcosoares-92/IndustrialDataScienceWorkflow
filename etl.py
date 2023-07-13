@@ -18513,7 +18513,12 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     # Set the parameters for modelling:
     MODEL = decomposition_mode
     MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST = maximum_number_of_cycles_or_periods_to_test
-    
+
+    if (Y.isna().sum() > 0):
+        print(f"There are {Y.isna().sum()} missing values.")
+        print("Since this function cannot deal with missing values, the missing entries will be dropped.\n")
+        Y = Y.dropna()
+
     # Check if the arguments are valid:
     if MODEL not in ["additive", "multiplicative"]:
         # set model as 'additive'
@@ -18538,18 +18543,32 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     # absolute values of the residues:
     residues_dict = {}
     
+    # Multiplicative seasonality is not appropriate for zero and negative values. Trying to use it will raise a ValueError
+    if (MODEL == "multiplicative"):
+        if (Y[Y < 0].count() > 0):
+            print(f"There are {Y[Y < 0].count()} zero or negative values.")
+            print("Multiplicative seasonality is not appropriate for zero and negative values.")
+            print("The model will be changed to 'additive'.\n")
+            MODEL = "additive"
+
+
     for TOTAL_OF_CYCLES in range (2, (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST + 1)):
         
         # TOTAL_OF_CYCLES is an integer looping from TOTAL_OF_CYCLES = 2 to
         # TOTAL_OF_CYCLES = (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST + 1) - 1 = (MAXIMUM_NUMBER_OF_CYCLES_OR_PERIODS_TO_TEST)
         
         try:
-        
+            
+            y = Y.copy(deep = True)
             # Start an instance (object) from class DecomposeResult
             # Set this object as the resultant from seasonal_decompose
-            decompose_res_obj = seasonal_decompose(Y, model = MODEL, period = TOTAL_OF_CYCLES, two_sided = True)
+            decompose_res_obj = seasonal_decompose(y, model = MODEL, period = TOTAL_OF_CYCLES, two_sided = True)
             # decompose_res_obj is an instance (object) from class DecomposeResult
-
+            """
+            two_sided = True
+            The moving average method used in filtering. If True (default), a centered moving average is computed 
+            using the filt. If False, the filter coefficients are for past values only.
+            """
             # Get the array of the residues. Convert it to NumPy array to guarantee the vectorial operations:
             residues_array = np.array(decompose_res_obj.resid)
             # Convert the values in the array to the absolute values:
@@ -18580,22 +18599,22 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     
     # Start an instance (object) from class DecomposeResult
     # Set this object as the resultant from seasonal_decompose
-    decompose_res_obj = seasonal_decompose(Y, model = MODEL, period = OPTIMAL_TOTAL_CYCLES, two_sided = True)
+    decomposition_obj = seasonal_decompose(Y, model = MODEL, period = OPTIMAL_TOTAL_CYCLES, two_sided = True)
     # decompose_res_obj is an instance (object) from class DecomposeResult
     
     # Create a dictionary with the resultants from the seasonal decompose:
     # These resultants are obtained as attributes of the decompose_res_obj
     
-    number_of_observations_used = decompose_res_obj.nobs
+    number_of_observations_used = decomposition_obj.nobs
     print(f"Seasonal decomposition concluded using {number_of_observations_used} observations.\n")
     
     decompose_dict = {
         
-        'timestamp': x,
-        "observed_data": decompose_res_obj.observed,
-        "seasonal_component": decompose_res_obj.seasonal,
-        "trend_component": decompose_res_obj.trend,
-        "residuals": decompose_res_obj.resid
+        'timestamp': np.array(x),
+        "observed_data": np.array(decomposition_obj.observed),
+        "seasonal_component": np.array(decomposition_obj.seasonal),
+        "trend_component": np.array(decomposition_obj.trend),
+        "residuals": np.array(decomposition_obj.resid)
     }
     
     # Convert it into a returned dataframe:
@@ -18742,9 +18761,9 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     plt.show()
     
     #Finally, return the full dataframe:
-    print("The full dataframe obtained from the decomposition was returned as seasonal_decompose_df.")
+    print("The full dataframe obtained from the decomposition, as well as the Statsmodels decomposition object were returned.")
     
-    return seasonal_decompose_df
+    return seasonal_decompose_df, decomposition_obj
 
 
 def COLUMN_GENERAL_STATISTICS (df, column_to_analyze):
