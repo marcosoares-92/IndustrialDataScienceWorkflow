@@ -745,23 +745,9 @@ class model_checking:
         # Set the validation metrics name.
         # to access the validation metrics, simply put a 'val_' prefix:
         val_metrics_name = 'val_' + metrics_name
-
-        # Retrieve data from the history dictionary:
-        # Access values for training sample:
-        train_metrics = history.history[metrics_name]
         
-        # Try accessing data from validation sample (may not be present):
-        has_validation = False
-        # Maps if there are validation data: this variable is updated when values are present.
-        
-        try:
-            validation_metrics = history.history[val_metrics_name]
-            train_loss = history.history['loss']
-            validation_loss = history.history['val_loss']
-            has_validation = True
-        
-        except: # simply pass
-            pass
+        has_metrics = False
+        has_loss = False
         
         # Notice that history is not exactly a dictionary: it is an object with attribute history.
         # This attribute is where the dictionary is actually stored.
@@ -769,6 +755,36 @@ class model_checking:
         # Access the list of epochs, stored as the epoch attribute from the history object
         list_of_epochs = history.epoch
         # epochs start from zero
+
+        # Check if the metrics data are present
+        try:
+            # Retrieve data from the history dictionary:
+            # Access values for training sample:
+            train_metrics = history.history[metrics_name]
+            has_metrics = True
+        except:
+            pass
+        
+        # Check if the loss data are present
+        try:
+            # Retrieve data from the history dictionary:
+            # Access values for training sample:
+            train_loss = history.history['loss']
+            has_loss = True
+        except:
+            pass
+        
+        # Try accessing data from validation sample (may not be present):
+        has_validation = False
+        # Maps if there are validation data: this variable is updated when values are present.
+        
+        try:
+            validation_metrics = history.history[val_metrics_name]
+            validation_loss = history.history['val_loss']
+            has_validation = True
+        except: # simply pass
+            pass
+        
         
         if (horizontal_axis_title is None):
             horizontal_axis_title = "epoch"
@@ -786,47 +802,59 @@ class model_checking:
 
             #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
             fig = plt.figure(figsize = (12, 8))
-            ax1 = fig.add_subplot(211)
-            #ax1.set_xlabel("Lags")
-            ax1.set_ylabel(metrics_vertical_axis_title)
 
-            # Scatter plot of time series:
-            ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
-            if (has_validation):
-                # If present, plot validation data:
-                ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
-            # Axes.plot documentation:
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            if (has_metrics & has_loss):
+                ax1 = fig.add_subplot(211)
+            elif (has_metrics):
+                ax1 = fig.add_subplot()
+            elif (has_loss):
+                ax2 = fig.add_subplot()
 
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 0 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)
+            if (has_metrics):
+                #ax1.set_xlabel("Lags")
+                ax1.set_ylabel(metrics_vertical_axis_title)
 
-            ax1.grid(grid)
-            ax1.legend(loc = "upper right")
+                # Scatter plot of time series:
+                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
+                if (has_validation):
+                    # If present, plot validation data:
+                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
+                # Axes.plot documentation:
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
 
-            ax2 = fig.add_subplot(212)
-            ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 0 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
 
-            if (has_validation):
-                # If present, plot validation data:
-                ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
+                ax1.grid(grid)
+                ax1.legend(loc = "upper right")
 
-            ax2.set_xlabel(horizontal_axis_title)
-            ax2.set_ylabel(loss_vertical_axis_title)
+            if (has_metrics & has_loss):
+                # The case where both are present still do not have the ax2 configured
+                ax2 = fig.add_subplot(212)
+            
+            if (has_loss):
+                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
 
-            ax2.grid(grid)
-            ax2.legend(loc = "upper right")
+                if (has_validation):
+                    # If present, plot validation data:
+                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
 
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 0 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)
+                ax2.set_xlabel(horizontal_axis_title)
+                ax2.set_ylabel(loss_vertical_axis_title)
+
+                ax2.grid(grid)
+                ax2.legend(loc = "upper right")
+
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 0 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
 
             if (export_png == True):
                 # Image will be exported
@@ -888,7 +916,7 @@ class model_checking:
         
         """
         history object has a format like (2 responses, 1 epoch, metrics = 'mse'), when we apply the
-        .__dict__ method:
+        .__dict__ method or call the vars functions:
 
         'history': {'loss': [2.977898597717285],
           'response1_loss': [0.052497703582048416],
@@ -1003,6 +1031,10 @@ class model_checking:
         # Loop through the responses and nested dictionaries in the metrics_dict:
         for response, nested_dict in metrics_dict.items():
             
+            # For the general case, only the loss will be available
+            has_metrics = False
+            has_loss = False
+
             try:
                 metrics_name = nested_dict['metrics']
 
@@ -1016,6 +1048,8 @@ class model_checking:
             try:
                 train_loss = nested_dict['loss']
                 
+                has_loss = True
+
                 if (has_validation):
                     validation_loss = nested_dict['val_loss']
             except:
@@ -1023,6 +1057,8 @@ class model_checking:
             
             try:
                 train_metrics = nested_dict[metrics_name]
+
+                has_metrics = True
                 
                 if (has_validation):
                     validation_metrics = nested_dict[val_metrics_name]
@@ -1046,8 +1082,15 @@ class model_checking:
 
                 #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
                 fig = plt.figure(figsize = (12, 8))
-                try:
+                
+                if (has_metrics & has_loss):
                     ax1 = fig.add_subplot(211)
+                elif (has_metrics):
+                    ax1 = fig.add_subplot()
+                elif (has_loss):
+                    ax2 = fig.add_subplot()
+
+                if (has_metrics):
                     #ax1.set_xlabel("Lags")
                     ax1.set_ylabel(metrics_vertical_axis_title)
 
@@ -1068,12 +1111,12 @@ class model_checking:
 
                     ax1.grid(grid)
                     ax1.legend(loc = "upper right")
-
-                except:
-                    pass
-
-                try:
+                
+                if (has_metrics & has_loss):
+                    # The case where both are present still do not have the ax2 configured
                     ax2 = fig.add_subplot(212)
+
+                if (has_loss):
                     ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
 
                     if (has_validation):
@@ -1093,8 +1136,6 @@ class model_checking:
                     plt.yticks(rotation = y_axis_rotation)
                     # XX = 0 DEGREES y_axis (Default)
 
-                except:
-                    pass
 
                 if (export_png == True):
                     # Image will be exported
@@ -4513,7 +4554,7 @@ def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees =
     return xgb_model, summary_dict
 
 
-def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hidden_layers = 1, number_of_neurons_per_hidden_layer = 64, size_of_training_batch = 200, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hidden_layers = 1, number_of_neurons_per_hidden_layer = 64, size_of_training_batch = 200, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
     # check MLPRegressor documentation on Scikit-learn:
     # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html?msclkid=b835e54ec17b11eca3d8febbc0eaeb3a
@@ -4648,12 +4689,12 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
         print("Warning! Total of iterations equals to the maximum allowed. It indicates that the convergence was not reached yet. Try to increase the maximum number of allowed iterations.")
     
     print(f"Finished fitting of the neural network with {mlp_model.n_layers_} after {mlp_model.n_iter_} iterations.")
-    print(f"Minimum loss reached by the solver throughout fitting = {mlp_model.best_loss_}")
-    
+    print(f"Minimum loss reached by the solver throughout fitting: mean squared error (MSE) = {mlp_model.best_loss_}.")
+    print("\n")
     
     # Create the training history dictionary:
-    mlp_training_history_dict = {'loss': mlp_model.loss_curve_,
-                                'rmse': []}
+    # the MLP Regressor is trained using the mean squared error as the loss function to be optimized.
+    mlp_training_history_dict = {'loss': mlp_model.loss_curve_}
     
     # Let's create a history object analogous to the one created by TensorFlow, to be used
     # for plotting the loss curve:
@@ -4665,6 +4706,10 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
             # TensorFlow creates an object with the history attribute. This attribute stores
             # the history dictionary:
             self.history = history
+            # numpy.arange([start, ]stop, [step, ]dtype=None, *, like=None)
+            # https://numpy.org/doc/stable/reference/generated/numpy.arange.html
+            self.epoch = np.arange(0, len(history['loss']), 1, dtype = int)
+            # EPOCHS START FROM ZERO
     
     # Instantiate the object:
     history = history_object(history = mlp_training_history_dict)
@@ -4694,8 +4739,9 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
     # Retrieve model metrics:
     metrics_dict = model_check.metrics_dict
 
+    print("\n")
     print("Check the loss curve below:\n")
-    model_check = model_check.plot_training_history (metrics_name = 'rmse', x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+    model_check = model_check.plot_training_history (metrics_name = 'mse', x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
     
     print("\n") # line break
     print("Note: If a proper number of epochs was used for training, then a final baseline (plateau) should be reached by the curve.\n")
@@ -4715,7 +4761,7 @@ def SKLEARN_ANN (X_train, y_train, type_of_problem = "regression", number_of_hid
     return mlp_model, metrics_dict, history
 
 
-def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
     import tensorflow as tf
     
@@ -4957,7 +5003,7 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
     return model, metrics_dict, history
 
 
-def get_siamese_networks_model (X_train, y_train, output_dictionary, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, size_of_training_batch = 200, number_of_training_epochs = 2000, verbose = 1, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def get_siamese_networks_model (X_train, y_train, output_dictionary, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, size_of_training_batch = 200, number_of_training_epochs = 2000, verbose = 1, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
     import tensorflow as tf
     
@@ -5794,6 +5840,182 @@ def distances_between_each_data_point (df_tensor_or_array, list_of_new_arrays_to
     return distance_matrix
 
 
+def kmeans_elbow_method (X_tensor, max_number_of_clusters_to_test = 100, number_of_initializations = 10, maximum_of_allowed_iterations = 20000, kmeans_algorithm = 'lloyd', tolerance = 0.0001, , x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    """
+    - Unsupervised learning method for assigning clusters to each data point.
+    - Notice that the response predicted by the model is simply the cluster for a given entry.
+    """
+
+    from sklearn.cluster import KMeans
+    # https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+    
+    RANDOM_STATE = 55 
+    ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
+    
+    # X_tensor = subset of predictive variables (dataframe). Since this is a non-supervised algorithm, you may pass the full dataset.
+    
+    # max_number_of_clusters_to_test = 100 (integer). The algorithm will test 2 to the total of clusters you defined as
+    # max_number_of_clusters_to_test.
+    
+    # number_of_initializations = 10 (integer). Number of times the k-means algorithm is run with different centroid seeds. 
+    # The final results is the best output of n_init consecutive runs in terms of inertia. Several runs are recommended for 
+    # sparse high-dimensional problems. Manipulates the parameter n_init from KMeans Sklearn class.
+
+    # MAXIMUM_OF_ALLOWED_ITERATIONS = integer representing the maximum number of iterations
+    # that the optimization algorithm can perform. Depending on data, convergence may not be
+    # reached within this limit, so you may need to increase this hyperparameter.
+
+    # kmeans_algorithm = 'lloyd'. K-means algorithm to use. The classical EM-style algorithm is "lloyd". The 
+    # "elkan" variation can be more efficient on some datasets with well-defined clusters, by using the triangle inequality. 
+    # However it’s more memory intensive due to the allocation of an extra array of shape (n_samples, n_clusters).
+    # Options: “lloyd”, “elkan”, “auto”, “full”. Manipulates the parameter algorithm from KMeans Sklearn class.
+
+    # tolerance = 0.0001. Relative tolerance with regards to Frobenius norm of the difference in the cluster centers 
+    # of two consecutive iterations to declare convergence. Manipulates the parameter tol from KMeans Sklearn class.
+
+    print("Let's evaluate and compare the inertia.")
+    print("Here, inertia is defined as the sum of squared distances of samples to their closest cluster center, weighted by the sample weights.")
+    print("In the elbow or knee method, we plot the inertia against the number of clusters that resulted in such inertia.")
+    print("The number of clusters correspondent to the knee or elbow in the plot (sudden decay of derivative) is took as the ideal number of clusters to use.")
+    print("Andrew Ng in his Machine Learning Specialization (Coursera and Stanford University Online) presents several restrictions against its method, which is far from being perfect.\n")
+
+    X = np.array(X_tensor)
+    # Check if it is a single-dimension array
+    if(len(X) == 1):
+        #  Reshape it as a matrix
+        X = X.reshape(-1,1)
+
+    # Range of clusters to test:
+    # # numpy.arange([start, ]stop, [step, ]dtype=None, *, like=None)
+    # https://numpy.org/doc/stable/reference/generated/numpy.arange.html
+    clusters_to_test = np.arange(2, max_number_of_clusters_to_test, 1, dtype = int)
+    # Start a list to store the calculated inertia:
+    inertia_list = []
+
+    # Now, calculate the inertia for each value on clusters_to_test:
+
+    for clusters in clusters_to_test:
+        # Start K-Means object:
+        kmeans_model = KMeans(n_clusters = clusters, random_state = RANDOM_STATE, n_init = number_of_initializations, max_iter = maximum_of_allowed_iterations, tol = tolerance, verbose = 1, algorithm = kmeans_algorithm)
+        # Fit kmeans object to the array:
+        kmeans_model = kmeans_model.fit(X)
+        # Append the inertia attribute on the list:
+        inertia_list.append(kmeans_model.inertia_)
+    
+    # Convert to NumPy array:
+    inertia_list = np.array(inertia_list)
+    
+    if (plot_title is None):
+        plot_title = "KMeans_elbow_plot"
+
+    if (horizontal_axis_title is None):
+        horizontal_axis_title = "k_number_of_clusters"
+    
+    if (vertical_axis_title is None):
+        vertical_axis_title = "inertia"
+    
+    x = clusters_to_test
+    y = inertia_list
+
+    elbow_df = pd.DataFrame(data = {'k_number_of_clusters': clusters_to_test, 'inertia': inertia_list})
+
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+    
+    print("Check the elbow plot below:\n")
+
+    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+    fig = plt.figure(figsize = (12, 8))
+    ax = fig.add_subplot()
+    
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 0 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    # Set graphic title
+    ax.set_title(plot_title)
+    ax.set_xlabel(horizontal_axis_title)
+    ax.set_ylabel(vertical_axis_title)
+
+    # Scatter plot of time series:
+    ax.plot(x, y, linestyle = "-", marker = 'o', color = 'crimson', alpha = OPACITY)
+    # Axes.plot documentation:
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            
+    # x and y are positional arguments: they are specified by their position in function
+    # call, not by an argument name like 'marker'.
+            
+    # Matplotlib markers:
+    # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+    
+    # Now we finished plotting all of the series, we can set the general configuration:
+    ax.grid(grid) # show grid or not
+
+    if (export_png == True):
+        # Image will be exported
+        import os
+
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "KMeans_elbow_plot"
+
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+
+        #Export the file to this new path:
+        # The extension will be automatically added by the savefig method:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
+        #quality could be set from 1 to 100, where 100 is the best quality
+        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #transparent = True or False
+        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+
+    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+    #plt.figure(figsize = (12, 8))
+    #fig.tight_layout()
+
+    ## Show an image read from an image file:
+    ## import matplotlib.image as pltimg
+    ## img=pltimg.imread('mydecisiontree.png')
+    ## imgplot = plt.imshow(img)
+    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+    ##  '03_05_END.ipynb'
+    plt.show()
+    
+    print("\n")
+    print("Check the summary dataframe with the number of clusters and correspondent inertia:\n")
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(elbow_df)
+            
+    except: # regular mode
+        print(elbow_df)
+
+    return elbow_df
+
+
 def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializations = 10, maximum_of_allowed_iterations = 20000, kmeans_algorithm = 'lloyd', tolerance = 0.0001):
 
     """
@@ -5802,6 +6024,7 @@ def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializatio
     """
 
     from sklearn.cluster import KMeans
+    # https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
     
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
@@ -5894,4 +6117,108 @@ def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_t
         print("The outliers are the elements correspondent to label 1 in the returned array named as 'outliers'.\n")
     
     return anomaly_detection_model, outliers
+
+
+def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_of_shap_points = 40):
+    
+    # An introduction to explainable AI with Shapley values:
+    # https://shap.readthedocs.io/en/latest/example_notebooks/overviews/An%20introduction%20to%20explainable%20AI%20with%20Shapley%20values.html
+    
+    # model_object: object containing the model that will be analyzed. e.g.
+    # model_object = elastic_net_linear_reg_model
+    # X_train = subset of predictive variables (dataframe).
+    
+    # total_of_shap_points (integer): number of points from the 
+    # subset X_train that will be randomly selected for the SHAP 
+    # analysis. If the kernel is taking too long, reduce this value.
+    
+    # MODEL_TYPE = 'linear' for linear models (OLS, Ridge, Lasso, ElasticNet,
+    # Logistic Regression)
+    # MODEL_TYPE = 'tree' for tree-based models (Random Forest and XGBoost)
+    # MODEL_TYPE = 'ann' for artificial neural networks
+    
+    # PLOT_TYPE = 'waterfall', 'beeswarm', 'bar', 'heatmap' 
+    # 'scatter', 'force_plt' or 'summary': 
+    # sets the type of shap plot that will be shown
+    
+    # If clustering is used, it is possible to plot the dendogram with
+    # the bar chart: shap.plots.bar(shap_values, clustering=clustering, clustering_cutoff=1.8)
+    # Also, SHAP can be used for text analysis (in the next example, it
+    # is used to analyze the first sentence - index 0):
+    # shap.plots.text(shap_values[0])
+    
+    # MAX_NUMBER_OF_FEATURES_SHOWN = 10: (integer) limiting the number
+    # of features shown in the plot.
+    
+    import shap
+
+    # Convert tensor to NumPy array:
+    X_train = np.array(X_train)
+
+    # Start SHAP:
+    shap.initjs()
+    
+    print(f"Randomly sampling {total_of_shap_points} points from the dataset to perform SHAP analysis.")
+    print("If the kernel takes too long, cancel the application and reduce the integer value input as \'total_of_shap_points\'. On the other hand, if it is possible, increase the value to obtain higher precision on the analysis.")
+    
+    # sample the number of points passed as total_of_shap_points
+    # from the dataset X_train, and store these points as X_shap:
+    X_shap = shap.sample(X_train, total_of_shap_points)
+    
+    if (model_type == 'linear'):
+        
+        print("Analyzing Scikit-learn linear model.")
+        
+        # Create an object from the Linear explainer class:
+        shap_explainer = shap.explainers.Linear(model_object)
+        # Documentation:
+        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Math%20behind%20LinearExplainer%20with%20correlation%20feature%20perturbation.html
+        # https://shap.readthedocs.io/en/latest/generated/shap.explainers.Linear.html#shap.explainers.Linear
+        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Sentiment%20Analysis%20with%20Logistic%20Regression.html
+        
+        # Apply .shap_values method to obtain the shap values:
+        shap_vals = shap_explainer.shap_values(X_shap)
+        # shap_vals is a list or array of calculated values.
+        
+    elif (model_type == 'tree'):
+        
+        print("Analyzing tree-based Scikit-learn or XGBoost model.")
+    
+        # Create an object from the Tree explainer class:
+        shap_explainer = shap.explainers.Tree(model_object)
+        # Documentation:
+        # https://shap.readthedocs.io/en/latest/generated/shap.explainers.Tree.html#shap.explainers.Tree
+        # Apply .shap_values method to obtain the shap values:
+        shap_vals = shap_explainer.shap_values(X_shap)
+        # shap_vals is a list or array of calculated values.
+        
+    else:
+        # In any other case, use the KernelExplainer
+        # Create an object from KernelExplainer class:
+        shap_explainer = shap.KernelExplainer(model_object.predict, X_shap)
+        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/neural_networks/Census%20income%20classification%20with%20Keras.html
+        # Alternatively: model_object.predict(X)
+        # Apply .shap_values method to obtain the shap values:
+        shap_vals = shap_explainer.shap_values(X_shap)
+        # shap_vals is a list or array of calculated values.
+     
+    shap.summary_plot(shap_vals, X_shap)
+    
+    # Create a dictionary with the explainer and the shap_vals:
+    shap_dict = {
+        'SHAP_kernel_explainer': shap_explainer,
+        'SHAP_values': shap_vals
+    }
+    
+    print("\n") # line break
+    print("Dictionary with SHAP explainer and SHAP values returned as \'shap_dict\'.")
+    
+    print("\n") # line break
+    print("SHAP Interpretation:")
+    print("SHAP returns us a SHAP value that represents the relative importance.")
+    print("The features are displayed in order of importance, from the most important (top of the plot) to the less important (bottom of the plot).")
+    print("A feature which is shown on the right side of the plot results in positive impact on the model, whereas a feature on the left results into a negative impact in the response.")
+    print("The relative impact is shown by the color scale: a tone closer to red indicates a higher impact, whereas the proximity to blue indicates low relative impact.")
+        
+    return shap_dict
 
