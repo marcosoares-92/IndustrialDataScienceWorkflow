@@ -13,6 +13,8 @@
 # Process diagnosis: statistical process control charts and capability analysis.
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class spc_chart_assistant:
             
@@ -440,7 +442,6 @@ class spc_chart_assistant:
     def open_chart_assistant_screen (self):
                 
         import os
-        import matplotlib.pyplot as plt
         from html2image import Html2Image
         from tensorflow.keras.preprocessing.image import img_to_array, load_img
         # img_to_array: convert the image into its numpy array representation
@@ -1896,8 +1897,6 @@ class capability_analysis:
     
 
     def get_histogram_array (self):
-        
-        import matplotlib.pyplot as plt
         
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
@@ -6847,7 +6846,6 @@ def SLICE_DATAFRAME (df, from_row = 'first_only', to_row = 'only', restart_index
 
 def visualize_and_characterize_missing_values (df, slice_time_window_from = None, slice_time_window_to = None, aggregate_time_in_terms_of = None):
 
-    import matplotlib.pyplot as plt
     import missingno as msno
     # misssingno package is built for visualizing missing values. 
     
@@ -7088,7 +7086,6 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # Two conditions require the os library, so we import it at the beginning of the function,
     # to avoid importing it twice.
     import shutil # component of the standard library to move or copy files.
-    import matplotlib.pyplot as plt
     
     # column_to_analyze, column_to_compare_with: strings (in quotes).
     # column_to_analyze is the column from the dataframe df that will be analyzed in terms of
@@ -7919,8 +7916,7 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     # This function is more indicated for dealing with missing values on time series data than handle_missing_values.
     # This function will search for the best imputer for a given column.
     # It can process both numerical and categorical columns.
-    
-    import matplotlib.pyplot as plt
+
     from scipy.stats import linregress
     from sklearn.impute import SimpleImputer
     from sklearn.preprocessing import OrdinalEncoder
@@ -8343,9 +8339,6 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
 
 def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    
     #show_masked_plot = True - keep as True if you want to see a cleaned version of the plot
     # where a mask is applied.
     
@@ -8542,9 +8535,6 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
 
 def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
-    import seaborn as sns
     
     #show_masked_plot = True - keep as True if you want to see a cleaned version of the plot
     # where a mask is applied.
@@ -8868,9 +8858,6 @@ def calculate_vif (df):
 
 
 def bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-
-    import matplotlib.pyplot as plt
-    from scipy import stats
     
     # df: dataframe being analyzed
     
@@ -9651,7 +9638,6 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
     import random
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
-    import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     from scipy import stats
     
@@ -10252,7 +10238,6 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
     from numpy.polynomial.polynomial import Polynomial
-    import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     
     # Check numpy.polynomial class API documentation for other polynomials 
@@ -10908,7 +10893,6 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
     import random
     # Python Random documentation:
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
-    import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     
     # matplotlib.colors documentation:
@@ -11339,8 +11323,6 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
 
 def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import matplotlib.pyplot as plt
-    
     # column_to_analyze: string with the name of the column that will be analyzed.
     # column_to_analyze = 'col1' obtain a histogram from column 1.
     
@@ -11559,8 +11541,7 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
 
 
 def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     from statsmodels.stats import diagnostic
     from scipy import stats
     # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
@@ -11823,8 +11804,7 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
 
 
 def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal'):
-        
-    import matplotlib.pyplot as plt
+
     from statsmodels.stats import diagnostic
     from scipy import stats
     # Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
@@ -14027,8 +14007,7 @@ def regex_replacement (df, column_to_analyze, regex_to_search = r"", string_for_
 
 
 def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     import tensorflow as tf
     
     # Real-valued fast Fourier transform: https://www.tensorflow.org/api_docs/python/tf/signal/rfft?authuser=1
@@ -14207,8 +14186,6 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
 
 
 def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}], x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, max_number_of_entries_to_plot = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
     
     # important_frequencies = [{'value': 1, 'unit': 'day'}, {'value':1, 'unit': 'year'}]
     # List of dictionaries with the important frequencies to add to the model. You can remove dictionaries,
@@ -16874,8 +16851,7 @@ def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_pa
 
 
 def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     import statsmodels.api as sm
     
     # df: the whole dataframe to be processed.
@@ -16983,7 +16959,6 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
 
 def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    import matplotlib.pyplot as plt
     import statsmodels.api as sm
     from statsmodels.tsa.stattools import adfuller
     
@@ -17138,8 +17113,7 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     # https://www.statsmodels.org/stable/examples/notebooks/generated/tsa_arma_1.html?highlight=statsmodels%20graphics%20tsaplots%20plot_predict
     
     ## d = 0 corresponds to the ARMA model
-    
-    import matplotlib.pyplot as plt
+
     import statsmodels as sm
     from statsmodels.graphics.tsaplots import plot_predict
     #this model is present only in the most recent versions of statsmodels
@@ -17470,8 +17444,7 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
 
 
 def arima_forecasting (arima_model_object, df = None, column_to_forecast = None, timestamp_tag_column = None, time_unit = None, number_of_periods_to_forecast = 7, confidence_level = 0.95, plot_predicted_time_series = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     import statsmodels as sm
     from statsmodels.graphics.tsaplots import plot_predict
     #this model is present only in the most recent versions of statsmodels
@@ -18061,9 +18034,7 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
 
 
 def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 365, plot_predicted_time_series = True, get_interactive_plot = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
-    
+  
     from prophet import Prophet
     
     # prophet_model_object : object containing the Prophet model previously obtained.
@@ -18430,8 +18401,7 @@ def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', mi
 
 
 def seasonal_decomposition (df, response_column_to_analyze, column_with_timestamps = None, decomposition_mode = "additive", maximum_number_of_cycles_or_periods_to_test = 100, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     import statsmodels as sm
     from statsmodels.tsa.seasonal import DecomposeResult
     from statsmodels.tsa.seasonal import seasonal_decompose
@@ -19268,7 +19238,6 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
     print ("Also, update matplotlib to a version >= 3.5.2 by running:")
     print ("!pip install matplotlib==3.5.2 --upgrade\n")
     import random
-    import matplotlib.pyplot as plt
     from statsmodels.stats.oneway import anova_oneway
         
     # plot_type = 'box' to plot a boxplot.
@@ -20471,8 +20440,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
 
 
 def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-    
-    import matplotlib.pyplot as plt
+
     from scipy import stats
     
     # matplotlib.colors documentation:
@@ -21575,7 +21543,6 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
 
 def process_capability (df, column_with_variable_to_be_analyzed, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
-    import matplotlib.pyplot as plt
     from scipy import stats
     
     # COLUMN_WITH_VARIABLE_TO_BE_ANALYZED: name (header) of the column containing the variable

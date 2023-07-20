@@ -13,6 +13,8 @@
 # marco.soares@bayer.com
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class model_checking:
             
@@ -110,8 +112,6 @@ class model_checking:
     
     def model_metrics (self, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
-        import matplotlib.pyplot as plt
-        import seaborn as sns
         import tensorflow as tf
         # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
@@ -380,8 +380,6 @@ class model_checking:
 
 
     def feature_importance_ranking (self, model_class = 'linear', orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-
-        import matplotlib.pyplot as plt
 
         # model_class = 'linear' or model_class = 'tree'
         # Retrieve the model:
@@ -737,8 +735,6 @@ class model_checking:
 
     def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-        import matplotlib.pyplot as plt
-
         # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
 
         history = self.history
@@ -907,8 +903,6 @@ class model_checking:
             
     
     def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-
-        import matplotlib.pyplot as plt
 
         # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
 
@@ -1190,8 +1184,6 @@ class model_checking:
     
     def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
         
-        import matplotlib.pyplot as plt
-        import seaborn as sns
         import tensorflow as tf
         # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
@@ -5840,11 +5832,19 @@ def distances_between_each_data_point (df_tensor_or_array, list_of_new_arrays_to
     return distance_matrix
 
 
-def kmeans_elbow_method (X_tensor, max_number_of_clusters_to_test = 100, number_of_initializations = 10, maximum_of_allowed_iterations = 20000, kmeans_algorithm = 'lloyd', tolerance = 0.0001, , x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def kmeans_elbow_method (X_tensor, max_number_of_clusters_to_test = 100, number_of_initializations = 10, maximum_of_allowed_iterations = 20000, kmeans_algorithm = 'lloyd', tolerance = 0.0001, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
     """
     - Unsupervised learning method for assigning clusters to each data point.
     - Notice that the response predicted by the model is simply the cluster for a given entry.
+    
+    KMeans clustering requires threadpoolctl > 3.0. If it is not possible to pip install threadpoolctl --upgrade,
+    you can try DBSCAN clustering algorithm: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html
+
+    from sklearn.cluster import DBSCAN
+    clustering = DBSCAN(eps=3, min_samples=2)
+    clustering = clustering.fit(X)
+    clustering.labels_ : array([0, 0, 0, 1, 1, 1], dtype=int64) # same attributes from KMeans object
     """
 
     from sklearn.cluster import KMeans
@@ -6021,6 +6021,14 @@ def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializatio
     """
     - Unsupervised learning method for assigning clusters to each data point.
     - Notice that the response predicted by the model is simply the cluster for a given entry.
+    
+    KMeans clustering requires threadpoolctl > 3.0. If it is not possible to pip install threadpoolctl --upgrade,
+    you can try DBSCAN clustering algorithm: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html
+
+    from sklearn.cluster import DBSCAN
+    clustering = DBSCAN(eps=3, min_samples=2)
+    clustering = clustering.fit(X)
+    clustering.labels_ : array([0, 0, 0, 1, 1, 1], dtype=int64) # same attributes from KMeans object
     """
 
     from sklearn.cluster import KMeans
@@ -6073,7 +6081,7 @@ def kmeans_clustering (X_tensor, number_of_clusters = 8, number_of_initializatio
 
     print("Check the centroids of the clusters:\n")
     print(centroids)
-    print("/n")
+    print("\n")
     print("Check the 10 first entries from the dataset and the correspondent labels (clusters):\n")
     print(f"{[tuple for tuple in zip(X[:10], X_labels[:10])]}")
 
