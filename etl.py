@@ -16286,6 +16286,8 @@ def reverse_OrdinalEncoding (df, encoding_list):
     # two keys:  'categories', storing an array with the different categories;
     # and 'ordinal_enc_obj', storing the encoder object, only one of them is required,
     # prefentially the 'categories' one.
+    # Exammple of array or list: 'categories': ['white', 'black', 'blue']
+    
     ## On the other hand, a third key is needed in the nested dictionary:
     ## key 'encoded_column': this key must store a string with the name of the column
     # obtained from Encoding.
