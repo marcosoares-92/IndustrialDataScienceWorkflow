@@ -1021,10 +1021,18 @@ class spc_plot:
                             # To retrieve only the mode, we must access the element [0] from this array
                             # or attribute mode:
                             mode = mode_array.mode
-
                         except:
-                            mode = np.nan
-
+                            try:
+                                mode = mode_array[0]
+                            except:
+                                try:
+                                    if ((mode_array != np.nan) & (mode_array is not None)):
+                                        mode = mode_array
+                                    else:
+                                        mode = np.nan
+                                except:
+                                    mode = np.nan
+                        
                         # Append it to the list of modes:
                         list_of_modes.append(mode)
 
@@ -5110,12 +5118,25 @@ def GROUP_VARIABLES_BY_TIMESTAMP (df, timestamp_tag_column, subset_of_columns_to
                 
                 try:
                     list_of_modes.append(cat_var_series[i].mode)
-
+                    
                 except:
-                    # This error is generated when trying to access an array storing no values.
-                    # (i.e., with missing values). Since there is no dimension, it is not possible
-                    # to access the [0][0] position. In this case, simply append the np.nan (missing value):
-                    list_of_modes.append(np.nan)
+                    try:
+                        list_of_modes.append(cat_var_series[i][0])
+                    except:
+                        try:   
+                            if (len(cat_var_series) > 0):
+                                if ((cat_var_series[i] != np.nan) & (cat_var_series[i] is not None)):
+                                    list_of_modes.append(cat_var_series[i])
+                                else:
+                                    list_of_modes.append(np.nan)
+
+                            else:
+                                # This error is generated when trying to access an array storing no values.
+                                # (i.e., with missing values). Since there is no dimension, it is not possible
+                                # to access the [0][0] position. In this case, simply append the np.nan (missing value):
+                                list_of_modes.append(np.nan)
+                        except:
+                            list_of_modes.append(np.nan)
 
             # Now we finished the nested for loop, list_of_modes contain only the modes
 
@@ -5523,7 +5544,6 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                 cat_var_series = df_categorical[cat_var].copy()
                 # Start a list to store only the modes:
                 list_of_modes = []
-
                 # Now, loop through each row of cat_var_series. Take the element [0][0]
                 # and append it to the list_of_modes:
                 for i in range(0, len(cat_var_series)):
@@ -5537,17 +5557,31 @@ def GROUP_DATAFRAME_BY_VARIABLE (df, variable_to_group_by, return_summary_datafr
                         
                     try:
                         list_of_modes.append(cat_var_series[i].mode)
-
+                    
                     except:
-                        # This error is generated when trying to access an array storing no values.
-                        # (i.e., with missing values). Since there is no dimension, it is not possible
-                        # to access the [0][0] position. In this case, simply append the np.nan (missing value):
-                        list_of_modes.append(np.nan)
+                        try:
+                            list_of_modes.append(cat_var_series[i][0])
+                        except:
+                            try:
+                                if (len(cat_var_series) > 0):
+                                    if ((cat_var_series[i] != np.nan) & (cat_var_series[i] is not None)):
+                                        list_of_modes.append(cat_var_series[i])
+                                    else:
+                                        list_of_modes.append(np.nan)
+
+                                else:
+                                    # This error is generated when trying to access an array storing no values.
+                                    # (i.e., with missing values). Since there is no dimension, it is not possible
+                                    # to access the [0][0] position. In this case, simply append the np.nan (missing value):
+                                    list_of_modes.append(np.nan)
+                            except:
+                                list_of_modes.append(np.nan)
 
                 # Now we finished the nested for loop, list_of_modes contain only the modes
 
                 # Make the column cat_var the list_of_modes itself:
                 df_categorical[cat_var] = list_of_modes
+
 
         elif (categorical_aggregate == 'count'):
 
@@ -7776,10 +7810,18 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                             # which will return a string like 'a':
                             try:
                                 fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False).mode
-
+                        
                             except:
-                                # This error is generated when trying to access an array storing no values.
-                                fill_dict[column] = np.nan
+                                try:
+                                    fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)[0]
+                                except:
+                                    try:
+                                        if ((stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) != np.nan) & (stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) is not None)):
+                                            fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)
+                                        else:
+                                            fill_dict[column] = np.nan
+                                    except:
+                                        fill_dict[column] = np.nan
                     
                     # Now, fill_dict contains the mapping of columns (keys) and 
                     # correspondent values for imputation with the method fillna.
@@ -9058,7 +9100,16 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
                 # (i.e., with missing values). Since there is no dimension, it is not possible
                 # to access the [0][0] position. In this case, simply append the np.nan 
                 # the (missing value):
-                list_of_modes.append(np.nan)
+                try:
+                    list_of_modes.append(mode_array[0])
+                except:
+                    try:
+                        if ((mode_array != np.nan) & (mode_array is not None)):
+                            list_of_modes.append(mode_array)
+                        else:
+                            list_of_modes.append(np.nan)
+                    except:
+                        list_of_modes.append(np.nan)
         
         # Make the list of modes the column itself:
         DATASET[response_var_name] = list_of_modes
@@ -11777,7 +11828,19 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
         #Calculate the mode of the distribution:
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
         # ModeResult(mode=3, count=5) access mode attribute
-        data_mode = stats.mode(y, axis = None, keepdims = False).mode
+        try:
+            data_mode = stats.mode(y, axis = None, keepdims = False).mode
+        except:
+            try:
+                data_mode = stats.mode(y, axis = None, keepdims = False)[0]
+            except:
+                try:
+                    if ((stats.mode(y, axis = None, keepdims = False) != np.nan) & (stats.mode(y, axis = None, keepdims = False) is not None)):
+                        data_mode = stats.mode(y, axis = None, keepdims = False)
+                    else:
+                        data_mode = np.nan
+                except:
+                    data_mode = np.nan
         
         #Create general statistics dictionary:
         general_statistics_dict = {
@@ -11986,7 +12049,19 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
             #Calculate the mode of the distribution:
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
             # ModeResult(mode=3, count=5) access mode attribute
-            data_mode = stats.mode(y, axis = None, keepdims = False).mode
+            try:
+                data_mode = stats.mode(y, axis = None, keepdims = False).mode
+            except:
+                try:
+                    data_mode = stats.mode(y, axis = None, keepdims = False)[0]
+                except:
+                    try:
+                        if ((stats.mode(y, axis = None, keepdims = False) != np.nan) & (stats.mode(y, axis = None, keepdims = False) is not None)):
+                            data_mode = stats.mode(y, axis = None, keepdims = False)
+                        else:
+                            data_mode = np.nan
+                    except:
+                        data_mode = np.nan
             
             # Access the object correspondent to the distribution provided. To do so,
             # simply access dict['key1'], where 'key1' is a key from a dictionary dict ={"key1": 'val1'}
@@ -16145,6 +16220,14 @@ def OrdinalEncoding_df (df, subset_of_features_to_be_encoded):
         # Show encoded categories and store this array. 
         # It will give the proper columns' names:
         encoded_categories = ordinal_enc_obj.categories_
+        
+        """
+            The categories_ attribute stores a list containing an array:
+            [array(['apple', 'banana', 'blackgram', 'chickpea', 'coconut', 'coffee'], dtype=object)],
+            To access such array, we must access the element with index 0 from this array.
+            Then, we may convert it to list
+        """
+        encoded_categories = list(encoded_categories[0])
 
         # encoded_categories is an array of strings containing the information of
         # encoded categories and their values.
@@ -16201,7 +16284,8 @@ def reverse_OrdinalEncoding (df, encoding_list):
     # key 'ordinal_encoder': this key must store a nested dictionary.
     # Even though the nested dictionaries generates by the encoding function present
     # two keys:  'categories', storing an array with the different categories;
-    # and 'ordinal_enc_obj', storing the encoder object, only the key 'ordinal_enc_obj' is required.
+    # and 'ordinal_enc_obj', storing the encoder object, only one of them is required,
+    # prefentially the 'categories' one.
     ## On the other hand, a third key is needed in the nested dictionary:
     ## key 'encoded_column': this key must store a string with the name of the column
     # obtained from Encoding.
@@ -16213,7 +16297,8 @@ def reverse_OrdinalEncoding (df, encoding_list):
     """
         ENCODING_LIST = [
                         {'original_column_label': None,
-                        'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None}},
+                        'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None, 
+                                            'categories': None}},
                         {'original_column_label': None,
                         'ordinal_encoder': {'ordinal_enc_obj': None, 'encoded_column': None}},]
     """
@@ -16256,15 +16341,31 @@ def reverse_OrdinalEncoding (df, encoding_list):
                 if encoder_dict['original_column_label'] is None:
                     encoder_dict['original_column_label'] = encoder_dict['ordinal_encoder']['encoded_column']
                 
-                if ((encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None)):
+                if ((encoder_dict['ordinal_encoder'] is not None)):
                     
                     # Access the column name:
                     col_name = encoder_dict['original_column_label']
 
                     # Access the nested dictionary:
                     nested_dict = encoder_dict['ordinal_encoder']
-                    # Access the encoder object on the dictionary
-                    ordinal_enc_obj = nested_dict['ordinal_enc_obj']
+
+                    if ((encoder_dict['ordinal_encoder']['categories'] is not None)):
+
+                        categories = nested_dict['categories']
+                    
+                    elif ((encoder_dict['ordinal_encoder']['ordinal_enc_obj'] is not None)):
+                        # Access the encoder object on the dictionary
+                        ordinal_enc_obj = nested_dict['ordinal_enc_obj']
+                        # Get minimum and maximum encoded values:
+                        categories = ordinal_enc_obj.categories_
+
+                        """
+                            The categories_ attribute stores a list containing an array:
+                            [array(['apple', 'banana', 'blackgram', 'chickpea', 'coconut', 'coffee'], dtype=object)],
+                            To access such array, we must access the element with index 0 from this list
+                        """
+                        categories = categories[0]
+
                     # Access the encoded column and save it as a list:
                     encoded_col = nested_dict['encoded_column']
                     # If it is None, repeat the original colum name
@@ -16277,18 +16378,9 @@ def reverse_OrdinalEncoding (df, encoding_list):
                     X = X[encoded_col]
                     X = np.array(X).reshape(-1,1) 
                     # Put the array in the form of a matrix containing one element (column) per row: [[val1], [val2], ...]
-
+                
                     # Round every value to the closest integer before trying to inverse the transformation:
                     X = np.rint(X)
-                    # Get minimum and maximum encoded values:
-                    categories = ordinal_enc_obj.categories_
-
-                    """
-                        The categories_ attribute stores a list containing an array:
-                        [array(['apple', 'banana', 'blackgram', 'chickpea', 'coconut', 'coffee'], dtype=object)],
-                        To access such array, we must access the element with index 0 from this list
-                    """
-                    categories = categories[0]
 
                     min_encoded = 0 # always from zero
                     max_encoded = len(categories) - 1 # counting starts from zero
@@ -16303,11 +16395,20 @@ def reverse_OrdinalEncoding (df, encoding_list):
                     # Avoids losing information.
                     
                     try:
-                        # Reverse the encoding:
-                        reversed_array = ordinal_enc_obj.inverse_transform(X)
+                        # Create an array of NAs with same dimensions as X:
+                        reversed_array  =  np.where(X, np.nan, np.nan)
+                        for code, category in enumerate(categories):
+                            # code is the integer from categories, and category is the value:
+                            # enumerate generates elements like (0, categories[0])
+                            reversed_array =  np.where(X == code, category, reversed_array)
+                        
                     except:
-                        # Make a column of missing values:
-                        reversed_array = np.nan
+                        try:    
+                            # Reverse the encoding with the encoding object:
+                            reversed_array = ordinal_enc_obj.inverse_transform(X)
+                        except:
+                            # Make a column of missing values:
+                            reversed_array = np.nan
                 
                 else:
                     # Try accessing the individual encoding information with format 
