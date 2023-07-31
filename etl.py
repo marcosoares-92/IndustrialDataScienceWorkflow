@@ -9032,10 +9032,10 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     # Pandas deprecated the automatic dropna with aggregation:
     DATASET = DATASET.dropna(axis = 0)
     
-    # Convert categorical_var_name to Pandas 'category' type. If the variable is represented by
+    # Convert categorical_var_name to string type. If the variable is represented by
     # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
-    # of as a category. It will prevents this to happen:
-    DATASET[categorical_var_name] = DATASET[categorical_var_name].astype("category")    
+    # of as a category (bars will be shown in number ascending order). It will prevents this to happen:
+    DATASET[categorical_var_name] = DATASET[categorical_var_name].astype(str)    
     
     # If an aggregate function different from 'sum', 'mean', 'median' or 'mode' 
     # is used with plot_cumulative_percent = True, 
