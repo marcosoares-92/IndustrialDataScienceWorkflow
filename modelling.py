@@ -2208,6 +2208,7 @@ class tf_models:
 
     def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
+        # NOT WORKING
         import tensorflow as tf
         
         input_layer = self.input_layer
@@ -2497,6 +2498,7 @@ class siamese_networks:
     
     def base_model_cnn_lstm_time_series (self, input_layer, response):
         
+        # NOT WORKING
         import tensorflow as tf
         
         convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))

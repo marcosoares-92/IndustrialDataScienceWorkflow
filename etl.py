@@ -14300,7 +14300,8 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
     
     for freq_dict in important_frequencies:
         
-        value = freq_dict['value']
+        value = 1/freq_dict['value']
+        # period.
         unit = freq_dict['unit']
         
         if ((value is not None) & (unit is not None)):
@@ -14353,6 +14354,10 @@ def get_frequency_features (df, timestamp_tag_column, important_frequencies = [{
             DATASET[column_name1] = np.sin(timestamp_s * (2 * np.pi / (factor * value)))
             DATASET[column_name2] = np.cos(timestamp_s * (2 * np.pi / (factor * value)))
             
+            # cos(2pi* t/T), where t is the total time in seconds since Jan 1, 1970
+            # T is the period, the inverse of the frequency. If the frequency is 2x a year,
+            # so the period = 1/2 year. If frequency is once a year, period = 1/1 = 1 year.
+
     # There are 8 possible frequencies to plot, i.e, 16 possible sin and cos plots.
     # List of tuples, containing the pairs of colors to be used:
     colors = [('crimson', 'darkblue'), 
