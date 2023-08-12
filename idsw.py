@@ -1507,7 +1507,7 @@ def set_schema_pd_df (df, schema_list = [{'column_name': None, 'column_type': No
             column_name, column_type = schema['column_name'], schema['column_type']
             if ((column_name is not None) & (column_type is not None)):
                 try:
-                    dataset[column_name] = dataset[column_name].astype(column_type)
+                    dataset[column_name] = np.array(dataset[column_name], dtype = column_type)
                 except:
                     pass
 
