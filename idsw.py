@@ -1712,7 +1712,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             #check model_type:
             if (model_type == 'keras'):
                 import tensorflow as tf
-                model_extension = 'h5'
+                model_extension = 'keras'
             
             elif (model_type == 'sklearn'):
                 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression

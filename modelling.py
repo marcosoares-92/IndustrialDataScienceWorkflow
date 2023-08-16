@@ -5415,6 +5415,14 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
                 elif (total_dimensions == 2):
                     y_pred = y_pred[:,0]
         
+        if list_of_responses is not None:
+            # The column may have been added as the list of responses
+            if type(list_of_responses) == str:
+                column_with_predictions_suffix = list_of_responses
+            
+            if len(list_of_responses) == 1:
+                column_with_predictions_suffix = str(list_of_responses[0])
+
         # check if there is a suffix:
         if not (column_with_predictions_suffix is None):
             # There is a suffix declared
