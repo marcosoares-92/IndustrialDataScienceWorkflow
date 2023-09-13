@@ -18100,10 +18100,16 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
     return forecast_df
 
 
-def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
+def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_predictors = None, confidence_level_pct = 95.0):
     
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     # https://machinelearningmastery.com/time-series-forecasting-with-prophet-in-python/
+    # https://medium.com/mlearning-ai/multivariate-time-series-forecasting-using-fbprophet-66147f049e66
+    # https://search.r-project.org/CRAN/refmans/prophet/html/add_regressor.html
+    # https://www.bing.com/ck/a?!&&p=9de08ba28924217dJmltdHM9MTY5NDU2MzIwMCZpZ3VpZD0zMmUyZmQwMC1lMzIzLTYwZTYtMWRkOS1lZjU1ZTI0ODYxN2QmaW5zaWQ9NTQ3NA&ptn=3&hsh=3&fclid=32e2fd00-e323-60e6-1dd9-ef55e248617d&psq=prophet+add+regressor+standardize&u=a1aHR0cHM6Ly9jcmFuLnItcHJvamVjdC5vcmcvd2ViL3BhY2thZ2VzL3Byb3BoZXQvcHJvcGhldC5wZGYjOn46dGV4dD1UaGUlMjBkYXRhZnJhbWUlMjBwYXNzZWQlMjB0byUyMCVFMiU4MCU5OGZpdCVFMiU4MCU5OCUyMGFuZCUyMCVFMiU4MCU5OHByZWRpY3QlRTIlODAlOTglMjB3aWxsLERlY3JlYXNpbmclMjB0aGUlMjBwcmlvciUyMHNjYWxlJTIwd2lsbCUyMGFkZCUyMGFkZGl0aW9uYWwlMjByZWd1bGFyaXphdGlvbi4&ntb=1
+    # https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html
+    # https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+
     
     from prophet import Prophet
     
@@ -18116,7 +18122,23 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
     # timestamp_tag_column declare a string (inside quotes), 
     # containing the name of the column containing the time information. 
     # e.g. timestamp_tag_column = "DATE" will take the timestamps from column 'DATE'.
+
+    # list_of_predictors = None
+    # If the response variable will not be used to predict itself, but instead other variable(s) will be
+    # used as predictor(s) (regressors), declare such variables inside a list of strings or as a string.
+    # Example: list_of_predictors = ['col1', 'col2', 'col3'] will use columns named as 'col1', 'col2', and
+    # 'col3' to predict the response variable.
+
+    # confidence_level_pct = 95.0 represents the level of confidence for the calculated intervals.
+    # If confidence_level_pct = 95.0, then 95% confidence intervals will be obtained. If confidence_level_pct = 90.0,
+    # 90% confidence intervals are obtained.
+
+    if (confidence_level_pct is None):
+        confidence_level_pct = 95.0
     
+    confidence = confidence_level_pct/100
+    
+
     # Set a copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
@@ -18125,11 +18147,31 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column):
     DATASET[timestamp_tag_column] = x
     
     # Create a dataframe in the format required by Prophet:
-    DATASET = DATASET[[timestamp_tag_column, column_to_analyze]]
-    DATASET.columns = ['ds', 'y']
+
+    if (list_of_predictors is None):
+        
+        DATASET = DATASET[[timestamp_tag_column, column_to_analyze]]
+        DATASET.columns = ['ds', 'y']
     
+    else:
+
+        if type(list_of_predictors is not list):
+            # If it was not declared as list, put it inside it:
+            list_of_predictors = [str(list_of_predictors)]
+
+        list_of_columns = [timestamp_tag_column, column_to_analyze] + list_of_predictors
+        DATASET = DATASET[list_of_columns]
+        # Labels required by Prophet: 'ds' for datetimes, 'y' for the response
+        list_of_columns = ['ds', 'y'] + list_of_predictors
+        DATASET.columns = list_of_columns
+
     # Instantiate the Prophet object
-    model = Prophet()
+    model = Prophet(interval_width = confidence)
+    
+    if (list_of_predictors is not None):
+        for predictor in list_of_predictors:
+            # https://python.hotexamples.com/examples/fbprophet/Prophet/add_regressor/python-prophet-add_regressor-method-examples.html
+            model.add_regressor(predictor, standardize = 'auto')
     
     # Fit it to the dataframe:
     model.fit(DATASET)
