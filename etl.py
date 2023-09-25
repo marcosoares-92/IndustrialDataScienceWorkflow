@@ -16764,7 +16764,7 @@ def feature_scaling (df, subset_of_features_to_scale, mode = 'min_max', scale_wi
 
 
 def reverse_feature_scaling (df, subset_of_features_to_scale, list_of_scaling_params, mode = 'min_max', suffix = '_reverseScaling'):
-    
+
     from sklearn.preprocessing import StandardScaler
     from sklearn.preprocessing import MinMaxScaler
     # Scikit-learn Preprocessing data guide:
@@ -18101,7 +18101,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
 
 
 def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_predictors = None, confidence_level_pct = 95.0):
-    
+
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     # https://machinelearningmastery.com/time-series-forecasting-with-prophet-in-python/
     # https://medium.com/mlearning-ai/multivariate-time-series-forecasting-using-fbprophet-66147f049e66
@@ -18138,7 +18138,6 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_pred
     
     confidence = confidence_level_pct/100
     
-
     # Set a copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
@@ -18155,9 +18154,17 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_pred
     
     else:
 
-        if type(list_of_predictors is not list):
-            # If it was not declared as list, put it inside it:
+        try:
+            # Check if the len function may be applied (it is an iterable):
+            a = len(list_of_predictors)
+            if (type(list_of_predictors) == str):
+                #Put the string inside a list
+                list_of_predictors = [list_of_predictors]
+        
+        except:
+            # The column name is actually a number
             list_of_predictors = [str(list_of_predictors)]
+
 
         list_of_columns = [timestamp_tag_column, column_to_analyze] + list_of_predictors
         DATASET = DATASET[list_of_columns]
@@ -18183,18 +18190,35 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_pred
     return model
 
 
-def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 365, plot_predicted_time_series = True, get_interactive_plot = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-  
+def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 365, X = None, timestamp_column = None, make_future_forecasts_with_multi_regressors = True, forecasts_based_on = 'mean', plot_predicted_time_series = True, get_interactive_plot = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    from scipy import stats
     from prophet import Prophet
     
     # prophet_model_object : object containing the Prophet model previously obtained.
     # e.g. prophet_model_object = prophet_model if the model was obtained as prophet_model
     # do not declare in quotes, since it is an object, not a string.
-    
+
     # number_of_periods_to_forecast = 7
     # integer value representing the total of periods to forecast. The periods will be in the
     # unit (dimension) of the original dataset. If 1 period = 1 day, 7 periods will represent
     # seven days.
+
+
+    # X, timestamp_column, make_future_forecasts_with_multi_regressors, forecasts_based_on: 
+    # parameters for making predictions for models with more than 1 predictor.
+    # X is the dataframe object that will be used for making the predictions, and must be filled in this case. 
+    # e.g. X = dataset. The columns must be in the exact same order they were used for training the model.
+    # If the first column (timestamp) is not input as "ds", the column name must be input as a string in timestamp_column.
+    # Example: timestamp_column = 'timestamp'.
+
+    # make_future_forecasts_with_multi_regressors = True - If True, the future forecasts will be performed for the dataframe X. 
+    # If False, only X will be used for predictions.
+    # forecasts_based_on = 'mean' - For the case we are making forecasts based on multiple regressors, the values of the regressors
+    # must be set. You may use forecasts_based_on = 'mean' for applying the mean historical value; forecasts_based_on = 'ffill'
+    # to copy the nearest element on the dataset (forward-filling); or forecasts_based_on = 'mode' to use
+    # the mode (most common value) to perform missing value imputation. 
+    
     
     # Keep plot_predicted_time_series = True to see the graphic of the predicted values.
     # Alternatively, set plot_predicted_time_series = False not to show the plot.
@@ -18208,14 +18232,95 @@ def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 3
     # Create a dataframe containing the dates used for training Prophet with the dates that will be
     # predicted.
     model = prophet_model_object
+
+    if (X is not None):
+        # Set a copy of the dataframe to manipulate:
+        DATASET = df.copy(deep = True)
+        
+        if ('ds' not in list(X.columns)):
+            if (timestamp_column is None):
+                # Try using first column as the timestamp one
+                first_col = list(X.columns)[0]
+                DATASET = DATASET.rename(columns = {first_col:'ds'})
+            else:
+                DATASET = DATASET.rename(columns = {timestamp_column:'ds'})
+
+        if (make_future_forecasts_with_multi_regressors):
+            # Add forecasts for future time
+            # Create column with current datetimes and datetimes on the future:
+            future = model.make_future_dataframe(periods = number_of_periods_to_forecast)
+            #Concatenate this column of datetimes with the dataset
+            DATASET = pd.concat([DATASET, future], axis = 0)
+            # Guarantee that all datetimes are of the same type, so that equal timestamps will be
+            # Interpreted as duplicates:
+            DATASET['ds'] = DATASET['ds'].astype('datetime64[ns]')
+            # Drop duplicated timestamps, keeping only the first (from DATASET, not from future).
+            # Then, reset index
+            DATASET = DATASET.drop_duplicates(subset = ['ds'], keep = 'first')
+            DATASET = DATASET.reset_index(drop = True)
+
+            # This dataset contain missing values for the non-timestamp columns, corresponding to timestamps in the
+            # future. We must fill them before making the predictions
+            # Set a list without timestamps - columns from the 2nd element (index 1)
+            non_timestamp_cols = list(DATASET.columns)[1:]
+
+            # If no imputation mode was defined, use the mean value:
+            if (forecasts_based_on is None):
+                forecasts_based_on = 'mean'
+            
+            # Start a filling dictionary:
+            fill_dict = {}
+            if (forecasts_based_on == 'mean'):
+                for column in non_timestamp_cols:
+                    # add column as the key, and the mean as the value:
+                    fill_dict[column] = DATASET[column].mean()
+                
+                # Fill missing values:
+                DATASET = DATASET.fillna(value = fill_dict)
+            
+            elif (forecasts_based_on == 'ffill'):
+                DATASET = DATASET.fillna(method = 'ffill')
+            
+            elif (forecasts_based_on == 'mode'):
+                for column in non_timestamp_cols:
+                            
+                    # The function stats.mode(X) returns an array as: 
+                    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
+                    # ModeResult(mode=3, count=5) ac, axis = None, cess mode attribute       
+                    # which will return a string like 'a':
+                    try:
+                        fill_dict[column] = stats.mode(np.array(DATASET[column]), axis = None, keepdims = False).mode
+                        
+                    except:
+                        try:
+                            fill_dict[column] = stats.mode(np.array(DATASET[column]), axis = None, keepdims = False)[0]
+                        except:
+                            try:
+                                if ((stats.mode(np.array(DATASET[column]), axis = None, keepdims = False) != np.nan) & (stats.mode(np.array(DATASET[column]), axis = None, keepdims = False) is not None)):
+                                    fill_dict[column] = stats.mode(np.array(DATASET[column]), axis = None, keepdims = False)
+                                else:
+                                    fill_dict[column] = np.nan
+                            except:
+                                fill_dict[column] = np.nan
+                    
+                # Fill missing values:
+                DATASET = DATASET.fillna(value = fill_dict)
+
+        # Finally, make the predictions
+        forecast_df = model.predict(DATASET)
+
+
+    else:
+        # Only forecasts for the single time-series column will be performed:
+        future = model.make_future_dataframe(periods = number_of_periods_to_forecast)
+        # Make the predictions for the future dataframe:
+        forecast_df = model.predict(future)
+        
     
-    future = model.make_future_dataframe(periods = number_of_periods_to_forecast)
-    # Make the predictions for the future dataframe:
-    forecast_df = model.predict(future)
-    # Select the columns to plot:
-    forecast_df = forecast_df[['ds', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']]
-    # Rename columns to give a more meaninful name:
-    forecast_df.columns = ['timestamp', 'y_forecasts', 'lower_cl', 'upper_cl', 'trend']
+    # Rename columns to give more meaninful names:
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rename.html
+    forecast_df = forecast_df.rename(columns = {'ds': 'timestamp', 'yhat': 'y_forecasts',
+                                                'yhat_lower': 'lower_cl', 'yhat_upper': 'upper_cl'})
     
     x_forecast_series = forecast_df['timestamp']
     y_forecast_series = forecast_df['y_forecasts']
