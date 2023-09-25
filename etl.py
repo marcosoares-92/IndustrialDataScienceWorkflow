@@ -18235,7 +18235,7 @@ def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 3
 
     if (X is not None):
         # Set a copy of the dataframe to manipulate:
-        DATASET = df.copy(deep = True)
+        DATASET = X.copy(deep = True)
         
         if ('ds' not in list(X.columns)):
             if (timestamp_column is None):
