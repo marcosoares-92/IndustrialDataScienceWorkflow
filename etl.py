@@ -18128,6 +18128,8 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_pred
     # used as predictor(s) (regressors), declare such variables inside a list of strings or as a string.
     # Example: list_of_predictors = ['col1', 'col2', 'col3'] will use columns named as 'col1', 'col2', and
     # 'col3' to predict the response variable.
+    # ATTENTION: There is a maximum number of regressors allowed by Prophet. When using more than the 53-predictors
+    # limit, an error will be raised.
 
     # confidence_level_pct = 95.0 represents the level of confidence for the calculated intervals.
     # If confidence_level_pct = 95.0, then 95% confidence intervals will be obtained. If confidence_level_pct = 90.0,
