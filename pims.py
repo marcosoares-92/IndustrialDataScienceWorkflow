@@ -616,6 +616,262 @@ class ip21_extractor:
         return self
 
 
+class sql_server_connection:
+    
+    # Initialize instance attributes.
+    # define the Class constructor, i.e., how are its objects:
+
+    """
+    INSTALL ODBC DRIVER IF USING MACOS OR LINUX (Windows already has it):
+    - MacOS Installation: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver16
+    - Linux Installation: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver16&tabs=alpine18-install%2Calpine17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline
+    """
+
+    def __init__ (self, server, 
+                  database,
+                  username = '', 
+                  password = '',
+                  system = 'windows'):
+        
+        # system = 'windows', 'macos' or 'linux'
+
+        # If the user passes the argument, use them. Otherwise, use the standard values.
+        # Set the class objects' attributes.
+        # Suppose the object is named assistant. We can access the attribute as:
+        # assistant.assistant_startup, for instance.
+        # So, we can save the variables as objects' attributes.
+        
+        import pyodbc
+        import pandas as pd
+        # Some other example server values are
+        # server = 'localhost\sqlexpress' # for a named instance
+        # server = 'myserver,port' # to specify an alternate port
+
+        if ((username is None)|(username == '')):
+            # Ask the user to provide the credentials:
+            username = input(f"Enter your username for accessing the SQL database {database} from server {server} here (in the right).")
+            print("\n") # line break
+        
+        if ((password is None)|(password == '')):
+            from getpass import getpass
+            password = getpass(f"Enter your password (Secret key) for accessing the SQL database {database} from server {server} here (in the right).")
+        
+        
+        if (system == 'windows'):
+            cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+        
+        else:
+            cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password + 'Encrypt=no;TrustServerCertificate=yes')
+            # https://stackoverflow.com/questions/71587239/operationalerror-when-trying-to-connect-to-sql-server-database-using-pyodbc/71588236#71588236
+        
+        cursor = cnxn.cursor()
+        
+        self.cnxn = cnxn
+        self.cursor = cursor
+        self.query_counter = 0
+        
+
+    def get_db_schema(self, show_schema = True, export_csv = False, saving_directory_path = "db_schema.csv"):
+            
+        import pandas as pd
+        query = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'"
+            
+        schema_df = pd.read_sql(query, self.cnxn)
+        
+        if (show_schema):
+            print("Database schema:")
+            print(f"There are {len(schema_df)} tables registered in the database.\n")
+            try:
+                from IPython.display import display
+                display(schema_df)
+                
+            except:
+                print(schema_df)
+                
+        self.schema_df = schema_df
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = "db_schema.csv"
+            
+            schema_df.to_csv(saving_directory_path)
+            
+        return self
+        
+        
+    def run_sql_query(self, query, show_table = True, export_csv = False, saving_directory_path = ""):
+
+        # show_table: keep as True to print the queried table, set False to hide it.
+        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
+        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
+        # export_csv = True
+
+        # SQL SERVER INNER JOIN:
+        """
+        https://www.sqlservertutorial.net/sql-server-basics/sql-server-inner-join/
+
+        FROM table1 d
+        INNER JOIN table2 t
+        ON d.key1 = t.key2
+        """
+        
+        # SQL SERVER UNION STATEMENT (vertical concatenation/append):
+        """
+        https://www.w3schools.com/sql/sql_union.asp
+
+        FROM table1 d
+        INNER JOIN table2 t
+        ON d.key1 = t.key2
+        UNION
+        SELECT ValueTime as timestamp, TagName AS tag
+        FROM LatestIP21TagDataNumeric
+        WHERE TagName = 'TAGABC' OR TagName = 'TAGABD' OR TagName = 'TAGABE' 
+        ORDER BY timestamp ASC;
+        -- Notice that ORDER BY appears at the end of the query, after all joins and unions
+        """
+
+        # SQL SERVER TOP (EQUIVALENT TO LIMIT):
+        """
+        https://www.w3schools.com/sqL/sql_top.asp
+        
+        SELECT TOP 100 *
+        FROM table;
+        """
+        
+        # SQL SERVER WHERE STATEMENT (FILTER):
+        """
+        https://learn.microsoft.com/en-us/sql/t-sql/queries/where-transact-sql?view=sql-server-ver16
+
+        WHERE column1 = 'val1' OR column1 = 'val2'
+        """
+        
+        # SQL SERVER CASE STATEMENT (IF ELSE):
+        """
+        https://www.w3schools.com/sql/sql_case.asp
+
+        CASE
+            WHEN t.TagName = 'CODEXXX' THEN 'Variable X'
+        ELSE ''
+        END AS variable,
+        """
+
+        import pandas as pd
+
+        query_counter = self.query_counter
+            
+        df = pd.read_sql(query, self.cnxn)
+
+        if (show_table):   
+            print("Returned table:\n")
+            try:
+                from IPython.display import display
+                display(df)
+                
+            except:
+                print(df)
+
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_query{query_counter}"] = df
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df.to_csv(saving_directory_path)
+        
+        # Update counter:
+        self.query_counter = query_counter + 1
+
+        return df
+        
+        
+    def get_full_table(self, table, show_table = True, export_csv = False, saving_directory_path = ""):
+            
+        import pandas as pd
+        
+        query_counter = self.query_counter
+
+        query = "SELECT * FROM " + str(table)
+            
+        df_table = pd.read_sql(query, self.cnxn)
+        
+        if (show_table): 
+            print("Returned table:\n")
+            try:
+                from IPython.display import display
+                display(df_table)
+                
+            except:
+                print(df_table)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_table{query_counter}"] = df_table
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df_table.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1    
+            
+        return df_table
+    
+    
+    def query_specific_tag_ip21sqlserver (self, tag, variable_name = None, show_table = True, export_csv = False, saving_directory_path = ""):
+        
+        """tag: string with tag as registered in IP21. e.g. tag = 'WTX15TI101-05'.
+        
+        variable_name: string containing a more readable name for the tag, that will be also shown.
+        e.g. variable_name = 'Influent Temp Deg C'
+        """
+        
+        import pandas as pd
+        # https://www.sqlservertutorial.net/sql-server-basics/sql-server-inner-join/
+        # https://www.w3schools.com/sqL/sql_top.asp
+        # https://learn.microsoft.com/en-us/sql/t-sql/queries/where-transact-sql?view=sql-server-ver16
+        # https://www.w3schools.com/sql/sql_case.asp
+        # https://www.w3schools.com/sql/sql_union.asp
+        
+        if (variable_name is None):
+            #Repeat the tag
+            variable_name = tag
+
+        query = f"""SELECT d.ValueTime AS timestamp, t.TagName AS tag,
+                    CASE
+                        WHEN t.TagName = '{tag}' THEN '{variable_name}'
+                        ELSE ''
+                    END AS variable,
+                    d.Value AS value
+                    FROM IP21DataNumeric d
+                    INNER JOIN IP21PublishConfig t
+                    ON d.TagConfigID = t.ID
+                    WHERE t.TagName = '{tag}'
+                    UNION
+                    SELECT ValueTime as timestamp, TagName AS tag, 
+                    CASE
+                        WHEN TagName = '{tag}' THEN '{variable_name}'
+                        ELSE ''
+                    END AS variable,
+                    Value AS value
+                    FROM LatestIP21TagDataNumeric
+                    WHERE TagName = '{tag}'
+                    ORDER BY timestamp ASC;
+                """
+        
+        tag_df = self.run_sql_query(query = query, show_table = show_table, export_csv = export_csv, saving_directory_path = saving_directory_path)
+        
+            
+        return tag_df
+
+
 def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'actual_name': None}], username = None, password = None, data_source = 'localhost', start_time = {'year': 2015, 'month': 1, 'day':1, 'hour': 0, 'minute': 0, 'second': 0}, stop_time = {'year': 2022, 'month': 4, 'day': 1, 'hour': 0, 'minute': 0, 'second': 0}, start_timedelta_unit = 'day', stop_timedelta_unit = 'day', ip21time_array = [], previous_df_for_concatenation = None):
         
     # ip21_server is a string informing the server name for the IP21 REST API.
@@ -895,4 +1151,5 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
             print("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
             return "error", "error"
 
-        
+
+def query_sql_server(server, database, username, password, query, system = 'windows')   
