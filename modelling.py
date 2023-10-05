@@ -4170,6 +4170,8 @@ def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_t
     # Check explanaining of out-of-bag error:
     # https://scikit-learn.org/stable/auto_examples/ensemble/plot_ensemble_oob.html
     
+    import tensorflow as tf
+    
     """
     - Bagging ensemble of decision trees.
     - Data is divided and sampled. Trees are trained simultaneously, giving no preference to a given subset.
@@ -4371,6 +4373,8 @@ def RANDOM_FOREST (X_train, y_train, type_of_problem = "regression", number_of_t
 
 
 def XGBOOST (X_train, y_train, type_of_problem = "regression", number_of_trees = 128, max_tree_depth = None, percent_of_training_set_to_subsample = 75, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    
+    import tensorflow as tf
     
     """
     - Boosting ensemble of decision trees.

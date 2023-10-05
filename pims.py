@@ -1150,6 +1150,3 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
         except:
             print("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
             return "error", "error"
-
-
-def query_sql_server(server, database, username, password, query, system = 'windows')   
