@@ -246,6 +246,12 @@ class model_checking:
 
                     else:
 
+                        # y_true and y_pred should be converted to integers to represent the classes
+                        # so that there will be no compatibility issues resulting in erros when calculating
+                        # the metrics.
+                        y_true = y_true.astype('int64')
+                        y_pred = y_pred.astype('int64')
+
                         print(f"Metrics for {key}:\n")
 
                         auc = roc_auc_score(y_true, y_pred)
@@ -6154,14 +6160,13 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
     # subset X_train that will be randomly selected for the SHAP 
     # analysis. If the kernel is taking too long, reduce this value.
     
-    # MODEL_TYPE = 'linear' for linear models (OLS, Ridge, Lasso, ElasticNet,
-    # Logistic Regression)
-    # MODEL_TYPE = 'tree' for tree-based models (Random Forest and XGBoost)
-    # MODEL_TYPE = 'ann' for artificial neural networks
-    
-    # PLOT_TYPE = 'waterfall', 'beeswarm', 'bar', 'heatmap' 
-    # 'scatter', 'force_plt' or 'summary': 
-    # sets the type of shap plot that will be shown
+    # MODEL_TYPE = 'general' for the general case, including artificial neural networks.
+    # MODEL_TYPE = 'linear' for Sklearn linear models (OLS, Ridge, Lasso, ElasticNet,
+    # Logistic Regression).
+    # MODEL_TYPE = 'tree' for tree-based models (Random Forest and XGBoost).
+    # MODEL_TYPE = 'deep' for Deep Learning TensorFlow model.
+    # Actually, any string different from 'linear', 'tree', or 'deep' (including blank string)
+    # will apply the general case.
     
     # If clustering is used, it is possible to plot the dendogram with
     # the bar chart: shap.plots.bar(shap_values, clustering=clustering, clustering_cutoff=1.8)
@@ -6192,10 +6197,10 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
         print("Analyzing Scikit-learn linear model.")
         
         # Create an object from the Linear explainer class:
-        shap_explainer = shap.explainers.Linear(model_object)
+        shap_explainer = shap.LinearExplainer(model_object, np.array(X_shap))
         # Documentation:
+        # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.LinearExplainer.html
         # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Math%20behind%20LinearExplainer%20with%20correlation%20feature%20perturbation.html
-        # https://shap.readthedocs.io/en/latest/generated/shap.explainers.Linear.html#shap.explainers.Linear
         # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Sentiment%20Analysis%20with%20Logistic%20Regression.html
         
         # Apply .shap_values method to obtain the shap values:
@@ -6207,17 +6212,41 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
         print("Analyzing tree-based Scikit-learn or XGBoost model.")
     
         # Create an object from the Tree explainer class:
-        shap_explainer = shap.explainers.Tree(model_object)
+        shap_explainer = shap.TreeExplainer(model_object, np.array(X_shap))
+        # 
         # Documentation:
         # https://shap.readthedocs.io/en/latest/generated/shap.explainers.Tree.html#shap.explainers.Tree
         # Apply .shap_values method to obtain the shap values:
         shap_vals = shap_explainer.shap_values(X_shap)
         # shap_vals is a list or array of calculated values.
+ 
+    elif (model_type == 'deep'):
         
+        print("Analyzing Deep Learning TensorFlow model with Deep Explainer.")
+    
+        # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.DeepExplainer.html#shap.DeepExplainer
+        shap_explainer = shap.DeepExplainer(model_object, np.array(X_shap))
+        shap_vals = shap_explainer.shap_values(X_shap)
+
+        
+        """
+        For some deep computer vision models you may use the Gradient Explainer structure as in:
+        https://shap-lrjball.readthedocs.io/en/latest/example_notebooks/gradient_explainer/Explain%20an%20Intermediate%20Layer%20of%20VGG16%20on%20ImageNet.html
+        elif (model_type == 'gradient_tf'):
+            
+            print("Analyzing TensorFlow model with Gradient Explainer (using expected gradients, an extension of integrated gradients).")
+
+            # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.GradientExplainer.html
+            shap_explainer = shap.GradientExplainer(model_object, pd.DataFrame(np.array(X_shap)))
+
+            - After obtaining the explainer with this code, follow the examples. This class requires a pd.DataFrame as second
+            argument, since it access some attributes from this particular class.
+        """
+
     else:
         # In any other case, use the KernelExplainer
         # Create an object from KernelExplainer class:
-        shap_explainer = shap.KernelExplainer(model_object.predict, X_shap)
+        shap_explainer = shap.KernelExplainer(model_object.predict, np.array(X_shap))
         # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/neural_networks/Census%20income%20classification%20with%20Keras.html
         # Alternatively: model_object.predict(X)
         # Apply .shap_values method to obtain the shap values:
