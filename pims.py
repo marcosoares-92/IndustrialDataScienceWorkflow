@@ -872,6 +872,240 @@ class sql_server_connection:
         return tag_df
 
 
+class gcp_bigquery_connection:
+    
+    # Initialize instance attributes.
+    # define the Class constructor, i.e., how are its objects:
+
+    def __init__ (self, project = '', dataset = ',' 
+                  ault_secret_path = '', app_role = '', app_secret = ''):
+        
+        # system = 'windows', 'macos' or 'linux'
+
+        # If the user passes the argument, use them. Otherwise, use the standard values.
+        # Set the class objects' attributes.
+        # Suppose the object is named assistant. We can access the attribute as:
+        # assistant.assistant_startup, for instance.
+        # So, we can save the variables as objects' attributes.
+        
+        from google.cloud import bigquery
+        import pandas as pd
+        # Some other example server values are
+        # server = 'localhost\sqlexpress' # for a named instance
+        # server = 'myserver,port' # to specify an alternate port
+        
+        # subprocess module allows running shell commands. Each portion from a Bash script is declared as an element 
+        # from a list of strings. Outputs are captured as a list of strings as well.        
+        # Example:
+        """
+        with Popen(["ls"], stdout=PIPE) as proc:
+        out = proc.readlines()
+        print(out)
+        
+        output: ['some_file.txt','some_other_file.txt']
+        # Notice that a Python variable of string type may be included to the list for generating dynamic execution of commands.
+        """
+
+        """
+        Example 2 command: python -m pip show pandas
+        from subprocess import Popen, PIPE, TimeoutExpired
+        proc = Popen(["python", "-m", "pip", "show", "pandas"], stdout = PIPE, stderr = PIPE)
+        try:
+            output, error = proc.communicate(timeout = 15)
+            print(output)
+        except:
+                    # General exception
+            output, error = proc.communicate()
+            print(f"Process with output: {output}, error: {error}.\n")
+
+        output: b'Name: pandas\r\nVersion: 2.0.3\r\nSummary: Powerful data structures for data analysis, time series, and statistics\r\nHome-page: \r\nAuthor: \r\nAuthor-email: The Pandas Development Team <pandas-dev@python.org>\r\nLicense: BSD 3-Clause License\r\n        \r\n        Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team\r\n        All rights reserved.\r\n        \r\n        Copyright (c) 2011-2023, Open source contributors.\r\n        \r\n        Redistribution and use in source and binary forms, with or without\r\n        modification, are permitted provided that the following conditions are met:\r\n        \r\n        * Redistributions of source code must retain the above copyright notice, this\r\n          list of conditions and the following disclaimer.\r\n        \r\n        * Redistributions in binary form must reproduce the above copyright notice,\r\n          this list of conditions and the following disclaimer in the documentation\r\n          and/or other materials provided with the distribution.\r\n        \r\n        * Neither the name of the copyright holder nor the names of its\r\n          contributors may be used to endorse or promote products derived from\r\n          this software without specific prior written permission.\r\n        \r\n        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\r\n        AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\r\n        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\r\n        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\r\n        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\r\n        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\r\n        SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\r\n        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\r\n        OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\n        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\r\n        \r\nLocation: c:\\users\\gnklm\\appdata\\local\\anaconda3\\lib\\site-packages\r\nRequires: numpy, python-dateutil, pytz, tzdata\r\nRequired-by: cmdstanpy, datashader, holoviews, hvplot, prophet, seaborn, shap, statsmodels, xarray\r\n'
+        """
+
+        from subprocess import Popen, PIPE, TimeoutExpired
+
+        # Start a long running process using subprocess.Popen()
+        # Command to run:
+        """!gcloud auth application-default login"""
+
+        proc = Popen(["gcloud", "auth", "application-default", "login"], stdout = PIPE, stderr = PIPE)
+
+        """
+        You will use the subprocess.communicate() method to wait for the command to finish running for up to 15 seconds. 
+        The process will then timeout and it will return an Exception: i.e. error detected during execution, which will be caught 
+        and the process will be cleaned up by proc.kill(). 
+        """
+
+        # Use subprocess.communicate() to create a timeout 
+        try:
+            output, error = proc.communicate(timeout = 15)
+            # Simply remove timeout argument if process is not supposed to finish after a given time.
+            
+        except TimeoutExpired:
+
+            # Cleanup the process if it takes longer than the timeout
+            proc.kill()
+            
+            # Read standard out and standard error streams and print
+            output, error = proc.communicate()
+            print(f"Process timed out with output: {output}, error: {error}.")
+        
+        except:
+            # General exception
+            proc.kill()
+            output, error = proc.communicate()
+            print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
+
+            warning = """"
+            Install Google Cloud Software Development Kit (SDK) before running this function.
+            
+            General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+            Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+            Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+            Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+            """
+
+            print(warning)
+
+        try:
+            from IPython.display import display 
+            # from IPython.display import display, display_html
+            out = list(proc._fileobj2output.keys())
+            out1, out2 = out[1], out[0]
+            display(proc._fileobj2output[out1][0])
+            print("\n")
+            # display(proc._fileobj2output[out2][0])
+            # display_html(proc._fileobj2output[out2][0])
+        
+        except:
+            pass
+
+        advice = """
+
+        If no GCP webpage or link was shown, copy and run the following line in a notebook cell. Do not add quotes.
+        The "!" sign must be added to indicate the use of a command line software:
+
+        !gcloud auth application-default login
+        
+        Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
+        It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
+
+        To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
+        
+        """"
+
+        print(advice)
+
+        if ((project is None)|(project == '')):
+            # Ask the user to provide the credentials:
+            # This is the name that appears on the right-hand menu from GCP console Big Query page, 
+            # (https://console.cloud.google.com/bigquery) called Explorer
+            # that contains a group of datasets. E.g.: location360-datasets; bcs-csw-core, etc
+            # The individual datasets are revealed after expanding the project name by clicking on the arrow.
+            self.project = input(f"Enter the name of the project registered on Google Cloud Platform (GCP).")
+            print("\n") # line break
+        
+        
+        if ((dataset is None)|(dataset == '')):
+            # Ask the user to provide the credentials:
+            # E.g.: core
+            self.dataset = input(f"Enter the name of the dataset from project {self.project} registered on GCP, containing the tables that will be queried.")
+            print("\n") # line break
+       
+        self.query_counter = 0
+
+
+    def connect_to_gcp_project (self):
+
+        from google.cloud import bigquery
+
+        self.client = bigquery.Client(project = self.project)
+
+        return self
+
+
+    def run_sql_query(self, query, show_table = True, export_csv = False, saving_directory_path = ""):
+
+        # show_table: keep as True to print the queried table, set False to hide it.
+        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
+        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
+        # export_csv = True
+
+        import pandas as pd
+
+        query_counter = self.query_counter
+
+        client = self.client
+        job = client.query(query)
+        df = job.to_dataframe()
+
+        if (show_table):   
+            print("Returned table:\n")
+            try:
+                from IPython.display import display
+                display(df)
+                
+            except:
+                print(df)
+
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_query{query_counter}"] = df
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df.to_csv(saving_directory_path)
+        
+        # Update counter:
+        self.query_counter = query_counter + 1
+
+        return df
+        
+        
+    def get_full_table(self, table, show_table = True, export_csv = False, saving_directory_path = ""):
+            
+        import pandas as pd
+
+        table_name = f"""`{self.project}.{self.dataset}.{str(table)}`"""
+        
+        query_counter = self.query_counter
+
+        query = "SELECT * FROM " + table_name
+            
+        client = self.client
+        job = client.query(query)
+        df_table = job.to_dataframe()
+        
+        if (show_table): 
+            print("Returned table:\n")
+            try:
+                from IPython.display import display
+                display(df_table)
+                
+            except:
+                print(df_table)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_table{query_counter}"] = df_table
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df_table.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1    
+            
+        return df_table
+    
+        
 def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'actual_name': None}], username = None, password = None, data_source = 'localhost', start_time = {'year': 2015, 'month': 1, 'day':1, 'hour': 0, 'minute': 0, 'second': 0}, stop_time = {'year': 2022, 'month': 4, 'day': 1, 'hour': 0, 'minute': 0, 'second': 0}, start_timedelta_unit = 'day', stop_timedelta_unit = 'day', ip21time_array = [], previous_df_for_concatenation = None):
         
     # ip21_server is a string informing the server name for the IP21 REST API.
