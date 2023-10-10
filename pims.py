@@ -874,10 +874,30 @@ class sql_server_connection:
 
 class gcp_bigquery_connection:
     
+    """
+    Install Google Cloud Software Development Kit (SDK) before running
+            
+    General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+    Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+    Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+    Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+    
+    From: https://stackoverflow.com/questions/39419754/downloading-and-importing-google-cloud-python
+    First, make sure you have installed gcloud on your system then run the commands like this:
+
+    First: gcloud components update in your terminal.
+    then: pip install google-cloud
+    And for the import error:
+    Adding "--ignore-installed" to pip command may work.
+    This might be a bug in pip - see this page for more details: https://github.com/pypa/pip/issues/2751
+
+    This may be blocked also due to security configurations
+    """
+    
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
 
-    def __init__ (self, project = '', dataset = ',' 
+    def __init__ (self, project = '', dataset = '', 
                   ault_secret_path = '', app_role = '', app_secret = ''):
         
         # system = 'windows', 'macos' or 'linux'
@@ -955,7 +975,7 @@ class gcp_bigquery_connection:
             output, error = proc.communicate()
             print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
 
-            warning = """"
+            warning = """
             Install Google Cloud Software Development Kit (SDK) before running this function.
             
             General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
@@ -966,7 +986,7 @@ class gcp_bigquery_connection:
 
             print(warning)
 
-        try:
+        """try:
             from IPython.display import display 
             # from IPython.display import display, display_html
             out = list(proc._fileobj2output.keys())
@@ -977,21 +997,21 @@ class gcp_bigquery_connection:
             # display_html(proc._fileobj2output[out2][0])
         
         except:
-            pass
+            pass"""
 
         advice = """
-
-        If no GCP webpage or link was shown, copy and run the following line in a notebook cell. Do not add quotes.
+        Copy and run the following line in a notebook cell. Do not add quotes.
         The "!" sign must be added to indicate the use of a command line software:
+
 
         !gcloud auth application-default login
         
+
         Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
         It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
 
         To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
-        
-        """"
+        """
 
         print(advice)
 
