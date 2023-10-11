@@ -891,14 +891,15 @@ class gcp_bigquery_connection:
     Adding "--ignore-installed" to pip command may work.
     This might be a bug in pip - see this page for more details: https://github.com/pypa/pip/issues/2751
 
-    This may be blocked also due to security configurations
+    This pipeline may be blocked also due to security configurations, and may fail on some Virtual Private Networks (VPNs).
+    - Try to run this pipeline outside of the VPN in case it fails
     """
     
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
 
-    def __init__ (self, project = '', dataset = '', 
-                  ault_secret_path = '', app_role = '', app_secret = ''):
+    def __init__ (self, project = '', dataset = '', authentication_method = 'manual',
+                  vault_secret_path = '', app_role = '', app_secret = ''):
         
         # system = 'windows', 'macos' or 'linux'
 
@@ -908,8 +909,71 @@ class gcp_bigquery_connection:
         # assistant.assistant_startup, for instance.
         # So, we can save the variables as objects' attributes.
         
+        # authetication_method = 'manual' for GCP standard manual authentication on browser
+        """
+        MANUAL AUTHENTICATION INSTRUCTION
+        
+        - BEFORE INSTATIATING THE CLASS, FOLLOW THESE GUIDELINES!
+        
+        1. Copy and run the following line in a notebook cell. Do not add quotes.
+        The "!" sign must be added to indicate the use of a command line software:
+
+
+                            !gcloud auth application-default login
+        
+
+        2. Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
+        It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
+
+        2.1. To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
+        """
+        
+        # authetication_method = 'vault' for Vault automatic authentication, dependent on corporate
+        # cibersecurity and data asset.
+        # vault_secret_path = '', app_role = '', app_secret = '' are the parameters for vault authorization
+        
+        
         from google.cloud import bigquery
         import pandas as pd
+        
+        
+        if ((project is None)|(project == '')):
+            # Ask the user to provide the credentials:
+            # This is the name that appears on the right-hand menu from GCP console Big Query page, 
+            # (https://console.cloud.google.com/bigquery) called Explorer
+            # that contains a group of datasets. E.g.: location360-datasets; bcs-csw-core, etc
+            # The individual datasets are revealed after expanding the project name by clicking on the arrow.
+            print("\n")
+            self.project = input(f"Enter the name of the project registered on Google Cloud Platform (GCP).\n")
+        
+        if ((dataset is None)|(dataset == '')):
+            # Ask the user to provide the credentials:
+            # E.g.: core
+            print("\n")
+            self.dataset = input(f"Enter the name of the dataset from project {self.project} registered on GCP, containing the tables that will be queried.\n")
+
+        self.query_counter = 0
+        
+        if (authentication_method == 'manual'):
+            self.client = self.connect_to_gcp_project()
+        
+        elif (authentication_method == 'vault'):
+            self.client, self.storage_client = self.connect_to_gcp_project(vault_secret_path = vault_secret_path, app_role = app_role, app_secret = app_secret)
+
+
+    def connect_to_gcp_project (self):
+        
+        start_msg = """
+        This function allows the manual autentication: if the command 
+
+            !gcloud auth application-default login
+
+        was run for GCP authentication, this protocol will allow the creation of the client.
+        It is not designed to be used with a corporate protocol for fully automatic pipelines, such as Vault access. For that, the Cybersecurity or Data Asset team must be contacted.
+            """
+        
+        print(start_msg)
+        
         # Some other example server values are
         # server = 'localhost\sqlexpress' # for a named instance
         # server = 'myserver,port' # to specify an alternate port
@@ -947,102 +1011,155 @@ class gcp_bigquery_connection:
         # Command to run:
         """!gcloud auth application-default login"""
 
-        proc = Popen(["gcloud", "auth", "application-default", "login"], stdout = PIPE, stderr = PIPE)
-
-        """
-        You will use the subprocess.communicate() method to wait for the command to finish running for up to 15 seconds. 
-        The process will then timeout and it will return an Exception: i.e. error detected during execution, which will be caught 
-        and the process will be cleaned up by proc.kill(). 
-        """
-
-        # Use subprocess.communicate() to create a timeout 
         try:
-            output, error = proc.communicate(timeout = 15)
-            # Simply remove timeout argument if process is not supposed to finish after a given time.
-            
-        except TimeoutExpired:
+            proc = Popen(["gcloud", "auth", "application-default", "login"], stdout = PIPE, stderr = PIPE)
 
-            # Cleanup the process if it takes longer than the timeout
-            proc.kill()
-            
-            # Read standard out and standard error streams and print
-            output, error = proc.communicate()
-            print(f"Process timed out with output: {output}, error: {error}.")
-        
-        except:
-            # General exception
-            proc.kill()
-            output, error = proc.communicate()
-            print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
-
-            warning = """
-            Install Google Cloud Software Development Kit (SDK) before running this function.
-            
-            General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
-            Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
-            Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
-            Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+            """
+            You will use the subprocess.communicate() method to wait for the command to finish running for up to 15 seconds. 
+            The process will then timeout and it will return an Exception: i.e. error detected during execution, which will be caught 
+            and the process will be cleaned up by proc.kill(). 
             """
 
-            print(warning)
+            # Use subprocess.communicate() to create a timeout 
+            try:
+                output, error = proc.communicate(timeout = 15)
+                # Simply remove timeout argument if process is not supposed to finish after a given time.
 
-        """try:
-            from IPython.display import display 
-            # from IPython.display import display, display_html
-            out = list(proc._fileobj2output.keys())
-            out1, out2 = out[1], out[0]
-            display(proc._fileobj2output[out1][0])
-            print("\n")
-            # display(proc._fileobj2output[out2][0])
-            # display_html(proc._fileobj2output[out2][0])
+            except TimeoutExpired:
+
+                # Cleanup the process if it takes longer than the timeout
+                proc.kill()
+
+                # Read standard out and standard error streams and print
+                output, error = proc.communicate()
+                print(f"Process timed out with output: {output}, error: {error}.")
+
+            except:
+                # General exception
+                proc.kill()
+                output, error = proc.communicate()
+                print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
+
+                warning = """
+                Install Google Cloud Software Development Kit (SDK) before running this function.
+
+                General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+                Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+                Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+                Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+                """
+
+                print(warning)
+
+            """try:
+                from IPython.display import display 
+                # from IPython.display import display, display_html
+                out = list(proc._fileobj2output.keys())
+                out1, out2 = out[1], out[0]
+                display(proc._fileobj2output[out1][0])
+                print("\n")
+                # display(proc._fileobj2output[out2][0])
+                # display_html(proc._fileobj2output[out2][0])
+
+            except:
+                pass"""
         
         except:
-            pass"""
-
-        advice = """
-        Copy and run the following line in a notebook cell. Do not add quotes.
-        The "!" sign must be added to indicate the use of a command line software:
-
-
-        !gcloud auth application-default login
-        
-
-        Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
-        It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
-
-        To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
-        """
-
-        print(advice)
-
-        if ((project is None)|(project == '')):
-            # Ask the user to provide the credentials:
-            # This is the name that appears on the right-hand menu from GCP console Big Query page, 
-            # (https://console.cloud.google.com/bigquery) called Explorer
-            # that contains a group of datasets. E.g.: location360-datasets; bcs-csw-core, etc
-            # The individual datasets are revealed after expanding the project name by clicking on the arrow.
-            self.project = input(f"Enter the name of the project registered on Google Cloud Platform (GCP).")
-            print("\n") # line break
+            pass
         
         
-        if ((dataset is None)|(dataset == '')):
-            # Ask the user to provide the credentials:
-            # E.g.: core
-            self.dataset = input(f"Enter the name of the dataset from project {self.project} registered on GCP, containing the tables that will be queried.")
-            print("\n") # line break
-       
-        self.query_counter = 0
-
-
-    def connect_to_gcp_project (self):
-
         from google.cloud import bigquery
 
-        self.client = bigquery.Client(project = self.project)
+        client = bigquery.Client(project = self.project)
 
-        return self
+        return client
 
 
+    def get_vault_secret (self, vault_secret_path: str, app_role: str, app_secret: str):
+               
+        import base64
+        import json
+        import hvac
+        import os
+
+        from google.oauth2 import service_account
+        from google.cloud import bigquery, bigquery_storage
+        
+        """
+        Get the vault secret in dictionary
+        More detail about hvac: https://hvac.readthedocs.io/en/stable/overview.html
+        
+        """
+        vault_url = 'https://vault.agro.services'
+        vault_client = hvac.Client(url = vault_url)
+        
+        vault_client.auth.approle.login(app_role, app_secret)
+
+        vault_path = vault_secret_path
+        vault_secret = vault_client.read(vault_path)
+        
+        return vault_secret['data']['data']
+
+ 
+    def get_vault_credentials (self, vault_secret_path: str, app_role: str, app_secret: str):
+        
+        import base64
+        import json
+        import hvac
+        import os
+
+        from google.oauth2 import service_account
+        from google.cloud import bigquery, bigquery_storage
+        
+        """
+        Bigquery project credential with service account
+        Return credential of a service account using app role and app secret
+        
+        """
+        vault_secret = self.get_vault_secret(vault_secret_path, app_role, app_secret)
+
+        if 'data' in vault_secret and type(vault_secret['data']) == str:
+            service_account_creds = json.loads(base64.b64decode(vault_secret['data']))
+        else:
+            # in case credentials are saved directly as json object in vault (not encoded) you can get it directly
+            service_account_creds = json.loads(base64.b64decode(vault_secret))
+        bq_credentials = service_account.Credentials.from_service_account_info(service_account_creds)
+
+        return bq_credentials
+
+
+    def vault_access_gcp (self, vault_secret_path = '', app_role = '', app_secret = ''):     
+        
+        import base64
+        import json
+        import hvac
+        import os
+
+        from google.oauth2 import service_account
+        from google.cloud import bigquery, bigquery_storage
+
+        
+        if ((vault_secret_path is None)|(vault_secret_path == '')):
+            vault_secret_path = input(f"Enter Vault Secret Path for accessing CSW.")
+            print("\n") # line break
+        
+        if ((app_role is None)|(app_role == '')):
+            app_role = input(f"Enter App Role for getting the Vault client.")
+            print("\n") # line break
+
+        if ((app_secret is None)|(app_secret == '')):
+            from getpass import getpass
+            vault_secret_path = getpass(f"Enter App Secret for getting the Vault client.")
+            print("\n") # line break
+
+        self.credentials = self.get_vault_credentials(vault_secret_path = vault_secret_path, app_role = app_role, app_secret = app_secret)
+
+        client = bigquery.Client(credentials = self.credentials, project = self.project)
+        storage_client = bigquery_storage.BigQueryReadClient(credentials = self.credentials)
+
+        return client, storage_client
+
+     
     def run_sql_query(self, query, show_table = True, export_csv = False, saving_directory_path = ""):
 
         # show_table: keep as True to print the queried table, set False to hide it.
@@ -1125,7 +1242,8 @@ class gcp_bigquery_connection:
             
         return df_table
     
-        
+
+
 def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'actual_name': None}], username = None, password = None, data_source = 'localhost', start_time = {'year': 2015, 'month': 1, 'day':1, 'hour': 0, 'minute': 0, 'second': 0}, stop_time = {'year': 2022, 'month': 4, 'day': 1, 'hour': 0, 'minute': 0, 'second': 0}, start_timedelta_unit = 'day', stop_timedelta_unit = 'day', ip21time_array = [], previous_df_for_concatenation = None):
         
     # ip21_server is a string informing the server name for the IP21 REST API.
