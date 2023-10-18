@@ -1377,14 +1377,14 @@ class gcp_bigquery_connection:
         import pandas as pd
             
         if ((type(old_value) == str)|(type(updated_value) == str)):
-                update_query = f"""
+            update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
                         SET `{column}` = '{updated_value}'
                         WHERE `{column}` = '{old_value}'
                         """
             
-            else:
-                update_query = f"""
+        else:
+            update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
                         SET `{column}` = {updated_value}
                         WHERE `{column}` = {old_value}
