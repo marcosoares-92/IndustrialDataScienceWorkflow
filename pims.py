@@ -1363,7 +1363,7 @@ class gcp_bigquery_connection:
         return df_table    
 
 
-    def update_specific_value_from_column_on_table (self, table, column, old_value, new_value, show_table = True, export_csv = False, saving_directory_path = ""):
+    def update_specific_value_from_column_on_table (self, table, column, old_value, updated_value, show_table = True, export_csv = False, saving_directory_path = ""):
 
         # show_table: keep as True to print the queried table, set False to hide it.
         # export_csv: set True to export the queried table as CSV file, or set False not to export it.
@@ -1377,14 +1377,14 @@ class gcp_bigquery_connection:
         import pandas as pd
             
         if ((type(old_value) == str)|(type(updated_value) == str)):
-            update_query = f"""
+                update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
                         SET `{column}` = '{updated_value}'
                         WHERE `{column}` = '{old_value}'
                         """
             
-        else:
-            update_query = f"""
+            else:
+                update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
                         SET `{column}` = {updated_value}
                         WHERE `{column}` = {old_value}
@@ -1430,7 +1430,220 @@ class gcp_bigquery_connection:
         # Update counter:
         self.query_counter = query_counter + 1    
             
+        return df_table
+
+
+    def update_entire_column_from_table (self, table, column, updated_value, show_table = True, export_csv = False, saving_directory_path = ""):
+
+        # show_table: keep as True to print the queried table, set False to hide it.
+        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
+        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
+        # export_csv = True
+        
+        # column is the column name on a given BigQuery table (a string).
+        # updated_value: new value to be added.
+
+        import pandas as pd
+            
+        if (type(updated_value) == str):
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = '{updated_value}'
+                        WHERE TRUE
+                        """
+            
+            else:
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = {updated_value}
+                        WHERE TRUE
+                        """
+            
+        client = self.client
+        query_counter = self.query_counter
+
+        table_ref = client.dataset(self.dataset).table(str(table))
+        table = client.get_table(table_ref)
+
+        table.streaming_buffer
+
+        if table.streaming_buffer is None:
+            job = client.query(update_query)
+            job.result()
+        else:
+            raise RuntimeError("Table contains data in a streaming buffer, which cannot be updated or deleted. Please perform this action when the streaming buffer is empty (may take up to 90 minutes from last data insertion).")
+
+        df_table = job.to_dataframe()
+        
+        if (show_table): 
+            print("Returned table with updated data:\n")
+            try:
+                from IPython.display import display
+                display(df_table)
+                
+            except:
+                print(df_table)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_table{query_counter}"] = df_table
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df_table.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1    
+            
         return df_table    
+
+
+    def update_value_when_finding_str_or_substring_on_another_column (self, table, column, updated_value, string_column, str_or_substring_to_search, show_table = True, export_csv = False, saving_directory_path = ""):
+
+        # show_table: keep as True to print the queried table, set False to hide it.
+        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
+        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
+        # export_csv = True
+        
+        # column is the column name on a given BigQuery table (a string).
+        # updated_value: new value to be added.
+        # string_column: column containing a string or substring that will be searched.
+        # str_or_substring_to_search (in quotes): string or substring that will be searched on column 'string_column'. 
+        # When it is find, the value on 'column' will be updated.
+
+        import pandas as pd
+            
+        if (type(updated_value) == str):
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = '{updated_value}'
+                        WHERE CONTAINS_SUBSTR({string_column}, "{str_or_substring_to_search}")
+                        """
+            
+            else:
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = {updated_value}
+                        WHERE CONTAINS_SUBSTR({string_column}, "{str_or_substring_to_search}")
+                        """
+            
+        client = self.client
+        query_counter = self.query_counter
+
+        table_ref = client.dataset(self.dataset).table(str(table))
+        table = client.get_table(table_ref)
+
+        table.streaming_buffer
+
+        if table.streaming_buffer is None:
+            job = client.query(update_query)
+            job.result()
+        else:
+            raise RuntimeError("Table contains data in a streaming buffer, which cannot be updated or deleted. Please perform this action when the streaming buffer is empty (may take up to 90 minutes from last data insertion).")
+
+        df_table = job.to_dataframe()
+        
+        if (show_table): 
+            print("Returned table with updated data:\n")
+            try:
+                from IPython.display import display
+                display(df_table)
+                
+            except:
+                print(df_table)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_table{query_counter}"] = df_table
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df_table.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1    
+            
+        return df_table
+
+
+    def update_value_when_finding_numeric_value_on_another_column (self, table, column, updated_value, comparative_column, value_to_search, show_table = True, export_csv = False, saving_directory_path = ""):
+
+        # show_table: keep as True to print the queried table, set False to hide it.
+        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
+        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
+        # export_csv = True
+        
+        # column is the column name on a given BigQuery table (a string).
+        # updated_value: new value to be added.
+        # comparative_column: column containing a numeric value that will be searched.
+        # value_to_search (in quotes): numeric value that will be searched on column 'comparative_colum'. 
+        # When it is find, the value on 'column' will be updated.
+
+        import pandas as pd
+            
+        if (type(updated_value) == str):
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = '{updated_value}'
+                        WHERE `{comparative_column}` = {value_to_search}
+                        """
+            
+            else:
+                update_query = f"""
+                    UPDATE `{self.project}.{self.dataset}.{str(table)}`
+                        SET `{column}` = {updated_value}
+                        WHERE `{comparative_column}` = {value_to_search}
+                        """
+            
+        client = self.client
+        query_counter = self.query_counter
+
+        table_ref = client.dataset(self.dataset).table(str(table))
+        table = client.get_table(table_ref)
+
+        table.streaming_buffer
+
+        if table.streaming_buffer is None:
+            job = client.query(update_query)
+            job.result()
+        else:
+            raise RuntimeError("Table contains data in a streaming buffer, which cannot be updated or deleted. Please perform this action when the streaming buffer is empty (may take up to 90 minutes from last data insertion).")
+
+        df_table = job.to_dataframe()
+        
+        if (show_table): 
+            print("Returned table with updated data:\n")
+            try:
+                from IPython.display import display
+                display(df_table)
+                
+            except:
+                print(df_table)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_table{query_counter}"] = df_table
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df_table.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1    
+            
+        return df_table
 
 
 def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'actual_name': None}], username = None, password = None, data_source = 'localhost', start_time = {'year': 2015, 'month': 1, 'day':1, 'hour': 0, 'minute': 0, 'second': 0}, stop_time = {'year': 2022, 'month': 4, 'day': 1, 'hour': 0, 'minute': 0, 'second': 0}, start_timedelta_unit = 'day', stop_timedelta_unit = 'day', ip21time_array = [], previous_df_for_concatenation = None):
