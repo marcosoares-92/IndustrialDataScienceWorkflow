@@ -206,11 +206,11 @@ class spc_chart_assistant:
                     
             print("For example: the diameter of a bearing could be measured with a micrometer and expressed in millimeters.\n")
             print("A single measurable quality characteristic, such as a dimension, weight, or volume, is a variable.")
-            print("Control charts for variables are used extensively, and are one of the primary tools used in the analize and control steps of DMAIC.")
+            print("Control charts for variables are used extensively, and are one of the primary tools used in the analyze and control steps of DMAIC.")
             
             print("Many quality characteristics cannot be conveniently represented numerically, though.")
             print("In such cases, we usually classify each item inspected as either conforming or nonconforming to the specifications on that quality characteristic.")
-            print("The terminology defective or nondefective is often used to identify these two classifications of product.")
+            print("The terminology defective or non-defective is often used to identify these two classifications of product.")
             print("More recently, this terminology conforming and nonconforming has become popular.")        
             print("Quality characteristics of this type are called attributes.\n")
             
@@ -252,7 +252,7 @@ class spc_chart_assistant:
             print("There are cases, however, in which the Poisson model is completely inappropriate.")
             print("So, always check carefully the distributions.")
                     
-            print("If you are not sure, use the estimatives based on more general assumptions, i.e.,")
+            print("If you are not sure, use the estimates based on more general assumptions, i.e.,")
             print("The estimative of the natural variation as 3 times the standard deviation;")
             print("or as 3 times the standard error.\n")
                     
@@ -297,7 +297,7 @@ class spc_chart_assistant:
                     
             print("In such situations, the control chart for individual units is useful.")
             print("In many applications of the individuals control chart, we use the moving range two successive observations as the basis of estimating the process variability.\n")
-            print("I-charts are often accompanied by moving range (MR) charts, which show the absolute difference between neighbouring data points.")
+            print("I-charts are often accompanied by moving range (MR) charts, which show the absolute difference between neighboring data points.")
             print("The purpose of the MR chart is to identify sudden changes in the (estimated) within-subgroup variation.")
             print("If any data point in the MR is above the upper control limit, one should interpret the I-chart very cautiously.\n")
         
@@ -347,7 +347,7 @@ class spc_chart_assistant:
             print("CHARTS FOR CATEGORICAL VARIABLES\n")
             print("There are 4 widely used attributes control charts: P, nP, U, and C.\n")
                     
-            print("To illustrate them, consider a dataset containing the weekly number of hospital acquired pressure ulcers at a hospital")
+            print("To illustrate them, consider a dataset containing the weekly number of patients that acquired pressure ulcers at a hospital.")
             print("The hospital has 300 patients, with an average length of stay of four days.") 
             print("Each of the dataframe's 24 rows contains information for one week on: the number of discharges,")
             print("patient days; pressure ulcers; and number of discharged patients with one or more pressure ulcers.")
@@ -383,10 +383,10 @@ class spc_chart_assistant:
                     
             print("As mentioned, defectives are modelled by the binomial distribution.")
             print("In theory, the P chart is less sensitive to special cause variation than the U chart.")
-            print("That is because it discards information by dichotomising inspection units (patients) in defectives and non-defectives ignoring the fact that a unit may have more than one defect (pressure ulcers).")
+            print("That is because it discards information by dichotomizing inspection units (patients) in defectives and non-defectives ignoring the fact that a unit may have more than one defect (pressure ulcers).")
             print("On the other hand, the P chart often communicates better.")
                     
-            print("For most people, not to mention the press, the percent of harmed patients is easier to grasp than the the rate of pressure ulcers expressed in counts per 1000 patient days.\n")
+            print("For most people, not to mention the press, the percent of harmed patients is easier to grasp than the rate of pressure ulcers expressed in counts per 1000 patient days.\n")
             print("The sample fraction nonconforming is defined as the ratio of the number of nonconforming units in the sample D to the sample size n:")
             print("p = D/n")
             print("From the binomial distribution, the mean should be estimated as p, and the variance s² as p(1-p)/n.")
@@ -409,7 +409,7 @@ class spc_chart_assistant:
             print("The correct control chart for the number of pressure ulcers is the C-chart,")
             print("which is based on the Poisson distribution.\n")
                     
-            print("As mentioned, DEFECTIVES are modelled by the BINOMIAL distribution, whereas DEFECTS are are modelled by POISSON distribution.\n")
+            print("As mentioned, DEFECTIVES are modelled by the BINOMIAL distribution, whereas DEFECTS are modelled by POISSON distribution.\n")
             
             print("U-charts for rate of defects:")
             print("The control chart for nonconformities per unit, or the U-chart, is useful in situations")
