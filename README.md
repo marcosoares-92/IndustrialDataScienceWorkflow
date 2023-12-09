@@ -5,10 +5,10 @@
 Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 
 Authors:
-- Marco César Prado Soares, Data Science Specialist at Bayer (Crop Science)
+- Marco Cesar Prado Soares, Data Scientist Specialist at Bayer (Crop Science)
   - marcosoares.feq@gmail.com
 
-- Gabriel Fernandes Luz
+- Gabriel Fernandes Luz, Senior Data Scientist
   - gfluz94@gmail.com
 
 - If you cannot install the last version from idsw package directly from PyPI using `pip install idsw`:
