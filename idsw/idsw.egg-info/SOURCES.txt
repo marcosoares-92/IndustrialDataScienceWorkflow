@@ -1,0 +1,13 @@
+CONTRIBUTING.md
+HISTORY.md
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+idsw.egg-info/PKG-INFO
+idsw.egg-info/SOURCES.txt
+idsw.egg-info/dependency_links.txt
+idsw.egg-info/not-zip-safe
+idsw.egg-info/requirements.txt
+idsw.egg-info/requires.txt
+idsw.egg-info/top_level.txt
