@@ -27,10 +27,10 @@ to clone all the files (you could also fork them).
 - You can use command `cd "...\idsw"`, providing the full idsw path to navigate to it.
 Alternatively, run `pip install ".\*.tar.gz" in the folder terminal. 
 
-#### After cloning the directory, you can also run the package without installing it:
+### After cloning the directory, you can also run the package without installing it:
 1. Copy the whole idsw folder to the working directory where your python or jupyter notebook file is saved.
 - There must be an idsw folder on the python file directory.
-2. In your python file 
+2. In your Python file: 
 
 Run the command or run a cell (Jupyter notebook) with:
 
