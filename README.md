@@ -17,7 +17,7 @@ Authors:
 
 Run:
 
-	`git clone "https://github.com/marcosoares-92/IndustrialDataScienceWorkflow"` 
+	git clone "https://github.com/marcosoares-92/IndustrialDataScienceWorkflow" 
 
 to clone all the files (you could also fork them).
 
@@ -26,10 +26,10 @@ to clone all the files (you could also fork them).
 
 Navigate to the idsw folder to run: 
 
-	`pip install .`
+	pip install .
 
 - You can use command `cd "...\idsw"`, providing the full idsw path to navigate to it.
-Alternatively, run `pip install ".\*.tar.gz" in the folder terminal. 
+Alternatively, run `pip install ".\*.tar.gz"` in the folder terminal. 
 
 ### After cloning the directory, you can also run the package without installing it:
 1. Copy the whole idsw folder to the working directory where your python or jupyter notebook file is saved.
@@ -38,10 +38,10 @@ Alternatively, run `pip install ".\*.tar.gz" in the folder terminal.
 
 Run the command or run a cell (Jupyter notebook) with:
 
-	`from idsw import *`
+	from idsw import *
 
 for importing all idsw functions without the alias idsw; or:
 
-	`import idsw`
+	import idsw
 
 to import the package with the alias idsw.
