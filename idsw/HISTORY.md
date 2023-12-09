@@ -12,3 +12,7 @@
 
 ### Removed
 - Removed support for Python < 3.7
+
+## 1.2.1
+### Fixed
+- Setup issues.

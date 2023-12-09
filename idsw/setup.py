@@ -1,15 +1,7 @@
 from setuptools import setup, find_packages
 
-idsw_description = """
-Industrial Data Science Workflow: full workflow for ETL, statistics, 
-and Machine learning modelling of (usually) time-stamped industrial facilities data.
-Not only applicable to monitoring quality and industrial facilities systems, the package
-can be applied to data manipulation, characterization and modelling of different numeric
-and categorical datasets to boost your work and replace tradicional tools like SAS, Minitab
-and Statistica software.
+idsw_description = """Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data."""
 
-Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
-"""
 with open("requirements.txt", "r") as file:
     required_packages = [package.strip() for package in file.readlines()]
 
@@ -21,8 +13,10 @@ with open('HISTORY.md') as history_file:
 
 setup(
     name="idsw",
-    version="1.2.0",
-    author="Marco César Prado Soares, Gabriel Fernandes Luz",
+    url="""https://github.com/marcosoares-92/IndustrialDataScienceWorkflow""",
+    version="1.2.1",
+    license='MIT',
+    author="Marco Cesar Prado Soares, Gabriel Fernandes Luz",
     author_email="marcosoares.feq@gmail.com, gfluz94@gmail.com",
     description=idsw_description,
     packages=find_packages(include=['idsw', 'idsw.*']),

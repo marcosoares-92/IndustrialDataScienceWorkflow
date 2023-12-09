@@ -1,9 +1,11 @@
 Metadata-Version: 2.1
 Name: idsw
-Version: 1.2.0
-Summary: Industrial Data Science Workflow: full workflow for ETL, statistics, 
-Author: Marco César Prado Soares, Gabriel Fernandes Luz
+Version: 1.2.1
+Summary: Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
+Home-page: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
+Author: Marco Cesar Prado Soares, Gabriel Fernandes Luz
 Author-email: marcosoares.feq@gmail.com, gfluz94@gmail.com
+License: MIT
 Keywords: idsw,IndustrialDataScienceWorkflow
 Classifier: Programming Language :: Python :: 3.7
 Classifier: Natural Language :: English
@@ -12,30 +14,6 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: numpy==1.24.4
-Requires-Dist: pandas==2.1.1
-Requires-Dist: scipy==1.11.3
-Requires-Dist: statsmodels==0.14.0
-Requires-Dist: matplotlib==3.8.0
-Requires-Dist: seaborn==0.13.0
-Requires-Dist: scikit-learn==1.3.1
-Requires-Dist: flask==2.2.5
-Requires-Dist: plotly==5.17.0
-Requires-Dist: requests==2.31.0
-Requires-Dist: requests_ntlm==1.2.0
-Requires-Dist: sqlalchemy==2.0.21
-Requires-Dist: shap==0.43.0
-Requires-Dist: xgboost==2.0.0
-Requires-Dist: dash==2.13.0
-Requires-Dist: dash_bootstrap_components==1.5.0
-Requires-Dist: prophet==1.1.5
-Requires-Dist: contractions==0.1.73
-Requires-Dist: missingno==0.5.2
-Requires-Dist: fuzzywuzzy==0.18.0
-Requires-Dist: fancyimpute==0.7.0
-Requires-Dist: html2image==2.0.4.3
-Requires-Dist: tensorflow==2.14.0
-Requires-Dist: threadpoolctl==3.2.0
 
 # Industrial Data Science Workflow
 ## Industrial Data Science Workflow: full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
@@ -44,19 +22,46 @@ Requires-Dist: threadpoolctl==3.2.0
 Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 
 Authors:
-- Marco CÃ©sar Prado Soares, Data Science Specialist at Bayer (Crop Science)
+- Marco Cesar Prado Soares, Data Scientist Specialist at Bayer (Crop Science)
   - marcosoares.feq@gmail.com
 
-- Gabriel Fernandes Luz
+- Gabriel Fernandes Luz, Senior Data Scientist
   - gfluz94@gmail.com
 
 - If you cannot install the last version from idsw package directly from PyPI using `pip install idsw`:
 
-1. Use `git clone "https://github.com/marcosoares-92/IndustrialDataScienceWorkflow"` to clone all the files (you could also fork them).
+1. Open the terminal and:
+
+Run:
+
+	git clone "https://github.com/marcosoares-92/IndustrialDataScienceWorkflow" 
+
+to clone all the files (you could also fork them).
+
 2. Go to the directory called idsw.
-3. Now, open the Python terminal in the idsw folder and run `pip install .`
+3. Now, open the Python terminal and: 
+
+Navigate to the idsw folder to run: 
+
+	pip install .
+
 - You can use command `cd "...\idsw"`, providing the full idsw path to navigate to it.
-Alternatively, run `pip install ".\*.tar.gz" in the folder terminal. 
+Alternatively, run `pip install ".\*.tar.gz"` in the folder terminal. 
+
+### After cloning the directory, you can also run the package without installing it:
+1. Copy the whole idsw folder to the working directory where your python or jupyter notebook file is saved.
+- There must be an idsw folder on the python file directory.
+2. In your Python file: 
+
+Run the command or run a cell (Jupyter notebook) with:
+
+	from idsw import *
+
+for importing all idsw functions without the alias idsw; or:
+
+	import idsw
+
+to import the package with the alias idsw.
 
 
 # History
@@ -73,3 +78,7 @@ Alternatively, run `pip install ".\*.tar.gz" in the folder terminal.
 
 ### Removed
 - Removed support for Python < 3.7
+
+## 1.2.1
+### Fixed
+- Setup issues.
