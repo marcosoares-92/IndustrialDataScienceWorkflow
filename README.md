@@ -30,7 +30,9 @@ Alternatively, run `pip install ".\*.tar.gz" in the folder terminal.
 #### After cloning the directory, you can also run the package without installing it:
 1. Copy the whole idsw folder to the working directory where your python or jupyter notebook file is saved.
 - There must be an idsw folder on the python file directory.
-2. In your file run:
+2. In your python file 
+
+Run the command or run a cell (Jupyter notebook) with:
 
 	`from idsw import *`
 
