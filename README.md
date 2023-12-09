@@ -13,14 +13,18 @@ Authors:
 
 - If you cannot install the last version from idsw package directly from PyPI using `pip install idsw`:
 
-1. Use 
+1. Open the terminal and:
+
+Run:
 
 	`git clone "https://github.com/marcosoares-92/IndustrialDataScienceWorkflow"` 
 
 to clone all the files (you could also fork them).
 
 2. Go to the directory called idsw.
-3. Now, open the Python terminal in the idsw folder and run 
+3. Now, open the Python terminal and: 
+
+Navigate to the idsw folder to run: 
 
 	`pip install .`
 
