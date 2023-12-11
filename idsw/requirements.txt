@@ -1,31 +1,31 @@
-numpy==1.24.4
-pandas==2.1.1
-scipy==1.11.3
-statsmodels==0.14.0
-matplotlib==3.8.0
-seaborn==0.13.0
-scikit-learn==1.3.1
-flask==2.2.5
-plotly==5.17.0
-requests==2.31.0
-requests_ntlm==1.2.0
-sqlalchemy==2.0.21
-shap==0.43.0
-xgboost==2.0.0
-dash==2.13.0
-# dash==2.13.0 requires flask<=2.2.5
-dash_bootstrap_components==1.5.0
-prophet==1.1.5
-contractions==0.1.73
-missingno==0.5.2
-fuzzywuzzy==0.18.0
-fancyimpute==0.7.0
-html2image==2.0.4.3
+numpy>=1.24.4
+pandas>=2.1.1
+scipy>=1.11.3
+statsmodels>=0.14.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+scikit-learn>=1.3.1
+flask>=2.2.5
+plotly>=5.17.0
+requests>=2.31.0
+requests_ntlm>=1.2.0
+sqlalchemy>=2.0.21
+shap>=0.43.0
+xgboost>=2.0.0
+dash>=2.13.0
+# dash>=2.13.0 requires flask<=2.2.5
+dash_bootstrap_components>=1.5.0
+prophet>=1.1.5
+contractions>=0.1.73
+missingno>=0.5.2
+fuzzywuzzy>=0.18.0
+fancyimpute>=0.7.0
+html2image>=2.0.4.3
 # recordlinkage requires pandas 1.5.3
-tensorflow==2.14.0
-threadpoolctl==3.2.0
+tensorflow>=2.14.0
+threadpoolctl>=3.2.0
 # Following Packages are for working with Google Cloud. They require the Google Cloud SDK to be installed on the machine.
-# gcloud==0.18.3
-# google-cloud==0.34.0
-# google-cloud-bigquery==3.12.0
-# db-dtypes==1.1.1
+# gcloud>=0.18.3
+# google-cloud>=0.34.0
+# google-cloud-bigquery>=3.12.0
+# db-dtypes>=1.1.1
