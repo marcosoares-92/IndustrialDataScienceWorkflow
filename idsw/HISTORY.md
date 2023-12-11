@@ -16,3 +16,11 @@
 ## 1.2.1
 ### Fixed
 - Setup issues.
+
+## 1.2.2
+### Fixed
+- Setup issues: need for rigid and specific versions of the libraries.
+
+## 1.2.3
+### Fixed
+- Setup issues.

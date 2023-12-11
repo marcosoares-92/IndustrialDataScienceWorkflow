@@ -9,8 +9,8 @@ and Statistica software.
 Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 """
 
-__author__ = """Marco César Prado Soares, Gabriel Fernandes Luz"""
-__version__ = "1.2.0"
+__author__ = """Marco César Prado Soares; Gabriel Fernandes Luz"""
+__version__ = "1.2.3"
 
 from .datafetch import *
 from .etl import *
