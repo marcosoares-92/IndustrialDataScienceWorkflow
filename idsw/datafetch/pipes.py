@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from .core import (InvalidInputsError, IP21Extractor)
+from idsw.modelling.core import AnomalyDetector
+
+
 def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '', s3_bucket_name = None, s3_obj_prefix = None):
     """
     mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '', s3_bucket_name = None, s3_obj_prefix = None):
@@ -1578,6 +1587,98 @@ def export_pd_dataframe_as_csv (dataframe_obj_to_be_exported, new_file_name_with
     print("Warning: if there was a file in this file path, it was replaced by the exported dataframe.")
 
 
+def export_pd_dataframe_as_excel (file_name_without_extension, exported_tables = [{'dataframedataframe_obj_to_be_exported': None, 'excel_sheet_name': None}], file_directory_path = None):
+    """
+    export_pd_dataframe_as_excel (file_name_without_extension, exported_tables = [{'dataframedataframe_obj_to_be_exported': dataframe_obj_to_be_exported, 'excel_sheet_name': excel_sheet_name}], file_directory_path = None):
+    
+    This function allows the user to export several dataframes as different sheets from a single
+    Excel file.
+    WARNING: all files exported from this function are .xlsx
+
+    : param: file_name_without_extension - (string, in quotes): input the name of the 
+      file without the extension. e.g. new_file_name_without_extension = "my_file" 
+      will export a file 'my_file.xlsx' to notebook's workspace.
+
+    : param: exported_tables is a list of dictionaries.
+      User may declare several dictionaries, as long as the keys are always the same, and if the
+      values stored in keys are not None.
+      
+      : key 'dataframe_obj_to_be_exported': dataframe object that is going to be exported from the
+      function. Since it is an object (not a string), it should not be declared in quotes.
+      example: dataframe_obj_to_be_exported = dataset will export the dataset object.
+      ATTENTION: The dataframe object must be a Pandas dataframe.
+
+      : key 'excel_sheet_name': string containing the name of the sheet to be written on the
+      exported Excel file. Example: excel_sheet_name = 'tab_1' will save the dataframe in the
+      sheet 'tab_1' from the file named as file_name_without_extension.
+
+      examples: exported_tables = [{'dataframe_obj_to_be_exported': dataset1, 'excel_sheet_name': 'sheet1'},]
+      will export only dataset1 as 'sheet1';
+      exported_tables = [{'dataframe_obj_to_be_exported': dataset1, 'excel_sheet_name': 'sheet1'},
+      {'dataframe_obj_to_be_exported': dataset2, 'excel_sheet_name': 'sheet2']
+      will export dataset1 as 'sheet1' and dataset2 as 'sheet2'.
+
+      Notice that if the file does not contain the exported sheets, they will be created. If it has,
+      the sheets will be replaced.
+    
+    : param: FILE_DIRECTORY_PATH - (string, in quotes): input the path of the directory 
+      (e.g. folder path) where the file is stored. e.g. FILE_DIRECTORY_PATH = "/" 
+      or FILE_DIRECTORY_PATH = "/folder"
+      If you want to export the file to AWS S3, this parameter will have no effect.
+      In this case, you can set FILE_DIRECTORY_PATH = None
+    """
+
+    import os
+
+    
+    # Create the complete file path:
+    file_path = os.path.join(file_directory_path, file_name_without_extension)
+    # Concatenate the extension ".csv":
+    file_path = file_path + ".xlsx"
+
+    # Pandas ExcelWriter class:
+    # https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html#pandas.ExcelWriter
+    # Pandas to_excel method:
+    # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_excel.html
+
+    try:
+        # The replacement of a Sheet will only occur in the append ('a') mode.
+        # 'a' is a mode available for the cases where an Excel file is already present.
+        # Let's check if there is an Excel file previously created, so that we will not
+        # delete it:
+        with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
+                            datetime_format = "YYYY-MM-DD HH:MM:SS",
+                            mode = 'a', if_sheet_exists = 'replace') as writer:
+            for storage_dict in exported_tables:
+                df, sheet = storage_dict['dataframe_obj_to_be_exported'], storage_dict['excel_sheet_name']
+                if ((df is not None) & (sheet is not None) & (type(df) == pd.DataFrame)):
+                    # Guarantee sheet name is a string
+                    sheet = str(sheet)
+                    df.to_excel(writer, sheet_name = sheet, na_rep='', 
+                                header = True, index = False, 
+                                startrow = 0, startcol = 0, merge_cells = False, 
+                                inf_rep = 'inf')
+
+    except:
+        # The context manager created by class ExcelWriter with 'a' mode returns an error when
+        # there is no Excel file available. Since we do not have the risk of overwriting the file,
+        # we can open the writer in write ('w') mode to create a new spreadsheet:
+        with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
+                            datetime_format = "YYYY-MM-DD HH:MM:SS", mode = 'w') as writer:
+            for storage_dict in exported_tables:
+                df, sheet = storage_dict['dataframe_obj_to_be_exported'], storage_dict['excel_sheet_name']
+                if ((df is not None) & (sheet is not None) & (type(df) == pd.DataFrame)):
+                    # Guarantee sheet name is a string
+                    sheet = str(sheet)
+                    df.to_excel(writer, sheet_name = sheet, index = False, 
+                                startrow = 0, startcol = 0, merge_cells = False, 
+                                inf_rep = 'inf')
+
+
+    print(f"Dataframes exported as Excel file to notebook\'s workspace as \'{file_path}\'.")
+    print("Warning: if there was a sheet with the same name as the exported ones, it was replaced by the exported dataframe.")
+
+
 def load_anomaly_detector (saved_file):
     """
     load_anomaly_detector (saved_file)
@@ -1586,7 +1687,6 @@ def load_anomaly_detector (saved_file):
     : param: saved_file - string containing the path for an anomaly detection model 
       saved as a pickle (binary) file
     """
-
 
     import pickle
     with open(saved_file, 'rb') as opened_file:

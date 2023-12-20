@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import ModelChecking
+
+
 def ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     ols_linear_reg (X_train, y_train, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -530,7 +540,6 @@ def logistic_reg (X_train, y_train, regularization = 'l2', l1_ratio_hyperparamet
       Currently, l1_ratio <= 0.01 is not reliable, unless you supply your own sequence of alpha.
     """
 
-    import tensorflow as tf
     from sklearn.linear_model import LogisticRegression
     
     print("Attention: logistic regression is a binary classifier. It results in probabilities, instead of on scalar (real numbers) like other regression algorithms from linear models class.\n")

@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import ModelChecking
+
+
 def random_forest (X_train, y_train, type_of_problem = "regression", number_of_trees = 128, max_tree_depth = 20, min_samples_to_split_node = 2, min_samples_to_make_leaf = 2, bootstrap_samples = True, use_out_of_bag_error = True, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     random_forest (X_train, y_train, type_of_problem = "regression", number_of_trees = 128, max_tree_depth = 20, min_samples_to_split_node = 2, min_samples_to_make_leaf = 2, bootstrap_samples = True, use_out_of_bag_error = True, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, orientation = 'vertical', horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330)
@@ -68,8 +78,6 @@ def random_forest (X_train, y_train, type_of_problem = "regression", number_of_t
       This phenomenon is characteristic from ensemble algorithms like random forests, and
       is not usually observed on linear regressions.
     """    
-    
-    import tensorflow as tf
     
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
@@ -255,8 +263,6 @@ def xgboost_model (X_train, y_train, type_of_problem = "regression", number_of_t
       This phenomenon is characteristic from ensemble algorithms like random forests, and
       XGBoost, and is not usually observed on linear regressions.
     """
-
-    import tensorflow as tf
     
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)

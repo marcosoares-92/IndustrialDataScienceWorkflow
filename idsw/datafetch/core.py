@@ -1,15 +1,19 @@
-# FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
-# Extract data from Plant Information Management (PIMS) systems
-# AspenTech IP21
-# Connect to SQLite Database
+"""FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+Extract data from Plant Information Management (PIMS) systems
+AspenTech IP21
+Connect to SQLite Database
 
-# Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
-# marcosoares.feq@gmail.com
-# marco.soares@bayer.com
+Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
+marcosoares.feq@gmail.com
+marco.soares@bayer.com"""
+
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-class InvalidInputsError(Exception): pass  # class for raising errors when invalid inputs are provided.
+
+class InvalidInputsError (Exception): pass  # class for raising errors when invalid inputs are provided.
 
 
 class IP21Extractor:
@@ -73,6 +77,7 @@ class IP21Extractor:
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters
     
+
     def convert_window_to_ip21_timescale (self):
         
         start_timestamp = self.start_timestamp 
@@ -687,7 +692,7 @@ class SQLServerConnection:
         self.query_counter = 0
         
 
-    def get_db_schema(self, show_schema = True, export_csv = False, saving_directory_path = "db_schema.csv"):
+    def get_db_schema (self, show_schema = True, export_csv = False, saving_directory_path = "db_schema.csv"):
             
         import pandas as pd
         query = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'"
@@ -715,7 +720,7 @@ class SQLServerConnection:
         return self
         
         
-    def run_sql_query(self, query, show_table = True, export_csv = False, saving_directory_path = ""):
+    def run_sql_query (self, query, show_table = True, export_csv = False, saving_directory_path = ""):
 
         # show_table: keep as True to print the queried table, set False to hide it.
         # export_csv: set True to export the queried table as CSV file, or set False not to export it.
@@ -804,7 +809,7 @@ class SQLServerConnection:
         return df
         
         
-    def get_full_table(self, table, show_table = True, export_csv = False, saving_directory_path = ""):
+    def get_full_table (self, table, show_table = True, export_csv = False, saving_directory_path = ""):
             
         import pandas as pd
         
@@ -842,11 +847,10 @@ class SQLServerConnection:
     
     
     def query_specific_tag_ip21sqlserver (self, tag, variable_name = None, show_table = True, export_csv = False, saving_directory_path = ""):
+        """ : param: tag: string with tag as registered in IP21. e.g. tag = 'ABC00AA101-01'.
         
-        """tag: string with tag as registered in IP21. e.g. tag = 'WTX15TI101-05'.
-        
-        variable_name: string containing a more readable name for the tag, that will be also shown.
-        e.g. variable_name = 'Influent Temp Deg C'
+            : param: variable_name: string containing a more readable name for the tag, that will be also shown.
+            e.g. variable_name = 'Temperature in C'
         """
         
         import pandas as pd

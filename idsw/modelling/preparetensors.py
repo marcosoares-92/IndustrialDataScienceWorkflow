@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import WindowGenerator
+
+
 def separate_and_prepare_features_and_responses (df, features_columns, response_columns):
     """
     separate_and_prepare_features_and_responses (df, features_columns, response_columns):
@@ -13,11 +23,6 @@ def separate_and_prepare_features_and_responses (df, features_columns, response_
       Example: response_columns = ['col3', 'col4']; response_columns = 'response';
       response_columns = ['response']
     """
-
-    try:
-        import tensorflow as tf
-    except:
-        pass
 
     # Set a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
@@ -139,11 +144,6 @@ def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, column
     """
 
     try:
-        import tensorflow as tf
-    except:
-        pass
-    
-    try:
         # Set a local copy of the dataframe to manipulate:
         DATASET = df_or_array_to_convert.copy(deep = True)
 
@@ -250,7 +250,6 @@ def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_trainin
     """
 
     import random
-    import tensorflow as tf
     
     # Convert to tuples to save memory:
     X = tuple(np.array(X))
@@ -411,8 +410,6 @@ def windowed_dataset_from_time_series (y, window_size = 20, batch_size = 32, shu
     : param: shuffle_buffer_size (integer): number of rows/ size used for shuffling the entries.
     """
 
-    import tensorflow as tf
-    
     # Create dataset from the series
     dataset = tf.data.Dataset.from_tensor_slices(y)
     
@@ -512,8 +509,6 @@ def multi_columns_time_series_tensors (df, response_columns, sequence_stride = 1
       value in the future; False if you do not want to use them.
     """
     
-    import tensorflow as tf
-    
     # Create a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
@@ -549,8 +544,6 @@ def union_1_dim_tensors (list_of_tensors_or_arrays):
       be converted into a Pandas dataframe where each column would be correspondent to one individual
       tensor.
     """
-    
-    import tensorflow as tf
     
     # Convert each element from the list to a numpy array, in case they are tensors:
     list_of_arrays = [np.array(tensor) for tensor in list_of_tensors_or_arrays]

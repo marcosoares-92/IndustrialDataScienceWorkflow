@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import CapabilityAnalysis
+from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+
+
 def df_general_characterization (df):
     """
     df_general_characterization (df)
@@ -2559,8 +2569,8 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.mode)
         ENCODING_LIST = ordinal_encoding_list
 
-        # Save the series as a list:
-        list_of_modes_arrays = list(DATASET[response_var_name])
+        # Save the series as an array:
+        list_of_modes_arrays = np.array(DATASET[response_var_name])
         # Start a list of modes:
         list_of_modes = []
             
@@ -2669,6 +2679,8 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.95)
 
+    # The functions from scipy.stats module require the ordinal encoding of the categorical variables,
+    # even for numeric aggregates. It is the same procedure used for the mode evaluation.
     elif (aggregate_function == 'kurtosis'):
         # Numeric aggregate
         SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
@@ -2685,8 +2697,11 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
         DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
         DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
         ENCODING_LIST = ordinal_encoding_list
+        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        DATASET = DATASET.drop(columns = categorical_var_name)
 
     elif (aggregate_function == 'interquartile_range'):
         # Numeric aggregate
@@ -2711,7 +2726,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET = DATASET.drop(columns = categorical_var_name)
 
     else: # entropy
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
+        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name, response_var_name]
         DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
         DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
@@ -5986,9 +6001,45 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
     ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
     ##  '03_05_END.ipynb'
     plt.show()
-    
-    print("Attention: the frequency is in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.\n")
-    print("Plot starts in 0 counts per year; goes from 0.1 to 1 per year (log scale); and grows to 365.2524 = 1 count per day; to the limit defined.\n")
 
-    # Also, return a tuple combining the absolute value of fft with the corresponding count per year
-    return fft, tuple(zip(abs_fft, f_per_year))
+    print("\n")
+    explanaining = f"""The returned frequencies are always in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.
+        
+    Plot starts in 0 counts per year; goes from 0.1 to 1 per year (log scale); and grows to 365.2524 = 1 count per day; to the limit defined.
+                    
+    Thus, to when reading the results, one can simply pick the frequency and use as given, considering that the unit is (year)**-1.
+        
+    Instead, the following rules can be applied:
+
+    - 1/year = 1 count per year
+
+    - 365.2524/year = 365.2524 counts per year = 1/day = 1 count per day
+
+    - ({24 * 365.2524:.4f})/year = (24 * 365.2524) counts per year = 24 counts/day = 1/h = 1 count per hour.
+
+    - ({60 * 24 * 365.2524:.4f})/year = (60 * 24 * 365.2524) counts per year = 60*24 counts/day = 60 counts/hour = 1/min = 1 count per minute.
+
+    - ({60 * 60 * 24 * 365.2524:.4f})/year = (60 * 60 * 24 * 365.2524) counts per year = ... =  1/min = 60 counts per min = 1/s = 1 count per second.
+                    
+    - ({(60 * 60 * 24 * 365.2524 * (10**3)):e})/year = (60 * 60 * 24 * 365.2524 * (10**3)) counts per year = ... = 10**3 counts per second = 1/ms = 1 count per millisecond.
+
+    - ({(60 * 60 * 24 * 365.2524 * (10**9)):e})/year = (60 * 60 * 24 * 365.2524 * (10**9)) counts per year = ... = 10**9 counts per second = 1/ns = 1 count per nanosecond.
+                    
+    """
+    print(explanaining)
+
+    returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(returned_df)
+            
+    except: # regular mode
+        print(returned_df)
+
+    print("\n")
+    # conversion_rule =  zip([(60 * 60 * 24 * 365.2524 * (10**3)), (60 * 60 * 24 * 365.2524 * (10**9))], ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms', '1/ns'])
+
+    # Return fft and the dataframe:
+    return fft, returned_df

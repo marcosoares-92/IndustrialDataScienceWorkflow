@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+
+
 def merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
     """
     merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
@@ -373,21 +382,20 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         
         if (start_time is not None):
 
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time)).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True).agg(aggregate_function)
 
         elif (offset_time is not None):
 
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time)).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True).agg(aggregate_function)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ)).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True).agg(aggregate_function)
             
         print (f"Numerical variables of the dataframe grouped in terms of {aggregate_function} by every {number_of_periods_to_group} {frq_unit}.\n")
         
-        # Here, it is not possible to set as_index = False not to set the grouper column as index of the new dataframe.
-        # So, the timestamp becomes the index. Let's create a column 'timestamp_grouped' to store this index:
+        # Since as_index = True, the timestamp becomes the index. Let's create a column 'timestamp_grouped' to store this index:
         df_numeric['timestamp_grouped'] = df_numeric.index
         # Reset the index:
         df_numeric = df_numeric.reset_index(drop = True)
@@ -472,16 +480,16 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
 
         if (start_time is not None):
 
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = False, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True).agg(stats.mode)
 
         elif (offset_time is not None):
 
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = False, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True).agg(stats.mode)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = False, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True).agg(stats.mode)
         
         print (f"Categorical variables of the dataframe grouped in terms of \'mode\' by every {number_of_periods_to_group} {frq_unit}.\n")
         print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")
@@ -494,7 +502,7 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         for cat_var in new_encoded_cols:
             
             # save as a series:
-            cat_var_series = df_categorical[cat_var].copy()
+            cat_var_series = np.array(df_categorical[cat_var])
             # Start a list to store only the modes:
             list_of_modes = []
 
@@ -553,7 +561,14 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         ENCODING_LIST = ordinal_encoding_list
         # Now, reverse encoding and keep only the original column names:
         df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
+        
+        # timestamp_grouped is not in the categorical_list. We previously had timestamp_obj
+        # which was removed not to have its mode calculated in the loop.
+        # Also, grouped_cat_cols contains the ordinal-encoded columns, not the ones with original
+        # values. So, we must use the columns with original names, not those with OrdEnc suffix:
+        categorical_list = ['timestamp_grouped'] + categorical_list
         df_categorical = df_categorical[categorical_list]
+
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -566,11 +581,13 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
                 categorical_suffix = suffix
             
             # New columns names:
-            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list]
+            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list if (name != 'timestamp_grouped')]
             # Notice that we have already deleted 'timestamp_obj' from categorical_list,
-            # avoiding the calculation of the timestamp modes.
+            # avoiding the calculation of the timestamp modes. The condition in the list comprehension
+            # avoids putting the suffix "_mode" on the timestamp column
             # So, now concatenate the correct name for the aggregation column:
             new_cat_names = ['timestamp_grouped'] + new_cat_names
+            
             # Set new_num_names as the new columns names:
             df_categorical.columns = new_cat_names   
         

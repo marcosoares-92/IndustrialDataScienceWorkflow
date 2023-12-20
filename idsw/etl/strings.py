@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import RegexHelp
+
+
 def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, method = 'trim', substring_to_eliminate = None, create_new_column = True, new_column_suffix = "_trim"):
     """
     trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, method = 'trim', substring_to_eliminate = None, create_new_column = True, new_column_suffix = "_trim"):

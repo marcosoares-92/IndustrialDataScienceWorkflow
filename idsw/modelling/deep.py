@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import (TfModels, ModelChecking, SiameseNetworks)
+
+
 def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense', optimizer = None, X_test = None, y_test = None, X_valid = None, y_valid = None, type_of_problem = "regression", size_of_training_batch = 200, number_of_training_epochs = 2000, number_of_output_classes = 2, verbose = 1, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -72,8 +82,6 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
       naturally there is no meaning in using 'accuracy'. So, we use 'RootMeanSquaredError'
       or 'mae' (mean absolute error).
     """
-
-    import tensorflow as tf
 
     # Create functions for specific reshaping
     def reshaper(architecture):
@@ -291,8 +299,6 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
      'number_of_classes': integer. This key may not be declared for regression problems. Do not
      include the key, set as 1, or set the number of classes used for training.
     """
-    
-    import tensorflow as tf
     
     # Create functions for specific reshaping
     def reshaper(architecture):

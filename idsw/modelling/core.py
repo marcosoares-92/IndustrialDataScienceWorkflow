@@ -1,20 +1,25 @@
-# FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
-# Modelling and Machine Learning
+""" FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+Modelling and Machine Learning
 
-# Prepare features and responses tensors.
-# Split into train and test tensors.
-# Define and train the model.
-# Evaluate models' metrics and feature importance.
-# Make predictions and visualize models.
+Prepare features and responses tensors.
+Split into train and test tensors.
+Define and train the model.
+Evaluate models' metrics and feature importance.
+Make predictions and visualize models.
 
 
-# Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
-# marcosoares.feq@gmail.com
-# marco.soares@bayer.com
+Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
+marcosoares.feq@gmail.com
+marco.soares@bayer.com"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+
 
 class ModelChecking:
     """
@@ -28,9 +33,7 @@ class ModelChecking:
 
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
-    def __init__(self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_object = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
-        
-        import tensorflow as tf
+    def __init__ (self, model_object = None, model_type = 'regression', model_package = 'tensorflow', column_map_dict = None, training_history_object = None, X = None, y_train = None, y_preds_for_train = None, y_test = None, y_preds_for_test = None, y_valid = None, y_preds_for_validation = None):
 
         # Add the model:        
         self.model = model_object
@@ -118,9 +121,9 @@ class ModelChecking:
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters
     
+
     def model_metrics (self, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-        
-        import tensorflow as tf
+    
         # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
@@ -1197,8 +1200,7 @@ class ModelChecking:
             
     
     def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-        
-        import tensorflow as tf
+    
         # https://www.tensorflow.org/api_docs/python/tf/keras/metrics?authuser=1
         from sklearn.metrics import classification_report, confusion_matrix, r2_score
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html
@@ -1593,11 +1595,9 @@ class WindowGenerator:
     https://www.tensorflow.org/tutorials/structured_data/time_series?hl=en&%3Bauthuser=1&authuser=1
     """
     
-    def __init__(self, dataset, shift, use_past_responses_for_prediction = True, 
+    def __init__ (self, dataset, shift, use_past_responses_for_prediction = True, 
                  sequence_stride = 1, sampling_rate = 1, label_columns = None, 
                  train_pct = 70, val_pct = 10):
-        
-        import tensorflow as tf
         
         # Return an error if the percents are out of the allowable range:
         assert ((train_pct >= 0) & (train_pct <= 100))
@@ -1676,8 +1676,6 @@ class WindowGenerator:
 
     def split_as_labels_and_inputs (self, X, y):
        
-        import tensorflow as tf
-        
         shift = self.shift
         # shift: the sequence of timesteps i, i+1, ... will be used for predicting the
         # timestep i + shift
@@ -1772,15 +1770,13 @@ class TfModels:
     Use preferentially for these situations.
     """
     
-    def __init__(self, X_train, y_train, X_valid = None, y_valid = None, type_of_problem = 'regression', number_of_classes = 2, optimizer = None):
+    def __init__ (self, X_train, y_train, X_valid = None, y_valid = None, type_of_problem = 'regression', number_of_classes = 2, optimizer = None):
         
         # type_of_problem = 'regression', 'classification', 'both'
         # optimizer: tf.keras.optimizers.Optimizer object:
         # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers
         # https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Optimizer
         # use the object to set parameters such as learning rate and selection of the optimizer
-        
-        import tensorflow as tf
         
         # Guarantee it is an array:
         self.X_train = np.array(X_train)
@@ -1861,9 +1857,7 @@ class TfModels:
         self.optimizer = optimizer
     
     
-    def compile_model(self):
-        
-        import tensorflow as tf
+    def compile_model (self):
         
         optimizer = self.optimizer
         input_layer = self.input_layer
@@ -1945,10 +1939,8 @@ class TfModels:
         return self
     
 
-    def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
-        
-        import tensorflow as tf
-        
+    def fit_model (self, epochs = 2000, batch_size = 200, verbose = 1):
+               
         # If you set verbose = 0, It will show nothing. If you set verbose = 1, It will 
         # show the output like this: Epoch 1/200 55/55[=====] - 10s 307ms/step - loss: 0.56 - 
         # accuracy: 0.4949
@@ -1992,8 +1984,6 @@ class TfModels:
 
     def tf_simple_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
         
-        import tensorflow as tf
-
         """
         Wide and deep example:
 
@@ -2052,8 +2042,6 @@ class TfModels:
 
     def tf_double_dense (self, epochs = 2000, batch_size = 200, verbose = 1):
  
-        import tensorflow as tf
-
         input_layer = self.input_layer
         output_layer = self.output_layer
         
@@ -2090,8 +2078,6 @@ class TfModels:
 
     def tf_cnn_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
-        import tensorflow as tf
-
         input_layer = self.input_layer
         output_layer = self.output_layer
         
@@ -2143,9 +2129,7 @@ class TfModels:
     
 
     def tf_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
-        
-        import tensorflow as tf
-        
+               
         input_layer = self.input_layer
         output_layer = self.output_layer
         # Number of columns (sequence length):
@@ -2184,9 +2168,7 @@ class TfModels:
     
 
     def tf_encoder_decoder_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
-        
-        import tensorflow as tf
-        
+               
         input_layer = self.input_layer
         output_layer = self.output_layer
         
@@ -2235,8 +2217,7 @@ class TfModels:
     def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
         # NOT WORKING
-        import tensorflow as tf
-        
+     
         input_layer = self.input_layer
         output_layer = self.output_layer
                 
@@ -2303,7 +2284,7 @@ class SiameseNetworks:
     of the responses.
     """
     
-    def __init__(self, output_dictionary, X_train, y_train, X_valid = None, y_valid = None):
+    def __init__ (self, output_dictionary, X_train, y_train, X_valid = None, y_valid = None):
         
         # type_of_problem = 'regression', 'classification', 'both'
         # optimizer: tf.keras.optimizers.Optimizer object:
@@ -2323,9 +2304,7 @@ class SiameseNetworks:
         # 'type': type of problem. Must contain the string 'regression' or 'classification';
         # 'number_of_classes': integer. This key may not be declared for regression problems. Do not
         # include the key, set as 1, or set the number of classes used for training.
-        
-        import tensorflow as tf
-        
+              
         self.output_dictionary = output_dictionary
         
         # Retrieve the list of responses (the keys from this dictionary)
@@ -2385,10 +2364,8 @@ class SiameseNetworks:
         self.inputs = input_layer
     
     
-    def fit_model(self, epochs = 2000, batch_size = 200, verbose = 1):
-        
-        import tensorflow as tf
-        
+    def fit_model (self, epochs = 2000, batch_size = 200, verbose = 1):
+           
         # If you set verbose = 0, It will show nothing. If you set verbose = 1, It will 
         # show the output like this: Epoch 1/200 55/55[=====] - 10s 307ms/step - loss: 0.56 - 
         # accuracy: 0.4949
@@ -2440,8 +2417,6 @@ class SiameseNetworks:
     
     def base_model_simple_dense (self, input_layer, response):
         
-        import tensorflow as tf
-        
         # First hidden layer:
         x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_1'+ '_' + response))(input_layer)
         
@@ -2449,8 +2424,6 @@ class SiameseNetworks:
     
     
     def base_model_double_dense (self, input_layer, response):
-        
-        import tensorflow as tf
         
         # First hidden layer:
         x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_1' + '_' + response))(input_layer)
@@ -2460,8 +2433,6 @@ class SiameseNetworks:
     
     
     def base_model_cnn_time_series (self, input_layer, response):
-        
-        import tensorflow as tf
         
         # First convolution:
         x = tf.keras.layers.Conv1D(filters = 64, kernel_size = 2, activation = 'relu', name = ('convolution' + '_' + response))(input_layer)
@@ -2488,8 +2459,6 @@ class SiameseNetworks:
     
     def base_model_lstm_time_series (self, input_layer, response):
         
-        import tensorflow as tf
-        
         # LSTM layer: 1 cycle per sequence element (number of iterations = 
         # SEQUENCE_LENGTH):
         # LSTM with 50 neurons:
@@ -2505,8 +2474,6 @@ class SiameseNetworks:
     
     
     def base_model_encoder_decoder_time_series (self, input_layer, response):
-        
-        import tensorflow as tf
         
         # LSTM layer: 1 cycle per sequence element (number of iterations = SEQUENCE_LENGTH):
         # LSTM with 100 neurons:
@@ -2530,8 +2497,7 @@ class SiameseNetworks:
     def base_model_cnn_lstm_time_series (self, input_layer, response):
         
         # NOT WORKING
-        import tensorflow as tf
-        
+
         convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
         # Originally: input_shape = (None, 2, 1)
         max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2)
@@ -2570,8 +2536,6 @@ class SiameseNetworks:
     def network_branch (self, response_variable, type_of_problem = 'regression', number_of_classes = 2, architecture = 'simple_dense'):
         
         # Generate a full branch from the siamese network. We will have one branch per response
-        
-        import tensorflow as tf
         
         # architecture = 'simple_dense': base_model_simple_dense from class SiameseNetworks;
         # architecture = 'double_dense': base_model_double_dense from class SiameseNetworks;
@@ -2631,8 +2595,6 @@ class SiameseNetworks:
     
     
     def compile_model (self, architecture, optimizer = None):
-        
-        import tensorflow as tf
         
         # output_dictionary structure:
         # {'response_variable': {

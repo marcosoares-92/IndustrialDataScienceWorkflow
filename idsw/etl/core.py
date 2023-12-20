@@ -1,20 +1,25 @@
-# FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
-# Extract, transform, and load (ETL) data
+"""FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+Extract, transform, and load (ETL) data
 
-# Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
-# marcosoares.feq@gmail.com
-# marco.soares@bayer.com
+Marco Cesar Prado Soares, Data Scientist Specialist @ Bayer Crop Science LATAM
+marcosoares.feq@gmail.com
+marco.soares@bayer.com
 
-# Aggregate dataframes and Manipulate Timestamps.
-# Characterize the dataset.
-# Transform the dataset.
-# Analyze the time series.
-# Seggregate the dataset and check for differences.
-# Process diagnosis: statistical process control charts and capability analysis.
+Aggregate dataframes and Manipulate Timestamps.
+Characterize the dataset.
+Transform the dataset.
+Analyze the time series.
+Seggregate the dataset and check for differences.
+Process diagnosis: statistical process control charts and capability analysis."""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+
 
 class SPCChartAssistant:
     """
@@ -26,7 +31,7 @@ class SPCChartAssistant:
 
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
-    def __init__(self, assistant_startup = True, keep_assistant_on = True):
+    def __init__ (self, assistant_startup = True, keep_assistant_on = True):
                 
         import os
         
@@ -62,6 +67,7 @@ class SPCChartAssistant:
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters
     
+
     def download_assistant_imgs (self):
                 
         import os
@@ -700,6 +706,7 @@ class SPCPlot:
     # number_of_labels - This variable represents the total of labels or subgroups n. 
     # If there are multiple labels, this variable will be updated later.
     
+
     def get_constants (self):
         
         if (self.number_of_labels < 2):
@@ -926,6 +933,7 @@ class SPCPlot:
         
         return self
         
+
     # CONTROL CHARTS FOR SUBGROUPS 
     
     def create_grouped_df (self):
@@ -1004,7 +1012,7 @@ class SPCPlot:
             # Remove the columns that do not have numeric variables before grouping
             df_agg_mode = df_agg_mode.drop(columns = categorical_cols)
 
-            if column_with_labels_or_subgroups in categorical_list:
+            if column_with_labels_or_subgroups in categorical_cols:
                 column_with_labels_or_subgroups = column_with_labels_or_subgroups + "_OrdinalEnc"
 
             df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
@@ -1024,7 +1032,7 @@ class SPCPlot:
                     for i in range(0, len(df_agg_mode)):
                         # i = 0 to i = len(df_agg_mode) - 1
 
-                        mode_array = df_agg_mode[col_mode][i]    
+                        mode_array = np.array(df_agg_mode[col_mode])[i]    
 
                         try:
                             # try accessing the mode
@@ -1727,6 +1735,7 @@ class CapabilityAnalysis:
     # Each key in the dictionary corresponds to a number of samples in a subgroup.
     # sample_size - This variable represents the total of labels or subgroups n. 
     # If there are multiple labels, this variable will be updated later.
+    
     
     def check_data_normality (self):
         

@@ -24,3 +24,8 @@
 ## 1.2.3
 ### Fixed
 - Setup issues.
+
+## 1.2.4
+### Fixed
+- Import bugs.
+- Introduced function for Excel writing.

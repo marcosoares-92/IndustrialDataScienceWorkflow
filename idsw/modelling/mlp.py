@@ -1,3 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import ModelChecking
+
+
 def sklearn_ann (X_train, y_train, type_of_problem = "regression", number_of_hidden_layers = 1, number_of_neurons_per_hidden_layer = 64, size_of_training_batch = 200, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     sklearn_ann (X_train, y_train, type_of_problem = "regression", number_of_hidden_layers = 1, number_of_neurons_per_hidden_layer = 64, size_of_training_batch = 200, maximum_of_allowed_iterations = 20000, X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -50,6 +60,7 @@ def sklearn_ann (X_train, y_train, type_of_problem = "regression", number_of_hid
       hidden_layer_sizes=[100, 100] - 2 hidden layers with 100 neurons per layer
       hidden_layer_sizes=[100, 100, 100] - 3 hidden layers with 100 neurons per layer.
     """
+    
     RANDOM_STATE = 55 
     ## We will pass it to every sklearn call so we ensure reproducibility (i.e., a new random process)
         

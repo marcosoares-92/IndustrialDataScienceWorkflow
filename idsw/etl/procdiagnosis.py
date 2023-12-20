@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .core import (SPCChartAssistant, SPCPlot, CapabilityAnalysis)
+
+
 def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     statistical_process_control_chart (df, column_with_variable_to_be_analyzed, timestamp_tag_column = None, column_with_labels_or_subgroups = None, column_with_event_frame_indication = None, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, use_spc_chart_assistant = False, chart_to_use = 'std_error', consider_skewed_dist_when_estimating_with_std = False, rare_event_indication = None, rare_event_timedelta_unit = 'day', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):

@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from idsw.datafetch.core import InvalidInputsError
+from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+
+
 def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_join = "inner", merged_suffixes = ('_left', '_right'), sort_merged_df = False, column_to_sort = None, ascending_sorting = True):
     """
     WARNING: Only two dataframes can be merged on each call of the function.
@@ -882,7 +891,7 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
             for cat_var in new_encoded_cols:
 
                 # save as a series:
-                cat_var_series = df_categorical[cat_var].copy()
+                cat_var_series = np.array(df_categorical[cat_var])
                 # Start a list to store only the modes:
                 list_of_modes = []
                 # Now, loop through each row of cat_var_series. Take the element [0][0]

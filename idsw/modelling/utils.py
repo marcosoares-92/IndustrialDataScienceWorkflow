@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tensorflow as tf
+
+from idsw.datafetch.core import InvalidInputsError
+
+
 def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, function_used_for_fitting_dl_model = 'get_deep_learning_tf_model', architecture = None, list_of_responses = []):
     """
     make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, function_used_for_fitting_dl_model = 'get_deep_learning_tf_model', architecture = None, list_of_responses = []):
@@ -54,7 +63,6 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
       Attention: the number of responses must be exactly the number of elements in list_of_responses, or an error will
       be raised.
     """
-    import tensorflow as tf
     
     # Create functions for specific reshaping
     def reshaper(architecture):
@@ -325,7 +333,6 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
       All of the new columns (appended or not) will have the prefix "prob_class_" followed
       by the correspondent class name to identify them.
     """
-    import tensorflow as tf
     
     predict_for = 'subset'
     # map if we are dealing with a subset or single entry
