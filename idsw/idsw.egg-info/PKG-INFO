@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: idsw
-Version: 1.2.4
+Version: 1.2.5
 Summary: Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
 Home-page: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 Author: Marco Cesar Prado Soares; Gabriel Fernandes Luz
@@ -43,7 +43,13 @@ Requires-Dist: threadpoolctl>=3.2.0
 ## Industrial Data Science Workflow: full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
 ### Not only applicable to monitoring quality and industrial facilities systems, the package can be applied to data manipulation, characterization and modelling of different numeric and categorical datasets to boost your work and replace tradicional tools like SAS, Minitab and Statistica software.
 
-Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
+- Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
+- Check our `Steel Industry Simulator` on: https://github.com/marcosoares-92/steelindustrysimulator
+	- The Ideal Tool for Process Improvement, and Data Collection, Analyzing and Modelling Training.
+	- User interface available in: 
+	
+	https://colab.research.google.com/github/marcosoares-92/steelindustrysimulator/blob/main/steelindustry_digitaltwin.ipynb
+
 
 Authors:
 - Marco Cesar Prado Soares, Data Scientist Specialist at Bayer (Crop Science)
@@ -119,3 +125,11 @@ to import the package with the alias idsw.
 ### Fixed
 - Import bugs.
 - Introduced function for Excel writing.
+
+## 1.2.5
+### Fixed
+- Matplotlib export figures bugs.
+- 'quality' argument is no longer supported by plt.savefig function (Matplotlib), so it was removed.
+- This modification was needed for allowing the correct functioning of the steelindustrysimulator, which is based on idsw.
+- Check simulator project on: https://github.com/marcosoares-92/steelindustrysimulator
+	- The Ideal Tool for Process Improvement, and Data Collection, Analyzing and Modelling Training.

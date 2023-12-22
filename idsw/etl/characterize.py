@@ -807,14 +807,11 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         
         #Get the new_file_path
         new_file_path = os.path.join(directory_to_save, file_name)
-        
+        new_file_path = new_file_path + ".png"
+        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
         #Export the file to this new path:
-        # The extension will be automatically added by the savefig method:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-        #quality could be set from 1 to 100, where 100 is the best quality
-        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #transparent = True or False
-        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
         print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
@@ -1936,16 +1933,13 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         plt.show()
 
     #Once the pandas method .corr() calculates R, we raised it to the second power 
@@ -1991,16 +1985,13 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         plt.show()
 
         #Again, the method dataset.corr() calculates R within the variables of dataset.
@@ -2131,16 +2122,13 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         plt.show()
 
     else:
@@ -2183,16 +2171,13 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         plt.show()
 
     
@@ -3078,14 +3063,11 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         #Get the new_file_path
         new_file_path = os.path.join(directory_to_save, file_name)
-        
+        new_file_path = new_file_path + ".png"
+        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
         #Export the file to this new path:
-        # The extension will be automatically added by the savefig method:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-        #quality could be set from 1 to 100, where 100 is the best quality
-        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #transparent = True or False
-        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
         print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
@@ -3730,16 +3712,13 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         #fig.tight_layout()
 
         ## Show an image read from an image file:
@@ -4411,16 +4390,13 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         #fig.tight_layout()
 
         ## Show an image read from an image file:
@@ -4847,16 +4823,13 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
 
             #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
-
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
             #Export the file to this new path:
-            # The extension will be automatically added by the savefig method:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-            #quality could be set from 1 to 100, where 100 is the best quality
-            #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #transparent = True or False
-            # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+        
         #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         #plt.figure(figsize = (12, 8))
         #fig.tight_layout()
@@ -5025,16 +4998,13 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
 
         #Get the new_file_path
         new_file_path = os.path.join(directory_to_save, file_name)
-
+        new_file_path = new_file_path + ".png"
+        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
         #Export the file to this new path:
-        # The extension will be automatically added by the savefig method:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-        #quality could be set from 1 to 100, where 100 is the best quality
-        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #transparent = True or False
-        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
         print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+    
     #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
     #plt.figure(figsize = (12, 8))
     #fig.tight_layout()
@@ -5242,16 +5212,13 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
 
                 #Get the new_file_path
                 new_file_path = os.path.join(directory_to_save, file_name)
-
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
                 #Export the file to this new path:
-                # The extension will be automatically added by the savefig method:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-                #quality could be set from 1 to 100, where 100 is the best quality
-                #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #transparent = True or False
-                # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
                 print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+            
             #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
             #plt.figure(figsize = (12, 8))
             #fig.tight_layout()
@@ -5979,16 +5946,13 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
 
         #Get the new_file_path
         new_file_path = os.path.join(directory_to_save, file_name)
-
+        new_file_path = new_file_path + ".png"
+        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
         #Export the file to this new path:
-        # The extension will be automatically added by the savefig method:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, quality = 100, format = 'png', transparent = False) 
-        #quality could be set from 1 to 100, where 100 is the best quality
-        #format (str, supported formats) = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #transparent = True or False
-        # For other parameters of .savefig method, check https://indianaiproduction.com/matplotlib-savefig/
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
         print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
-
+    
     #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
     #plt.figure(figsize = (12, 8))
     #fig.tight_layout()

@@ -29,3 +29,11 @@
 ### Fixed
 - Import bugs.
 - Introduced function for Excel writing.
+
+## 1.2.5
+### Fixed
+- Matplotlib export figures bugs.
+- 'quality' argument is no longer supported by plt.savefig function (Matplotlib), so it was removed.
+- This modification was needed for allowing the correct functioning of the steelindustrysimulator, which is based on idsw.
+- Check simulator project on: https://github.com/marcosoares-92/steelindustrysimulator
+	- The Ideal Tool for Process Improvement, and Data Collection, Analyzing and Modelling Training.
