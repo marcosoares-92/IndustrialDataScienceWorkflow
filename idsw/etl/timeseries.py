@@ -88,7 +88,7 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
 
@@ -240,7 +240,7 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
 
@@ -499,7 +499,7 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
 
@@ -1136,7 +1136,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         #plt.figure(figsize = (12, 8))
@@ -1493,7 +1493,7 @@ def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 3
                 #Export the file to this new path:
                 plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
             
             #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
             #plt.figure(figsize = (12, 8))
@@ -2033,7 +2033,7 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
         #fig.tight_layout()
 

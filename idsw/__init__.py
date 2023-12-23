@@ -10,7 +10,7 @@ Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienc
 """
 
 __author__ = """Marco Cesar Prado Soares; Gabriel Fernandes Luz"""
-__version__ = "1.2.5"
+__version__ = "1.2.6"
 
 from .datafetch import *
 from .etl import *

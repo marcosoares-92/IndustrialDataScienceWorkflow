@@ -365,7 +365,7 @@ class ModelChecking:
                             #Export the file to this new path:
                             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
                         
                         #fig.tight_layout()
 
@@ -661,7 +661,7 @@ class ModelChecking:
                 #Export the file to this new path:
                 plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
             
             #fig.tight_layout()
 
@@ -891,7 +891,7 @@ class ModelChecking:
                 #Export the file to this new path:
                 plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
             
             #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
             #plt.figure(figsize = (12, 8))
@@ -1167,7 +1167,7 @@ class ModelChecking:
                     #Export the file to this new path:
                     plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                    print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
                 
                 #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
                 #plt.figure(figsize = (12, 8))
@@ -1510,7 +1510,7 @@ class ModelChecking:
                                     #Export the file to this new path:
                                     plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                                     # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                                    print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
                                 
                                 #fig.tight_layout()
 

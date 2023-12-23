@@ -37,3 +37,8 @@
 - This modification was needed for allowing the correct functioning of the steelindustrysimulator, which is based on idsw.
 - Check simulator project on: https://github.com/marcosoares-92/steelindustrysimulator
 	- The Ideal Tool for Process Improvement, and Data Collection, Analyzing and Modelling Training.
+
+## 1.2.6
+### Fixed
+- Export of figures generated a message like with '{new_file_path}.png.png'. Fixed to '{new_file_path}.png'.
+

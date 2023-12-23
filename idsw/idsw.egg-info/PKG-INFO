@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: idsw
-Version: 1.2.5
+Version: 1.2.6
 Summary: Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
 Home-page: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 Author: Marco Cesar Prado Soares; Gabriel Fernandes Luz
@@ -133,3 +133,8 @@ to import the package with the alias idsw.
 - This modification was needed for allowing the correct functioning of the steelindustrysimulator, which is based on idsw.
 - Check simulator project on: https://github.com/marcosoares-92/steelindustrysimulator
 	- The Ideal Tool for Process Improvement, and Data Collection, Analyzing and Modelling Training.
+
+## 1.2.6
+### Fixed
+- Export of figures generated a message like with '{new_file_path}.png.png'. Fixed to '{new_file_path}.png'.
+

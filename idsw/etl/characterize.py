@@ -812,7 +812,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
     
@@ -1938,7 +1938,7 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         plt.show()
 
@@ -1990,7 +1990,7 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         plt.show()
 
@@ -2127,7 +2127,7 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         plt.show()
 
@@ -2176,7 +2176,7 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         plt.show()
 
@@ -3068,7 +3068,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #fig.tight_layout()
     
@@ -3717,7 +3717,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         #fig.tight_layout()
 
@@ -4395,7 +4395,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         #fig.tight_layout()
 
@@ -4828,7 +4828,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
             # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
         #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         #plt.figure(figsize = (12, 8))
@@ -5003,7 +5003,7 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
     #plt.figure(figsize = (12, 8))
@@ -5217,7 +5217,7 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
                 #Export the file to this new path:
                 plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
             
             #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
             #plt.figure(figsize = (12, 8))
@@ -5951,7 +5951,7 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
         #Export the file to this new path:
         plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}.png\'. Any previous file in this root path was overwritten.")
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
     
     #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
     #plt.figure(figsize = (12, 8))
