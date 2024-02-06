@@ -382,3 +382,172 @@ def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_t
         print("The outliers are the elements correspondent to label 1 in the returned array named as 'outliers'.\n")
     
     return anomaly_detection_model, outliers
+
+
+def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
+                       horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 0, 
+                       y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, 
+                       png_resolution_dpi = 330):
+    """
+    Check the presence of FINANCIAL OUTLIERS through Benford's Law
+    
+    https://www.journalofaccountancy.com/issues/2017/apr/excel-and-benfords-law-to-detect-fraud.html
+    
+    Briefly explained, Benford's Law maintains that the numeral 1 will be the leading digit in a genuine
+    data set of numbers 30.1% of the time; the numeral 2 will be the leading digit 17.6% of the time; 
+    and each subsequent numeral, 3 through 9, will be the leading digit with decreasing frequency. 
+    This expected occurrence of leading digits can be illustrated as shown in the chart "Benford's Law."
+    
+    : param: df (pd.DataFrame): Dataframe with values to be analyzed.
+    
+    : param: column_to_analyze (str): column with the values to be analyzed.
+    
+    : param: difference_alert (float): percent of deviation from the curve to add an alert. Example: if difference_alert = 20,
+        a difference between the percent of leading digit occurence and the expected from the curve of 20% will be sufficient
+        for labelling the entry as 'potential_outlier'. Else, label will be 'below_threshold'.
+    
+    Returns:
+        dataset containing counts of occurences of leading digits, percent of occurence, theoretical percent from Benford curve,
+        difference in percent between actual and theoretical values, and label if it is a potential outlier, considering the
+        threshold set as diff_alert_threshold.
+        
+        outliers_df, a smaller dataframe containing only the data labelled as potential outliers (digit and % of occurrence).
+    """
+    
+    # total entries on the dataset
+    total = len(df)
+    
+    # Expected Benford curve, with values in percent (key: leading digit, value: expected percent of occurrence)
+    expected_curve = {0: 0.0, 1: 30.1, 2: 17.6, 3: 12.5, 4: 9.7, 5: 7.9, 6: 6.7, 7: 5.8, 8: 5.1, 9: 4.6}
+    
+    # Create a local copy of the dataset to manipulate
+    dataset = df.copy(deep = True)
+    
+    # Extract the first character and count the occurences
+    # convert to string and apply a lambda function that extracts the first character from a str x
+    dataset['leading_digit'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[0])
+    # Since the object is a Pandas series, the axis = 1 (rows) is implicit for the apply method.
+    
+    dataset = dataset.groupby(by = 'leading_digit', as_index = False, sort = True).count()
+    
+    dataset = dataset.rename(columns = {column_to_analyze: 'counts'})
+    
+    # leading digit can be reconverted to integer, to save memory on the dataframe:
+    dataset['leading_digit'] = dataset['leading_digit'].astype(int)
+    
+    # Round to 1 digit, such as the Benford curve
+    dataset['digits_pct'] = np.round((np.array(dataset.counts) / total * 100), 1)
+    
+    # Add a column with the expected_curve: access the index given by 'digit' and the correspondent value on the
+    # dictionary expected_curve. Here, as the whole table is manipulated, parameter axis = 1 must be passed to the
+    # apply method, avoiding the imputation to a whole column.
+    dataset['benford'] = dataset.apply(lambda x: expected_curve[x.leading_digit], axis = 1)
+    
+    # Calculate the difference between theoretical and actual percent (absolute value):
+    dataset['pct_diff'] = np.round((abs(dataset['digits_pct'] - dataset['benford'])/dataset['benford'] * 100), 2)
+    dataset['label'] = np.where(dataset['pct_diff'] >= diff_alert_threshold, 'potential_outlier', 'below_threshold')
+    
+    # Let's create a outliers_df containing only data marked as potential outliers:
+    outliers_df = dataset.copy(deep = True)
+    # Filter potential outliers
+    outliers_df = outliers_df[outliers_df['label'] == 'potential_outlier']
+    # keep only the columns digit and % of occurrence
+    outliers_df = outliers_df[['leading_digit', 'digits_pct']]
+     
+    
+    print("Successfully calculated and returned the dataset comparing the digits with Benford's Law, as well as a dataframe containing only data labelled as potential outliers:\n")
+    
+    try:
+        # only works in Jupyter Notebook:
+        from IPython.display import display
+        display(dataset)
+            
+    except: # regular mode
+        print(dataset)
+    
+    
+    # Now the data is prepared and we only have to plot 
+    
+    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+    # so that the bars do not completely block other views.
+    OPACITY = 0.95
+    
+    # Set labels and titles for the case they are None
+    if (plot_title is None):
+        
+        plot_title = f"Percent_of_leading_digits"
+    
+    if (horizontal_axis_title is None):
+
+        horizontal_axis_title = 'leading_digit'
+
+    if (vertical_axis_title is None):
+        # Notice that response_var_name already has the suffix indicating the
+        # aggregation function
+        vertical_axis_title = '% of occurence'
+    
+    fig, ax = plt.subplots(figsize = (12, 8))
+    # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+
+    #ROTATE X AXIS IN XX DEGREES
+    plt.xticks(rotation = x_axis_rotation)
+    # XX = 70 DEGREES x_axis (Default)
+    #ROTATE Y AXIS IN XX DEGREES:
+    plt.yticks(rotation = y_axis_rotation)
+    # XX = 0 DEGREES y_axis (Default)
+    
+    plt.title(plot_title)
+    
+    ax.set_xlabel(horizontal_axis_title)
+    ax.set_ylabel(vertical_axis_title, color = 'darkblue')
+
+    ax.bar(dataset['leading_digit'], dataset['digits_pct'], color = 'darkblue', alpha = OPACITY, label = 'digits_pct')
+
+    ax.plot(dataset['leading_digit'], dataset['benford'], color = 'fuchsia', linestyle = 'dashed', alpha = OPACITY, label = "Benford's Law\nTheoretical Percent (%)")
+    
+    
+    # If there are red points labelled as potential outliers, plot them above the graph
+    # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
+    if (len(outliers_df) > 0):
+        
+        ax.plot(outliers_df['leading_digit'], outliers_df['digits_pct'], linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0, label = "Potential\nOutlier")
+    
+    ax.legend()
+    ax.grid(grid) # shown if user set grid = True
+    # If user wants to see the grid, it is shown only for the cumulative line.
+
+    if (export_png == True):
+        # Image will be exported
+        import os
+        
+        #check if the user defined a directory path. If not, set as the default root path:
+        if (directory_to_save is None):
+            #set as the default
+            directory_to_save = ""
+        
+        #check if the user defined a file name. If not, set as the default name for this
+        # function.
+        if (file_name is None):
+            #set as the default
+            file_name = "benford_check"
+        
+        #check if the user defined an image resolution. If not, set as the default 110 dpi
+        # resolution.
+        if (png_resolution_dpi is None):
+            #set as 330 dpi
+            png_resolution_dpi = 330
+        
+        #Get the new_file_path
+        new_file_path = os.path.join(directory_to_save, file_name)
+        new_file_path = new_file_path + ".png"
+        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+        #Export the file to this new path:
+        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+ 
+    plt.show()
+    
+    
+    return dataset, outliers_df
+
