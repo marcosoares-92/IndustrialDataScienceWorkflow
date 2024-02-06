@@ -2970,7 +2970,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         if (calculate_and_plot_cumulative_percent):
             # Let's plot the line for the cumulative percent
             # Set the grid for the bar chart as False. If it is True, there will
-            # be to grids, one for the bars and other for the percents, making 
+            # be two grids, one for the bars and other for the percents, making 
             # the image difficult to interpretate:
             ax1.grid(False)
             
@@ -3010,7 +3010,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         if (calculate_and_plot_cumulative_percent):
             # Let's plot the line for the cumulative percent
             # Set the grid for the bar chart as False. If it is True, there will
-            # be to grids, one for the bars and other for the percents, making 
+            # be two grids, one for the bars and other for the percents, making 
             # the image difficult to interpretate:
             ax1.grid(False)
             
