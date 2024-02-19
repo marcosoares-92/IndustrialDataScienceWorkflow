@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 
 
 class ModelChecking:
@@ -171,34 +171,37 @@ class ModelChecking:
                 
                     # Regression metrics:
                     if (model_type == 'regression'):
-
-                        print(f"Metrics for {key}:\n")
+                        if ControlVars.show_results:
+                            print(f"Metrics for {key}:\n")
                         mse = mean_squared_error(y_true, y_pred)
 
                         # Print in scientific notation:
-                        try:
-                            print(f"Mean squared error (MSE) = {mse:e}")
-                        except:
-                            print(f"Mean squared error (MSE) = {mse}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Mean squared error (MSE) = {mse:e}")
+                            except:
+                                print(f"Mean squared error (MSE) = {mse}")
                         # Add to calculated metrics:
                         calculated_metrics['mse'] = mse
 
                         rmse = mse**(1/2)
 
-                        try:
-                            print(f"Root mean squared error (RMSE) = {rmse:e}")
-                        except:
-                            print(f"Root mean squared error (RMSE) = {rmse}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Root mean squared error (RMSE) = {rmse:e}")
+                            except:
+                                print(f"Root mean squared error (RMSE) = {rmse}")
                         # Add to calculated metrics:
                         calculated_metrics['rmse'] = rmse
 
                         mae = mean_absolute_error(y_true, y_pred)
 
                         # Print in scientific notation:
-                        try:
-                            print(f"Mean absolute error (MAE) = {mae:e}")
-                        except:
-                            print(f"Mean absolute error (MAE) = {mae}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Mean absolute error (MAE) = {mae:e}")
+                            except:
+                                print(f"Mean absolute error (MAE) = {mae}")
                         # Add to calculated metrics:
                         calculated_metrics['mae'] = mae
 
@@ -207,19 +210,21 @@ class ModelChecking:
                         mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
                         # Print in scientific notation:
-                        try:
-                            print(f"Mean absolute percentage error (MAPE) = {mape:e}")
-                        except:
-                            print(f"Mean absolute percentage error (MAPE) = {mape}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                            except:
+                                print(f"Mean absolute percentage error (MAPE) = {mape}")
                         # Add to calculated metrics:
                         calculated_metrics['mape'] = mape
 
                         r2 = r2_score(y_true, y_pred)
-
-                        try:
-                            print(f"Coefficient of linear correlation R² = {r2:e}")
-                        except:
-                            print(f"Coefficient of linear correlation R² = {r2}")
+                        
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Coefficient of linear correlation R² = {r2:e}")
+                            except:
+                                print(f"Coefficient of linear correlation R² = {r2}")
                         # Add to calculated metrics:
                         calculated_metrics['r_squared'] = r2
 
@@ -231,21 +236,23 @@ class ModelChecking:
                         n_size = len(y_true)
                         r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
 
-                        try:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                        except:
-                            print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                            except:
+                                print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
 
                         # Add to calculated metrics:
                         calculated_metrics['r_squared_adj'] = r2_adj
 
                         explained_var = explained_variance_score(y_true, y_pred)
                         # Print in scientific notation:
-                        try:
-                            print(f"Explained variance = {explained_var:e}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Explained variance = {explained_var:e}")
 
-                        except:
-                            print(f"Explained variance = {explained_var}")
+                            except:
+                                print(f"Explained variance = {explained_var}")
 
                         # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
                         # difference that it does not account for systematic offsets in the prediction.
@@ -263,52 +270,59 @@ class ModelChecking:
                         y_true = y_true.astype('int64')
                         y_pred = y_pred.astype('int64')
 
-                        print(f"Metrics for {key}:\n")
+                        if ControlVars.show_results:
+                            print(f"Metrics for {key}:\n")
 
                         auc = roc_auc_score(y_true, y_pred)
 
-                        try:
-                            print(f"AUC = {auc:e}")
-                        except:
-                            print(f"AUC = {auc}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"AUC = {auc:e}")
+                            except:
+                                print(f"AUC = {auc}")
                         # Add to calculated metrics:
                         calculated_metrics['auc'] = auc
 
                         acc = accuracy_score(y_true, y_pred)
 
-                        try:
-                            print(f"Accuracy = {acc:e}")
-                        except:
-                            print(f"Accuracy = {acc}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Accuracy = {acc:e}")
+                            except:
+                                print(f"Accuracy = {acc}")
                         # Add to calculated metrics:
                         calculated_metrics['accuracy'] = acc
 
                         precision = precision_score(y_true, y_pred)
 
-                        try:
-                            print(f"Precision = {precision:e}")
-                        except:
-                            print(f"Precision = {precision}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Precision = {precision:e}")
+                            except:
+                                print(f"Precision = {precision}")
                         # Add to calculated metrics:
                         calculated_metrics['precision'] = precision
 
                         recall = recall_score(y_true, y_pred)
 
-                        try:
-                            print(f"Recall = {recall:e}")
-                        except:
-                            print(f"Recall = {recall}")
+                        if ControlVars.show_results:
+                            try:
+                                print(f"Recall = {recall:e}")
+                            except:
+                                print(f"Recall = {recall}")
                         # Add to calculated metrics:
                         calculated_metrics['recall'] = recall
 
                         # The method update_state returns None, so it must be called without and equality
 
                         # Get the classification report:
-                        print("\n")
-                        print("Classification Report:\n")
+                        if ControlVars.show_results:
+                            print("\n")
+                            print("Classification Report:\n")
                         # Convert tensors to NumPy arrays
                         report = classification_report (y_true, y_pred)
-                        print(report)
+                        if ControlVars.show_results:
+                            print(report)
                         # Add to calculated metrics:
                         calculated_metrics['classification_report'] = report
                         print("\n")
@@ -318,65 +332,67 @@ class ModelChecking:
                         matrix = confusion_matrix (y_true, y_pred)
                         # Add to calculated metrics:
                         calculated_metrics['confusion_matrix'] = report
-                        print("Confusion matrix:\n")
+                        if ControlVars.show_results:
+                            print("Confusion matrix:\n")
 
-                        fig, ax = plt.subplots(figsize = (12, 8))
-                        # possible color schemes (cmap) for the heat map: None, 'Blues_r',
-                        # "YlGnBu",
-                        # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
-                        # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
-                        ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
-                        #annot = True: shows the number corresponding to each square
-                        #annot = False: do not show the number
-                        plot_title = f"Accuracy Score for {key} = {acc:.2f}"
-                        ax.set_title(plot_title)
-                        ax.set_ylabel('Actual class')
-                        ax.set_xlabel('Predicted class')
+                        if ControlVars.show_plots:
+                            fig, ax = plt.subplots(figsize = (12, 8))
+                            # possible color schemes (cmap) for the heat map: None, 'Blues_r',
+                            # "YlGnBu",
+                            # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
+                            # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
+                            ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
+                            #annot = True: shows the number corresponding to each square
+                            #annot = False: do not show the number
+                            plot_title = f"Accuracy Score for {key} = {acc:.2f}"
+                            ax.set_title(plot_title)
+                            ax.set_ylabel('Actual class')
+                            ax.set_xlabel('Predicted class')
 
-                        if (export_png == True):
-                            # Image will be exported
-                            import os
+                            if (export_png == True):
+                                # Image will be exported
+                                import os
 
-                            #check if the user defined a directory path. If not, set as the default root path:
-                            if (directory_to_save is None):
-                                #set as the default
-                                directory_to_save = ""
+                                #check if the user defined a directory path. If not, set as the default root path:
+                                if (directory_to_save is None):
+                                    #set as the default
+                                    directory_to_save = ""
 
-                            #check if the user defined a file name. If not, set as the default name for this
-                            # function.
-                            if (file_name is None):
-                                #set as the default
-                                file_name = "confusion_matrix_" + key
+                                #check if the user defined a file name. If not, set as the default name for this
+                                # function.
+                                if (file_name is None):
+                                    #set as the default
+                                    file_name = "confusion_matrix_" + key
 
-                            else:
-                                # add the train suffix, to differentiate from the test matrix:
-                                file_name = file_name + "_" + key
+                                else:
+                                    # add the train suffix, to differentiate from the test matrix:
+                                    file_name = file_name + "_" + key
 
-                            #check if the user defined an image resolution. If not, set as the default 110 dpi
-                            # resolution.
-                            if (png_resolution_dpi is None):
-                                #set as 330 dpi
-                                png_resolution_dpi = 330
+                                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                                # resolution.
+                                if (png_resolution_dpi is None):
+                                    #set as 330 dpi
+                                    png_resolution_dpi = 330
 
-                            #Get the new_file_path
-                            new_file_path = os.path.join(directory_to_save, file_name)
-                            new_file_path = new_file_path + ".png"
-                            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                            #Export the file to this new path:
-                            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-                        
-                        #fig.tight_layout()
+                                #Get the new_file_path
+                                new_file_path = os.path.join(directory_to_save, file_name)
+                                new_file_path = new_file_path + ".png"
+                                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                                #Export the file to this new path:
+                                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                            
+                            #fig.tight_layout()
 
-                        ## Show an image read from an image file:
-                        ## import matplotlib.image as pltimg
-                        ## img=pltimg.imread('mydecisiontree.png')
-                        ## imgplot = plt.imshow(img)
-                        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-                        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-                        ##  '03_05_END.ipynb'
-                        plt.show()
+                            ## Show an image read from an image file:
+                            ## import matplotlib.image as pltimg
+                            ## img=pltimg.imread('mydecisiontree.png')
+                            ## imgplot = plt.imshow(img)
+                            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                            ##  '03_05_END.ipynb'
+                            plt.show()
 
                         print("\n")
                         # Now, add the metrics to the metrics_dict:
@@ -436,7 +452,8 @@ class ModelChecking:
                 columns_list = [i for i in range(0, len(reg_coefficients))]
             
             # Get the intercept coefficient:
-            print(f"Calculated model intercept = {model.intercept_}\n")
+            if ControlVars.show_results:
+                print(f"Calculated model intercept = {model.intercept_}\n")
             
             try:
                 # Create the regression dictionary:
@@ -527,16 +544,17 @@ class ModelChecking:
                 print(f"Model's feature_importances = {feature_importances}\n")
 
         try:  
+            
+            if ControlVars.show_results:
+                try:
+                    print("Feature importance ranking - until 20 most important features:\n")
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(feature_importance_df.head(20))
 
-            try:
-                print("Feature importance ranking - until 20 most important features:\n")
-                # only works in Jupyter Notebook:
-                from IPython.display import display
-                display(feature_importance_df.head(20))
-
-            except: # regular mode
-                print("Feature importance ranking - until 20 most important features:\n")
-                print(feature_importance_df.head(20))
+                except: # regular mode
+                    print("Feature importance ranking - until 20 most important features:\n")
+                    print(feature_importance_df.head(20))
 
             # Save the feature importance ranking as a class variable (attribute):
             self.feature_importance_df = feature_importance_df
@@ -559,585 +577,80 @@ class ModelChecking:
             importances = importances[:10]
             features = features[:10]
 
-            # Now, plot the bar chart
-            print("\n")
-            print("Feature relative importance bar chart:\n")
-            # Now the data is prepared and we only have to plot 
-            # categories, responses, and cum_pct:
+            if ControlVars.show_plots:
+                # Now, plot the bar chart
+                print("\n")
+                print("Feature relative importance bar chart:\n")
+                # Now the data is prepared and we only have to plot 
+                # categories, responses, and cum_pct:
 
-            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-            # so that the bars do not completely block other views.
-            OPACITY = 0.95
-
-            # Set labels and titles for the case they are None
-            if (plot_title is None):
-
-                plot_title = "feature_importance_bar_chart"
-
-            if (horizontal_axis_title is None):
-
-                horizontal_axis_title = "feature"
-
-            if (vertical_axis_title is None):
-                # Notice that response_var_name already has the suffix indicating the
-                # aggregation function
-                vertical_axis_title = "importance_score"
-
-            fig, ax = plt.subplots(figsize = (12, 8))
-            # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 70 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)
-
-            plt.title(plot_title)
-
-            if (orientation == 'horizontal'):
-
-                # invert the axes in relation to the default (vertical, below)
-                ax.set_ylabel(horizontal_axis_title)
-                ax.set_xlabel(vertical_axis_title, color = 'darkblue')
-
-                # Horizontal bars used - barh method (bar horizontal):
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.barh.html
-                # Now, the categorical variables stored in series categories must be
-                # positioned as the vertical axis Y, whereas the correspondent responses
-                # must be in the horizontal axis X.
-                ax.barh(features, importances, color = 'darkblue', alpha = OPACITY, label = data_label)
-                #.barh(y, x, ...)
-
-            else: 
-
-                ax.set_xlabel(horizontal_axis_title)
-                ax.set_ylabel(vertical_axis_title, color = 'darkblue')
-                # If None or an invalid orientation was used, set it as vertical
-                # Use Matplotlib standard bar method (vertical bar):
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.bar.html#matplotlib.pyplot.bar
-
-                # In this standard case, the categorical variables (categories) are positioned
-                # as X, and the responses as Y:
-                ax.bar(features, importances, color = 'darkblue', alpha = OPACITY, label = data_label)
-                #.bar(x, y, ...)
-
-            ax.legend()
-            ax.grid(grid)
-
-            # Notice that the .plot method is used for generating the plot for both orientations.
-            # It is different from .bar and .barh, which specify the orientation of a bar; or
-            # .hline (creation of an horizontal constant line); or .vline (creation of a vertical
-            # constant line).
-
-            # Now the parameters specific to the configurations are finished, so we can go back
-            # to the general code:
-
-            if (export_png == True):
-                # Image will be exported
-                import os
-
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
-
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = "feature_importance_ranking"
-
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
-
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-                new_file_path = new_file_path + ".png"
-                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #Export the file to this new path:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-            
-            #fig.tight_layout()
-
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
-            plt.show()
-        
-        except:
-            print("Unable to generate plot correlating feature to its importance.\n")
-            self.feature_importance_df = pd.DataFrame() # empty dataframe
-        
-        if (model_type == 'classification'):
-            
-            # Print meaning of classification metrics
-            print("Metrics definitions:\n")
-            print("True Positive (TP): the model correctly predicts a positive class output, i.e., it correctly predicts that the classified element belongs to that class (in binary classification, like in logistic regression, the model predicts the output 1 and the real output is also 1).")
-            print("\n")
-            print("True Negative (TN): the model correctly predicts a negative class output, i.e., it correctly predicts that the classified element do not belong to that class (in binary classification, the model predicts the output 0 and the real output is also 0).")
-            print("\n")
-            print("False Positive (FP, type 1 error): the model incorrectly predicts a positive class for a negative class-element, i.e., it predicts that the element belongs to that class, but it actually does not (in binary classification, the model predicts an output 1, but the correct output is 0).")
-            print("\n")
-            print("False Negative (FN, type 2 error): the model incorrectly predicts a negative class for a positive class-element, i.e., it predicts that the element does not belong to that class, but it actually does (in binary classification, the model predicts an output 0, but the correct output is 1).")
-            print("\n")
-            print("Naturally, the total number (TOTAL) of classifications is the sum of total correct predictions with total incorrect predictions, i.e., TOTAL = TP + TN + FP + FN")
-            print("\n") # line break
-            print("Accuracy: relation between the total number of correct classifications and the total number of classifications performed, i.e., Accuracy = (TP + TN)/(TOTAL)")
-            print("\n")
-            print("Precision: it is referrent to the attempt of answering the question: \'What is the proportion of positive identifications that were actually correct?\'.")
-            print("In other words, Precision is the relation between the number of true positives and the total of positively-labelled classifications (true and false positives), i.e., Precision = (TP)/(TP + FP)")
-            print("\n")
-            print("Recall: it is referrent to the attempt of answering the question: \'What is the proportion of elements from positive class that were correctly classified?\'.")
-            print("In other words, Recall is the relation between the number of true positives and the total of elements from the positive class (true positives and false negatives), i.e., Recall = (TP)/(TP + FN)")
-            print("\n")
-            print("F1: is the ROC-AUC score. In a generic classification problem, this metric is representative of the capability of the model in distinguishing classes.")     
-            print("F1 =2/((1/Precision)+(1/Recall)) = (2*(Precision)*(Recall))/(Precision + Recall)")
-            print("\n") # line break
-            # Check:
-            # https://towardsdatascience.com/how-to-evaluate-your-machine-learning-models-with-python-code-5f8d2d8d945b
-                  
-            print("Confusion Matrix Interpretation:\n")
-            print("The confusion matrix is a table commonly used for describing the performance of a classification model (a classifier). It visually compares the model outputs with the correct data labels.")
-            print("The matrix is divided into several sectors. For a binary classifier, it is divided into 4 quadrants.")
-            print("\n")
-            print("Each sector represents a given classification: in the vertical (Y) axis, the real observed labels are shown; whereas the predicted classes (model's outputs) are represented in the horizontal (X) axis.")
-            print("Then, for each possible class, the following situations may happen: 1. The model predicted that the element belong to a given class, but it does not (incorrect prediction); or 2. The model predicted that the element belong to a given class, and it does (correct prediction).")
-            print("If the output predicted y_pred (X-coordinate in the confusion matrix = y_pred) is the real label, then the Y-coordinate in the confusion matrix is also y_pred. For an element to have X and Y coordinates equal, it must be positioned on the principal diagonal of the matrix.")
-            print("\n") #line break to highlight the next sentence
-            print("So, we conclude that all the correct predictions of the model are positioned on the main or principal diagonal of the confusion matrix.")
-            print("\n") # line break
-            print("We also may conclude that an increase on model general accuracy is observed as an increase on the values shown in the main diagonal of the confusion matrix.")
-            print("\n")
-            print("Notice that this interpretation takes in account a matrix organized starting from the bottom to the top of Y axis (i.e., lower classes on the origin), and from the left to the right of the X-axis, with lower classes closer to the origin. If the order was the opposite, then the secondary diagonal that would contain the correct predictions.")
-            print("If we have N possible classifications, than we have N values on axis X, and N values in axis Y. So, we have N x N = N2 (N squared) sectors (values) in the confusion matrix.\n")
-            print("Confusion matrix for a binary classifier:\n")
-            print("For a binary classifier, we have to possible outputs: 0 (the origin of the matrix) and 1. In the vertical axis, 1 is the topper value; in the horizontal axis, 1 is the value on the extreme right (the positions more distant from the origin).")
-            print("Since N = 2, we have 2 x 2 = 4 quadrants (sectors or values).Starting from the origin, clockwise, we have 4 situations:")
-            print("\n")
-            print("Situation 1: X = 0 and Y = 0 - the model correctly predicted a negative output (it is a true negative prediction, TN).")
-            print("Situation 2: X = 0 and Y = 1 - the model predicted a negative output for a positive class element (it is a false negative, FN).")
-            print("Situation 3: X = 1 and Y = 1 - the model correctly predicted a positive class (TP).")
-            print("Situation 4: X = 1 and Y = 0 - the model predicted a positive output for a negative class element (FP)\n")
-            print("Each position of the confusion matrix represents the total of elements in each of the possible situations. Then, the sum of all values must be equal to the total of elements classified, and the relation between the sum of the main diagonal and the total of elements must be the accuracy.")
-            print("So, use the confusion matrix to analyze the performance of the model in classifying each class, separately, and to observe the false negatives and false positives. Also, the confusion matrix will reveal if the classes are balanced, or ir a given class has much more elements than the other, what could impart the capability on differentiating the classes.")
-            print("\n")
-            print("For some models, the proportion of false positives may be very different from the proportion of false negatives. It is not a problem, though, and depend on the application of the classifier.")
-            print("It is an important situation that would be masked by the general metrics that take in account all the predictions, without seggregating them through the classes.")
-            print("\n")
-            print("A classical example: suppose the classifier is used for predicting cancer. In this case, the model must have a proportion of false negatives much inferior than the proportion of false positives. That is because the risk associated to a false negative output is much higher.")
-            print("A person who is incorrectly classified as having cancer will perform several more detailed exams to confirm the diagnosis, so the false positive may get detected without a great problem (in fact, the patient will probably feel good about it and keep taking care of the health). But a person incorrectly classified as not having cancer (when he has cancer) may feel comfortable, not taking care of his health and not making other exams (because he trusts the algorithm). Then, it may be too late when he founds out that was a false negative.")
-            print("\n") # line break
-
-            # AUC = Area under the curve
-            print("AUC (Area under the curve) of the ROC (Receiver operating characteristic; default) or PR (Precision Recall) curves are quality measures of binary classifiers.\n")
-
-        return self
-
-
-    def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-
-        # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
-
-        history = self.history
-        # Set the validation metrics name.
-        # to access the validation metrics, simply put a 'val_' prefix:
-        val_metrics_name = 'val_' + metrics_name
-        
-        has_metrics = False
-        has_loss = False
-        
-        # Notice that history is not exactly a dictionary: it is an object with attribute history.
-        # This attribute is where the dictionary is actually stored.
-        
-        # Access the list of epochs, stored as the epoch attribute from the history object
-        list_of_epochs = history.epoch
-        # epochs start from zero
-
-        # Check if the metrics data are present
-        try:
-            # Retrieve data from the history dictionary:
-            # Access values for training sample:
-            train_metrics = history.history[metrics_name]
-            has_metrics = True
-        except:
-            pass
-        
-        # Check if the loss data are present
-        try:
-            # Retrieve data from the history dictionary:
-            # Access values for training sample:
-            train_loss = history.history['loss']
-            has_loss = True
-        except:
-            pass
-        
-        # Try accessing data from validation sample (may not be present):
-        has_validation = False
-        # Maps if there are validation data: this variable is updated when values are present.
-        
-        try:
-            validation_metrics = history.history[val_metrics_name]
-            validation_loss = history.history['val_loss']
-            has_validation = True
-        except: # simply pass
-            pass
-        
-        
-        if (horizontal_axis_title is None):
-            horizontal_axis_title = "epoch"
-        
-        if (metrics_vertical_axis_title is None):
-            metrics_vertical_axis_title = "metrics_value"
-        
-        if (loss_vertical_axis_title is None):
-            loss_vertical_axis_title = "loss_value"
-        
-        try:
-            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-            # so that the bars do not completely block other views.
-            OPACITY = 0.95
-
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            fig = plt.figure(figsize = (12, 8))
-
-            if (has_metrics & has_loss):
-                ax1 = fig.add_subplot(211)
-            elif (has_metrics):
-                ax1 = fig.add_subplot()
-            elif (has_loss):
-                ax2 = fig.add_subplot()
-
-            if (has_metrics):
-                #ax1.set_xlabel("Lags")
-                ax1.set_ylabel(metrics_vertical_axis_title)
-
-                # Scatter plot of time series:
-                ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
-                if (has_validation):
-                    # If present, plot validation data:
-                    ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
-                # Axes.plot documentation:
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
-
-                #ROTATE X AXIS IN XX DEGREES
-                plt.xticks(rotation = x_axis_rotation)
-                # XX = 0 DEGREES x_axis (Default)
-                #ROTATE Y AXIS IN XX DEGREES:
-                plt.yticks(rotation = y_axis_rotation)
-                # XX = 0 DEGREES y_axis (Default)
-
-                ax1.grid(grid)
-                ax1.legend(loc = "upper right")
-
-            if (has_metrics & has_loss):
-                # The case where both are present still do not have the ax2 configured
-                ax2 = fig.add_subplot(212)
-            
-            if (has_loss):
-                ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
-
-                if (has_validation):
-                    # If present, plot validation data:
-                    ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
-
-                ax2.set_xlabel(horizontal_axis_title)
-                ax2.set_ylabel(loss_vertical_axis_title)
-
-                ax2.grid(grid)
-                ax2.legend(loc = "upper right")
-
-                #ROTATE X AXIS IN XX DEGREES
-                plt.xticks(rotation = x_axis_rotation)
-                # XX = 0 DEGREES x_axis (Default)
-                #ROTATE Y AXIS IN XX DEGREES:
-                plt.yticks(rotation = y_axis_rotation)
-                # XX = 0 DEGREES y_axis (Default)
-
-            if (export_png == True):
-                # Image will be exported
-                import os
-
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
-
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = "history_loss_and_metrics"
-
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
-
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-                new_file_path = new_file_path + ".png"
-                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #Export the file to this new path:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-            
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            #plt.figure(figsize = (12, 8))
-            #fig.tight_layout()
-
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
-            plt.show()
-        
-        except:
-            print("Unable to plot training history.\n")
-            
-    
-    def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
-
-        # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
-
-        history = self.history
-        
-        """
-        history object has a format like (2 responses, 1 epoch, metrics = 'mse'), when we apply the
-        .__dict__ method or call the vars functions:
-
-        'history': {'loss': [2.977898597717285],
-          'response1_loss': [0.052497703582048416],
-          'response2_loss': [2.457101345062256],
-          'response1_mse': [0.052497703582048416],
-          'response2_mse': [2.457101345062256],
-          'val_loss': [2.007075071334839],
-          'val_response1_loss': [0.02299179881811142],
-          'val_response2_loss': [1.8660322427749634],
-          'val_response1_mse': [0.02299179881811142],
-          'val_response2_mse': [1.8660322427749634],
-         'params': {'verbose': 1, 'epochs': 1, 'steps': 1},
-         'epoch': [0]}
-
-         Here, the history attribute stores a dictionary with the training history, whereas the epoch
-         attribute stores the list of epochs, starting from zero.
-         - Keys 'loss' and 'val_loss' store the general losses for the whole network.
-         - Other keys store the metrics for the responses.
-
-        """
-        # Access the list of epochs, stored as the epoch attribute from the history object
-        list_of_epochs = history.epoch
-        # epochs start from zero
-        
-        # access history attribute to retrieve the series of metrics.
-        history_dict = history.history
-        
-        metrics_dict = {}
-        #Get the global one:
-        nested_dict = {'loss': history_dict['loss']}
-        
-        
-        # Try accessing validation information
-        has_validation = False
-        # Maps if there are validation data: this variable is updated when values are present.
-        
-        try:
-            nested_dict['val_loss'] = history_dict['val_loss']
-            has_validation = True
-        
-        except: # simply pass
-            pass
-        
-        nested_dict['response'] = 'global'
-        
-        metrics_dict['global'] = nested_dict
-        
-        # Let's find out the metrics name
-        for key in history_dict.keys():
-            
-            if ((key != 'loss') & (key != 'val_loss')):
-                # These are the globals, which were already saved
-                
-                # Split the string in the underscores: 'response2_loss'
-                # will generate a list of two elements ['response2', 'loss']. We pick the last element
-                # with index -1.
-                # Attention: guarantee that the key was read as a string, not as a number
-                list_of_substrings = str(key).split("_")
-                first_portion = list_of_substrings[0]
-                last_portion = list_of_substrings[-1]
-
-                # Get the total of characters of the last portion
-                total_characters = len(last_portion)
-                # pick the string eliminating its last portion
-                response = key[:(-1*(total_characters + 1))]
-                # if we had a string like 'response1_loss', now response = 'response1_' if we did
-                # not sum another character. By summing 1, we eliminate the last underscore
-                
-                if (first_portion == 'val'):
-                    # In this case, the response variable by now stores val_response1, i.e., the first
-                    # we should eliminate characters from positions 0 to 3, starting the string from
-                    # character 4:
-                    response = response[4:]
-                
-                # try accessing the nested dict:
-                try:
-                    nested_dict = metrics_dict[response]
-
-                except:
-                    # There is no nested_dict yet, so create one:
-                    nested_dict = {'response': response}
-                
-                if (last_portion != 'loss'):
-                    
-                    if (first_portion != 'val'):
-                        # Insert the metrics name only once:
-                        nested_dict['metrics'] = last_portion
-                        nested_dict[last_portion] = history_dict[key]
-                    
-                    else:
-                        nested_dict[("val_" + last_portion)] = history_dict[key]
-                
-                else:
-                    if (first_portion != 'val'):
-                        # Insert the metrics name only once:
-                        nested_dict['loss'] = history_dict[key]
-                    
-                    else:
-                        nested_dict["val_loss"] = history_dict[key]
-                
-                #Update nested dictionary
-                metrics_dict[response] = nested_dict
-        
-        # metrics_dict keys: responses without the 'val_' and '_loss' and '_' + metrics. Stores
-        # the nested dictionary.
-        # nested_dict keys: 'response': name of the response variable;
-        # 'metrics': name of the metrics; metrics (key with name that varies):
-        # series of the metrics registered during training; "val_" + metrics (key with name that 
-        # varies): series of the metrics registered during training for validation data; 'loss':
-        # series of losses obtained during training; 'val_loss': losses for validation data.
-        
-        # Loop through the responses and nested dictionaries in the metrics_dict:
-        for response, nested_dict in metrics_dict.items():
-            
-            # For the general case, only the loss will be available
-            has_metrics = False
-            has_loss = False
-
-            try:
-                metrics_name = nested_dict['metrics']
-
-                # Set the validation metrics name.
-                # to access the validation metrics, simply put a 'val_' prefix:
-                val_metrics_name = 'val_' + metrics_name
-            
-            except:
-                pass
-            
-            try:
-                train_loss = nested_dict['loss']
-                
-                has_loss = True
-
-                if (has_validation):
-                    validation_loss = nested_dict['val_loss']
-            except:
-                pass
-            
-            try:
-                train_metrics = nested_dict[metrics_name]
-
-                has_metrics = True
-                
-                if (has_validation):
-                    validation_metrics = nested_dict[val_metrics_name]
-            except:
-                pass
-                
-        
-            if (horizontal_axis_title is None):
-                horizontal_axis_title = "epoch"
-
-            if (metrics_vertical_axis_title is None):
-                metrics_vertical_axis_title = "metrics_value"
-
-            if (loss_vertical_axis_title is None):
-                loss_vertical_axis_title = "loss_value"
-            
-            try:
                 # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
                 # so that the bars do not completely block other views.
                 OPACITY = 0.95
 
-                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-                fig = plt.figure(figsize = (12, 8))
-                
-                if (has_metrics & has_loss):
-                    ax1 = fig.add_subplot(211)
-                elif (has_metrics):
-                    ax1 = fig.add_subplot()
-                elif (has_loss):
-                    ax2 = fig.add_subplot()
+                # Set labels and titles for the case they are None
+                if (plot_title is None):
 
-                if (has_metrics):
-                    #ax1.set_xlabel("Lags")
-                    ax1.set_ylabel(metrics_vertical_axis_title)
+                    plot_title = "feature_importance_bar_chart"
 
-                    # Scatter plot of time series:
-                    ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics_" + response[:10]))
-                    if (has_validation):
-                        # If present, plot validation data:
-                        ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics_" + response[:10]))
-                    # Axes.plot documentation:
-                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+                if (horizontal_axis_title is None):
 
-                    #ROTATE X AXIS IN XX DEGREES
-                    plt.xticks(rotation = x_axis_rotation)
-                    # XX = 0 DEGREES x_axis (Default)
-                    #ROTATE Y AXIS IN XX DEGREES:
-                    plt.yticks(rotation = y_axis_rotation)
-                    # XX = 0 DEGREES y_axis (Default)
+                    horizontal_axis_title = "feature"
 
-                    ax1.grid(grid)
-                    ax1.legend(loc = "upper right")
-                
-                if (has_metrics & has_loss):
-                    # The case where both are present still do not have the ax2 configured
-                    ax2 = fig.add_subplot(212)
+                if (vertical_axis_title is None):
+                    # Notice that response_var_name already has the suffix indicating the
+                    # aggregation function
+                    vertical_axis_title = "importance_score"
 
-                if (has_loss):
-                    ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
+                fig, ax = plt.subplots(figsize = (12, 8))
+                # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
 
-                    if (has_validation):
-                        # If present, plot validation data:
-                        ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss_" + response[:10]))
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 70 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
 
-                    ax2.set_xlabel(horizontal_axis_title)
-                    ax2.set_ylabel(loss_vertical_axis_title)
+                plt.title(plot_title)
 
-                    ax2.grid(grid)
-                    ax2.legend(loc = "upper right")
+                if (orientation == 'horizontal'):
 
-                    #ROTATE X AXIS IN XX DEGREES
-                    plt.xticks(rotation = x_axis_rotation)
-                    # XX = 0 DEGREES x_axis (Default)
-                    #ROTATE Y AXIS IN XX DEGREES:
-                    plt.yticks(rotation = y_axis_rotation)
-                    # XX = 0 DEGREES y_axis (Default)
+                    # invert the axes in relation to the default (vertical, below)
+                    ax.set_ylabel(horizontal_axis_title)
+                    ax.set_xlabel(vertical_axis_title, color = 'darkblue')
 
+                    # Horizontal bars used - barh method (bar horizontal):
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.barh.html
+                    # Now, the categorical variables stored in series categories must be
+                    # positioned as the vertical axis Y, whereas the correspondent responses
+                    # must be in the horizontal axis X.
+                    ax.barh(features, importances, color = 'darkblue', alpha = OPACITY, label = data_label)
+                    #.barh(y, x, ...)
+
+                else: 
+
+                    ax.set_xlabel(horizontal_axis_title)
+                    ax.set_ylabel(vertical_axis_title, color = 'darkblue')
+                    # If None or an invalid orientation was used, set it as vertical
+                    # Use Matplotlib standard bar method (vertical bar):
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.bar.html#matplotlib.pyplot.bar
+
+                    # In this standard case, the categorical variables (categories) are positioned
+                    # as X, and the responses as Y:
+                    ax.bar(features, importances, color = 'darkblue', alpha = OPACITY, label = data_label)
+                    #.bar(x, y, ...)
+
+                ax.legend()
+                ax.grid(grid)
+
+                # Notice that the .plot method is used for generating the plot for both orientations.
+                # It is different from .bar and .barh, which specify the orientation of a bar; or
+                # .hline (creation of an horizontal constant line); or .vline (creation of a vertical
+                # constant line).
+
+                # Now the parameters specific to the configurations are finished, so we can go back
+                # to the general code:
 
                 if (export_png == True):
                     # Image will be exported
@@ -1152,7 +665,239 @@ class ModelChecking:
                     # function.
                     if (file_name is None):
                         #set as the default
-                        file_name = ("history_" + response[:10])
+                        file_name = "feature_importance_ranking"
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+                    new_file_path = new_file_path + ".png"
+                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #Export the file to this new path:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                
+                #fig.tight_layout()
+
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+                plt.show()
+        
+        except:
+            print("Unable to generate plot correlating feature to its importance.\n")
+            self.feature_importance_df = pd.DataFrame() # empty dataframe
+        
+        if (model_type == 'classification'):
+            
+            if ControlVars.show_results:
+                # Print meaning of classification metrics
+                print("Metrics definitions:\n")
+                print("True Positive (TP): the model correctly predicts a positive class output, i.e., it correctly predicts that the classified element belongs to that class (in binary classification, like in logistic regression, the model predicts the output 1 and the real output is also 1).")
+                print("\n")
+                print("True Negative (TN): the model correctly predicts a negative class output, i.e., it correctly predicts that the classified element do not belong to that class (in binary classification, the model predicts the output 0 and the real output is also 0).")
+                print("\n")
+                print("False Positive (FP, type 1 error): the model incorrectly predicts a positive class for a negative class-element, i.e., it predicts that the element belongs to that class, but it actually does not (in binary classification, the model predicts an output 1, but the correct output is 0).")
+                print("\n")
+                print("False Negative (FN, type 2 error): the model incorrectly predicts a negative class for a positive class-element, i.e., it predicts that the element does not belong to that class, but it actually does (in binary classification, the model predicts an output 0, but the correct output is 1).")
+                print("\n")
+                print("Naturally, the total number (TOTAL) of classifications is the sum of total correct predictions with total incorrect predictions, i.e., TOTAL = TP + TN + FP + FN")
+                print("\n") # line break
+                print("Accuracy: relation between the total number of correct classifications and the total number of classifications performed, i.e., Accuracy = (TP + TN)/(TOTAL)")
+                print("\n")
+                print("Precision: it is referrent to the attempt of answering the question: \'What is the proportion of positive identifications that were actually correct?\'.")
+                print("In other words, Precision is the relation between the number of true positives and the total of positively-labelled classifications (true and false positives), i.e., Precision = (TP)/(TP + FP)")
+                print("\n")
+                print("Recall: it is referrent to the attempt of answering the question: \'What is the proportion of elements from positive class that were correctly classified?\'.")
+                print("In other words, Recall is the relation between the number of true positives and the total of elements from the positive class (true positives and false negatives), i.e., Recall = (TP)/(TP + FN)")
+                print("\n")
+                print("F1: is the ROC-AUC score. In a generic classification problem, this metric is representative of the capability of the model in distinguishing classes.")     
+                print("F1 =2/((1/Precision)+(1/Recall)) = (2*(Precision)*(Recall))/(Precision + Recall)")
+                print("\n") # line break
+                # Check:
+                # https://towardsdatascience.com/how-to-evaluate-your-machine-learning-models-with-python-code-5f8d2d8d945b
+                    
+                print("Confusion Matrix Interpretation:\n")
+                print("The confusion matrix is a table commonly used for describing the performance of a classification model (a classifier). It visually compares the model outputs with the correct data labels.")
+                print("The matrix is divided into several sectors. For a binary classifier, it is divided into 4 quadrants.")
+                print("\n")
+                print("Each sector represents a given classification: in the vertical (Y) axis, the real observed labels are shown; whereas the predicted classes (model's outputs) are represented in the horizontal (X) axis.")
+                print("Then, for each possible class, the following situations may happen: 1. The model predicted that the element belong to a given class, but it does not (incorrect prediction); or 2. The model predicted that the element belong to a given class, and it does (correct prediction).")
+                print("If the output predicted y_pred (X-coordinate in the confusion matrix = y_pred) is the real label, then the Y-coordinate in the confusion matrix is also y_pred. For an element to have X and Y coordinates equal, it must be positioned on the principal diagonal of the matrix.")
+                print("\n") #line break to highlight the next sentence
+                print("So, we conclude that all the correct predictions of the model are positioned on the main or principal diagonal of the confusion matrix.")
+                print("\n") # line break
+                print("We also may conclude that an increase on model general accuracy is observed as an increase on the values shown in the main diagonal of the confusion matrix.")
+                print("\n")
+                print("Notice that this interpretation takes in account a matrix organized starting from the bottom to the top of Y axis (i.e., lower classes on the origin), and from the left to the right of the X-axis, with lower classes closer to the origin. If the order was the opposite, then the secondary diagonal that would contain the correct predictions.")
+                print("If we have N possible classifications, than we have N values on axis X, and N values in axis Y. So, we have N x N = N2 (N squared) sectors (values) in the confusion matrix.\n")
+                print("Confusion matrix for a binary classifier:\n")
+                print("For a binary classifier, we have to possible outputs: 0 (the origin of the matrix) and 1. In the vertical axis, 1 is the topper value; in the horizontal axis, 1 is the value on the extreme right (the positions more distant from the origin).")
+                print("Since N = 2, we have 2 x 2 = 4 quadrants (sectors or values).Starting from the origin, clockwise, we have 4 situations:")
+                print("\n")
+                print("Situation 1: X = 0 and Y = 0 - the model correctly predicted a negative output (it is a true negative prediction, TN).")
+                print("Situation 2: X = 0 and Y = 1 - the model predicted a negative output for a positive class element (it is a false negative, FN).")
+                print("Situation 3: X = 1 and Y = 1 - the model correctly predicted a positive class (TP).")
+                print("Situation 4: X = 1 and Y = 0 - the model predicted a positive output for a negative class element (FP)\n")
+                print("Each position of the confusion matrix represents the total of elements in each of the possible situations. Then, the sum of all values must be equal to the total of elements classified, and the relation between the sum of the main diagonal and the total of elements must be the accuracy.")
+                print("So, use the confusion matrix to analyze the performance of the model in classifying each class, separately, and to observe the false negatives and false positives. Also, the confusion matrix will reveal if the classes are balanced, or ir a given class has much more elements than the other, what could impart the capability on differentiating the classes.")
+                print("\n")
+                print("For some models, the proportion of false positives may be very different from the proportion of false negatives. It is not a problem, though, and depend on the application of the classifier.")
+                print("It is an important situation that would be masked by the general metrics that take in account all the predictions, without seggregating them through the classes.")
+                print("\n")
+                print("A classical example: suppose the classifier is used for predicting cancer. In this case, the model must have a proportion of false negatives much inferior than the proportion of false positives. That is because the risk associated to a false negative output is much higher.")
+                print("A person who is incorrectly classified as having cancer will perform several more detailed exams to confirm the diagnosis, so the false positive may get detected without a great problem (in fact, the patient will probably feel good about it and keep taking care of the health). But a person incorrectly classified as not having cancer (when he has cancer) may feel comfortable, not taking care of his health and not making other exams (because he trusts the algorithm). Then, it may be too late when he founds out that was a false negative.")
+                print("\n") # line break
+
+                # AUC = Area under the curve
+                print("AUC (Area under the curve) of the ROC (Receiver operating characteristic; default) or PR (Precision Recall) curves are quality measures of binary classifiers.\n")
+
+        return self
+
+
+    def plot_training_history (self, metrics_name = 'mean_absolute_error', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+        if ControlVars.show_plots:
+            # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
+
+            history = self.history
+            # Set the validation metrics name.
+            # to access the validation metrics, simply put a 'val_' prefix:
+            val_metrics_name = 'val_' + metrics_name
+            
+            has_metrics = False
+            has_loss = False
+            
+            # Notice that history is not exactly a dictionary: it is an object with attribute history.
+            # This attribute is where the dictionary is actually stored.
+            
+            # Access the list of epochs, stored as the epoch attribute from the history object
+            list_of_epochs = history.epoch
+            # epochs start from zero
+
+            # Check if the metrics data are present
+            try:
+                # Retrieve data from the history dictionary:
+                # Access values for training sample:
+                train_metrics = history.history[metrics_name]
+                has_metrics = True
+            except:
+                pass
+            
+            # Check if the loss data are present
+            try:
+                # Retrieve data from the history dictionary:
+                # Access values for training sample:
+                train_loss = history.history['loss']
+                has_loss = True
+            except:
+                pass
+            
+            # Try accessing data from validation sample (may not be present):
+            has_validation = False
+            # Maps if there are validation data: this variable is updated when values are present.
+            
+            try:
+                validation_metrics = history.history[val_metrics_name]
+                validation_loss = history.history['val_loss']
+                has_validation = True
+            except: # simply pass
+                pass
+            
+            
+            if (horizontal_axis_title is None):
+                horizontal_axis_title = "epoch"
+            
+            if (metrics_vertical_axis_title is None):
+                metrics_vertical_axis_title = "metrics_value"
+            
+            if (loss_vertical_axis_title is None):
+                loss_vertical_axis_title = "loss_value"
+            
+            try:
+                # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+                # so that the bars do not completely block other views.
+                OPACITY = 0.95
+
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                fig = plt.figure(figsize = (12, 8))
+
+                if (has_metrics & has_loss):
+                    ax1 = fig.add_subplot(211)
+                elif (has_metrics):
+                    ax1 = fig.add_subplot()
+                elif (has_loss):
+                    ax2 = fig.add_subplot()
+
+                if (has_metrics):
+                    #ax1.set_xlabel("Lags")
+                    ax1.set_ylabel(metrics_vertical_axis_title)
+
+                    # Scatter plot of time series:
+                    ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = "train_metrics")
+                    if (has_validation):
+                        # If present, plot validation data:
+                        ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = "validation_metrics")
+                    # Axes.plot documentation:
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+
+                    #ROTATE X AXIS IN XX DEGREES
+                    plt.xticks(rotation = x_axis_rotation)
+                    # XX = 0 DEGREES x_axis (Default)
+                    #ROTATE Y AXIS IN XX DEGREES:
+                    plt.yticks(rotation = y_axis_rotation)
+                    # XX = 0 DEGREES y_axis (Default)
+
+                    ax1.grid(grid)
+                    ax1.legend(loc = "upper right")
+
+                if (has_metrics & has_loss):
+                    # The case where both are present still do not have the ax2 configured
+                    ax2 = fig.add_subplot(212)
+                
+                if (has_loss):
+                    ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = "train_loss")
+
+                    if (has_validation):
+                        # If present, plot validation data:
+                        ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = "validation_loss")
+
+                    ax2.set_xlabel(horizontal_axis_title)
+                    ax2.set_ylabel(loss_vertical_axis_title)
+
+                    ax2.grid(grid)
+                    ax2.legend(loc = "upper right")
+
+                    #ROTATE X AXIS IN XX DEGREES
+                    plt.xticks(rotation = x_axis_rotation)
+                    # XX = 0 DEGREES x_axis (Default)
+                    #ROTATE Y AXIS IN XX DEGREES:
+                    plt.yticks(rotation = y_axis_rotation)
+                    # XX = 0 DEGREES y_axis (Default)
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = "history_loss_and_metrics"
 
                     #check if the user defined an image resolution. If not, set as the default 110 dpi
                     # resolution.
@@ -1181,10 +926,287 @@ class ModelChecking:
                 ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
                 ##  '03_05_END.ipynb'
                 plt.show()
-                print("\n")
-        
+            
             except:
-                print(f"Unable to plot training history for {response}.\n")
+                print("Unable to plot training history.\n")
+                
+    
+    def plot_history_multiresponses (self, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, metrics_vertical_axis_title = None, loss_vertical_axis_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+        if ControlVars.show_plots:
+            # metrics_name = 'mse', 'sparse_categorical_crossentropy', etc
+
+            history = self.history
+            
+            """
+            history object has a format like (2 responses, 1 epoch, metrics = 'mse'), when we apply the
+            .__dict__ method or call the vars functions:
+
+            'history': {'loss': [2.977898597717285],
+            'response1_loss': [0.052497703582048416],
+            'response2_loss': [2.457101345062256],
+            'response1_mse': [0.052497703582048416],
+            'response2_mse': [2.457101345062256],
+            'val_loss': [2.007075071334839],
+            'val_response1_loss': [0.02299179881811142],
+            'val_response2_loss': [1.8660322427749634],
+            'val_response1_mse': [0.02299179881811142],
+            'val_response2_mse': [1.8660322427749634],
+            'params': {'verbose': 1, 'epochs': 1, 'steps': 1},
+            'epoch': [0]}
+
+            Here, the history attribute stores a dictionary with the training history, whereas the epoch
+            attribute stores the list of epochs, starting from zero.
+            - Keys 'loss' and 'val_loss' store the general losses for the whole network.
+            - Other keys store the metrics for the responses.
+
+            """
+            # Access the list of epochs, stored as the epoch attribute from the history object
+            list_of_epochs = history.epoch
+            # epochs start from zero
+            
+            # access history attribute to retrieve the series of metrics.
+            history_dict = history.history
+            
+            metrics_dict = {}
+            #Get the global one:
+            nested_dict = {'loss': history_dict['loss']}
+            
+            
+            # Try accessing validation information
+            has_validation = False
+            # Maps if there are validation data: this variable is updated when values are present.
+            
+            try:
+                nested_dict['val_loss'] = history_dict['val_loss']
+                has_validation = True
+            
+            except: # simply pass
+                pass
+            
+            nested_dict['response'] = 'global'
+            
+            metrics_dict['global'] = nested_dict
+            
+            # Let's find out the metrics name
+            for key in history_dict.keys():
+                
+                if ((key != 'loss') & (key != 'val_loss')):
+                    # These are the globals, which were already saved
+                    
+                    # Split the string in the underscores: 'response2_loss'
+                    # will generate a list of two elements ['response2', 'loss']. We pick the last element
+                    # with index -1.
+                    # Attention: guarantee that the key was read as a string, not as a number
+                    list_of_substrings = str(key).split("_")
+                    first_portion = list_of_substrings[0]
+                    last_portion = list_of_substrings[-1]
+
+                    # Get the total of characters of the last portion
+                    total_characters = len(last_portion)
+                    # pick the string eliminating its last portion
+                    response = key[:(-1*(total_characters + 1))]
+                    # if we had a string like 'response1_loss', now response = 'response1_' if we did
+                    # not sum another character. By summing 1, we eliminate the last underscore
+                    
+                    if (first_portion == 'val'):
+                        # In this case, the response variable by now stores val_response1, i.e., the first
+                        # we should eliminate characters from positions 0 to 3, starting the string from
+                        # character 4:
+                        response = response[4:]
+                    
+                    # try accessing the nested dict:
+                    try:
+                        nested_dict = metrics_dict[response]
+
+                    except:
+                        # There is no nested_dict yet, so create one:
+                        nested_dict = {'response': response}
+                    
+                    if (last_portion != 'loss'):
+                        
+                        if (first_portion != 'val'):
+                            # Insert the metrics name only once:
+                            nested_dict['metrics'] = last_portion
+                            nested_dict[last_portion] = history_dict[key]
+                        
+                        else:
+                            nested_dict[("val_" + last_portion)] = history_dict[key]
+                    
+                    else:
+                        if (first_portion != 'val'):
+                            # Insert the metrics name only once:
+                            nested_dict['loss'] = history_dict[key]
+                        
+                        else:
+                            nested_dict["val_loss"] = history_dict[key]
+                    
+                    #Update nested dictionary
+                    metrics_dict[response] = nested_dict
+            
+            # metrics_dict keys: responses without the 'val_' and '_loss' and '_' + metrics. Stores
+            # the nested dictionary.
+            # nested_dict keys: 'response': name of the response variable;
+            # 'metrics': name of the metrics; metrics (key with name that varies):
+            # series of the metrics registered during training; "val_" + metrics (key with name that 
+            # varies): series of the metrics registered during training for validation data; 'loss':
+            # series of losses obtained during training; 'val_loss': losses for validation data.
+            
+            # Loop through the responses and nested dictionaries in the metrics_dict:
+            for response, nested_dict in metrics_dict.items():
+                
+                # For the general case, only the loss will be available
+                has_metrics = False
+                has_loss = False
+
+                try:
+                    metrics_name = nested_dict['metrics']
+
+                    # Set the validation metrics name.
+                    # to access the validation metrics, simply put a 'val_' prefix:
+                    val_metrics_name = 'val_' + metrics_name
+                
+                except:
+                    pass
+                
+                try:
+                    train_loss = nested_dict['loss']
+                    
+                    has_loss = True
+
+                    if (has_validation):
+                        validation_loss = nested_dict['val_loss']
+                except:
+                    pass
+                
+                try:
+                    train_metrics = nested_dict[metrics_name]
+
+                    has_metrics = True
+                    
+                    if (has_validation):
+                        validation_metrics = nested_dict[val_metrics_name]
+                except:
+                    pass
+                    
+            
+                if (horizontal_axis_title is None):
+                    horizontal_axis_title = "epoch"
+
+                if (metrics_vertical_axis_title is None):
+                    metrics_vertical_axis_title = "metrics_value"
+
+                if (loss_vertical_axis_title is None):
+                    loss_vertical_axis_title = "loss_value"
+                
+                try:
+                    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+                    # so that the bars do not completely block other views.
+                    OPACITY = 0.95
+
+                    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                    fig = plt.figure(figsize = (12, 8))
+                    
+                    if (has_metrics & has_loss):
+                        ax1 = fig.add_subplot(211)
+                    elif (has_metrics):
+                        ax1 = fig.add_subplot()
+                    elif (has_loss):
+                        ax2 = fig.add_subplot()
+
+                    if (has_metrics):
+                        #ax1.set_xlabel("Lags")
+                        ax1.set_ylabel(metrics_vertical_axis_title)
+
+                        # Scatter plot of time series:
+                        ax1.plot(list_of_epochs, train_metrics, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = ("train_metrics_" + response[:10]))
+                        if (has_validation):
+                            # If present, plot validation data:
+                            ax1.plot(list_of_epochs, validation_metrics, linestyle = "-", marker = '', color = 'crimson', alpha = OPACITY, label = ("validation_metrics_" + response[:10]))
+                        # Axes.plot documentation:
+                        # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+
+                        #ROTATE X AXIS IN XX DEGREES
+                        plt.xticks(rotation = x_axis_rotation)
+                        # XX = 0 DEGREES x_axis (Default)
+                        #ROTATE Y AXIS IN XX DEGREES:
+                        plt.yticks(rotation = y_axis_rotation)
+                        # XX = 0 DEGREES y_axis (Default)
+
+                        ax1.grid(grid)
+                        ax1.legend(loc = "upper right")
+                    
+                    if (has_metrics & has_loss):
+                        # The case where both are present still do not have the ax2 configured
+                        ax2 = fig.add_subplot(212)
+
+                    if (has_loss):
+                        ax2.plot(list_of_epochs, train_loss, linestyle = "-", marker = '', color = 'darkgreen', alpha = OPACITY, label = ("train_loss_" + response[:10]))
+
+                        if (has_validation):
+                            # If present, plot validation data:
+                            ax2.plot(list_of_epochs, validation_loss, linestyle = "-", marker = '', color = 'fuchsia', alpha = OPACITY, label = ("validation_loss_" + response[:10]))
+
+                        ax2.set_xlabel(horizontal_axis_title)
+                        ax2.set_ylabel(loss_vertical_axis_title)
+
+                        ax2.grid(grid)
+                        ax2.legend(loc = "upper right")
+
+                        #ROTATE X AXIS IN XX DEGREES
+                        plt.xticks(rotation = x_axis_rotation)
+                        # XX = 0 DEGREES x_axis (Default)
+                        #ROTATE Y AXIS IN XX DEGREES:
+                        plt.yticks(rotation = y_axis_rotation)
+                        # XX = 0 DEGREES y_axis (Default)
+
+
+                    if (export_png == True):
+                        # Image will be exported
+                        import os
+
+                        #check if the user defined a directory path. If not, set as the default root path:
+                        if (directory_to_save is None):
+                            #set as the default
+                            directory_to_save = ""
+
+                        #check if the user defined a file name. If not, set as the default name for this
+                        # function.
+                        if (file_name is None):
+                            #set as the default
+                            file_name = ("history_" + response[:10])
+
+                        #check if the user defined an image resolution. If not, set as the default 110 dpi
+                        # resolution.
+                        if (png_resolution_dpi is None):
+                            #set as 330 dpi
+                            png_resolution_dpi = 330
+
+                        #Get the new_file_path
+                        new_file_path = os.path.join(directory_to_save, file_name)
+                        new_file_path = new_file_path + ".png"
+                        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                        #Export the file to this new path:
+                        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                    
+                    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                    #plt.figure(figsize = (12, 8))
+                    #fig.tight_layout()
+
+                    ## Show an image read from an image file:
+                    ## import matplotlib.image as pltimg
+                    ## img=pltimg.imread('mydecisiontree.png')
+                    ## imgplot = plt.imshow(img)
+                    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                    ##  '03_05_END.ipynb'
+                    plt.show()
+                    print("\n")
+            
+                except:
+                    print(f"Unable to plot training history for {response}.\n")
             
     
     def model_metrics_multiresponses (self, output_dictionary, show_confusion_matrix_values = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -1285,7 +1307,8 @@ class ModelChecking:
             if ((y_true_array is not None) & (y_pred_array is not None)):
 
                 calculated_metrics = {}
-                print(f"Metrics for {key}:\n")
+                if ControlVars.show_results:
+                    print(f"Metrics for {key}:\n")
                 
                 nested_metrics = {}
                 
@@ -1294,7 +1317,8 @@ class ModelChecking:
                     if (total_data > 0):
                     
                         # enumerate will get tuples like (0, response1), (1, response2), etc
-                        print(f"Evaluation of metrics for response variable '{response}':\n")
+                        if ControlVars.show_results:
+                            print(f"Evaluation of metrics for response variable '{response}':\n")
 
                         type_of_problem = output_dictionary[response]['type']
                         # select only the arrays in position 'index' of the tensors y_true_tensor
@@ -1325,33 +1349,37 @@ class ModelChecking:
                             # Regression metrics:
                             if (model_type == 'regression'):
 
-                                print(f"Metrics for {key}:\n")
+                                if ControlVars.show_results:
+                                    print(f"Metrics for {key}:\n")
                                 mse = mean_squared_error(y_true, y_pred)
 
                                 # Print in scientific notation:
-                                try:
-                                    print(f"Mean squared error (MSE) = {mse:e}")
-                                except:
-                                    print(f"Mean squared error (MSE) = {mse}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Mean squared error (MSE) = {mse:e}")
+                                    except:
+                                        print(f"Mean squared error (MSE) = {mse}")
                                 # Add to calculated metrics:
                                 calculated_metrics['mse'] = mse
 
                                 rmse = mse**(1/2)
 
-                                try:
-                                    print(f"Root mean squared error (RMSE) = {rmse:e}")
-                                except:
-                                    print(f"Root mean squared error (RMSE) = {rmse}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Root mean squared error (RMSE) = {rmse:e}")
+                                    except:
+                                        print(f"Root mean squared error (RMSE) = {rmse}")
                                 # Add to calculated metrics:
                                 calculated_metrics['rmse'] = rmse
 
                                 mae = mean_absolute_error(y_true, y_pred)
 
                                 # Print in scientific notation:
-                                try:
-                                    print(f"Mean absolute error (MAE) = {mae:e}")
-                                except:
-                                    print(f"Mean absolute error (MAE) = {mae}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Mean absolute error (MAE) = {mae:e}")
+                                    except:
+                                        print(f"Mean absolute error (MAE) = {mae}")
                                 # Add to calculated metrics:
                                 calculated_metrics['mae'] = mae
 
@@ -1360,19 +1388,21 @@ class ModelChecking:
                                 mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
                                 # Print in scientific notation:
-                                try:
-                                    print(f"Mean absolute percentage error (MAPE) = {mape:e}")
-                                except:
-                                    print(f"Mean absolute percentage error (MAPE) = {mape}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Mean absolute percentage error (MAPE) = {mape:e}")
+                                    except:
+                                        print(f"Mean absolute percentage error (MAPE) = {mape}")
                                 # Add to calculated metrics:
                                 calculated_metrics['mape'] = mape
 
                                 r2 = r2_score(y_true, y_pred)
 
-                                try:
-                                    print(f"Coefficient of linear correlation R² = {r2:e}")
-                                except:
-                                    print(f"Coefficient of linear correlation R² = {r2}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Coefficient of linear correlation R² = {r2:e}")
+                                    except:
+                                        print(f"Coefficient of linear correlation R² = {r2}")
                                 # Add to calculated metrics:
                                 calculated_metrics['r_squared'] = r2
 
@@ -1384,21 +1414,23 @@ class ModelChecking:
                                 n_size = len(y_true)
                                 r2_adj = 1 - (1 - r2)*(n_size - 1)/(n_size - k_model - 1)
 
-                                try:
-                                    print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
-                                except:
-                                    print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj:e}")
+                                    except:
+                                        print(f"Adjusted coefficient of correlation R²-adj = {r2_adj}")
 
                                 # Add to calculated metrics:
                                 calculated_metrics['r_squared_adj'] = r2_adj
 
                                 explained_var = explained_variance_score(y_true, y_pred)
                                 # Print in scientific notation:
-                                try:
-                                    print(f"Explained variance = {explained_var:e}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Explained variance = {explained_var:e}")
 
-                                except:
-                                    print(f"Explained variance = {explained_var}")
+                                    except:
+                                        print(f"Explained variance = {explained_var}")
 
                                 # Explained variance is similar to the R² score, goes from 0 to 1, with the notable 
                                 # difference that it does not account for systematic offsets in the prediction.
@@ -1408,52 +1440,59 @@ class ModelChecking:
 
                             else:
 
-                                print(f"Metrics for {key}:\n")
+                                if ControlVars.show_results:
+                                    print(f"Metrics for {key}:\n")
 
                                 auc = roc_auc_score(y_true, y_pred)
 
-                                try:
-                                    print(f"AUC = {auc:e}")
-                                except:
-                                    print(f"AUC = {auc}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"AUC = {auc:e}")
+                                    except:
+                                        print(f"AUC = {auc}")
                                 # Add to calculated metrics:
                                 calculated_metrics['auc'] = auc
 
                                 acc = accuracy_score(y_true, y_pred)
 
-                                try:
-                                    print(f"Accuracy = {acc:e}")
-                                except:
-                                    print(f"Accuracy = {acc}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Accuracy = {acc:e}")
+                                    except:
+                                        print(f"Accuracy = {acc}")
                                 # Add to calculated metrics:
                                 calculated_metrics['accuracy'] = acc
 
                                 precision = precision_score(y_true, y_pred)
 
-                                try:
-                                    print(f"Precision = {precision:e}")
-                                except:
-                                    print(f"Precision = {precision}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Precision = {precision:e}")
+                                    except:
+                                        print(f"Precision = {precision}")
                                 # Add to calculated metrics:
                                 calculated_metrics['precision'] = precision
 
                                 recall = recall_score(y_true, y_pred)
 
-                                try:
-                                    print(f"Recall = {recall:e}")
-                                except:
-                                    print(f"Recall = {recall}")
+                                if ControlVars.show_results:
+                                    try:
+                                        print(f"Recall = {recall:e}")
+                                    except:
+                                        print(f"Recall = {recall}")
                                 # Add to calculated metrics:
                                 calculated_metrics['recall'] = recall
 
                                 # The method update_state returns None, so it must be called without and equality
 
                                 # Get the classification report:
-                                print("\n")
-                                print("Classification Report:\n")
+                                if ControlVars.show_results:
+                                    print("\n")
+                                    print("Classification Report:\n")
                                 # Convert tensors to NumPy arrays
                                 report = classification_report (y_true, y_pred)
-                                print(report)
+                                if ControlVars.show_results:
+                                    print(report)
                                 # Add to calculated metrics:
                                 calculated_metrics['classification_report'] = report
                                 print("\n")
@@ -1463,70 +1502,72 @@ class ModelChecking:
                                 matrix = confusion_matrix (y_true, y_pred)
                                 # Add to calculated metrics:
                                 calculated_metrics['confusion_matrix'] = report
-                                print("Confusion matrix:\n")
+                                if ControlVars.show_results:
+                                    print("Confusion matrix:\n")
 
-                                fig, ax = plt.subplots(figsize = (12, 8))
-                                # possible color schemes (cmap) for the heat map: None, 'Blues_r',
-                                # "YlGnBu",
-                                # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
-                                # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
-                                ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
-                                #annot = True: shows the number corresponding to each square
-                                #annot = False: do not show the number
-                                plot_title = f"Accuracy Score for {key} = {acc:.2f}"
-                                ax.set_title(plot_title)
-                                ax.set_ylabel('Actual class')
-                                ax.set_xlabel('Predicted class')
+                                if ControlVars.show_plots:
+                                    fig, ax = plt.subplots(figsize = (12, 8))
+                                    # possible color schemes (cmap) for the heat map: None, 'Blues_r',
+                                    # "YlGnBu",
+                                    # https://seaborn.pydata.org/generated/seaborn.heatmap.html?msclkid=73d24a00c1b211ec8aa1e7ab656e3ff4
+                                    # http://seaborn.pydata.org/tutorial/color_palettes.html?msclkid=daa091f1c1b211ec8c74553348177b45
+                                    ax = sns.heatmap(matrix, annot = show_confusion_matrix_values, fmt = ".0f", linewidths = .5, square = True, cmap = 'Blues_r');
+                                    #annot = True: shows the number corresponding to each square
+                                    #annot = False: do not show the number
+                                    plot_title = f"Accuracy Score for {key} = {acc:.2f}"
+                                    ax.set_title(plot_title)
+                                    ax.set_ylabel('Actual class')
+                                    ax.set_xlabel('Predicted class')
 
-                                if (export_png == True):
-                                    # Image will be exported
-                                    import os
+                                    if (export_png == True):
+                                        # Image will be exported
+                                        import os
 
-                                    #check if the user defined a directory path. If not, set as the default root path:
-                                    if (directory_to_save is None):
-                                        #set as the default
-                                        directory_to_save = ""
+                                        #check if the user defined a directory path. If not, set as the default root path:
+                                        if (directory_to_save is None):
+                                            #set as the default
+                                            directory_to_save = ""
 
-                                    #check if the user defined a file name. If not, set as the default name for this
-                                    # function.
-                                    if (file_name is None):
-                                        #set as the default
-                                        file_name = "confusion_matrix_" + response
+                                        #check if the user defined a file name. If not, set as the default name for this
+                                        # function.
+                                        if (file_name is None):
+                                            #set as the default
+                                            file_name = "confusion_matrix_" + response
 
-                                    else:
-                                        # add the train suffix, to differentiate from the test matrix:
-                                        file_name = file_name + "_" + key
+                                        else:
+                                            # add the train suffix, to differentiate from the test matrix:
+                                            file_name = file_name + "_" + key
 
-                                    #check if the user defined an image resolution. If not, set as the default 110 dpi
-                                    # resolution.
-                                    if (png_resolution_dpi is None):
-                                        #set as 330 dpi
-                                        png_resolution_dpi = 330
+                                        #check if the user defined an image resolution. If not, set as the default 110 dpi
+                                        # resolution.
+                                        if (png_resolution_dpi is None):
+                                            #set as 330 dpi
+                                            png_resolution_dpi = 330
 
-                                    #Get the new_file_path
-                                    new_file_path = os.path.join(directory_to_save, file_name)
-                                    new_file_path = new_file_path + ".png"
-                                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                                    #Export the file to this new path:
-                                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-                                
-                                #fig.tight_layout()
+                                        #Get the new_file_path
+                                        new_file_path = os.path.join(directory_to_save, file_name)
+                                        new_file_path = new_file_path + ".png"
+                                        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                                        #Export the file to this new path:
+                                        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                                        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                                        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                                    
+                                    #fig.tight_layout()
 
-                                ## Show an image read from an image file:
-                                ## import matplotlib.image as pltimg
-                                ## img=pltimg.imread('mydecisiontree.png')
-                                ## imgplot = plt.imshow(img)
-                                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-                                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-                                ##  '03_05_END.ipynb'
-                                plt.show()
+                                    ## Show an image read from an image file:
+                                    ## import matplotlib.image as pltimg
+                                    ## img=pltimg.imread('mydecisiontree.png')
+                                    ## imgplot = plt.imshow(img)
+                                    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                                    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                                    ##  '03_05_END.ipynb'
+                                    plt.show()
 
-                                print("\n")
-                                # Now, add the metrics to the metrics_dict:
+                                    print("\n")
+                                    # Now, add the metrics to the metrics_dict:
 
-                            nested_metrics[response] = calculated_metrics
+                                nested_metrics[response] = calculated_metrics
 
                         except:
                             print(f"Unable to retrieve metrics for {key}:\n")
@@ -1556,11 +1597,12 @@ class ModelChecking:
         # Now use the list attribute to convert the array to a list:
         list_of_classes = list(list_of_classes)
         number_of_classes = len(list_of_classes)
-        print("\n") # line break
-        print(f"Number of different classes in the training set = {number_of_classes}\n")
-        print("List of classes:\n")
-        print(list_of_classes)
-        print("\n") # line break
+        if ControlVars.show_results:
+            print("\n") # line break
+            print(f"Number of different classes in the training set = {number_of_classes}\n")
+            print("List of classes:\n")
+            print(list_of_classes)
+            print("\n") # line break
         
         # Store this information as class attributes:
         self.list_of_classes = list_of_classes
@@ -1860,9 +1902,10 @@ class TfModels:
             loss = self.loss
             metrics = self.metrics
             
-            print("Check model architecture:\n")
-            tf.keras.utils.plot_model(model)
-            print("\n")
+            if ControlVars.show_plots:
+                print("Check model architecture:\n")
+                tf.keras.utils.plot_model(model)
+                print("\n")
             
             # Compile model:
             model.compile(optimizer = optimizer,
@@ -1897,9 +1940,10 @@ class TfModels:
             """
             
             
-            print("Check model architecture:\n")
-            tf.keras.utils.plot_model(model)
-            print("\n")
+            if ControlVars.show_plots:
+                print("Check model architecture:\n")
+                tf.keras.utils.plot_model(model)
+                print("\n")
             
             # Compile model:
             model.compile(optimizer = optimizer,
@@ -1909,14 +1953,15 @@ class TfModels:
                                     'output_regression': metrics_regression})
         
         
-        print("Check model summary:\n")
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(model.summary())
-                    
-        except: # regular mode
-            print(model.summary())
+        if ControlVars.show_results:
+            print("Check model summary:\n")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(model.summary())
+                        
+            except: # regular mode
+                print(model.summary())
         
         # Now, save the model in the attribute and return the object:
         self.model = model
@@ -2671,18 +2716,20 @@ class SiameseNetworks:
                loss = loss_dict,
                metrics = metrics_dict)
         
-        print("Check model architecture:\n")
-        tf.keras.utils.plot_model(model)
-        print("\n")
+        if ControlVars.show_plots:
+            print("Check model architecture:\n")
+            tf.keras.utils.plot_model(model)
+            print("\n")
         
-        print("Check model summary:\n")
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(model.summary())
-                    
-        except: # regular mode
-            print(model.summary())
+        if ControlVars.show_results:
+            print("Check model summary:\n")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(model.summary())
+                        
+            except: # regular mode
+                print(model.summary())
         
         # Save as class attribute:
         self.model = model

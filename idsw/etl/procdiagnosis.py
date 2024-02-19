@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import (SPCChartAssistant, SPCPlot, CapabilityAnalysis)
 
 
@@ -346,29 +346,30 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
 
     numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
-    if (use_spc_chart_assistant == True):
-        
-        # Run if it is True. Requires TensorFlow to load. Load the extra library only
-        # if necessary:
-        # To show the Python class attributes, use the __dict__ method:
-        # http://www.learningaboutelectronics.com/Articles/How-to-display-all-attributes-of-a-class-or-instance-of-a-class-in-Python.php#:~:text=So%20the%20__dict__%20method%20is%20a%20very%20useful,other%20data%20type%20such%20as%20a%20class%20itself.
+    if ControlVars.show_plots: # the upper context is dominant
+        if (use_spc_chart_assistant == True):
+            
+            # Run if it is True. Requires TensorFlow to load. Load the extra library only
+            # if necessary:
+            # To show the Python class attributes, use the __dict__ method:
+            # http://www.learningaboutelectronics.com/Articles/How-to-display-all-attributes-of-a-class-or-instance-of-a-class-in-Python.php#:~:text=So%20the%20__dict__%20method%20is%20a%20very%20useful,other%20data%20type%20such%20as%20a%20class%20itself.
 
-        # instantiate the object
-        assistant = SPCChartAssistant()
-        # Download the images:
-        assistant = assistant.download_assistant_imgs()
+            # instantiate the object
+            assistant = SPCChartAssistant()
+            # Download the images:
+            assistant = assistant.download_assistant_imgs()
 
-        # Run the assistant:
-        while (assistant.keep_assistant_on == True):
+            # Run the assistant:
+            while (assistant.keep_assistant_on == True):
 
-            # Run the wrapped function until the user tells you to stop:
-            # Notice that both variables are True for starting the first loop:
-            assistant = assistant.open_chart_assistant_screen()
+                # Run the wrapped function until the user tells you to stop:
+                # Notice that both variables are True for starting the first loop:
+                assistant = assistant.open_chart_assistant_screen()
 
-        # Delete the images
-        assistant.delete_assistant_imgs()
-        # Select the chart and the parameters:
-        chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication = assistant.chart_selection()
+            # Delete the images
+            assistant.delete_assistant_imgs()
+            # Select the chart and the parameters:
+            chart_to_use, column_with_labels_or_subgroups, consider_skewed_dist_when_estimating_with_std, column_with_variable_to_be_analyzed, timestamp_tag_column, column_with_event_frame_indication, rare_event_timedelta_unit, rare_event_indication = assistant.chart_selection()
 
     # Back to the main code, independently on the use of the assistant:    
     # set a local copy of the dataframe:
@@ -816,22 +817,25 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # Reset the index of this dataframe:
     red_df = red_df.reset_index(drop = True)
     
+
     if (len(red_df) > 0):
         
         # There is at least one row outside the control limits.
         print("Attention! Point outside of natural variation (control limits).")
         print("Check the red_df dataframe returned for details on values outside the control limits.")
-        print("They occur at the following time values:\n")
         
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(red_df)
+        if ControlVars.show_results: 
+            print("They occur at the following time values:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(red_df)
 
-        except: # regular mode
-            print(list(red_df[timestamp_tag_column]))
-    
-        print("\n")
+            except: # regular mode
+                print(list(red_df[timestamp_tag_column]))
+        
+            print("\n")
     
     # specification_limits = {'lower_spec_lim': value1, 'upper_spec_lim': value2}
     
@@ -893,224 +897,225 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         
     # Matplotlib linestyle:
     # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
-        
-    if (plot_title is None):
-        
-        if (chart_to_use == 'g'):
-            plot_title = f"{chart_to_use}_for_count_of_events_between_rare_occurence"
-        
-        elif (chart_to_use == 't'):
-            plot_title = f"{chart_to_use}_for_timedelta_between_rare_occurence"
-        
-        else:
-            plot_title = f"{chart_to_use}_for_{column_with_variable_to_be_analyzed}"
-    
-    if ((column_with_labels_or_subgroups is None) | (len(unique_labels) <= 1)):
-        
-        # 'i_mr' or, 'std_error', or '3s_as_natural_variation' (individual measurements)
-        
-        LABEL = column_with_variable_to_be_analyzed
-        
-        if (chart_to_use == 'i_mr'):
-            LABEL_MEAN = 'mean'
-            
-        elif ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
-            if(consider_skewed_dist_when_estimating_with_std):
-                LABEL_MEAN = 'median'
 
-            else:
-                LABEL_MEAN = 'mean'
-        
-        else:
+    if ControlVars.show_plots:  
+        if (plot_title is None):
             
             if (chart_to_use == 'g'):
-                LABEL = 'count_between\nrare_events'
-                LABEL_MEAN = 'median'
+                plot_title = f"{chart_to_use}_for_count_of_events_between_rare_occurence"
             
             elif (chart_to_use == 't'):
-                LABEL = 'timedelta_between\nrare_events'
-                LABEL_MEAN = 'central_line'
-                
-    else:
-        if ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
+                plot_title = f"{chart_to_use}_for_timedelta_between_rare_occurence"
             
-            LABEL = "mean_value\nby_label"
-            
-            if(consider_skewed_dist_when_estimating_with_std):
-                LABEL_MEAN = 'median'
             else:
+                plot_title = f"{chart_to_use}_for_{column_with_variable_to_be_analyzed}"
+        
+        if ((column_with_labels_or_subgroups is None) | (len(unique_labels) <= 1)):
+            
+            # 'i_mr' or, 'std_error', or '3s_as_natural_variation' (individual measurements)
+            
+            LABEL = column_with_variable_to_be_analyzed
+            
+            if (chart_to_use == 'i_mr'):
                 LABEL_MEAN = 'mean'
-        
-        elif (chart_to_use == 'xbar_s'):
+                
+            elif ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
+                if(consider_skewed_dist_when_estimating_with_std):
+                    LABEL_MEAN = 'median'
+
+                else:
+                    LABEL_MEAN = 'mean'
             
-            LABEL = "mean_value\nby_label"
-            LABEL_MEAN = 'mean'
-            
-        elif (chart_to_use == 'np'):
-            
-            LABEL = "total_occurences\nby_label"
-            LABEL_MEAN = 'sum_of_ocurrences'
-            
-        elif (chart_to_use == 'p'):
-            
-            LABEL = "mean_value\ngrouped_by_label"
-            LABEL_MEAN = 'mean'
-        
-        elif (chart_to_use == 'u'):
-            
-            LABEL = "mean_value\ngrouped_by_label"
-            LABEL_MEAN = 'mean'
-            
+            else:
+                
+                if (chart_to_use == 'g'):
+                    LABEL = 'count_between\nrare_events'
+                    LABEL_MEAN = 'median'
+                
+                elif (chart_to_use == 't'):
+                    LABEL = 'timedelta_between\nrare_events'
+                    LABEL_MEAN = 'central_line'
+                    
         else:
-            # chart_to_use == 'c'
-            LABEL = "total_occurences\nby_label"
-            LABEL_MEAN = 'average_sum\nof_ocurrences'
-    
-    x = df[timestamp_tag_column]
-    
-    y = df[column_with_variable_to_be_analyzed]  
-    upper_control_lim = df['upper_cl']
-    lower_control_lim = df['lower_cl']
-    mean_line = df['center']
-    
-    if (specification_limits['lower_spec_lim'] is not None):
-        
-        lower_spec_lim = specification_limits['lower_spec_lim']
-    
-    else:
-        lower_spec_lim = None
-    
-    if (specification_limits['upper_spec_lim'] is not None):
-        
-        upper_spec_lim = specification_limits['upper_spec_lim']
-    
-    else:
-        upper_spec_lim = None
-    
-    if (len(red_df) > 0):
-        
-        red_x = red_df[timestamp_tag_column]
-        red_y = red_df[column_with_variable_to_be_analyzed]
-        
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-        
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    fig = plt.figure(figsize = (12, 8))
-    ax = fig.add_subplot()
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    # Set graphic title
-    ax.set_title(plot_title) 
-
-    if not (horizontal_axis_title is None):
-        # Set horizontal axis title
-        ax.set_xlabel(horizontal_axis_title)
-
-    if not (vertical_axis_title is None):
-        # Set vertical axis title
-        ax.set_ylabel(vertical_axis_title)
-
-    # Scatter plot of time series:
-    ax.plot(x, y, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = LABEL)
-    # Axes.plot documentation:
-    # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            if ((chart_to_use == '3s_as_natural_variation')|(chart_to_use == 'std_error')):
+                
+                LABEL = "mean_value\nby_label"
+                
+                if(consider_skewed_dist_when_estimating_with_std):
+                    LABEL_MEAN = 'median'
+                else:
+                    LABEL_MEAN = 'mean'
             
-    # x and y are positional arguments: they are specified by their position in function
-    # call, not by an argument name like 'marker'.
+            elif (chart_to_use == 'xbar_s'):
+                
+                LABEL = "mean_value\nby_label"
+                LABEL_MEAN = 'mean'
+                
+            elif (chart_to_use == 'np'):
+                
+                LABEL = "total_occurences\nby_label"
+                LABEL_MEAN = 'sum_of_ocurrences'
+                
+            elif (chart_to_use == 'p'):
+                
+                LABEL = "mean_value\ngrouped_by_label"
+                LABEL_MEAN = 'mean'
             
-    # Matplotlib markers:
-    # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
-    
-    # Plot the mean line as a step function (values connected by straight splines, forming steps):
-    ax.step(x, y = mean_line, color = 'fuchsia', linestyle = 'dashed', label = LABEL_MEAN, alpha = OPACITY)
-    
-    # Plot the control limits as step functions too:
-    ax.step(x, y = upper_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'control\nlimit')
-    ax.step(x, y = lower_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY)
-    
-    # If there are specifications or reference values, plot as horizontal constant lines (axhlines):
-    if (lower_spec_lim is not None):
+            elif (chart_to_use == 'u'):
+                
+                LABEL = "mean_value\ngrouped_by_label"
+                LABEL_MEAN = 'mean'
+                
+            else:
+                # chart_to_use == 'c'
+                LABEL = "total_occurences\nby_label"
+                LABEL_MEAN = 'average_sum\nof_ocurrences'
         
-        ax.axhline(lower_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
-    
-    if (upper_spec_lim is not None):
+        x = df[timestamp_tag_column]
         
-        ax.axhline(upper_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
-    
-    if (reference_value is not None):
+        y = df[column_with_variable_to_be_analyzed]  
+        upper_control_lim = df['upper_cl']
+        lower_control_lim = df['lower_cl']
+        mean_line = df['center']
         
-        ax.axhline(reference_value, color = 'darkgreen', linestyle = 'dashed', label = 'reference\nvalue', alpha = OPACITY)   
-    
-    # If there are red points outside of control limits to highlight, plot them above the graph
-    # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
-    if (len(red_df) > 0):
-        
-        ax.plot(red_x, red_y, linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0)
-    
-    # If the length of list time_of_event_frame_start is higher than zero,
-    # loop through each element on the list and add a vertical constant line for the timestamp
-    # correspondent to the beginning of an event frame:
-    
-    if (len(time_of_event_frame_start) > 0):
-        
-        for timestamp in time_of_event_frame_start:
-            # add timestamp as a vertical line (axvline):
-            ax.axvline(timestamp, color = 'aqua', linestyle = 'dashed', label = 'event_frame\nchange', alpha = OPACITY)
+        if (specification_limits['lower_spec_lim'] is not None):
             
-    # Now we finished plotting all of the series, we can set the general configuration:
-    ax.grid(grid) # show grid or not
-    ax.legend(loc = "lower left")
+            lower_spec_lim = specification_limits['lower_spec_lim']
+        
+        else:
+            lower_spec_lim = None
+        
+        if (specification_limits['upper_spec_lim'] is not None):
+            
+            upper_spec_lim = specification_limits['upper_spec_lim']
+        
+        else:
+            upper_spec_lim = None
+        
+        if (len(red_df) > 0):
+            
+            red_x = red_df[timestamp_tag_column]
+            red_y = red_df[column_with_variable_to_be_analyzed]
+            
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+            
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+        
+        # Set graphic title
+        ax.set_title(plot_title) 
 
-    if (export_png == True):
-        # Image will be exported
-        import os
+        if not (horizontal_axis_title is None):
+            # Set horizontal axis title
+            ax.set_xlabel(horizontal_axis_title)
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+        if not (vertical_axis_title is None):
+            # Set vertical axis title
+            ax.set_ylabel(vertical_axis_title)
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = f"control_chart_{chart_to_use}"
+        # Scatter plot of time series:
+        ax.plot(x, y, linestyle = "-", marker = '', color = 'darkblue', alpha = OPACITY, label = LABEL)
+        # Axes.plot documentation:
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+                
+        # x and y are positional arguments: they are specified by their position in function
+        # call, not by an argument name like 'marker'.
+                
+        # Matplotlib markers:
+        # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+        
+        # Plot the mean line as a step function (values connected by straight splines, forming steps):
+        ax.step(x, y = mean_line, color = 'fuchsia', linestyle = 'dashed', label = LABEL_MEAN, alpha = OPACITY)
+        
+        # Plot the control limits as step functions too:
+        ax.step(x, y = upper_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'control\nlimit')
+        ax.step(x, y = lower_control_lim, color = 'crimson', linestyle = 'dashed', alpha = OPACITY)
+        
+        # If there are specifications or reference values, plot as horizontal constant lines (axhlines):
+        if (lower_spec_lim is not None):
+            
+            ax.axhline(lower_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
+        
+        if (upper_spec_lim is not None):
+            
+            ax.axhline(upper_spec_lim, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
+        
+        if (reference_value is not None):
+            
+            ax.axhline(reference_value, color = 'darkgreen', linestyle = 'dashed', label = 'reference\nvalue', alpha = OPACITY)   
+        
+        # If there are red points outside of control limits to highlight, plot them above the graph
+        # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
+        if (len(red_df) > 0):
+            
+            ax.plot(red_x, red_y, linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0)
+        
+        # If the length of list time_of_event_frame_start is higher than zero,
+        # loop through each element on the list and add a vertical constant line for the timestamp
+        # correspondent to the beginning of an event frame:
+        
+        if (len(time_of_event_frame_start) > 0):
+            
+            for timestamp in time_of_event_frame_start:
+                # add timestamp as a vertical line (axvline):
+                ax.axvline(timestamp, color = 'aqua', linestyle = 'dashed', label = 'event_frame\nchange', alpha = OPACITY)
+                
+        # Now we finished plotting all of the series, we can set the general configuration:
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = "lower left")
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+        if (export_png == True):
+            # Image will be exported
+            import os
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    #plt.figure(figsize = (12, 8))
-    #fig.tight_layout()
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = f"control_chart_{chart_to_use}"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
     
     return df, red_df
 
@@ -1144,6 +1149,8 @@ def process_capability (df, column_with_variable_to_be_analyzed, specification_l
     from scipy import stats
     
     
+    print("WARNING: this capability analysis is based on the strong hypothesis that data follows the normal (Gaussian) distribution.\n")
+        
     # Set a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
@@ -1220,142 +1227,144 @@ def process_capability (df, column_with_variable_to_be_analyzed, specification_l
     # Nest this dataframe in stats_dict:
     stats_dict['capability_df'] = capability_df
     
-    print("\n")
-    print("Check the capability summary dataframe:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(capability_df)
-            
-    except: # regular mode
-        print(capability_df)
+    if ControlVars.show_results: 
+        print("\n")
+        print("Check the capability summary dataframe:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(capability_df)
+                
+        except: # regular mode
+            print(capability_df)
     
     # Print the indicators' interpretation:
     capability_obj.capability_interpretation()
     
-    string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
-    
-    if (plot_title is not None):
-        plot_title = plot_title + string_for_title
+    if ControlVars.show_plots: 
+        string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
         
-    else:
-        # Set graphic title
-        plot_title = f"Process Capability" + string_for_title
+        if (plot_title is not None):
+            plot_title = plot_title + string_for_title
+            
+        else:
+            # Set graphic title
+            plot_title = f"Process Capability" + string_for_title
 
-    if (horizontal_axis_title is None):
-        # Set horizontal axis title
-        horizontal_axis_title = column_with_variable_to_be_analyzed
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = column_with_variable_to_be_analyzed
 
-    if (vertical_axis_title is None):
-        # Set vertical axis title
-        vertical_axis_title = "Counting/Frequency"
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "Counting/Frequency"
+            
+        y_hist = DATASET[column_with_variable_to_be_analyzed]
+        number_of_bins = histogram_dict['number_of_bins']
         
-    y_hist = DATASET[column_with_variable_to_be_analyzed]
-    number_of_bins = histogram_dict['number_of_bins']
-    
-    upper_spec = specification_limits['upper_spec_lim']
-    lower_spec = specification_limits['lower_spec_lim']
-    target = (upper_spec + lower_spec)/2 # center of the specification range
-    
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    fig = plt.figure(figsize = (12, 8))
-    ax = fig.add_subplot()
-    
-    #STANDARD MATPLOTLIB METHOD:
-    #bins = number of bins (intervals) of the histogram. Adjust it manually
-    #increasing bins will increase the histogram's resolution, but height of bars
-    
-    ax.hist(y_hist, bins = number_of_bins, alpha = OPACITY, label = f'counting_of\n{column_with_variable_to_be_analyzed}', color = 'darkblue')
-    
-    # desired_normal = {'x': x_of_normal, 'y': y_normal}
-    # actual_pdf = {'x': array_to_analyze, 'y': array_of_probs}
-    
-    # Plot the probability density function for the data:
-    pdf_x = actual_pdf['x']
-    pdf_y = actual_pdf['y']
-    
-    ax.plot(pdf_x, pdf_y, color = 'darkgreen', linestyle = '-', alpha = OPACITY, label = 'probability\ndensity')
-    
-    # Check if a normal curve was obtained:
-    x_of_normal = desired_normal['x']
-    y_normal = desired_normal['y']
-    
-    if (len(x_of_normal) > 0):
-        # Non-empty list, add the normal curve:
-        ax.plot(x_of_normal, y_normal, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'expected\nnormal_curve')
-    
-    # Add the specification limits and target vertical lines (axvline):
-    ax.axvline(upper_spec, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
-    ax.axvline(lower_spec, color = 'black', linestyle = 'dashed', alpha = OPACITY)
-    ax.axvline(target, color = 'aqua', linestyle = 'dashed', label = 'target\nvalue', alpha = OPACITY)
+        upper_spec = specification_limits['upper_spec_lim']
+        lower_spec = specification_limits['lower_spec_lim']
+        target = (upper_spec + lower_spec)/2 # center of the specification range
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        #STANDARD MATPLOTLIB METHOD:
+        #bins = number of bins (intervals) of the histogram. Adjust it manually
+        #increasing bins will increase the histogram's resolution, but height of bars
+        
+        ax.hist(y_hist, bins = number_of_bins, alpha = OPACITY, label = f'counting_of\n{column_with_variable_to_be_analyzed}', color = 'darkblue')
+        
+        # desired_normal = {'x': x_of_normal, 'y': y_normal}
+        # actual_pdf = {'x': array_to_analyze, 'y': array_of_probs}
+        
+        # Plot the probability density function for the data:
+        pdf_x = actual_pdf['x']
+        pdf_y = actual_pdf['y']
+        
+        ax.plot(pdf_x, pdf_y, color = 'darkgreen', linestyle = '-', alpha = OPACITY, label = 'probability\ndensity')
+        
+        # Check if a normal curve was obtained:
+        x_of_normal = desired_normal['x']
+        y_normal = desired_normal['y']
+        
+        if (len(x_of_normal) > 0):
+            # Non-empty list, add the normal curve:
+            ax.plot(x_of_normal, y_normal, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'expected\nnormal_curve')
+        
+        # Add the specification limits and target vertical lines (axvline):
+        ax.axvline(upper_spec, color = 'black', linestyle = 'dashed', label = 'specification\nlimit', alpha = OPACITY)
+        ax.axvline(lower_spec, color = 'black', linestyle = 'dashed', alpha = OPACITY)
+        ax.axvline(target, color = 'aqua', linestyle = 'dashed', label = 'target\nvalue', alpha = OPACITY)
 
-    # If there is a reference value, plot it as a vertical line:
-    if (reference_value is not None):
-        ax.axvline(reference_value, color = 'fuchsia', linestyle = 'dashed', label = 'reference\nvalue', alpha = OPACITY)
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
+        # If there is a reference value, plot it as a vertical line:
+        if (reference_value is not None):
+            ax.axvline(reference_value, color = 'fuchsia', linestyle = 'dashed', label = 'reference\nvalue', alpha = OPACITY)
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
 
-    ax.set_title(plot_title)
-    ax.set_xlabel(horizontal_axis_title)
-    ax.set_ylabel(vertical_axis_title)
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
 
-    ax.grid(grid) # show grid or not
-    ax.legend(loc = 'upper right')
-    # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-    # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-    # https://www.statology.org/matplotlib-legend-position/
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = 'upper right')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
 
-    if (export_png == True):
-        # Image will be exported
-        import os
+        if (export_png == True):
+            # Image will be exported
+            import os
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "capability_plot"
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "capability_plot"
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    #plt.figure(figsize = (12, 8))
-    #fig.tight_layout()
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
 
     return stats_dict

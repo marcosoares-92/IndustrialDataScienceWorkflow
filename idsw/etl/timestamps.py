@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
-from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+from idsw import (InvalidInputsError, ControlVars)
+from .utils import (EncodeDecode, mode_retrieval)
 
 
 def merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "inner", merge_method = 'asof', merged_suffixes = ('_left', '_right'), asof_direction = 'nearest', ordered_filling = 'ffill'):
@@ -60,27 +60,8 @@ def merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "i
     
     except:
         # Try conversion to pd.Timestamp (less efficient, involves looping)
-        # 1. Start lists to store the Pandas timestamps:
-        timestamp_list_left = []
-        timestamp_list_right = []
-
-        # 2. Loop through each element of the timestamp columns left_key and right_key, 
-        # and apply the function to guarantee that all elements are Pandas timestamps
-
-        # left dataframe:
-        for timestamp in DF_LEFT[left_key]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column]
-            timestamp_list_left.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        # right dataframe:
-        for timestamp in DF_RIGHT[right_key]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column]
-            timestamp_list_right.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        # 3. Set the key columns as the lists of objects converted to Pandas dataframes:
-        DF_LEFT[left_key] = timestamp_list_left
-        DF_RIGHT[right_key] = timestamp_list_right
-    
+        DF_LEFT[left_key] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DF_LEFT[left_key]]
+        DF_RIGHT[right_key] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DF_RIGHT[right_key]]
     
     # Now, even if the dates were read as different types of variables (like string for one
     # and datetime for the other), we converted them to a same type (Pandas timestamp), avoiding
@@ -129,16 +110,18 @@ def merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "i
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Dataframe successfully merged. Check its 10 first rows:\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(merged_df.head(10))
-            
-    except: # regular mode
-        print(merged_df.head(10))
-    
+    if ControlVars.show_results:
+        print("Dataframe successfully merged. Check its 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(merged_df.head(10))
+                
+        except: # regular mode
+            print(merged_df.head(10))
+        
     return merged_df
 
 
@@ -292,19 +275,8 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     except:
         # Obtain pd.Timestamp objects
         # 1. Start a list to store the Pandas timestamps:
-        timestamp_list = []
-
-        # 2. Loop through each element of the timestamp column, and apply the function
-        # to guarantee that all elements are Pandas timestamps
-
-        for timestamp in df_copy[timestamp_tag_column]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        # 3. Create a column in the dataframe that will be used as key for the Grouper class
-        # The grouper requires a column in the dataframe - it cannot use a list for that.
-        # Simply copy the list as the new column:
-        df_copy['timestamp_obj'] = timestamp_list
+        df_copy['timestamp_obj'] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in df_copy[timestamp_tag_column]]
+    
     
     # Now we have a list correspondent to timestamp_tag_column, but only with
     # Pandas timestamp objects
@@ -468,15 +440,11 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
-        DATASET = df_categorical
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list[1:] # Do not pick the timestamp to encode
-        df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
-        # avoiding that scipy try to aggregate them and raise an error:
-        # Remove the columns that do not have numeric variables before grouping
-        df_categorical = df_categorical.drop(columns = categorical_list[1:])
-        # Get the new columns generated from Ordinal Encoding:
-        new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list[1:]]
+        # Encode to calculate the mode:
+        enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = categorical_list[1:]) # Do not pick the timestamp to encode
+        enc_dec_obj = enc_dec_obj.encode()
+        df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+
 
         if (start_time is not None):
 
@@ -500,50 +468,9 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         
         # Loop through each categorical variable:
         for cat_var in new_encoded_cols:
-            
-            # save as a series:
-            cat_var_series = np.array(df_categorical[cat_var])
-            # Start a list to store only the modes:
-            list_of_modes = []
-
-            # Now, loop through each row of cat_var_series. Take the element [0][0]
-            # and append it to the list_of_modes:
-            for i in range(0, len(cat_var_series)):
-                # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
-                #  try accessing the mode
-                # mode array is like:
-                # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
-                # To retrieve only the mode, we must access the element [0] from this array
-                # or attribute mode:
-                
-                try:
-                    list_of_modes.append(cat_var_series[i].mode)
-                    
-                except:
-                    try:
-                        list_of_modes.append(cat_var_series[i][0])
-                    except:
-                        try:   
-                            if (len(cat_var_series) > 0):
-                                if ((cat_var_series[i] != np.nan) & (cat_var_series[i] is not None)):
-                                    list_of_modes.append(cat_var_series[i])
-                                else:
-                                    list_of_modes.append(np.nan)
-
-                            else:
-                                # This error is generated when trying to access an array storing no values.
-                                # (i.e., with missing values). Since there is no dimension, it is not possible
-                                # to access the [0][0] position. In this case, simply append the np.nan (missing value):
-                                list_of_modes.append(np.nan)
-                        except:
-                            list_of_modes.append(np.nan)
-
-            # Now we finished the nested for loop, list_of_modes contain only the modes
-
             # Make the column cat_var the list_of_modes itself:
-            df_categorical[cat_var] = list_of_modes
+            df_categorical[cat_var] = mode_retrieval(df_categorical[cat_var])
         
-
         # Again, it is not possible to set as_index = False so, the timestamp becomes the index. 
         # Let's create a column 'timestamp_grouped' to store this index:
         df_categorical['timestamp_grouped'] = df_categorical.index
@@ -556,19 +483,9 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         # Select the columns in the new order by passing the list as argument:
         df_categorical = df_categorical[grouped_cat_cols]
 
-        # Now, reverse the encoding:
-        DATASET = df_categorical
-        ENCODING_LIST = ordinal_encoding_list
-        # Now, reverse encoding and keep only the original column names:
-        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        
-        # timestamp_grouped is not in the categorical_list. We previously had timestamp_obj
-        # which was removed not to have its mode calculated in the loop.
-        # Also, grouped_cat_cols contains the ordinal-encoded columns, not the ones with original
-        # values. So, we must use the columns with original names, not those with OrdEnc suffix:
-        categorical_list = ['timestamp_grouped'] + categorical_list
-        df_categorical = df_categorical[categorical_list]
-
+        # Reverse ordinal encoding
+        enc_dec_obj = enc_dec_obj.decode(new_df = df_categorical)
+        df_categorical, cleaned_df = enc_dec_obj.df_categorical, enc_dec_obj.cleaned_df
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -610,15 +527,17 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Dataframe successfully grouped. Check its 10 first rows (without the categorical/object variables):\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Dataframe successfully grouped. Check its 10 first rows (without the categorical/object variables):\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
 
     #Now return the grouped dataframe with the timestamp as the first column:
     
@@ -668,27 +587,9 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
     try:
         DATASET[timestamp_tag_column] = DATASET[timestamp_tag_column].astype('datetime64[ns]')
         
-        timestamp_list = list(DATASET[timestamp_tag_column])
-        
     except:
-        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
-        # This will prevent any compatibility problems.
 
-        # The pd.Timestamp function can handle a single timestamp per call. Then, we must
-        # loop trough the series, and apply the function to each element.
-
-        # 1. Start a list to store the Pandas timestamps:
-        timestamp_list = []
-
-        # 2. Loop through each element of the timestamp column, and apply the function
-        # to guarantee that all elements are Pandas timestamps
-
-        for timestamp in DATASET[timestamp_tag_column]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        # 3. Save the list as the column timestamp_tag_column itself:
-        DATASET[timestamp_tag_column] = timestamp_list
+        DATASET[timestamp_tag_column] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column]]
     
     # 4. Sort the dataframe in ascending order of timestamps:
     DATASET = DATASET.sort_values(by = timestamp_tag_column, ascending = True)
@@ -751,65 +652,58 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
 
             else:
 
-                print("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
+                raise InvalidInputsError("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
 
         except: # access the attributes from individual objects
+
+            if (extracted_info == 'year'):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).year for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "month"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).month for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "week"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).week for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "day"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).day for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "hour"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).hour for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "minute"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).minute for timestamp in DATASET[timestamp_tag_column]]
+
+            elif (extracted_info == "second"):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).second for timestamp in DATASET[timestamp_tag_column]]
+
+            else:
+
+                raise InvalidInputsError("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
+
+    if ControlVars.show_results:
+        # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
+        # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
+        # new dataframe:
+        print("Timestamp information successfully extracted. Check dataset\'s 10 first rows:\n")
         
-            for i in range(len(DATASET)):
-                # i goes from zero to the index of the last element of the dataframe DATASET
-                # This element has index len(DATASET) - 1
-                # Append the values to the list according to the selected extracted_info
-
-                if (extracted_info == 'year'):
-
-                    new_column_vals.append((timestamp_list[i]).year)
-
-                elif (extracted_info == "month"):
-
-                    new_column_vals.append((timestamp_list[i]).month)
-
-                elif (extracted_info == "week"):
-
-                    new_column_vals.append((timestamp_list[i]).week)
-
-                elif (extracted_info == "day"):
-
-                    new_column_vals.append((timestamp_list[i]).day)
-
-                elif (extracted_info == "hour"):
-
-                    new_column_vals.append((timestamp_list[i]).hour)
-
-                elif (extracted_info == "minute"):
-
-                    new_column_vals.append((timestamp_list[i]).minute)
-
-                elif (extracted_info == "second"):
-
-                    new_column_vals.append((timestamp_list[i]).second)
-
-                else:
-
-                    print("Invalid extracted information. Please select: year, month, week, day, hour, minute, or second.")
-
-                # Copy the list 'new_column_vals' to a new column of the dataframe, named 'new_column_name':
-                DATASET[new_column_name] = new_column_vals
-    
-    # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
-    # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
-    # new dataframe:
-    print("Timestamp information successfully extracted. Check dataset\'s 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
-    
-    #Now that the information were retrieved from all Timestamps, return the new
-    #dataframe:
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        #Now that the information were retrieved from all Timestamps, return the new
+        #dataframe:
     
     return DATASET
 
@@ -868,15 +762,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         
     except:
         # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
-        # 1. Start a list to store the Pandas timestamps:
-        timestamp_list = []
-
-        # 2. Loop through each element of the timestamp column, and apply the function
-        # to guarantee that all elements are Pandas timestamps
-
-        for timestamp in DATASET[timestamp_tag_column]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
+        timestamp_list = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column]]
 
         # 3. Save the list as the column timestamp_tag_column itself:
         DATASET[timestamp_tag_column] = timestamp_list
@@ -911,7 +797,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # (tag_column2, timestamp lower). Since we repeated the last timestamp twice,
     # in the last row it will be subtracted from itself, resulting in zero.
     # This is the expected, since we do not have a delay yet
-    timedelta_obj = DATASET[timestamp_tag_column2] - DATASET[timestamp_tag_column]
+    timedelta_series = DATASET[timestamp_tag_column2] - DATASET[timestamp_tag_column]
     
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
@@ -922,24 +808,15 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # to manipulate timedeltas.
     
     #5. Create an empty list to store the timedeltas in nanoseconds
-    TimedeltaList = []
+    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
     
     #6. Loop through each timedelta_obj and convert it to nanoseconds using the Delta
     # method. Both pd.Timedelta function and the delta method can be applied to a 
     # a single object.
     #len(timedelta_obj) is the total of timedeltas present.
-    
-    for i in range(len(timedelta_obj)):
-        
-        #This loop goes from i = 0 to i = [len(timedelta_obj) - 1], so that
-        #all indices are evaluated.
-        
-        #append the element resultant from the delta method application on the
-        # i-th element of the list timedelta_obj, i.e., timedelta_obj[i].
-        # The .delta attribute was replaced by .value attribute. 
-        # Both return the number of nanoseconds as an integer.
-        # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).value)
+    # The .delta attribute was replaced by .value attribute. 
+    # Both return the number of nanoseconds as an integer.
+    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
     
     #Notice that the loop is needed because Pandas cannot handle a series/list of
     #Timedelta objects simultaneously. It can manipulate a single object
@@ -967,7 +844,6 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # be converted to a series. On the other hand, we still did not defined the name of the
     # new column. So, it is easier to simply convert it to a NumPy array, and then copy
     # the array as a new column.
-    TimedeltaList = np.array(TimedeltaList)
     
     #Convert the array to the desired unit by dividing it by the proper factor:
     
@@ -1101,15 +977,17 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Time delays successfully calculated. Check dataset\'s 10 first rows:\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Time delays successfully calculated. Check dataset\'s 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     if (return_avg_delay == True):
         
@@ -1133,7 +1011,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         # Now we calculate the average value:
         avg_delay = np.average(TimedeltaList)
         
-        print(f"Average delay = {avg_delay} {returned_timedelta_unit}\n")
+        if ControlVars.show_results:
+            print(f"Average delay = {avg_delay} {returned_timedelta_unit}\n")
         
         # Return the dataframe and the average value:
         return DATASET, avg_delay
@@ -1199,31 +1078,10 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         DATASET[timestamp_tag_column2] = DATASET[timestamp_tag_column2].astype('datetime64[ns]')
         
     except:
-        # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.  
-        # 1. Start a list to store the Pandas timestamps:
-        timestamp_list = []
+  
+        DATASET[timestamp_tag_column1] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column1]]
+        DATASET[timestamp_tag_column2] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column2]]
 
-        # 2. Loop through each element of the timestamp column, and apply the function
-        # to guarantee that all elements are Pandas timestamps
-
-        for timestamp in DATASET[timestamp_tag_column1]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        # 3. Create a column in the dataframe that will store the timestamps.
-        # Simply copy the list as the column:
-        DATASET[timestamp_tag_column1] = timestamp_list
-
-        #Repeate these steps for the other column (timestamp_tag_column2):
-        # Restart the list, loop through all the column, and apply the pd.Timestamp function
-        # to each element, individually:
-        timestamp_list = []
-
-        for timestamp in DATASET[timestamp_tag_column2]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column2]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        DATASET[timestamp_tag_column2] = timestamp_list
     
     # 4. Sort the dataframe in ascending order of timestamps:
     DATASET = DATASET.sort_values(by = [timestamp_tag_column1, timestamp_tag_column2], ascending = [True, True])
@@ -1241,7 +1099,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # called df[timestamp_tag_column1] and df[timestamp_tag_column2]. These two series now
     # can be submitted to direct operations.
     
-    timedelta_obj = DATASET[timestamp_tag_column1] - DATASET[timestamp_tag_column2]
+    timedelta_series = DATASET[timestamp_tag_column1] - DATASET[timestamp_tag_column2]
     
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
@@ -1252,24 +1110,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # to manipulate timedeltas.
     
     #5. Create an empty list to store the timedeltas in nanoseconds
-    TimedeltaList = []
-    
-    #6. Loop through each timedelta_obj and convert it to nanoseconds using the Delta
-    # method. Both pd.Timedelta function and the delta method can be applied to a 
-    # a single object.
-    #len(timedelta_obj) is the total of timedeltas present.
-    
-    for i in range(len(timedelta_obj)):
-        
-        #This loop goes from i = 0 to i = [len(timedelta_obj) - 1], so that
-        #all indices are evaluated.
-        
-        #append the element resultant from the delta method application on the
-        # i-th element of the list timedelta_obj, i.e., timedelta_obj[i].
-        # The .delta attribute was replaced by .value attribute. 
-        # Both return the number of nanoseconds as an integer.
-        # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-        TimedeltaList.append(pd.Timedelta(timedelta_obj[i]).value)
+    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
     
     #Notice that the loop is needed because Pandas cannot handle a series/list of
     #Timedelta objects simultaneously. It can manipulate a single object
@@ -1297,8 +1138,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # be converted to a series. On the other hand, we still did not defined the name of the
     # new column. So, it is easier to simply convert it to a NumPy array, and then copy
     # the array as a new column.
-    TimedeltaList = np.array(TimedeltaList)
-    
+  
     #Convert the array to the desired unit by dividing it by the proper factor:
     
     if (returned_timedelta_unit == 'year'):
@@ -1437,17 +1277,19 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Timedeltas successfully calculated. Check dataset\'s 10 first rows:\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
-    
-    #Finally, return the dataframe with the new column:
+    if ControlVars.show_results:
+        print("Timedeltas successfully calculated. Check dataset\'s 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
+        
+        #Finally, return the dataframe with the new column:
     
     return DATASET
 
@@ -1512,18 +1354,7 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     except:
         # START: CONVERT ALL TIMESTAMPS/DATETIMES/STRINGS TO pandas.Timestamp OBJECTS.
         #1. Start a list to store the Pandas timestamps:
-        timestamp_list = []
-
-        #2. Loop through each element of the timestamp column, and apply the function
-        # to guarantee that all elements are Pandas timestamps
-
-        for timestamp in DATASET[timestamp_tag_column]:
-            #Access each element 'timestamp' of the series df[timestamp_tag_column1]
-            timestamp_list.append(pd.Timestamp(timestamp, unit = 'ns'))
-
-        #3. Create a column in the dataframe that will store the timestamps.
-        # Simply copy the list as the column:
-        DATASET[timestamp_tag_column] = timestamp_list
+        DATASET[timestamp_tag_column] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column]]
     
     # The Pandas Timestamp can be directly added to a Pandas Timedelta.
 
@@ -1593,15 +1424,17 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Timedeltas successfully added. Check dataset\'s 10 first rows:\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Timedeltas successfully added. Check dataset\'s 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     #Finally, return the dataframe with the new column:
     

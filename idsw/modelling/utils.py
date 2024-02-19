@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 
 
 def make_model_predictions (model_object, X, dataframe_for_concatenating_predictions = None, column_with_predictions_suffix = None, function_used_for_fitting_dl_model = 'get_deep_learning_tf_model', architecture = None, list_of_responses = []):
@@ -116,13 +116,15 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
     else:
         total_of_responses = len(list_of_responses)
         
-    print(f"Predicting {total_of_responses} responses for a total of {total_data} entries.\n")
+    if ControlVars.show_results:
+        print(f"Predicting {total_of_responses} responses for a total of {total_data} entries.\n")
     
     # prediction for a subset
     y_pred = np.array(model_object.predict(X))
-    print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.\n")
-    print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.\n")
-    
+    if ControlVars.show_results:
+        print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.\n")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.\n")
+        
     total_dimensions = len(y_pred.shape)
     last_dim = y_pred.shape[(total_dimensions - 1)] # indexing starts from zero
     
@@ -256,15 +258,16 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
         
         for col_name, y_pred in response_dict.items():
             X_copy[col_name] = y_pred
-            
-        print(f"The prediction was added as the new columns {list(response_dict.keys())} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(X_copy.head(10))
-                    
-        except: # regular mode
-            print(X_copy.head(10))
+
+        if ControlVars.show_results: 
+            print(f"The prediction was added as the new columns {list(response_dict.keys())} of the dataframe, and this dataframe was returned. Check its 10 first rows:\n")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(X_copy.head(10))
+                        
+            except: # regular mode
+                print(X_copy.head(10))
             
         return X_copy
         
@@ -272,15 +275,16 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
         
         # Convert the response_dict into a pandas DataFrame:
         predictions_df = pd.DataFrame(data = response_dict)
-        print("Returning only the predicted values. Check the 10 first values of predictions dataframe:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(predictions_df.head(10))
-                    
-        except: # regular mode
-            print(predictions_df.head(10))
+        if ControlVars.show_results:
+            print("Returning only the predicted values. Check the 10 first values of predictions dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(predictions_df.head(10))
+                        
+            except: # regular mode
+                print(predictions_df.head(10))
             
         return predictions_df
 
@@ -374,10 +378,11 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
     boolean_check = (type_of_model == 'deep_learning')
     
     if (boolean_check): # run if it is True
-        print("The predictions (outputs) from deep learning models are themselves the probabilities associated to each possible class.")
-        print("\n") #line break
-        print("The output will be an array of float values: each float represents the probability of one class, in the order the classes appear. For a binary classifier, the first element will correspond to class 0; and the second element will be the probability of class 1.")
-    
+        if ControlVars.show_results:
+            print("The predictions (outputs) from deep learning models are themselves the probabilities associated to each possible class.")
+            print("\n") #line break
+            print("The output will be an array of float values: each float represents the probability of one class, in the order the classes appear. For a binary classifier, the first element will correspond to class 0; and the second element will be the probability of class 1.")
+        
     
     if (predict_for == 'single_entry'):
         
@@ -405,14 +410,15 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
         # Convert it to a Pandas dataframe:
         probabilities_df = pd.DataFrame(data = probability_dict)
             
-        print("Returning a dataframe containing the classes and the probabilities calculated for the entry to belong to each class. Check it below:")
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(probabilities_df)
-                
-        except: # regular mode
-            print(probabilities_df)
+        if ControlVars.show_results:
+            print("Returning a dataframe containing the classes and the probabilities calculated for the entry to belong to each class. Check it below:")
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(probabilities_df)
+                    
+            except: # regular mode
+                print(probabilities_df)
             
         return probabilities_df
     
@@ -546,27 +552,29 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
             # ETL Workflow (3_Dataset_Transformation)
             X_copy = pd.concat([X_copy, probabilities_df], axis = 1, join = "inner")
     
-            print(f"The dataframe X was concatenated to the probabilities calculated for each class and returned. Check its first 10 entries:\n")
-            try:
-                # only works in Jupyter Notebook:
-                from IPython.display import display
-                display(X_copy.head(10))
-                    
-            except: # regular mode
-                print(X_copy.head(10))
+            if ControlVars.show_results:
+                print(f"The dataframe X was concatenated to the probabilities calculated for each class and returned. Check its first 10 entries:\n")
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(X_copy.head(10))
+                        
+                except: # regular mode
+                    print(X_copy.head(10))
             
             return X_copy
         
         else:
             
-            print("Returning only the dataframe with the probabilities calculated for each class. Check its first 10 entries:\n")
-            try:
-                # only works in Jupyter Notebook:
-                from IPython.display import display
-                display(probabilities_df.head(10))
-                    
-            except: # regular mode
-                print(probabilities_df.head(10))
+            if ControlVars.show_results:
+                print("Returning only the dataframe with the probabilities calculated for each class. Check its first 10 entries:\n")
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(probabilities_df.head(10))
+                        
+                except: # regular mode
+                    print(probabilities_df.head(10))
             
             return probabilities_df
 
@@ -612,9 +620,10 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
     # Start SHAP:
     shap.initjs()
     
-    print(f"Randomly sampling {total_of_shap_points} points from the dataset to perform SHAP analysis.")
-    print("If the kernel takes too long, cancel the application and reduce the integer value input as \'total_of_shap_points\'. On the other hand, if it is possible, increase the value to obtain higher precision on the analysis.")
-    
+    if ControlVars.show_results:
+        print(f"Randomly sampling {total_of_shap_points} points from the dataset to perform SHAP analysis.")
+        print("If the kernel takes too long, cancel the application and reduce the integer value input as \'total_of_shap_points\'. On the other hand, if it is possible, increase the value to obtain higher precision on the analysis.")
+        
     # sample the number of points passed as total_of_shap_points
     # from the dataset X_train, and store these points as X_shap:
     X_shap = shap.sample(X_train, total_of_shap_points)
@@ -679,8 +688,9 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
         # Apply .shap_values method to obtain the shap values:
         shap_vals = shap_explainer.shap_values(X_shap)
         # shap_vals is a list or array of calculated values.
-     
-    shap.summary_plot(shap_vals, X_shap)
+    
+    if ControlVars.show_plots:
+        shap.summary_plot(shap_vals, X_shap)
     
     # Create a dictionary with the explainer and the shap_vals:
     shap_dict = {
@@ -688,14 +698,15 @@ def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_o
         'SHAP_values': shap_vals
     }
     
-    print("\n") # line break
-    print("Dictionary with SHAP explainer and SHAP values returned as \'shap_dict\'.")
-    
-    print("\n") # line break
-    print("SHAP Interpretation:")
-    print("SHAP returns us a SHAP value that represents the relative importance.")
-    print("The features are displayed in order of importance, from the most important (top of the plot) to the less important (bottom of the plot).")
-    print("A feature which is shown on the right side of the plot results in positive impact on the model, whereas a feature on the left results into a negative impact in the response.")
-    print("The relative impact is shown by the color scale: a tone closer to red indicates a higher impact, whereas the proximity to blue indicates low relative impact.")
+    if ControlVars.show_results:
+        print("\n") # line break
+        print("Dictionary with SHAP explainer and SHAP values returned as \'shap_dict\'.")
         
+        print("\n") # line break
+        print("SHAP Interpretation:")
+        print("SHAP returns us a SHAP value that represents the relative importance.")
+        print("The features are displayed in order of importance, from the most important (top of the plot) to the less important (bottom of the plot).")
+        print("A feature which is shown on the right side of the plot results in positive impact on the model, whereas a feature on the left results into a negative impact in the response.")
+        print("The relative impact is shown by the color scale: a tone closer to red indicates a higher impact, whereas the proximity to blue indicates low relative impact.")
+            
     return shap_dict

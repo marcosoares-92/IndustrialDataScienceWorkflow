@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import RegexHelp
 
 
@@ -62,7 +62,8 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
     
     if (method == 'substring'):
         
-        print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+        if ControlVars.show_results:
+            print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
         # For manipulating strings, call the str attribute and, then, the method to be applied:
         new_series = new_series.str.strip(substring_to_eliminate)
     
@@ -109,17 +110,18 @@ def trim_spaces_or_characters (df, column_to_analyze, new_variable_type = None, 
         
         DATASET[column_to_analyze] = new_series
     
-    # Now, we are in the main code.
-    print("Finished removing leading and trailing spaces or characters (substrings).")
-    print("Check the 10 first elements from the series:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
-            
-    except: # regular mode
-        print(new_series.head(10))
+    if ControlVars.show_results:
+        # Now, we are in the main code.
+        print("Finished removing leading and trailing spaces or characters (substrings).")
+        print("Check the 10 first elements from the series:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
+                
+        except: # regular mode
+            print(new_series.head(10))
     
     return DATASET
 
@@ -182,17 +184,18 @@ def capitalize_or_lower_string_case (df, column_to_analyze, method = 'lowercase'
         
         DATASET[column_to_analyze] = new_series
     
-    # Now, we are in the main code.
-    print(f"Finished homogenizing the string case of {column_to_analyze}, giving value consistency.")
-    print("Check the 10 first elements from the series:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
-            
-    except: # regular mode
-        print(new_series.head(10))
+    if ControlVars.show_results:
+        # Now, we are in the main code.
+        print(f"Finished homogenizing the string case of {column_to_analyze}, giving value consistency.")
+        print("Check the 10 first elements from the series:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
+                
+        except: # regular mode
+            print(new_series.head(10))
     
     return DATASET
 
@@ -238,9 +241,11 @@ def add_contractions_to_library (list_of_contractions = [{'contracted_expression
         if ((contraction is not None) & (correction is not None)):
     
             contractions.add(contraction, correction)
-            print(f"Successfully included the contracted expression {contraction} to the contractions library.")
-
-    print("Now, the function for contraction correction will be able to process it within the strings.\n")
+            if ControlVars.show_results:
+                print(f"Successfully included the contracted expression {contraction} to the contractions library.")
+    
+    if ControlVars.show_results:
+        print("Now, the function for contraction correction will be able to process it within the strings.\n")
 
 
 def correct_contracted_strings (df, column_to_analyze, create_new_column = True, new_column_suffix = "_contractionsFixed"):
@@ -291,17 +296,18 @@ def correct_contracted_strings (df, column_to_analyze, create_new_column = True,
 
         DATASET[column_to_analyze] = new_series
 
-    # Now, we are in the main code.
-    print(f"Finished correcting the contracted strings from column {column_to_analyze}.")
-    print("Check the 10 first elements (10 lists) from the series:\n")
+    if ControlVars.show_results:
+        # Now, we are in the main code.
+        print(f"Finished correcting the contracted strings from column {column_to_analyze}.")
+        print("Check the 10 first elements (10 lists) from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -344,7 +350,8 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
     DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
-    print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+    if ControlVars.show_results:
+        print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
         
     # If one of the input substrings is None, make it the empty string:
     if (substring_to_be_replaced is None):
@@ -373,17 +380,18 @@ def replace_substring (df, column_to_analyze, substring_to_be_replaced = None, n
         
         DATASET[column_to_analyze] = new_series
     
-    # Now, we are in the main code.
-    print(f"Finished replacing the substring {substring_to_be_replaced} by {new_substring_for_replacement}.")
-    print("Check the 10 first elements from the series:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
-            
-    except: # regular mode
-        print(new_series.head(10))
+    if ControlVars.show_results:
+        # Now, we are in the main code.
+        print(f"Finished replacing the substring {substring_to_be_replaced} by {new_substring_for_replacement}.")
+        print("Check the 10 first elements from the series:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
+                
+        except: # regular mode
+            print(new_series.head(10))
     
     return DATASET
 
@@ -434,16 +442,17 @@ def invert_strings (df, column_to_analyze, create_new_column = True, new_column_
         DATASET[column_to_analyze] = new_series
 
     # Now, we are in the main code.
-    print(f"Finished inversion of the strings.")
-    print("Check the 10 first elements from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished inversion of the strings.")
+        print("Check the 10 first elements from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -556,16 +565,17 @@ def slice_strings (df, column_to_analyze, first_character_index = None, last_cha
         DATASET[column_to_analyze] = new_series
 
     # Now, we are in the main code.
-    print(f"Finished slicing the strings from character {first_character_index} to character {last_character_index}.")
-    print("Check the 10 first elements from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished slicing the strings from character {first_character_index} to character {last_character_index}.")
+        print("Check the 10 first elements from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -673,16 +683,17 @@ def left_characters (df, column_to_analyze, number_of_characters_to_retrieve = 1
         DATASET[column_to_analyze] = new_series
 
     # Now, we are in the main code.
-    print(f"Finished extracting the {number_of_characters_to_retrieve} leftest characters.")
-    print("Check the 10 first elements from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished extracting the {number_of_characters_to_retrieve} leftest characters.")
+        print("Check the 10 first elements from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -790,16 +801,17 @@ def right_characters (df, column_to_analyze, number_of_characters_to_retrieve = 
         DATASET[column_to_analyze] = new_series
 
     # Now, we are in the main code.
-    print(f"Finished extracting the {number_of_characters_to_retrieve} rightest characters.")
-    print("Check the 10 first elements from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished extracting the {number_of_characters_to_retrieve} rightest characters.")
+        print("Check the 10 first elements from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -831,16 +843,17 @@ def join_strings_from_column (df, column_to_analyze, separator = " "):
     # sep.join(list_of_strings) method: join all the strings, separating them by sep.
 
     # Now, we are in the main code.
-    print(f"Finished joining strings from column {column_to_analyze}.")
-    print("Check the 10 first characters from the new string:\n")
+    if ControlVars.show_results:
+        print(f"Finished joining strings from column {column_to_analyze}.")
+        print("Check the 10 first characters from the new string:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(concat_string[:10])
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(concat_string[:10])
 
-    except: # regular mode
-        print(concat_string[:10])
+        except: # regular mode
+            print(concat_string[:10])
 
     return concat_string
 
@@ -913,16 +926,17 @@ def join_string_columns (df, list_of_columns_to_join, separator = " ", new_colum
     DATASET[new_column_name] = new_series
     
     # Now, we are in the main code.
-    print(f"Finished concatenating strings from columns {list_of_columns_to_join}.")
-    print("Check the 10 first elements from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished concatenating strings from columns {list_of_columns_to_join}.")
+        print("Check the 10 first elements from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -978,16 +992,17 @@ def split_strings (df, column_to_analyze, separator = " ", create_new_column = T
         DATASET[column_to_analyze] = new_series
 
     # Now, we are in the main code.
-    print(f"Finished splitting strings from column {column_to_analyze}.")
-    print("Check the 10 first elements (10 lists) from the series:\n")
+    if ControlVars.show_results:
+        print(f"Finished splitting strings from column {column_to_analyze}.")
+        print("Check the 10 first elements (10 lists) from the series:\n")
 
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(new_series.head(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(new_series.head(10))
 
-    except: # regular mode
-        print(new_series.head(10))
+        except: # regular mode
+            print(new_series.head(10))
 
     return DATASET
 
@@ -1056,7 +1071,8 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
     DATASET[column_to_analyze] = (DATASET[column_to_analyze]).astype(str)
     new_series = DATASET[column_to_analyze].copy()
     
-    print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
+    if ControlVars.show_results:
+        print("ATTENTION: Operations of string strip (removal) or replacement are all case-sensitive. There must be correct correspondence between cases and spaces for the strings being removed or replaced.\n")
     
     # Create the mapping dictionary for the str.replace method:
     mapping_dict = {}
@@ -1111,25 +1127,23 @@ def switch_strings (df, column_to_analyze, list_of_dictionaries_with_original_st
             DATASET[column_to_analyze] = new_series
 
         # Now, we are in the main code.
-        print(f"Finished replacing the substrings accordingly to the mapping: {mapping_dict}.")
-        print("Check the 10 first elements from the series:\n")
+        if ControlVars.show_results:
+            print(f"Finished replacing the substrings accordingly to the mapping: {mapping_dict}.")
+            print("Check the 10 first elements from the series:\n")
 
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(new_series.head(10))
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(new_series.head(10))
 
-        except: # regular mode
-            print(new_series.head(10))
+            except: # regular mode
+                print(new_series.head(10))
 
         return DATASET
     
     else:
-        print("Input at least one dictionary containing a pair of original string, in the key \'original_string\', and the correspondent new string as key \'new_string\'.")
-        print("The dictionaries must be elements from the list list_of_dictionaries_with_original_strings_and_replacements.\n")
+        raise InvalidInputsError("Input at least one dictionary containing a pair of original string, in the key \'original_string\', and the correspondent new string as key \'new_string\'. The dictionaries must be elements from the list list_of_dictionaries_with_original_strings_and_replacements.\n")
         
-        return "error"
-
 
 def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', threshold_for_percent_of_similarity = 80.0, list_of_dictionaries_with_standard_strings_for_replacement = [{'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}, {'standard_string': None}], create_new_column = True, new_column_suffix = "_stringReplaced"):
     """
@@ -1306,30 +1320,32 @@ def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', thr
 
             DATASET[column_to_analyze] = new_series
 
-        # Now, we are in the main code.
-        print(f"Finished replacing the strings by the provided standards. Returning the new dataset and a summary list.\n")
-        print("In summary_list, you can check the calculated similarities in keys \'similarity_list\' from the dictionaries.\n")
-        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
-        print("Check the 10 first elements from the new series, with strings replaced:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(new_series.head(10))
+        if ControlVars.show_results:
+            # Now, we are in the main code.
+            print(f"Finished replacing the strings by the provided standards. Returning the new dataset and a summary list.\n")
+            print("In summary_list, you can check the calculated similarities in keys \'similarity_list\' from the dictionaries.\n")
+            print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+            print("Check the 10 first elements from the new series, with strings replaced:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(new_series.head(10))
 
-        except: # regular mode
-            print(new_series.head(10))
-    
+            except: # regular mode
+                print(new_series.head(10))
+        
     else:
         
-        print("Finished mapping similarities. Returning the original dataset and a summary list.\n")
-        print("Check the similarities below, in keys \'similarity_list\' from the dictionaries.\n")
-        print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
-        
-        try:
-            display(summary_list)
-        except:
-            print(summary_list)
+        if ControlVars.show_results:
+            print("Finished mapping similarities. Returning the original dataset and a summary list.\n")
+            print("Check the similarities below, in keys \'similarity_list\' from the dictionaries.\n")
+            print("The similarity list is a list of tuples, where the first element is the string compared against the value on key \'standard_string\'; and the second element is the similarity score, the percent of similarity between the tested and the standard string.\n")
+            
+            try:
+                display(summary_list)
+            except:
+                print(summary_list)
     
     return DATASET, summary_list
 
@@ -1449,16 +1465,17 @@ def regex_search (df, column_to_analyze, regex_to_search = r"", show_regex_helpe
                 DATASET[column_to_analyze] = new_series
 
         # Now, we are in the main code.
-        print(f"Finished searching the regex {regex_to_search} within {column_to_analyze}.")
-        print("Check the 10 first elements from the output:\n")
+        if ControlVars.show_results:
+            print(f"Finished searching the regex {regex_to_search} within {column_to_analyze}.")
+            print("Check the 10 first elements from the output:\n")
 
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(new_series.head(10))
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(new_series.head(10))
 
-        except: # regular mode
-            print(new_series.head(10))
+            except: # regular mode
+                print(new_series.head(10))
 
         return DATASET
 
@@ -1546,16 +1563,17 @@ def regex_replacement (df, column_to_analyze, regex_to_search = r"", string_for_
 
             DATASET[column_to_analyze] = new_series
 
-        # Now, we are in the main code.
-        print(f"Finished searching the regex {regex_to_search} within {column_to_analyze}.")
-        print("Check the 10 first elements from the output:\n")
+        if ControlVars.show_results:
+            # Now, we are in the main code.
+            print(f"Finished searching the regex {regex_to_search} within {column_to_analyze}.")
+            print("Check the 10 first elements from the output:\n")
 
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(new_series.head(10))
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(new_series.head(10))
 
-        except: # regular mode
-            print(new_series.head(10))
+            except: # regular mode
+                print(new_series.head(10))
 
         return DATASET

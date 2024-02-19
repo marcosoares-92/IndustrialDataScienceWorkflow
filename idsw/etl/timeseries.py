@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
+
 from .joinandgroup import union_dataframes
 from .timestamps import calculate_delay
 
@@ -30,6 +31,8 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
     #Define the series to be analyzed:
     y = DATASET[column_to_analyze]
     
+    """This function only creates plots, so it is not blocked by the context"""
+
     #Create the figure:
     fig = plt.figure(figsize = (12, 8)) 
     ax1 = fig.add_subplot(211)
@@ -101,18 +104,19 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
     ##  '03_05_END.ipynb'
     plt.show()
     
-    #Print background and interpretation of the graphic:
-    print("\n") #line break
-    print("Use this plot to define the parameters (p, q) for testing ARIMA and ARMA models.\n")
-    print("p defines the order of the autoregressive part (AR) of the time series.")
-    print("p = lags correspondent to the spikes of PACF plot (2nd plot) that are outside the error (blue region).\n")
-    print("For instance, if there are spikes in both lag = 1 and lag = 2, then p = 2, or p = 1\n")
-    print("q defines the order of the moving average part (MA) of the time series.")
-    print("q = lags correspondent to the spikes of ACF plot that are outside blue region.\n")
-    print("For instance, if all spikes until lag = 6 are outside the blue region, then q = 1, 2, 3, 4, 5, 6.\n")
-    print("WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.")
-    print("For lag = 0, the correlation and partial correlation coefficients are always equal to 1, because the data is always perfectly correlated to itself.") 
-    print("Therefore, ignore the first spikes (lag = 0) from ACF and PACF plots.")
+    if ControlVars.show_results:
+        #Print background and interpretation of the graphic:
+        print("\n") #line break
+        print("Use this plot to define the parameters (p, q) for testing ARIMA and ARMA models.\n")
+        print("p defines the order of the autoregressive part (AR) of the time series.")
+        print("p = lags correspondent to the spikes of PACF plot (2nd plot) that are outside the error (blue region).\n")
+        print("For instance, if there are spikes in both lag = 1 and lag = 2, then p = 2, or p = 1\n")
+        print("q defines the order of the moving average part (MA) of the time series.")
+        print("q = lags correspondent to the spikes of ACF plot that are outside blue region.\n")
+        print("For instance, if all spikes until lag = 6 are outside the blue region, then q = 1, 2, 3, 4, 5, 6.\n")
+        print("WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.")
+        print("For lag = 0, the correlation and partial correlation coefficients are always equal to 1, because the data is always perfectly correlated to itself.") 
+        print("Therefore, ignore the first spikes (lag = 0) from ACF and PACF plots.")
 
 
 def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -147,6 +151,8 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
     # Set a copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
+    """This function only creates plots, so it is not blocked by the context"""
+
     #Define the series to be analyzed:
     time_series = DATASET[column_to_analyze]
     
@@ -196,21 +202,22 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
         # XX = 0 DEGREES y_axis (Default)
 
         axes[i, 0].grid(grid)
-    
-        print('ADF Statistic for %d Order Differencing' %(i))
-        result = adfuller(time_series.dropna())
-        print('ADF Statistic: %f' % result[0])
-        print('p-value: %f' % result[1])
-        print("Interpretation:")
-        print("p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.")
-        print("H0: the process is non-stationary.")
 
-        if (result[1] < (1-confidence_level)):
-            print("For a %.2f confidence level, the %d Order Difference is stationary." %(confidence_level, i))
-            print("You may select d = %d\n" %(i))
+        if ControlVars.show_results:
+            print('ADF Statistic for %d Order Differencing' %(i))
+            result = adfuller(time_series.dropna())
+            print('ADF Statistic: %f' % result[0])
+            print('p-value: %f' % result[1])
+            print("Interpretation:")
+            print("p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.")
+            print("H0: the process is non-stationary.")
 
-        else:
-            print("For a %.2f confidence level, the %d Order Difference is non-stationary.\n" %(confidence_level, i))
+            if (result[1] < (1-confidence_level)):
+                print("For a %.2f confidence level, the %d Order Difference is stationary." %(confidence_level, i))
+                print("You may select d = %d\n" %(i))
+
+            else:
+                print("For a %.2f confidence level, the %d Order Difference is non-stationary.\n" %(confidence_level, i))
         
     if (export_png == True):
         # Image will be exported
@@ -253,12 +260,13 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
     ##  '03_05_END.ipynb'
     plt.show()
     
-    print("\n")
-    print("d = differentiation order for making the process stationary.\n")
-    print("If d = N, then we have to make N successive differentiations.")
-    print("A differentiation consists on substracting a signal Si from its previous signal Si-1.\n")
-    print("Example: 1st-order differentiating consists on taking the differences on the original time series.")
-    print("The 2nd-order, in turns, consists in differentiating the 1st-order differentiation series.")
+    if ControlVars.show_results:
+        print("\n")
+        print("d = differentiation order for making the process stationary.\n")
+        print("If d = N, then we have to make N successive differentiations.")
+        print("A differentiation consists on substracting a signal Si from its previous signal Si-1.\n")
+        print("Example: 1st-order differentiating consists on taking the differences on the original time series.")
+        print("The 2nd-order, in turns, consists in differentiating the 1st-order differentiation series.")
 
 
 def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -404,113 +412,115 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
                 "AIC": returned_ARIMA_Results.aic, "BIC": returned_ARIMA_Results.bic,
                     "MAE": returned_ARIMA_Results.mae, "log_likelihood": returned_ARIMA_Results.llf}
     
+    if ControlVars.show_results:
     #Show ARIMA results:
-    print(returned_ARIMA_Results.summary())
-    print("\n")
-    #Break the line and show the combination
-    print("Best combination found: (p, d, q) = (%d, %d, %d)\n" %(returned_p, returned_d, returned_q))
-    #Break the line and print the next indication:
-    print(f"Time series, values predicted by the model, and the correspondent {confidence_level * 100}% Confidence interval for the predictions:\n")
-    #Break the line and print the ARIMA graphic:
+        print(returned_ARIMA_Results.summary())
+        print("\n")
+        #Break the line and show the combination
+        print("Best combination found: (p, d, q) = (%d, %d, %d)\n" %(returned_p, returned_d, returned_q))
+        #Break the line and print the next indication:
+        print(f"Time series, values predicted by the model, and the correspondent {confidence_level * 100}% Confidence interval for the predictions:\n")
+        #Break the line and print the ARIMA graphic:
     
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    #Start the figure:
-    fig, ax = plt.subplots(figsize = (12, 8))
-    # Add line of the actual values:
-    ax.plot(x, y, linestyle = '-', marker = '', color = 'darkblue', label = column_to_analyze)
-    # Use the name of the analyzed column as the label
-    fig = plot_predict(returned_ARIMA_Results, start = start_date, end = end_date,  ax = ax, alpha = ALPHA)
-    ## https://www.statsmodels.org/v0.12.2/generated/statsmodels.tsa.arima_model.ARIMAResults.plot_predict.html
-    # ax = ax to plot the arima on the original plot of the time series
-    # start = x[1]: starts the ARIMA graphic from the second point of the series x
-    # if x is the index, then it will be from the second x; if x is a time series, then
-    # x[1] will be the second timestamp
-    #We defined the start in x[1], instead of index = 0, because the Confidence Interval for the 
-    #first point is very larger than the others (there is perfect autocorrelation for lag = 0). 
-    #Therefore, it would have resulted in the need for using a very broader y-scale, what
-    #would compromise the visualization.
-    # We could set another index or even a timestamp to start:
-    # start=pd.to_datetime('1998-01-01')
-    
-    ax.set_alpha(OPACITY)
-    
-    if not (plot_title is None):
-        #graphic's title
-        ax.set_title(plot_title)
-    
-    else:
-        #set a default title:
-        ax.set_title("ARIMA_model")
-    
-    if not (horizontal_axis_title is None):
-        #X-axis title
-        ax.set_xlabel(horizontal_axis_title)
-    
-    else:
-        #set a default title:
-        ax.set_xlabel("Time")
-    
-    if not (vertical_axis_title is None):
-        #Y-axis title
-        ax.set_ylabel(vertical_axis_title)
-    
-    else:
-        #set a default title:
-        ax.set_ylabel(column_to_analyze)
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 70 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    ax.grid(grid)
-    ax.legend(loc = "upper left")
-    
-    if (export_png == True):
-        # Image will be exported
-        import os
+    if ControlVars.show_plots:
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        #Start the figure:
+        fig, ax = plt.subplots(figsize = (12, 8))
+        # Add line of the actual values:
+        ax.plot(x, y, linestyle = '-', marker = '', color = 'darkblue', label = column_to_analyze)
+        # Use the name of the analyzed column as the label
+        fig = plot_predict(returned_ARIMA_Results, start = start_date, end = end_date,  ax = ax, alpha = ALPHA)
+        ## https://www.statsmodels.org/v0.12.2/generated/statsmodels.tsa.arima_model.ARIMAResults.plot_predict.html
+        # ax = ax to plot the arima on the original plot of the time series
+        # start = x[1]: starts the ARIMA graphic from the second point of the series x
+        # if x is the index, then it will be from the second x; if x is a time series, then
+        # x[1] will be the second timestamp
+        #We defined the start in x[1], instead of index = 0, because the Confidence Interval for the 
+        #first point is very larger than the others (there is perfect autocorrelation for lag = 0). 
+        #Therefore, it would have resulted in the need for using a very broader y-scale, what
+        #would compromise the visualization.
+        # We could set another index or even a timestamp to start:
+        # start=pd.to_datetime('1998-01-01')
+        
+        ax.set_alpha(OPACITY)
+        
+        if not (plot_title is None):
+            #graphic's title
+            ax.set_title(plot_title)
+        
+        else:
+            #set a default title:
+            ax.set_title("ARIMA_model")
+        
+        if not (horizontal_axis_title is None):
+            #X-axis title
+            ax.set_xlabel(horizontal_axis_title)
+        
+        else:
+            #set a default title:
+            ax.set_xlabel("Time")
+        
+        if not (vertical_axis_title is None):
+            #Y-axis title
+            ax.set_ylabel(vertical_axis_title)
+        
+        else:
+            #set a default title:
+            ax.set_ylabel(column_to_analyze)
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 70 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+        
+        ax.grid(grid)
+        ax.legend(loc = "upper left")
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "arima_model"
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "arima_model"
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #fig.tight_layout()
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #fig.tight_layout()
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
     
     # Get dataframe with the predictions and confidence intervals
     arima_predictions = returned_ARIMA_Results.get_prediction(start = x[0], end = None, dynamic = False, full_results = True, alpha = ALPHA)
@@ -579,27 +589,29 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     
     # Finally, select the columns from arima_df passing this list as argument:
     arima_df = arima_df[ordered_columns_list]
-    print("\n")
-    print("Check the dataframe containing the ARIMA predictions:\n")
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(arima_df)
-            
-    except: # regular mode
-        print(arima_df)
-    
-    print("\n") #line break
-    print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
-    print("For instance: if you observe a very sharp and sudden deviation from the predictive time series, it can be an indicative of incomplete information or outliers presence.\n")
-    print("A famous case is the pandemic data: due to lags or latencies on the time needed for consolidating the information in some places, the data could be incomplete in a given day, leading to a sharp decrease that did not actually occurred.")
-    
-    print("\n")
-    print("REMEMBER: q represents the moving average (MA) part of the time series.")
-    print(f"Then, it is interesting to group the time series {column_to_analyze} by each q = {returned_q} periods when modelling or analyzing it.")
-    print("For that, you can use moving window or rolling functions.\n")
-    
+    if ControlVars.show_results:
+        print("\n")
+        print("Check the dataframe containing the ARIMA predictions:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(arima_df)
+                
+        except: # regular mode
+            print(arima_df)
+        
+        print("\n") #line break
+        print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
+        print("For instance: if you observe a very sharp and sudden deviation from the predictive time series, it can be an indicative of incomplete information or outliers presence.\n")
+        print("A famous case is the pandemic data: due to lags or latencies on the time needed for consolidating the information in some places, the data could be incomplete in a given day, leading to a sharp decrease that did not actually occurred.")
+        
+        print("\n")
+        print("REMEMBER: q represents the moving average (MA) part of the time series.")
+        print(f"Then, it is interesting to group the time series {column_to_analyze} by each q = {returned_q} periods when modelling or analyzing it.")
+        print("For that, you can use moving window or rolling functions.\n")
+        
     return returned_ARIMA_Results, arima_summ_dict, arima_df
 
 
@@ -804,11 +816,8 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
                 last_x = x_original_series[(len(x_original_series) - 1)]
 
                 #Start the list
-                x_forecast = []
+                x_forecast = [last_x + 1]
 
-                #Append its first value: last X plus 1 period
-                x_forecast.append(last_x + 1)
-            
                 j = 1
                 while (j < number_of_periods_to_forecast):
                     #Last cycle occurs when j == number_of_periods_to_forecast - 1
@@ -871,8 +880,10 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
                 _, avg_delay = calculate_delay (df = DATASET, timestamp_tag_column = TIMESTAMP_TAG_COLUMN, new_timedelta_column_name  = NEW_TIMEDELTA_COLUMN_NAME, returned_timedelta_unit = RETURNED_TIMEDELTA_UNIT, return_avg_delay = RETURN_AVG_DELAY)
                 # The underscore indicates that we will not keep the returned dataframe
                 # only the average time delay in nanoseconds.
-                print("\n")
-                print(f"Average delay on the original time series, used for obtaining times of predicted values = {avg_delay}.\n")
+                
+                if ControlVars.show_results:
+                    print("\n")
+                    print(f"Average delay on the original time series, used for obtaining times of predicted values = {avg_delay}.\n")
 
                 # Now, avg_delay stores the mean time difference between successive measurements from the
                 # original dataset.
@@ -1033,125 +1044,126 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
         # Finally, pass ordered_columns_list as argument for column filtering and re-order:
         forecast_df = forecast_df[ordered_columns_list]
 
+    if ControlVars.show_results:
+        # We are finally in the general case, after obtaining the dataframe through all possible ways:
+        print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
         
-    # We are finally in the general case, after obtaining the dataframe through all possible ways:
-    print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(forecast_df.tail(10))
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(forecast_df.tail(10))
+                
+        except: # regular mode
+            print(forecast_df.tail(10))
+        
+
+    if ControlVars.show_plots:
+        # Now, let's create the graphics
+        if (plot_predicted_time_series == True):
             
-    except: # regular mode
-        print(forecast_df.tail(10))
-        
-    
-    # Now, let's create the graphics
-    if (plot_predicted_time_series == True):
-        
-        LINE_STYLE = '-'
-        MARKER = ''
-        
-        if (plot_title is None):
-            # Set graphic title
-            plot_title = f"ARIMA_forecasts"
-
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            if (timestamp_tag_column is None):
-                horizontal_axis_title = "timestamp"
-            else:
-                horizontal_axis_title = timestamp_tag_column
-
-        if (vertical_axis_title is None):
-            if (column_to_forecast is None):
-                vertical_axis_title = "time_series"
-            else:
-                vertical_axis_title = column_to_forecast
-        
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
-        
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        fig = plt.figure(figsize = (12, 8))
-        ax = fig.add_subplot()
-        
-        if ((df is not None) & ((column_to_forecast is not None))):
+            LINE_STYLE = '-'
+            MARKER = ''
             
-            # Plot the original data series:
-            ax.plot(x, y, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = OPACITY, label = 'input_dataframe')
+            if (plot_title is None):
+                # Set graphic title
+                plot_title = f"ARIMA_forecasts"
+
+            if (horizontal_axis_title is None):
+                # Set horizontal axis title
+                if (timestamp_tag_column is None):
+                    horizontal_axis_title = "timestamp"
+                else:
+                    horizontal_axis_title = timestamp_tag_column
+
+            if (vertical_axis_title is None):
+                if (column_to_forecast is None):
+                    vertical_axis_title = "time_series"
+                else:
+                    vertical_axis_title = column_to_forecast
+            
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
+            
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            fig = plt.figure(figsize = (12, 8))
+            ax = fig.add_subplot()
+            
+            if ((df is not None) & ((column_to_forecast is not None))):
+                
+                # Plot the original data series:
+                ax.plot(x, y, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = OPACITY, label = 'input_dataframe')
+            
+            # Plot the predictions (completely opaque, so that the input data series will not be
+            # visible)
+            ax.plot(x_forecast_series, y_forecast_series, linestyle = LINE_STYLE, marker = MARKER, color = 'red', alpha = 1.0, label = 'forecast')
+            
+            # Plot the confidence limits:
+            ax.plot(x_forecast_series, lcl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'lower_confidence_limit')
+            ax.plot(x_forecast_series, ucl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'upper_confidence_limit')    
+            # Now we finished plotting all of the series, we can set the general configuration:
+            
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+
+            ax.set_title(plot_title)
+            ax.set_xlabel(horizontal_axis_title)
+            ax.set_ylabel(vertical_axis_title)
+
+            ax.grid(grid) # show grid or not
+            ax.legend(loc = "upper right")
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
+
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "arima_forecast"
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            #plt.figure(figsize = (12, 8))
+            #fig.tight_layout()
+
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+            plt.show()
         
-        # Plot the predictions (completely opaque, so that the input data series will not be
-        # visible)
-        ax.plot(x_forecast_series, y_forecast_series, linestyle = LINE_STYLE, marker = MARKER, color = 'red', alpha = 1.0, label = 'forecast')
-        
-        # Plot the confidence limits:
-        ax.plot(x_forecast_series, lcl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'lower_confidence_limit')
-        ax.plot(x_forecast_series, ucl_series, linestyle = 'dashed', marker = MARKER, color = 'magenta', alpha = 0.70, label = 'upper_confidence_limit')    
-        # Now we finished plotting all of the series, we can set the general configuration:
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-
-        ax.set_title(plot_title)
-        ax.set_xlabel(horizontal_axis_title)
-        ax.set_ylabel(vertical_axis_title)
-
-        ax.grid(grid) # show grid or not
-        ax.legend(loc = "upper right")
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-
-        if (export_png == True):
-            # Image will be exported
-            import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "arima_forecast"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        #plt.figure(figsize = (12, 8))
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        plt.show()
-    
-    print("\nARIMA Forecasting completed.\n")
+        print("\nARIMA Forecasting completed.\n")
     
     return forecast_df
 
@@ -1244,10 +1256,11 @@ def get_prophet_model (df, column_to_analyze, timestamp_tag_column, list_of_pred
     # Fit it to the dataframe:
     model.fit(DATASET)
     
-    print("Facebook Prophet model successfully fitted to the time series and returned as \'model\'.")
-    print("Prophet is designed to automatically find a good set of hyperparameters for the model in an effort to make skillful forecasts for data with trends and seasonal structure by default.")
-    print("Prophet implements a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects.\n")
-    
+    if ControlVars.show_results:
+        print("Facebook Prophet model successfully fitted to the time series and returned as \'model\'.")
+        print("Prophet is designed to automatically find a good set of hyperparameters for the model in an effort to make skillful forecasts for data with trends and seasonal structure by default.")
+        print("Prophet implements a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects.\n")
+        
     return model
 
 
@@ -1392,123 +1405,125 @@ def prophet_forecasting (prophet_model_object, number_of_periods_to_forecast = 3
     trend_series = forecast_df['trend']
         
     # We are finally in the general case, after obtaining the dataframe through all possible ways:
-    print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(forecast_df.tail(10))
-            
-    except: # regular mode
-        print(forecast_df.tail(10))
+    if ControlVars.show_results:
+        print(f"Finished the obtention of the forecast dataset. Check the 10 last rows of the forecast dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(forecast_df.tail(10))
+                
+        except: # regular mode
+            print(forecast_df.tail(10))
         
     
-    # Now, let's create the graphics
-    if (plot_predicted_time_series == True):
-        
-        if (get_interactive_plot == True):
+    if ControlVars.show_plots:
+        # Now, let's create the graphics
+        if (plot_predicted_time_series == True):
             
-            from prophet.plot import plot_plotly, plot_components_plotly
-            # Methods require the dataframe in the original format 'y' x 'ds'
-            plot_plotly(model, model.predict(future))
-            plot_components_plotly(model, model.predict(future))
-        
-        else:
-
-            LINE_STYLE = '-'
-            MARKER = ''
-
-            if (plot_title is None):
-                # Set graphic title
-                plot_title = f"Prophet_forecasts"
-
-            if (horizontal_axis_title is None):
-                # Set horizontal axis title
-                horizontal_axis_title = "timestamp"
-
-            if (vertical_axis_title is None):
-                vertical_axis_title = "time_series"
-
-            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-            # so that the bars do not completely block other views.
-            OPACITY = 0.95
-
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            fig = plt.figure(figsize = (12, 8))
-            ax = fig.add_subplot()
-
-            # Plot the predictions (completely opaque, so that the input data series will not be
-            # visible)
-            ax.plot(x_forecast_series, y_forecast_series, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = 1.0, label = 'forecast')
-            # Plot the trend:
-            ax.plot(x_forecast_series, trend_series, linestyle = LINE_STYLE, marker = MARKER, color = 'red', alpha = OPACITY, label = 'trend')
+            if (get_interactive_plot == True):
+                
+                from prophet.plot import plot_plotly, plot_components_plotly
+                # Methods require the dataframe in the original format 'y' x 'ds'
+                plot_plotly(model, model.predict(future))
+                plot_components_plotly(model, model.predict(future))
             
-            # Plot the confidence limits:
-            ax.plot(x_forecast_series, lcl_series, linestyle = 'dashed', marker = MARKER, color = 'lightgrey', alpha = 0.70, label = 'lower_confidence_limit')
-            ax.plot(x_forecast_series, ucl_series, linestyle = 'dashed', marker = MARKER, color = 'lightgrey', alpha = 0.70, label = 'upper_confidence_limit')    
-            # Now we finished plotting all of the series, we can set the general configuration:
+            else:
 
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 0 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)
+                LINE_STYLE = '-'
+                MARKER = ''
 
-            ax.set_title(plot_title)
-            ax.set_xlabel(horizontal_axis_title)
-            ax.set_ylabel(vertical_axis_title)
+                if (plot_title is None):
+                    # Set graphic title
+                    plot_title = f"Prophet_forecasts"
 
-            ax.grid(grid) # show grid or not
-            ax.legend(loc = "upper right")
-            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-            # https://www.statology.org/matplotlib-legend-position/
+                if (horizontal_axis_title is None):
+                    # Set horizontal axis title
+                    horizontal_axis_title = "timestamp"
 
-            if (export_png == True):
-                # Image will be exported
-                import os
+                if (vertical_axis_title is None):
+                    vertical_axis_title = "time_series"
 
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
+                # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+                # so that the bars do not completely block other views.
+                OPACITY = 0.95
 
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = "prophet_forecast"
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                fig = plt.figure(figsize = (12, 8))
+                ax = fig.add_subplot()
 
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
+                # Plot the predictions (completely opaque, so that the input data series will not be
+                # visible)
+                ax.plot(x_forecast_series, y_forecast_series, linestyle = LINE_STYLE, marker = MARKER, color = 'darkblue', alpha = 1.0, label = 'forecast')
+                # Plot the trend:
+                ax.plot(x_forecast_series, trend_series, linestyle = LINE_STYLE, marker = MARKER, color = 'red', alpha = OPACITY, label = 'trend')
+                
+                # Plot the confidence limits:
+                ax.plot(x_forecast_series, lcl_series, linestyle = 'dashed', marker = MARKER, color = 'lightgrey', alpha = 0.70, label = 'lower_confidence_limit')
+                ax.plot(x_forecast_series, ucl_series, linestyle = 'dashed', marker = MARKER, color = 'lightgrey', alpha = 0.70, label = 'upper_confidence_limit')    
+                # Now we finished plotting all of the series, we can set the general configuration:
 
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-                new_file_path = new_file_path + ".png"
-                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #Export the file to this new path:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-            
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            #plt.figure(figsize = (12, 8))
-            #fig.tight_layout()
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 0 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
 
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
-            plt.show()
+                ax.set_title(plot_title)
+                ax.set_xlabel(horizontal_axis_title)
+                ax.set_ylabel(vertical_axis_title)
 
-    print("\nProphet Forecasting completed.\n")
+                ax.grid(grid) # show grid or not
+                ax.legend(loc = "upper right")
+                # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+                # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+                # https://www.statology.org/matplotlib-legend-position/
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = "prophet_forecast"
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+                    new_file_path = new_file_path + ".png"
+                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #Export the file to this new path:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                #plt.figure(figsize = (12, 8))
+                #fig.tight_layout()
+
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+                plt.show()
+
+        print("\nProphet Forecasting completed.\n")
     
     return forecast_df
 
@@ -1688,33 +1703,34 @@ def df_rolling_window_stats (df, window_size = 2, window_statistics = 'mean', mi
         if (window_statistics != 'difference'):
             rolling_window_df.reset_index(drop = True, inplace = True)
     
-    print("Check the rolling dataframe:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(rolling_window_df)
-            
-    except: # regular mode
-        print(rolling_window_df)
-    
-    print('\n')
-    print("ATTENTION: depending on the window size, the windowed dataset may be considerable smaller than the original dataframe, with several missing values indicated by NA.\n")
-    print("For understanding it, consider a dataframe containing daily new cases of an illness, where we want to obtain the 7-day rolling average.")
-    print("Here, we will obtain 6 rows containing only missing values. The reason is that it is not possible to calculate the 7-periods average for the first 6 rows.")
-    print("In the first row, we have only 1 data; in the second row, we have only two, the day and the day before; ..., and so on.")
-    print("We can only calculate a 7-period average from the 7th day, when we have that day and the 6 days before it.")
-    print("Once it is not possible to obtain the rolling statistic for some rows, missing values are generated.")
-    print("So, even if the rolling statistic was calculated for only 2 consecutive periods, there would be a row with missing values, since it is not possible to calculate the window statistic for a single entry.\n")
-    print(f"Naturally, this examples suppose that the user set how_to_close_window = {'right'}, when the first point in the window is excluded from calculations.")
-    print(f"If how_to_close_window = {'left'}, then the last point in the window would be excluded from calculations, so the missing values would appear at the end of the dataset.")
-    print("Even though it is not so intuitive, in this case we would take an entry and the next ones for calculating the statistic. For instance, the 7-day rolling average would be calculated as the average between a day and the next 6 days.")
-    print(f"Finally, if how_to_close_window = {'both'}, we would have a centralized window, where the some of the values come from the times before; and some come from the times after.")
-    print("In this last case, the 7-day rolling average would be calculated as the average between a day; the 3 days before; and the 3 next days.")
-    print("So, missing values would appear in both the beginning and the end of the dataframe.\n")
-    
-    print("For this function, the default is how_to_close_window = {'right'}, i.e., statistics are calculated from the row and the values before it.\n")
-    
+    if ControlVars.show_results:
+        print("Check the rolling dataframe:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(rolling_window_df)
+                
+        except: # regular mode
+            print(rolling_window_df)
+        
+        print('\n')
+        print("ATTENTION: depending on the window size, the windowed dataset may be considerable smaller than the original dataframe, with several missing values indicated by NA.\n")
+        print("For understanding it, consider a dataframe containing daily new cases of an illness, where we want to obtain the 7-day rolling average.")
+        print("Here, we will obtain 6 rows containing only missing values. The reason is that it is not possible to calculate the 7-periods average for the first 6 rows.")
+        print("In the first row, we have only 1 data; in the second row, we have only two, the day and the day before; ..., and so on.")
+        print("We can only calculate a 7-period average from the 7th day, when we have that day and the 6 days before it.")
+        print("Once it is not possible to obtain the rolling statistic for some rows, missing values are generated.")
+        print("So, even if the rolling statistic was calculated for only 2 consecutive periods, there would be a row with missing values, since it is not possible to calculate the window statistic for a single entry.\n")
+        print(f"Naturally, this examples suppose that the user set how_to_close_window = {'right'}, when the first point in the window is excluded from calculations.")
+        print(f"If how_to_close_window = {'left'}, then the last point in the window would be excluded from calculations, so the missing values would appear at the end of the dataset.")
+        print("Even though it is not so intuitive, in this case we would take an entry and the next ones for calculating the statistic. For instance, the 7-day rolling average would be calculated as the average between a day and the next 6 days.")
+        print(f"Finally, if how_to_close_window = {'both'}, we would have a centralized window, where the some of the values come from the times before; and some come from the times after.")
+        print("In this last case, the 7-day rolling average would be calculated as the average between a day; the 3 days before; and the 3 next days.")
+        print("So, missing values would appear in both the beginning and the end of the dataframe.\n")
+        
+        print("For this function, the default is how_to_close_window = {'right'}, i.e., statistics are calculated from the row and the values before it.\n")
+        
     return rolling_window_df
 
 
@@ -1909,144 +1925,146 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
     # Convert it into a returned dataframe:
     seasonal_decompose_df = pd.DataFrame(data = decompose_dict)
     
-    print("Check the first 10 rows of the seasonal decompose dataframe obtained:\n")
+    if ControlVars.show_results:
+        print("Check the first 10 rows of the seasonal decompose dataframe obtained:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(seasonal_decompose_df.head(10))
+                
+        except: # regular mode
+            print(seasonal_decompose_df.head(10))
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(seasonal_decompose_df.head(10))
-            
-    except: # regular mode
-        print(seasonal_decompose_df.head(10))
-    
-    print("\n") # line break
-    print(f"Check the time series decomposition graphics for the {MODEL} model:\n")
-    
-    # Plot parameters:
-    x = decompose_dict['timestamp']
-    try:
-        y1 = decompose_dict['observed_data']
-        lab1 = "observed_data"
-    except:
-        pass
-    
-    try:
-        y2 = decompose_dict['seasonal_component']
-        lab2 = 'seasonal_component'
-    except:
-        pass
-    
-    try:    
-        y3 = decompose_dict['trend_component']
-        lab3 = 'trend_component'
-    except:
-        pass
-    
-    try:
-        y4 = decompose_dict['residuals']
-        lab4 = 'residuals'
-    except:
-        pass
-    
-    plot_title = "seasonal_decomposition_for_" + response_column_to_analyze
-    
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    # Now, let's obtain the graphic:
-    # Create the figure:
-    fig, ax = plt.subplots(4, 1, sharex = True, figsize = (12, 8)) 
-    # sharex = share axis X
-    # number of subplots equals to the total of series to plot (in this case, 4)
-    try:
-        ax[0].plot(x, y1, linestyle = '-', marker = '', color = 'darkblue', alpha = OPACITY, label = lab1)
-        # Set title only for this subplot:
-        ax[0].set_title(plot_title)
-        ax[0].grid(grid)
-        ax[0].legend(loc = 'upper right')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-    except:
-        pass
+    if ControlVars.show_plots:
+        print("\n") # line break
+        print(f"Check the time series decomposition graphics for the {MODEL} model:\n")
+        
+        # Plot parameters:
+        x = decompose_dict['timestamp']
+        try:
+            y1 = decompose_dict['observed_data']
+            lab1 = "observed_data"
+        except:
+            pass
+        
+        try:
+            y2 = decompose_dict['seasonal_component']
+            lab2 = 'seasonal_component'
+        except:
+            pass
+        
+        try:    
+            y3 = decompose_dict['trend_component']
+            lab3 = 'trend_component'
+        except:
+            pass
+        
+        try:
+            y4 = decompose_dict['residuals']
+            lab4 = 'residuals'
+        except:
+            pass
+        
+        plot_title = "seasonal_decomposition_for_" + response_column_to_analyze
+        
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        # Now, let's obtain the graphic:
+        # Create the figure:
+        fig, ax = plt.subplots(4, 1, sharex = True, figsize = (12, 8)) 
+        # sharex = share axis X
+        # number of subplots equals to the total of series to plot (in this case, 4)
+        try:
+            ax[0].plot(x, y1, linestyle = '-', marker = '', color = 'darkblue', alpha = OPACITY, label = lab1)
+            # Set title only for this subplot:
+            ax[0].set_title(plot_title)
+            ax[0].grid(grid)
+            ax[0].legend(loc = 'upper right')
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
+        except:
+            pass
 
-    try:  
-        ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'crimson', alpha = OPACITY, label = lab2)
-        # Add the y-title only for this subplot:
-        ax[1].set_ylabel(response_column_to_analyze)
-        ax[1].grid(grid)
-        ax[1].legend(loc = 'upper right')
-    except:
-        pass
-    
-    try:
-        ax[2].plot(x, y3, linestyle = '-', marker = '', color = 'darkgreen', alpha = OPACITY, label = lab3)
-        ax[2].grid(grid)
-        ax[2].legend(loc = 'upper right')
-    except:
-        pass
-    
-    try:
-        ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'red', alpha = OPACITY, label = lab4)
-        # Add an horizontal line in y = zero:
-        ax[3].axhline(0, color = 'black', linestyle = 'dashed', alpha = OPACITY)
-        # Set the x label only for this subplot
-        ax[3].set_xlabel('timestamp')
-        ax[3].grid(grid)
-        ax[3].legend(loc = 'upper right')
-    except:
-        pass
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    if (export_png == True):
-        # Image will be exported
-        import os
+        try:  
+            ax[1].plot(x, y2, linestyle = '-', marker = '', color = 'crimson', alpha = OPACITY, label = lab2)
+            # Add the y-title only for this subplot:
+            ax[1].set_ylabel(response_column_to_analyze)
+            ax[1].grid(grid)
+            ax[1].legend(loc = 'upper right')
+        except:
+            pass
+        
+        try:
+            ax[2].plot(x, y3, linestyle = '-', marker = '', color = 'darkgreen', alpha = OPACITY, label = lab3)
+            ax[2].grid(grid)
+            ax[2].legend(loc = 'upper right')
+        except:
+            pass
+        
+        try:
+            ax[3].plot(x, y4, linestyle = '', marker = 'o', color = 'red', alpha = OPACITY, label = lab4)
+            # Add an horizontal line in y = zero:
+            ax[3].axhline(0, color = 'black', linestyle = 'dashed', alpha = OPACITY)
+            # Set the x label only for this subplot
+            ax[3].set_xlabel('timestamp')
+            ax[3].grid(grid)
+            ax[3].legend(loc = 'upper right')
+        except:
+            pass
+        
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "seasonal_decomposition"
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "seasonal_decomposition"
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-        #fig.tight_layout()
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+            #fig.tight_layout()
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-    
-    #Finally, return the full dataframe:
-    print("The full dataframe obtained from the decomposition, as well as the Statsmodels decomposition object were returned.")
-    
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+        
+        #Finally, return the full dataframe:
+        print("The full dataframe obtained from the decomposition, as well as the Statsmodels decomposition object were returned.")
+        
     return seasonal_decompose_df, decomposition_obj

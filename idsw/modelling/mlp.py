@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import ModelChecking
 
 
@@ -141,9 +141,10 @@ def sklearn_ann (X_train, y_train, type_of_problem = "regression", number_of_hid
     if (mlp_model.n_iter_ == maximum_of_allowed_iterations):
         print("Warning! Total of iterations equals to the maximum allowed. It indicates that the convergence was not reached yet. Try to increase the maximum number of allowed iterations.")
     
-    print(f"Finished fitting of the neural network with {mlp_model.n_layers_} after {mlp_model.n_iter_} iterations.")
-    print(f"Minimum loss reached by the solver throughout fitting: mean squared error (MSE) = {mlp_model.best_loss_}.")
-    print("\n")
+    if ControlVars.show_results:
+        print(f"Finished fitting of the neural network with {mlp_model.n_layers_} after {mlp_model.n_iter_} iterations.")
+        print(f"Minimum loss reached by the solver throughout fitting: mean squared error (MSE) = {mlp_model.best_loss_}.")
+        print("\n")
     
     # Create the training history dictionary:
     # the MLP Regressor is trained using the mean squared error as the loss function to be optimized.
@@ -192,23 +193,26 @@ def sklearn_ann (X_train, y_train, type_of_problem = "regression", number_of_hid
     # Retrieve model metrics:
     metrics_dict = model_check.metrics_dict
 
-    print("\n")
-    print("Check the loss curve below:\n")
-    model_check = model_check.plot_training_history (metrics_name = 'mse', x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
+    if ControlVars.show_results:
+        print("\n")
+        print("Check the loss curve below:\n")
+    if ControlVars.show_plots:
+        model_check = model_check.plot_training_history (metrics_name = 'mse', x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
     
-    print("\n") # line break
-    print("Note: If a proper number of epochs was used for training, then a final baseline (plateau) should be reached by the curve.\n")
-    
-    print("\n") #line break
-    print("To predict the model output y_pred for a dataframe X, declare: y_pred = mlp_model.predict(X)\n")
-    print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
-    print("X_train = np.reshape(np.array(X_train), (-1, 1))")
-    # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
-    
-    if (type_of_problem == 'classification'):
+    if ControlVars.show_results:
+        print("\n") # line break
+        print("Note: If a proper number of epochs was used for training, then a final baseline (plateau) should be reached by the curve.\n")
         
-        print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
-        print("y_pred_probabilities = mlp_model.predict_proba(X_train)")
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = mlp_model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = mlp_model.predict_proba(X_train)")
     
     
     return mlp_model, metrics_dict, history

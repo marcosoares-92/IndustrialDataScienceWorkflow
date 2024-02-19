@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 
 
 def column_general_statistics (df, column_to_analyze):
@@ -21,15 +21,17 @@ def column_general_statistics (df, column_to_analyze):
     analyzed_series = analyzed_series.dropna()
     
     general_stats = analyzed_series.describe()
-    print(f"General descriptive statistics from variable {column_to_analyze}, ignoring missing values:\n") 
     
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(general_stats)
-            
-    except: # regular mode
-        print(general_stats)
+    if ControlVars.show_results:
+        print(f"General descriptive statistics from variable {column_to_analyze}, ignoring missing values:\n") 
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(general_stats)
+                
+        except: # regular mode
+            print(general_stats)
     
     interpretation_df = pd.DataFrame(
     
@@ -47,17 +49,18 @@ def column_general_statistics (df, column_to_analyze):
     )
     interpretation_df.set_index('statistic', inplace = True)
     
-    print("\n") #line break
-    print("Interpretation (missing values ignored):")
-    
-    try:
-        display(interpretation_df)        
-    except:
-        print(interpretation_df)
-    
-    print("\n")
-    print("ATTENTION: This function shows the general statistics only for numerical variables.")
-    print("The results were returned as the dataframe general_stats.\n")
+    if ControlVars.show_results:
+        print("\n") #line break
+        print("Interpretation (missing values ignored):")
+        
+        try:
+            display(interpretation_df)        
+        except:
+            print(interpretation_df)
+        
+        print("\n")
+        print("ATTENTION: This function shows the general statistics only for numerical variables.")
+        print("The results were returned as the dataframe general_stats.\n")
     
     # Return only the dataframe
     return general_stats
@@ -77,33 +80,14 @@ def get_quantiles_for_column (df, column_to_analyze):
     #Drop missing values. Dropping them with describe method is deprecated and may raise errors.
     analyzed_series = analyzed_series.dropna()
     
-    list_of_quantiles = []
-    list_of_pcts = []
-    list_of_values = []
-    list_of_interpretation = []
+    list_of_quantiles = [i/100 for i in range(0, 105, 5)]
+    # range(0, 105, 5): from 0 to 105 (excluding last, 105), with differences of 5 (0, 5, 10, ..., 95, 100)
+    list_of_pcts = [i for i in range(0, 105, 5)]
+    list_of_values = [analyzed_series.quantile(i/100) for i in range(0, 105, 5)]
     
-    #First element: minimum
-    list_of_quantiles.append(0.0)
-    list_of_pcts.append(0)
-    list_of_values.append(analyzed_series.min())
-    list_of_interpretation.append(f"minimum {column_to_analyze}")
-    
-    i = 5
-    #Start from the 5% quantile
-    while (i < 100):
-        
-        list_of_quantiles.append(i/100)
-        list_of_pcts.append(i)
-        list_of_values.append(analyzed_series.quantile(i/100))
-        list_of_interpretation.append(f"{i}% of data <= this value")
-        
-        i = i + 5
-    
-    # Last element: maximum value
-    list_of_quantiles.append(1.0)
-    list_of_pcts.append(100)
-    list_of_values.append(analyzed_series.max())
-    list_of_interpretation.append(f"maximum {column_to_analyze}")
+    # Concatenate min, with the values from 5 to 95% with the maximum:
+    list_of_values = [analyzed_series.min()] + [analyzed_series.quantile(i/100) for i in range(5, 100, 5)] + [analyzed_series.max()]
+    list_of_interpretation = [f"minimum {column_to_analyze}"] + [f"{i}% of data <= this value" for i in range(5, 100, 5)] + [f"maximum {column_to_analyze}"]
     
     # Summarize the lists as a dataframe:
     
@@ -113,15 +97,16 @@ def get_quantiles_for_column (df, column_to_analyze):
                                             "interpretation": list_of_interpretation})
     quantiles_summ_df.set_index(['quantile', "%", column_to_analyze], inplace = True)
     
-    print("Quantiles returned as dataframe quantiles_summ_df. Check it below:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(quantiles_summ_df)
-            
-    except: # regular mode
-        print(quantiles_summ_df)
+    if ControlVars.show_results:
+        print("Quantiles returned as dataframe quantiles_summ_df. Check it below:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(quantiles_summ_df)
+                
+        except: # regular mode
+            print(quantiles_summ_df)
     
     return quantiles_summ_df
 
@@ -155,20 +140,23 @@ def get_p_percent_quantile_lim_for_column (df, column_to_analyze, p_percent = 10
     elif (quantile_fraction == 0):
         #get the minimum value
         quantile_lim = analyzed_series.min()
-        print(f"Minimum value of {column_to_analyze} =")
-        print("%.4f" %(quantile_lim))
+        if ControlVars.show_results:
+            print(f"Minimum value of {column_to_analyze} =")
+            print("%.4f" %(quantile_lim))
     
     elif (quantile_fraction == 1):
         #get the maximum value
         quantile_lim = analyzed_series.max()
-        print(f"Maximum value of {column_to_analyze} =")
-        print("%.4f" %(quantile_lim))
-        
+        if ControlVars.show_results:
+            print(f"Maximum value of {column_to_analyze} =")
+            print("%.4f" %(quantile_lim))
+            
     else:
         #get the quantile
         quantile_lim = analyzed_series.quantile(quantile_fraction)
-        print(f"{quantile_fraction}-quantile: {p_percent}% of data <=")
-        print("%.4f" %(quantile_lim))
+        if ControlVars.show_results:
+            print(f"{quantile_fraction}-quantile: {p_percent}% of data <=")
+            print("%.4f" %(quantile_lim))
     
     return quantile_lim
 
@@ -309,15 +297,16 @@ def label_dataframe_subsets (df, list_of_labels = [{'filter': None, 'value_to_ap
     # Reset index:
     DATASET = DATASET.reset_index(drop = True)
     
-    print("Successfully labelled the dataframe. Check its 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Successfully labelled the dataframe. Check its 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     return DATASET
 
@@ -512,8 +501,9 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
     
         required_sample_size = sample_size_diff_proportions(p1 = current_mean_or_proportion, p2 = target_mean_or_proportion, alpha = alpha, beta = beta, two_sided = perform_two_sided_test)
 
-    print("Finished estimation. The sample size was returned as the variable 'required_sample_size'.")
-    print(f"At least {required_sample_size} samples are needed to verify a modification of {what_to_test} from {current_mean_or_proportion:.2f} to {target_mean_or_proportion}.\n")
+    if ControlVars.show_results:
+        print("Finished estimation. The sample size was returned as the variable 'required_sample_size'.")
+        print(f"At least {required_sample_size} samples are needed to verify a modification of {what_to_test} from {current_mean_or_proportion:.2f} to {target_mean_or_proportion}.\n")
 
     return required_sample_size
 
@@ -853,14 +843,16 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
             
             anova_summary_dict = {'groups_length':min_length, 'F_statistic': f_statistic, 'p_value': p_value}
             
-            print(f"Total of samples in each group used for ANOVA (after padding): {min_length}\n")
-            print(f"Probability that the means of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
-            print(f"Calculated F-statistic for the variances = {f_statistic:e}\n")
-            
+            if ControlVars.show_results:
+                print(f"Total of samples in each group used for ANOVA (after padding): {min_length}\n")
+                print(f"Probability that the means of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
+                print(f"Calculated F-statistic for the variances = {f_statistic:e}\n")
+                
             # start a statistics list:
             statistics_list = []
             
-            print("Statistics for each detected label:\n")
+            if ControlVars.show_results:
+                print("Statistics for each detected label:\n")
             
             # If we apply the function zip(list_of_labels, list_of_means, list_of_medians, list_of_min, list_of_max), 
             # we obtain a series of tuples. The i-th tuple contains the i-th element from list_of_labels, 
@@ -872,383 +864,386 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
                 label_dict = {'label': label, 'mean': mean, 'median': median, 'min': minimum, 'max': maximum}
                 statistics_list.append(label_dict)
                 
-                print(f"Mean value of label '{label}' = {mean:e}")
-                print(f"Median value of label '{label}' = {median:e}")
-                print(f"Minimum value of label '{label}' = {minimum:e}")
-                print(f"Maximum value of label '{label}' = {maximum:e}\n")
+                if ControlVars.show_results:
+                    print(f"Mean value of label '{label}' = {mean:e}")
+                    print(f"Median value of label '{label}' = {median:e}")
+                    print(f"Minimum value of label '{label}' = {minimum:e}")
+                    print(f"Maximum value of label '{label}' = {maximum:e}\n")
             
             # Add the statistics list to the anova_summary_dict:
             anova_summary_dict['statistics'] = statistics_list
             
             # :e indicates the scientific notation
+            if ControlVars.show_results:
+                if (p_value <= alpha_anova):
+                    print(f"For a confidence level of {confidence_level_pct:.2f}%, we can reject the null hypothesis.")
+                    print(f"The means are different for a {confidence_level_pct:.2f}% confidence level.")
 
-            if (p_value <= alpha_anova):
-                print(f"For a confidence level of {confidence_level_pct:.2f}%, we can reject the null hypothesis.")
-                print(f"The means are different for a {confidence_level_pct:.2f}% confidence level.")
-
-            else:
-                print(f"For a confidence level of {confidence_level_pct}%, we can accept the null hypothesis.")
-                print(f"The means are equal for a {confidence_level_pct}% confidence level.")
+                else:
+                    print(f"For a confidence level of {confidence_level_pct}%, we can accept the null hypothesis.")
+                    print(f"The means are equal for a {confidence_level_pct}% confidence level.")
                 
 
         if ((plot_type is not None) & (plot_type != 'only_anova')):
 
-            # Now, let's obtain the plots:
-            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-            # so that the bars do not completely block other views.
-            OPACITY = 0.95
+            if ControlVars.show_plots:
+                # Now, let's obtain the plots:
+                # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+                # so that the bars do not completely block other views.
+                OPACITY = 0.95
 
-            # Manipulate the parameter vert (boolean, default: True)
-            # If True, draws vertical boxes. If False, draw horizontal boxes.
-            if (orientation == 'horizontal'):
-                VERT = False
-
-                if (horizontal_axis_title is None):
-                    # Set horizontal axis title
-                    horizontal_axis_title = "analyzed_series"
-
-                if (vertical_axis_title is None):
-                    # Set vertical axis title
-                    vertical_axis_title = "group_or_label"
-
-            else:
-                VERT = True
-
-                if (horizontal_axis_title is None):
-                    # Set horizontal axis title
-                    horizontal_axis_title = "group_or_label"
-
-                if (vertical_axis_title is None):
-                    # Set vertical axis title
-                    vertical_axis_title = "analyzed_series"
-
-            if (obtain_boxplot_with_filled_boxes is None):
-                obtain_boxplot_with_filled_boxes = True
-
-            if (obtain_boxplot_with_notched_boxes is None):
-                obtain_boxplot_with_notched_boxes = False
-
-            if (plot_title is None):
-                # Set graphic title
-                plot_title = f"{plot_type}_plot"
-
-            # Now, let's obtain the boxplot
-            fig, ax = plt.subplots(figsize = (12, 8))
-
-            if (plot_type == 'box'):
-                # rectangular box plot
-                # The arrays of each group are the elements of the list humongous_list
-                plot_returned_dict = ax.boxplot(list_of_arrays, labels = list_of_labels, notch = obtain_boxplot_with_notched_boxes, vert = VERT, patch_artist = obtain_boxplot_with_filled_boxes)
-
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
-
-                # plot_returned_dict: A dictionary mapping each component of the boxplot to 
-                # a list of the Line2D instances created. That dictionary has the following keys 
-                # (assuming vertical boxplots):
-                # boxes: the main body of the boxplot showing the quartiles and the median's 
-                # confidence intervals if enabled.
-                # medians: horizontal lines at the median of each box.
-                # whiskers: the vertical lines extending to the most extreme, non-outlier data 
-                # points.
-                # caps: the horizontal lines at the ends of the whiskers.
-                # fliers: points representing data that extend beyond the whiskers (fliers).
-                # means: points or lines representing the means.
-
-                # boxplot contains only lists (iterable collections) of objects
-                # (matplotlib.lines.Line2D objects):
-                # Each object on the list corresponds to one series being plot. For setting
-                # different colors, the parameters must be different for each object from one list.
-
-                for whisker in plot_returned_dict['whiskers']:
-                    whisker.set_color('crimson')
-                    whisker.set_alpha(OPACITY)
-
-                for cap in plot_returned_dict['caps']:
-                    cap.set_color('crimson')
-                    cap.set_alpha(OPACITY)
-
-                for flier in plot_returned_dict['fliers']:
-                    flier.set_color('crimson')
-                    flier.set_alpha(OPACITY)
-
-                for mean in plot_returned_dict['means']:
-                    mean.set_color('crimson')
-                    mean.set_alpha(OPACITY)
-
-                for median in plot_returned_dict['medians']:
-                    median.set_color('crimson')
-                    median.set_alpha(OPACITY)
-
-                # Set the boxes configuration for each case, where it should be filled or not:
-                if (obtain_boxplot_with_filled_boxes):
-                    for box in plot_returned_dict['boxes']:
-                        box.set_color('lightgrey')
-                        box.set_alpha(0.5)
-                else: # only the contour of the box
-                    for box in plot_returned_dict['boxes']:
-                        box.set_color('black')
-                        box.set_alpha(1.0)
-
-            if (plot_type == 'violin'):
-                # violin plot, estimate of the statistical distribution
-                # The arrays of each group are the elements of the list humongous_list
-                plot_returned_dict = ax.violinplot(list_of_arrays, vert = VERT, showmeans = True, showextrema = True, showmedians = True)
-
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
-
-                # plot_returned_dict: A dictionary mapping each component of the violinplot to a list of 
-                # the corresponding collection instances created. The dictionary has the following keys:
-                # bodies: A list of the PolyCollection instances containing the filled area of each 
-                # violin.
-                # cmeans: A LineCollection instance that marks the mean values of each of the violin's 
-                # distribution.
-                # cmins: A LineCollection instance that marks the bottom of each violin's distribution.
-                # cmaxes: A LineCollection instance that marks the top of each violin's distribution.
-                # cbars: A LineCollection instance that marks the centers of each violin's distribution.
-                # cmedians: A LineCollection instance that marks the median values of each of the violin's distribution.
-                # cquantiles: A LineCollection instance created to identify the quantile values of each 
-                # of the violin's distribution.
-
-                # Here, the labels must be defined manually:
+                # Manipulate the parameter vert (boolean, default: True)
+                # If True, draws vertical boxes. If False, draw horizontal boxes.
                 if (orientation == 'horizontal'):
-                    ax.set_yticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+                    VERT = False
+
+                    if (horizontal_axis_title is None):
+                        # Set horizontal axis title
+                        horizontal_axis_title = "analyzed_series"
+
+                    if (vertical_axis_title is None):
+                        # Set vertical axis title
+                        vertical_axis_title = "group_or_label"
 
                 else:
-                    ax.set_xticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
-                    # np.arange(1, len(list_of_labels) + 1) is the same list of numbers that the violinplot
-                    # associates to each sequence.
+                    VERT = True
 
-                # https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+                    if (horizontal_axis_title is None):
+                        # Set horizontal axis title
+                        horizontal_axis_title = "group_or_label"
 
-                # Violinplot contains line objects and lists (iterable collections) of objects
-                # matplotlib.collections.LineCollection objects: not iterable
-                # These are specific from violin plots:
-                plot_returned_dict['cmeans'].set_facecolor('crimson')
-                plot_returned_dict['cmeans'].set_edgecolor('crimson')
-                plot_returned_dict['cmeans'].set_alpha(OPACITY)
+                    if (vertical_axis_title is None):
+                        # Set vertical axis title
+                        vertical_axis_title = "analyzed_series"
 
-                plot_returned_dict['cmedians'].set_facecolor('crimson')
-                plot_returned_dict['cmedians'].set_edgecolor('crimson')
-                plot_returned_dict['cmedians'].set_alpha(OPACITY)
+                if (obtain_boxplot_with_filled_boxes is None):
+                    obtain_boxplot_with_filled_boxes = True
 
-                plot_returned_dict['cmaxes'].set_facecolor('crimson')
-                plot_returned_dict['cmaxes'].set_edgecolor('crimson')
-                plot_returned_dict['cmaxes'].set_alpha(OPACITY)
+                if (obtain_boxplot_with_notched_boxes is None):
+                    obtain_boxplot_with_notched_boxes = False
 
-                plot_returned_dict['cmins'].set_facecolor('crimson')
-                plot_returned_dict['cmins'].set_edgecolor('crimson')
-                plot_returned_dict['cmins'].set_alpha(OPACITY)
+                if (plot_title is None):
+                    # Set graphic title
+                    plot_title = f"{plot_type}_plot"
 
-                plot_returned_dict['cbars'].set_facecolor('crimson')
-                plot_returned_dict['cbars'].set_edgecolor('crimson')
-                plot_returned_dict['cbars'].set_alpha(OPACITY)
+                # Now, let's obtain the boxplot
+                fig, ax = plt.subplots(figsize = (12, 8))
 
-                # 'bodies': list of matplotlib.collections.PolyCollection objects (iterable)
-                # Each object on the list corresponds to one series being plot. For setting
-                # different colors, the parameters must be different for each object from one list.
-                for body in plot_returned_dict['bodies']:
-                    body.set_facecolor('lightgrey')
-                    body.set_edgecolor('black')
-                    body.set_alpha(0.5)
+                if (plot_type == 'box'):
+                    # rectangular box plot
+                    # The arrays of each group are the elements of the list humongous_list
+                    plot_returned_dict = ax.boxplot(list_of_arrays, labels = list_of_labels, notch = obtain_boxplot_with_notched_boxes, vert = VERT, patch_artist = obtain_boxplot_with_filled_boxes)
 
-            ax.set_title(plot_title)
-            ax.set_xlabel(horizontal_axis_title)
-            ax.set_ylabel(vertical_axis_title)
-            ax.grid(grid)
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
 
-            if (orientation == 'vertical'):
-                # generate vertically-oriented plot
+                    # plot_returned_dict: A dictionary mapping each component of the boxplot to 
+                    # a list of the Line2D instances created. That dictionary has the following keys 
+                    # (assuming vertical boxplots):
+                    # boxes: the main body of the boxplot showing the quartiles and the median's 
+                    # confidence intervals if enabled.
+                    # medians: horizontal lines at the median of each box.
+                    # whiskers: the vertical lines extending to the most extreme, non-outlier data 
+                    # points.
+                    # caps: the horizontal lines at the ends of the whiskers.
+                    # fliers: points representing data that extend beyond the whiskers (fliers).
+                    # means: points or lines representing the means.
 
-                if not (reference_value is None):
-                    # Add an horizontal reference_line to compare against the boxes:
-                    # If the boxplot was horizontally-oriented, this line should be vertical instead.
-                    ax.axhline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
-                    # axhline generates an horizontal (h) line on ax
+                    # boxplot contains only lists (iterable collections) of objects
+                    # (matplotlib.lines.Line2D objects):
+                    # Each object on the list corresponds to one series being plot. For setting
+                    # different colors, the parameters must be different for each object from one list.
 
-            else:
+                    for whisker in plot_returned_dict['whiskers']:
+                        whisker.set_color('crimson')
+                        whisker.set_alpha(OPACITY)
 
-                if not (reference_value is None):
-                    # Add an horizontal reference_line to compare against the boxes:
-                    # If the boxplot was horizontally-oriented, this line should be vertical instead.
-                    ax.axvline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
-                    # axvline generates a vertical (v) line on ax
+                    for cap in plot_returned_dict['caps']:
+                        cap.set_color('crimson')
+                        cap.set_alpha(OPACITY)
 
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 70 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)
+                    for flier in plot_returned_dict['fliers']:
+                        flier.set_color('crimson')
+                        flier.set_alpha(OPACITY)
 
-            if (export_png == True):
-                # Image will be exported
-                import os
+                    for mean in plot_returned_dict['means']:
+                        mean.set_color('crimson')
+                        mean.set_alpha(OPACITY)
 
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
+                    for median in plot_returned_dict['medians']:
+                        median.set_color('crimson')
+                        median.set_alpha(OPACITY)
 
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = f"{plot_type}_plot"
+                    # Set the boxes configuration for each case, where it should be filled or not:
+                    if (obtain_boxplot_with_filled_boxes):
+                        for box in plot_returned_dict['boxes']:
+                            box.set_color('lightgrey')
+                            box.set_alpha(0.5)
+                    else: # only the contour of the box
+                        for box in plot_returned_dict['boxes']:
+                            box.set_color('black')
+                            box.set_alpha(1.0)
 
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
+                if (plot_type == 'violin'):
+                    # violin plot, estimate of the statistical distribution
+                    # The arrays of each group are the elements of the list humongous_list
+                    plot_returned_dict = ax.violinplot(list_of_arrays, vert = VERT, showmeans = True, showextrema = True, showmedians = True)
 
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-                new_file_path = new_file_path + ".png"
-                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #Export the file to this new path:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-            
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            #plt.figure(figsize = (12, 8))
-            #fig.tight_layout()
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.violinplot.html
 
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
+                    # plot_returned_dict: A dictionary mapping each component of the violinplot to a list of 
+                    # the corresponding collection instances created. The dictionary has the following keys:
+                    # bodies: A list of the PolyCollection instances containing the filled area of each 
+                    # violin.
+                    # cmeans: A LineCollection instance that marks the mean values of each of the violin's 
+                    # distribution.
+                    # cmins: A LineCollection instance that marks the bottom of each violin's distribution.
+                    # cmaxes: A LineCollection instance that marks the top of each violin's distribution.
+                    # cbars: A LineCollection instance that marks the centers of each violin's distribution.
+                    # cmedians: A LineCollection instance that marks the median values of each of the violin's distribution.
+                    # cquantiles: A LineCollection instance created to identify the quantile values of each 
+                    # of the violin's distribution.
 
-            plt.show()
+                    # Here, the labels must be defined manually:
+                    if (orientation == 'horizontal'):
+                        ax.set_yticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+
+                    else:
+                        ax.set_xticks(np.arange(1, len(list_of_labels) + 1), labels = list_of_labels)
+                        # np.arange(1, len(list_of_labels) + 1) is the same list of numbers that the violinplot
+                        # associates to each sequence.
+
+                    # https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+
+                    # Violinplot contains line objects and lists (iterable collections) of objects
+                    # matplotlib.collections.LineCollection objects: not iterable
+                    # These are specific from violin plots:
+                    plot_returned_dict['cmeans'].set_facecolor('crimson')
+                    plot_returned_dict['cmeans'].set_edgecolor('crimson')
+                    plot_returned_dict['cmeans'].set_alpha(OPACITY)
+
+                    plot_returned_dict['cmedians'].set_facecolor('crimson')
+                    plot_returned_dict['cmedians'].set_edgecolor('crimson')
+                    plot_returned_dict['cmedians'].set_alpha(OPACITY)
+
+                    plot_returned_dict['cmaxes'].set_facecolor('crimson')
+                    plot_returned_dict['cmaxes'].set_edgecolor('crimson')
+                    plot_returned_dict['cmaxes'].set_alpha(OPACITY)
+
+                    plot_returned_dict['cmins'].set_facecolor('crimson')
+                    plot_returned_dict['cmins'].set_edgecolor('crimson')
+                    plot_returned_dict['cmins'].set_alpha(OPACITY)
+
+                    plot_returned_dict['cbars'].set_facecolor('crimson')
+                    plot_returned_dict['cbars'].set_edgecolor('crimson')
+                    plot_returned_dict['cbars'].set_alpha(OPACITY)
+
+                    # 'bodies': list of matplotlib.collections.PolyCollection objects (iterable)
+                    # Each object on the list corresponds to one series being plot. For setting
+                    # different colors, the parameters must be different for each object from one list.
+                    for body in plot_returned_dict['bodies']:
+                        body.set_facecolor('lightgrey')
+                        body.set_edgecolor('black')
+                        body.set_alpha(0.5)
+
+                ax.set_title(plot_title)
+                ax.set_xlabel(horizontal_axis_title)
+                ax.set_ylabel(vertical_axis_title)
+                ax.grid(grid)
+
+                if (orientation == 'vertical'):
+                    # generate vertically-oriented plot
+
+                    if not (reference_value is None):
+                        # Add an horizontal reference_line to compare against the boxes:
+                        # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                        ax.axhline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                        # axhline generates an horizontal (h) line on ax
+
+                else:
+
+                    if not (reference_value is None):
+                        # Add an horizontal reference_line to compare against the boxes:
+                        # If the boxplot was horizontally-oriented, this line should be vertical instead.
+                        ax.axvline(reference_value, color = 'black', linestyle = 'dashed', label = 'reference', alpha = OPACITY)
+                        # axvline generates a vertical (v) line on ax
+
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 70 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = f"{plot_type}_plot"
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+                    new_file_path = new_file_path + ".png"
+                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #Export the file to this new path:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                #plt.figure(figsize = (12, 8))
+                #fig.tight_layout()
+
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+
+                plt.show()
         
         else:
             print(f"Plot type set as {plot_type}. So, no plot was obtained.\n")
         
-        print("\n") #line break
-        print("Successfully returned 2 dictionaries: anova_summary_dict (dictionary storing ANOVA F-test and p-value); and plot_returned_dict (dictionary mapping each component of the plot).\n")
-        
-        if (plot_type == 'box'):
-        
-            print("Boxplot interpretation:\n")
-            print("Boxplot presents the following key visual components:\n")
+        if ControlVars.show_results:
+            print("\n") #line break
+            print("Successfully returned 2 dictionaries: anova_summary_dict (dictionary storing ANOVA F-test and p-value); and plot_returned_dict (dictionary mapping each component of the plot).\n")
             
-            print("Main box")
-            print("The main box represents the Interquartile Range (IQR).")
-            print("It represents the data that is from quartile Q1 to quartile Q3.\n")
+            if (plot_type == 'box'):
             
-            print("Q1 = 1st quartile of the dataset")
-            print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
+                print("Boxplot interpretation:\n")
+                print("Boxplot presents the following key visual components:\n")
+                
+                print("Main box")
+                print("The main box represents the Interquartile Range (IQR).")
+                print("It represents the data that is from quartile Q1 to quartile Q3.\n")
+                
+                print("Q1 = 1st quartile of the dataset")
+                print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
+                
+                print("Q2 = 2nd quartile of the dataset")
+                print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
+                
+                print("Q3 = 3rd quartile of the dataset")
+                print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
+                
+                print("Median line")
+                print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
+                print("This line represents the median: it is the midpoint of the dataset.\n")
+                
+                print("Limit lines")      
+                print("There are lines extending beyond the main boxes limits.")
+                print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
+                
+                print("Minimum limit")
+                print("Given that Ymin is the lowest value assumed by the variable, the minimum limit of the boxplot (inferior whisker) is defined as:")
+                print("Minimum between Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1) and Ymin")
+                print("The whisker must not be below Ymin.\n")
+                
+                print("Maximum limit")
+                print("Given that Ymax is the highest value assumed by the variable, the maximum limit of the boxplot (superior whisker) is defined as:")
+                print("Maximum between Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1) and Ymax")
+                print("The whisker must not be above Ymax.\n")
+                
+                print("Outliers")
+                print("Finally, there are isolated points (circles) on the plot.")
+                print("These points lie below the minimum bar, or above the maximum bar line (beyound the whiskers).")
+                print("They are defined as outliers.\n")
+                
+                print("Application of the plot")        
+                print("Like violin plots, box plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.") 
+                print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
+                # https://nickmccullum.com/python-visualization/boxplot/
             
-            print("Q2 = 2nd quartile of the dataset")
-            print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
-            
-            print("Q3 = 3rd quartile of the dataset")
-            print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
-            
-            print("Median line")
-            print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
-            print("This line represents the median: it is the midpoint of the dataset.\n")
-            
-            print("Limit lines")      
-            print("There are lines extending beyond the main boxes limits.")
-            print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
-            
-            print("Minimum limit")
-            print("Given that Ymin is the lowest value assumed by the variable, the minimum limit of the boxplot (inferior whisker) is defined as:")
-            print("Minimum between Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1) and Ymin")
-            print("The whisker must not be below Ymin.\n")
-            
-            print("Maximum limit")
-            print("Given that Ymax is the highest value assumed by the variable, the maximum limit of the boxplot (superior whisker) is defined as:")
-            print("Maximum between Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1) and Ymax")
-            print("The whisker must not be above Ymax.\n")
-            
-            print("Outliers")
-            print("Finally, there are isolated points (circles) on the plot.")
-            print("These points lie below the minimum bar, or above the maximum bar line (beyound the whiskers).")
-            print("They are defined as outliers.\n")
-            
-            print("Application of the plot")        
-            print("Like violin plots, box plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.") 
-            print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
-            # https://nickmccullum.com/python-visualization/boxplot/
-        
-        elif (plot_type == 'violin'):
-            
-            print("Violin plot interpretation:\n")
-            
-            print("A violin plot is similar to a box plot, with the addition of a rotated kernel density plot on each side of the violin.\n")
-            print("So, this plot also shows the probability density of the data at different values, usually smoothed by a kernel density estimator.\n")
-            print("Typically a violin plot will include all the data that is in a box plot.\n")
-            print("It includes a filled area extending to represent the entire data range; with lines at the mean, the median, the minimum, and the maximum.\n")
-            
-            print("So, let's firstly check the box plot components.")
-            print("Notice that the interquartile range represented by the main box will not be present.")
-            print("The violin plot replaces this box region by the density distribution itself.\n")
-            
-            print("Main box")
-            print("The main box represents the Interquartile Range (IQR).")
-            print("It represents the data that is from quartile Q1 to quartile Q3.\n")
-            
-            print("Q1 = 1st quartile of the dataset")
-            print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
-            
-            print("Q2 = 2nd quartile of the dataset")
-            print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
-            
-            print("Q3 = 3rd quartile of the dataset")
-            print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
-            
-            print("Median line")
-            print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
-            print("This line represents the median: it is the midpoint of the dataset.\n")
-            
-            print("Limit lines")      
-            print("There are lines extending beyond the main boxes limits.")
-            print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
-            
-            print("Minimum limit")
-            print("Given that Ymin is the lowest value assumed by the variable, the minimum limit of the boxplot (inferior whisker) is defined as:")
-            print("Minimum between Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1) and Ymin")
-            print("The whisker must not be below Ymin.\n")
-            
-            print("Maximum limit")
-            print("Given that Ymax is the highest value assumed by the variable, the maximum limit of the boxplot (superior whisker) is defined as:")
-            print("Maximum between Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1) and Ymax")
-            print("The whisker must not be above Ymax.\n")
-            
-            print("Outliers")
-            print("Finally, there are isolated points (circles) on the plot.")
-            print("These points lie below the minimum bar, or above the maximum bar line (beyound the whiskers).")
-            print("They are defined as outliers.\n")
-            
-            print("ATTENTION:")
-            print("Since the probability density is shown, these isolated outlier points are not represented in the violin plot.\n")
-            
-            print("Presence on multiple peaks in the violin plot")
-            print("A violin plot is more informative than a plain box plot.")
-            print("While a box plot only shows summary statistics such as mean/median and interquartile ranges, the violin plot shows the full distribution of the data.")
-            print("This difference is particularly useful when the data distribution is multimodal (more than one peak).")
-            print("In this case, a violin plot shows the presence of different peaks, their positions and relative amplitudes.\n")
-            
-            print("Application of the plot")
-            print("Like box plots, violin plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.")
-            print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
-            
-            print("Presence of multiple layers")
-            print("A violin plot can have multiple layers. For instance, the outer shape represents all possible results.")
-            print("The next layer inside might represent the values that occur 95% of the time.")
-            print("The next layer (if it exists) inside might represent the values that occur 50% of the time.\n")
-            
-            print("Alternative to this plot")
-            print("Although more informative than box plots, they are less popular.")
-            print("Because of their unpopularity, they may be harder to understand for readers not familiar with them.")
-            print("In this case, a more accessible alternative is to plot a series of stacked histograms or kernel density distributions (KDE plots).\n")
-            # https://en.wikipedia.org/wiki/Violin_plot#:~:text=A%20violin%20plot%20is%20a%20method%20of%20plotting,values%2C%20usually%20smoothed%20by%20a%20kernel%20density%20estimator.
-            
+            elif (plot_type == 'violin'):
+                
+                print("Violin plot interpretation:\n")
+                
+                print("A violin plot is similar to a box plot, with the addition of a rotated kernel density plot on each side of the violin.\n")
+                print("So, this plot also shows the probability density of the data at different values, usually smoothed by a kernel density estimator.\n")
+                print("Typically a violin plot will include all the data that is in a box plot.\n")
+                print("It includes a filled area extending to represent the entire data range; with lines at the mean, the median, the minimum, and the maximum.\n")
+                
+                print("So, let's firstly check the box plot components.")
+                print("Notice that the interquartile range represented by the main box will not be present.")
+                print("The violin plot replaces this box region by the density distribution itself.\n")
+                
+                print("Main box")
+                print("The main box represents the Interquartile Range (IQR).")
+                print("It represents the data that is from quartile Q1 to quartile Q3.\n")
+                
+                print("Q1 = 1st quartile of the dataset")
+                print("25% of values lie below this level (i.e., it is the 0.25-quantile or percentile).\n")
+                
+                print("Q2 = 2nd quartile of the dataset")
+                print("50% of values lie above and below this level (i.e., it is the 0.50-quantile or percentile).\n")
+                
+                print("Q3 = 3rd quartile of the dataset")
+                print("75% of values lie below and 25% lie above this level (i.e., it is the 0.75-quantile or percentile).\n")
+                
+                print("Median line")
+                print("Boxplot main box (the IQR) is divided by an horizontal line if it is vertically-oriented; or by a vertical line if it is horizontally-oriented.")
+                print("This line represents the median: it is the midpoint of the dataset.\n")
+                
+                print("Limit lines")      
+                print("There are lines extending beyond the main boxes limits.")
+                print("These lines end in horizontal limits, if the boxplot is vertically oriented; or in vertical limits, for an horizontal plot.\n")
+                
+                print("Minimum limit")
+                print("Given that Ymin is the lowest value assumed by the variable, the minimum limit of the boxplot (inferior whisker) is defined as:")
+                print("Minimum between Q1 - (1.5) x (IQR width) = Q1 - 1.5*(Q3-Q1) and Ymin")
+                print("The whisker must not be below Ymin.\n")
+                
+                print("Maximum limit")
+                print("Given that Ymax is the highest value assumed by the variable, the maximum limit of the boxplot (superior whisker) is defined as:")
+                print("Maximum between Q3 + (1.5) x (IQR width) = Q3 + 1.5*(Q3-Q1) and Ymax")
+                print("The whisker must not be above Ymax.\n")
+                
+                print("Outliers")
+                print("Finally, there are isolated points (circles) on the plot.")
+                print("These points lie below the minimum bar, or above the maximum bar line (beyound the whiskers).")
+                print("They are defined as outliers.\n")
+                
+                print("ATTENTION:")
+                print("Since the probability density is shown, these isolated outlier points are not represented in the violin plot.\n")
+                
+                print("Presence on multiple peaks in the violin plot")
+                print("A violin plot is more informative than a plain box plot.")
+                print("While a box plot only shows summary statistics such as mean/median and interquartile ranges, the violin plot shows the full distribution of the data.")
+                print("This difference is particularly useful when the data distribution is multimodal (more than one peak).")
+                print("In this case, a violin plot shows the presence of different peaks, their positions and relative amplitudes.\n")
+                
+                print("Application of the plot")
+                print("Like box plots, violin plots are used to represent comparison of a variable distribution (or sample distribution) across different 'categories'.")
+                print("Examples: temperature distribution compared between day and night; or distribution of car prices compared across different car makers.\n")
+                
+                print("Presence of multiple layers")
+                print("A violin plot can have multiple layers. For instance, the outer shape represents all possible results.")
+                print("The next layer inside might represent the values that occur 95% of the time.")
+                print("The next layer (if it exists) inside might represent the values that occur 50% of the time.\n")
+                
+                print("Alternative to this plot")
+                print("Although more informative than box plots, they are less popular.")
+                print("Because of their unpopularity, they may be harder to understand for readers not familiar with them.")
+                print("In this case, a more accessible alternative is to plot a series of stacked histograms or kernel density distributions (KDE plots).\n")
+                # https://en.wikipedia.org/wiki/Violin_plot#:~:text=A%20violin%20plot%20is%20a%20method%20of%20plotting,values%2C%20usually%20smoothed%20by%20a%20kernel%20density%20estimator.
+                
         return anova_summary_dict, plot_returned_dict
 
 
@@ -1333,18 +1328,11 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
         
         if (df is None):
             
-            print("Please, input a valid dataframe as df.\n")
-            list_of_dictionaries_with_series_to_analyze = []
-            # The code will check the size of this list on the next block.
-            # If it is zero, code is simply interrupted.
-            # Instead of returning an error, we use this code structure that can be applied
-            # on other graphic functions that do not return a summary (and so we should not
-            # return a value like 'error' to interrupt the function).
+            raise InvalidInputsError("Please, input a valid dataframe as df.\n")
         
         elif (variable_to_analyze is None):
             
-            print("Please, input a valid column name as variable_to_analyze.\n")
-            list_of_dictionaries_with_series_to_analyze = []
+            raise InvalidInputsError("Please, input a valid column name as variable_to_analyze.\n")
         
         else:
             
@@ -1353,8 +1341,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             
             if (column_with_labels_or_groups is None):
             
-                print("Please, input a valid column name as column_with_labels_or_groups.\n")
-                list_of_dictionaries_with_series_to_analyze = []
+                raise InvalidInputsError("Please, input a valid column name as column_with_labels_or_groups.\n")
             
             # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
             # all in Ascending order
@@ -1713,20 +1700,21 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             summary_dict[lab1] = dict1
             summary_dict[lab2] = dict2
 
-        print("Finished AB Testing. Check the full analysis on the returned summary dictionary.")
-        print(f"Compared difference between {what_to_compare}.")
-        print(f"Null hypothesis H0: {h0}.")
-        print(p_meaning)
-        print("\n")
-        print(f"Calculated p-value for the test: {p_value:e} = {(p_value)*100:.2f}%")
-        print("\n")
+        if ControlVars.show_results:
+            print("Finished AB Testing. Check the full analysis on the returned summary dictionary.")
+            print(f"Compared difference between {what_to_compare}.")
+            print(f"Null hypothesis H0: {h0}.")
+            print(p_meaning)
+            print("\n")
+            print(f"Calculated p-value for the test: {p_value:e} = {(p_value)*100:.2f}%")
+            print("\n")
 
-        if (reject):
-            print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to support H0.")
-            print("Recommendation: REJECT the null hypothesis H0.")
-        
-        else:
-           print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to reject H0.")
-           print("Recommendation: ACCEPT the null hypothesis H0.")
-        
+            if (reject):
+                print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to support H0.")
+                print("Recommendation: REJECT the null hypothesis H0.")
+            
+            else:
+                print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to reject H0.")
+                print("Recommendation: ACCEPT the null hypothesis H0.")
+            
         return summary_dict

@@ -17,9 +17,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
-from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
-
+from idsw import (InvalidInputsError, ControlVars)
+from .utils import (EncodeDecode, mode_retrieval)
+  
 
 class SPCChartAssistant:
     """
@@ -1004,13 +1004,11 @@ class SPCPlot:
             df_agg_mode = df_agg_mode[categorical_cols]
             # stats.mode now only works for numerically encoded variables (the previous ordinal
             # encoding is required)
-            DATASET = df_agg_mode
-            SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_cols
-            df_agg_mode, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-            # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
-            # avoiding that scipy try to aggregate them and raise an error:
-            # Remove the columns that do not have numeric variables before grouping
-            df_agg_mode = df_agg_mode.drop(columns = categorical_cols)
+
+            # Encode to calculate the mode:
+            enc_dec_obj = EncodeDecode(df_categorical = df_agg_mode, categorical_list = categorical_cols)
+            enc_dec_obj = enc_dec_obj.encode()
+            df_agg_mode, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
 
             if column_with_labels_or_subgroups in categorical_cols:
                 column_with_labels_or_subgroups = column_with_labels_or_subgroups + "_OrdinalEnc"
@@ -1024,47 +1022,11 @@ class SPCPlot:
                 # take the mode for all columns, except the column_with_labels_or_subgroups,
                 # used for grouping the dataframe. This column already has the correct value
                 if (col_mode != column_with_labels_or_subgroups):
-            
-                    # start a list of modes:
-                    list_of_modes = []
-
-                    # Now, loop through each row from the dataset:
-                    for i in range(0, len(df_agg_mode)):
-                        # i = 0 to i = len(df_agg_mode) - 1
-
-                        mode_array = np.array(df_agg_mode[col_mode])[i]    
-
-                        try:
-                            # try accessing the mode
-                            # mode array is like:
-                            # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
-                            # To retrieve only the mode, we must access the element [0] from this array
-                            # or attribute mode:
-                            mode = mode_array.mode
-                        except:
-                            try:
-                                mode = mode_array[0]
-                            except:
-                                try:
-                                    if ((mode_array != np.nan) & (mode_array is not None)):
-                                        mode = mode_array
-                                    else:
-                                        mode = np.nan
-                                except:
-                                    mode = np.nan
-                        
-                        # Append it to the list of modes:
-                        list_of_modes.append(mode)
-
-                    # Finally, make the column the list of modes itself:
-                    df_agg_mode[col_mode] = list_of_modes
+                    df_agg_mode[col_mode] = mode_retrieval(df_agg_mode[col_mode])
                 
             # Now, reverse the encoding:
-            DATASET = df_agg_mode
-            ENCODING_LIST = ordinal_encoding_list
-            # Now, reverse encoding and keep only the original column names:
-            df_agg_mode = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-            df_agg_mode = df_agg_mode[categorical_cols]
+            enc_dec_obj = enc_dec_obj.decode(new_df = df_agg_mode)
+            df_agg_mode, cleaned_df = enc_dec_obj.df_categorical, enc_dec_obj.cleaned_df
                   
         if (is_numeric == 1):
             
@@ -1725,8 +1687,6 @@ class CapabilityAnalysis:
         self.histogram_dict = {}
         self.capability_dict = {}
         self.normality_dict = {}
-        
-        print("WARNING: this capability analysis is based on the strong hypothesis that data follows the normal (Gaussian) distribution.\n")
         
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters

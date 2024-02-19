@@ -11,9 +11,726 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import openpyxl
+
+from dataclasses import dataclass
+from idsw import (InvalidInputsError, ControlVars)
 
 
-class InvalidInputsError (Exception): pass  # class for raising errors when invalid inputs are provided.
+@dataclass
+class Connectors:
+  """
+    Store the connectors as Global variables to use, so that the classes do not have to be re-instantiated always.
+    Variables are always started with value None or as booleans.
+
+    for a variable var, syntax 
+    if var:
+        # is equivalent to: "run only when variable var is not None." or "run only if var is True".
+    """
+  
+  # While persistent = True, the system will try to use the same connector already created.
+  # User must change this variable state to create new connectors.
+  persistent = True
+  # Google Drive Connector
+  google_drive_connector = None
+  # AWS S3 Connector
+  aws_s3_connector = None
+
+
+class MountGoogleDrive:
+    """Class for Mounting Google Drive"""
+    def __init__ (self):
+
+        from google.colab import drive
+        # Google Colab library must be imported only in case it is
+        # going to be used, for avoiding AWS compatibility issues.
+        
+        print("Associate the Python environment to your Google Drive account, and authorize the access in the opened window.")
+        
+        drive.mount('/content/drive')
+        
+        print("Now your Python environment is connected to your Google Drive: the root directory of your environment is now the root of your Google Drive.")
+        print("In Google Colab, navigate to the folder icon (\'Files\') of the left navigation menu to find a specific folder or file in your Google Drive.")
+        print("Click on the folder or file name and select the elipsis (...) icon on the right of the name to reveal the option \'Copy path\', which will give you the path to use as input for loading objects and files on your Python environment.")
+        print("Caution: save your files into different directories of the Google Drive. If files are all saved in a same folder or directory, like the root path, they may not be accessible from your Python environment.")
+        print("If you still cannot see the file after moving it to a different folder, reload the environment.")
+    
+
+    def upload_to_colab(self):
+
+        from google.colab import files
+        # google.colab library must be imported only in case 
+        # it is going to be used, for avoiding 
+        # AWS compatibility issues.
+        print("Click on the button for file selection and select the files from your machine that will be uploaded in the Colab environment.")
+        print("Warning: the files will be removed from Colab memory after the Kernel dies or after the notebook is closed.")
+        # this functionality requires the previous declaration:
+        ## from google.colab import files
+            
+        colab_files_dict = files.upload()
+            
+        # The files are stored into a dictionary called colab_files_dict where the keys
+        # are the names of the files and the values are the files themselves.
+        ## e.g. if you upload a single file named "dictionary.pkl", the dictionary will be
+        ## colab_files_dict = {'dictionary.pkl': file}, where file is actually a big string
+        ## representing the contents of the file. The length of this value is the size of the
+        ## uploaded file, in bytes.
+        ## To access the file is like accessing a value from a dictionary: 
+        ## d = {'key1': 'val1'}, d['key1'] == 'val1'
+        ## we simply declare the key inside brackets and quotes, the same way we would do for
+        ## accessing the column of a dataframe.
+        ## In this example, colab_files_dict['dictionary.pkl'] access the content of the 
+        ## .pkl file, and len(colab_files_dict['dictionary.pkl']) is the size of the .pkl
+        ## file in bytes.
+        ## To check the dictionary keys, apply the method .keys() to the dictionary (with empty
+        ## parentheses): colab_files_dict.keys()
+            
+        for key in colab_files_dict.keys():
+            #loop through each element of the list of keys of the dictionary
+            # (list colab_files_dict.keys()). Each element is named 'key'
+            print(f"User uploaded file {key} with length {len(colab_files_dict[key])} bytes.")
+            # The key is the name of the file, and the length of the value
+            ## correspondent to the key is the file's size in bytes.
+            ## Notice that the content of the uploaded object must be passed 
+            ## as argument for a proper function to be interpreted. 
+            ## For instance, the content of a xlsx file should be passed as
+            ## argument for Pandas .read_excel function; the pkl file must be passed as
+            ## argument for pickle.
+            ## e.g., if you uploaded 'table.xlsx' and stored it into colab_files_dict you should
+            ## declare df = pd.read_excel(colab_files_dict['table.xlsx']) to obtain a dataframe
+            ## df from the uploaded table. Notice that is the value, not the key, that is the
+            ## argument.
+                
+            print("The uploaded files are stored into a dictionary object named as colab_files_dict.")
+            print("Each key from this dictionary is the name of an uploaded file. The value correspondent to that key is the file itself.")
+            print("The structure of a general Python dictionary is dict = {\'key1\': value1}. To access value1, declare file = dict[\'key1\'], as if you were accessing a column from a dataframe.")
+            print("Then, if you uploaded a file named \'table.xlsx\', you can access this file as:")
+            print("uploaded_file = colab_files_dict[\'table.xlsx\']")
+            print("Notice, though, that the object uploaded_file is the whole file content, not a Python object already converted. To convert to a Python object, pass this element as argument for a proper function or method.")
+            print("In this example, to convert the object uploaded_file to a dataframe, Pandas pd.read_excel function could be used. In the following line, a df dataframe object is obtained from the uploaded file:")
+            print("df = pd.read_excel(uploaded_file)")
+            print("Also, the uploaded file itself will be available in the Colaboratory Notebook\'s workspace.")
+            
+            self.colab_files_dict =  colab_files_dict
+
+            return self
+    
+
+    def download_from_colab(self, file_to_download_from_colab = None):
+
+        from google.colab import files
+
+            
+        if (file_to_download_from_colab is None):
+                
+            #No object was declared
+            print("Please, inform a file to download from the notebook\'s workspace. It should be declared in quotes and with the extension: e.g. \'table.csv\'.")
+            
+        else:
+                
+            print("The file will be downloaded to your computer.")
+
+            files.download(file_to_download_from_colab)
+
+            print(f"File {file_to_download_from_colab} successfully downloaded from Colab environment.")
+        
+        return self
+
+
+class AWSS3Connection:
+    """Class for connecting with Amazon AWS Single Storage Service (S3)"""
+
+    
+    def __init__ (self, path_to_store_imported_s3_bucket = '', s3_bucket_name = None, s3_obj_prefix = None):
+
+        from getpass import getpass
+
+        self.s3_bucket_name = s3_bucket_name
+        self.s3_obj_prefix = s3_obj_prefix
+
+        # Check if path_to_store_imported_s3_bucket is None. If it is, make it the root directory:
+        if ((path_to_store_imported_s3_bucket is None)|(str(path_to_store_imported_s3_bucket) == "/")):
+            
+            # For the S3 buckets, the path should not start with slash. Assign the empty
+            # string instead:
+            self.path_to_store_imported_s3_bucket = ""
+            print("Bucket\'s content will be copied to the notebook\'s root directory.")
+        
+        elif (str(path_to_store_imported_s3_bucket) == ""):
+            # Guarantee that the path is the empty string.
+            # Avoid accessing the else condition, what would raise an error
+            # since the empty string has no character of index 0
+            self.path_to_store_imported_s3_bucket = str(path_to_store_imported_s3_bucket)
+            print("Bucket\'s content will be copied to the notebook\'s root directory.")
+        
+        else:
+            # Use the str attribute to guarantee that the path was read as a string:
+            path_to_store_imported_s3_bucket = str(path_to_store_imported_s3_bucket)
+            
+            if(path_to_store_imported_s3_bucket[0] == "/"):
+                # the first character is the slash. Let's remove it
+
+                # In AWS, neither the prefix nor the path to which the file will be imported
+                # (file from S3 to workspace) or from which the file will be exported to S3
+                # (the path in the notebook's workspace) may start with slash, or the operation
+                # will not be concluded. Then, we have to remove this character if it is present.
+
+                # The slash is character 0. Then, we want all characters from character 1 (the
+                # second) to character len(str(path_to_store_imported_s3_bucket)) - 1, the index
+                # of the last character. So, we can slice the string from position 1 to position
+                # the slicing syntax is: string[1:] - all string characters from character 1
+                # string[:10] - all string characters from character 10-1 = 9 (including 9); or
+                # string[1:10] - characters from 1 to 9
+                # So, slice the whole string, starting from character 1:
+                self.path_to_store_imported_s3_bucket = path_to_store_imported_s3_bucket[1:]
+                # attention: even though strings may be seem as list of characters, that can be
+                # sliced, we cannot neither simply assign a character to a given position nor delete
+                # a character from a position.
+
+
+    def get_credentials(self):
+            
+        # Ask the user to provide the credentials:
+        ACCESS_KEY = input("Enter your AWS Access Key ID here (in the right). It is the value stored in the field \'Access key ID\' from your AWS user credentials CSV file.")
+        print("\n") # line break
+        SECRET_KEY = getpass("Enter your password (Secret key) here (in the right). It is the value stored in the field \'Secret access key\' from your AWS user credentials CSV file.")
+            
+        # The use of 'getpass' instead of 'input' hide the password behind dots.
+        # So, the password is not visible by other users and cannot be copied.
+            
+        print("\n")
+        print("WARNING: The bucket\'s name, the prefix, the AWS access key ID, and the AWS Secret access key are all sensitive information, which may grant access to protected information from the organization.\n")
+        print("After copying data from S3 to your workspace, remember of removing these information from the notebook, specially if it is going to be shared. Also, remember of removing the files from the workspace.\n")
+        print("The cost for storing files in Simple Storage Service is quite inferior than the one for storing directly in SageMaker workspace. Also, files stored in S3 may be accessed for other users than those with access the notebook\'s workspace.\n")
+
+        # Check if the user actually provided the mandatory inputs, instead
+        # of putting None or empty string:
+        if ((ACCESS_KEY is None) | (ACCESS_KEY == '')):
+            raise InvalidInputsError ("AWS Access Key ID is missing. It is the value stored in the field \'Access key ID\' from your AWS user credentials CSV file.")
+                
+        elif ((SECRET_KEY is None) | (SECRET_KEY == '')):
+            raise InvalidInputsError ("AWS Secret Access Key is missing. It is the value stored in the field \'Secret access key\' from your AWS user credentials CSV file.")
+                       
+        else:
+            # Use the str attribute to guarantee that all AWS parameters were properly read as strings, and not as
+            # other variables (like integers or floats):
+            ACCESS_KEY = str(ACCESS_KEY)
+            SECRET_KEY = str(SECRET_KEY)
+
+            # Remove any possible trailing (white and tab spaces) spaces
+            # That may be present in the string. Use the Python string
+            # rstrip method, which is the equivalent to the Trim function:
+            # When no arguments are provided, the whitespaces and tabulations
+            # are the removed characters
+            # https://www.w3schools.com/python/ref_string_rstrip.asp?msclkid=ee2d05c3c56811ecb1d2189d9f803f65
+            self.ACCESS_KEY = ACCESS_KEY.rstrip()
+            self.SECRET_KEY = SECRET_KEY.rstrip()
+            # Since the user manually inputs the parameters ACCESS and SECRET_KEY,
+            # it is easy to input whitespaces without noticing that.
+        
+        return self
+
+
+    def get_bucket_info(self):
+
+        if ((self.s3_bucket_name is None) | (self.s3_bucket_name == '')):
+            raise InvalidInputsError ("Please, enter a valid S3 Bucket\'s name. Do not add sub-directories or folders (prefixes), only the name of the bucket itself.")
+        
+        s3_bucket_name = str(self.s3_bucket_name)
+
+        if(s3_bucket_name[0] == "/"):
+                # the first character is the slash. Let's remove it
+
+                # In AWS, neither the prefix nor the path to which the file will be imported
+                # (file from S3 to workspace) or from which the file will be exported to S3
+                # (the path in the notebook's workspace) may start with slash, or the operation
+                # will not be concluded. Then, we have to remove this character if it is present.
+
+                # So, slice the whole string, starting from character 1 (as did for 
+                # path_to_store_imported_s3_bucket):
+                s3_bucket_name = s3_bucket_name[1:]
+
+        self.s3_bucket_name = s3_bucket_name.rstrip()
+        
+        # Now process the non-obbligatory parameter.
+        # Check if a prefix was passed as input parameter. If so, we must select only the names that start with
+        # The prefix.
+        # Example: in the bucket 'my_bucket' we have a directory 'dir1'.
+        # In the main (root) directory, we have a file 'file1.json' like: '/file1.json'
+        # If we pass the prefix 'dir1', we want only the files that start as '/dir1/'
+        # such as: 'dir1/file2.json', excluding the file in the main (root) directory and excluding the files in other
+        # directories. Also, we want to eliminate the file names with no extensions, like 'dir1/' or 'dir1/dir2',
+        # since these object names represent folders or directories, not files.
+
+           
+        if (self.s3_obj_prefix is None):
+            print ("No prefix, specific object, or subdirectory provided.") 
+            print (f"Then, exporting to or importing from \'{self.s3_bucket_name}\' root (main) directory.\n")
+            # s3_path: path that the file should have in S3:
+            self.s3_path = "" # empty string for the root directory
+        
+        elif ((s3_obj_prefix == "/") | (s3_obj_prefix == '')):
+            
+            self.s3_obj_prefix = None
+            # The root directory in the bucket must not be specified starting with the slash
+            # If the root "/" or the empty string '' is provided, make
+            # it equivalent to None (no directory)
+            print ("No prefix, specific object, or subdirectory provided.") 
+            print (f"Then, exporting to or importing from \'{self.s3_bucket_name}\' root (main) directory.\n")
+            # s3_path: path that the file should have in S3:
+            self.s3_path = "" # empty string for the root directory
+        
+        else:
+            # Since there is a prefix, use the str attribute to guarantee that the path was read as a string:
+            s3_obj_prefix = str(self.s3_obj_prefix)
+                
+            if(s3_obj_prefix[0] == "/"):
+                # the first character is the slash. Let's remove it
+
+                # In AWS, neither the prefix nor the path to which the file will be imported
+                # (file from S3 to workspace) or from which the file will be exported to S3
+                # (the path in the notebook's workspace) may start with slash, or the operation
+                # will not be concluded. Then, we have to remove this character if it is present.
+
+                # So, slice the whole string, starting from character 1 (as did for 
+                # path_to_store_imported_s3_bucket):
+                s3_obj_prefix = s3_obj_prefix[1:]
+
+            # Remove any possible trailing (white and tab spaces) spaces
+            # That may be present in the string. Use the Python string
+            # rstrip method, which is the equivalent to the Trim function:
+            self.s3_obj_prefix = s3_obj_prefix.rstrip()
+                
+            # s3_path: path that the file should have in S3:
+            # Make the path the prefix itself, since there is a prefix:
+            self.s3_path = self.s3_obj_prefix
+            
+            # Store the total characters in the prefix string after removing the initial slash
+            # and trailing spaces:
+            self.prefix_len = len(self.s3_obj_prefix)
+            
+            print("AWS Access Credentials, and bucket\'s prefix, object or subdirectory provided.\n")
+
+            return self
+    
+
+    def connect_to_s3(self):
+
+        import os
+        import boto3
+        # boto3 is AWS S3 Python SDK
+        # sagemaker and boto3 libraries must be imported only in case 
+        # they are going to be used, for avoiding 
+        # Google Colab compatibility issues.
+
+        print ("Starting connection with the S3 bucket.\n")
+        
+        try:
+            # Start S3 client as the object 's3_client'
+            self.s3_client = boto3.resource('s3', aws_access_key_id = self.ACCESS_KEY, aws_secret_access_key = self.SECRET_KEY)
+        
+            print(f"Credentials accepted by AWS. S3 client successfully started.\n")
+            # An object 'data_table.xlsx' in the main (root) directory of the s3_bucket is stored in Python environment as:
+            # s3.ObjectSummary(bucket_name='bucket_name', key='data_table.xlsx')
+            # The name of each object is stored as the attribute 'key' of the object.
+        
+        except:
+            
+            print("Failed to connect to AWS Simple Storage Service (S3). Review if your credentials are correct.")
+            print("The variable \'access_key\' must be set as the value (string) stored as \'Access key ID\' in your user security credentials CSV file.")
+            print("The variable \'secret_key\' must be set as the value (string) stored as \'Secret access key\' in your user security credentials CSV file.")
+        
+        return self
+    
+
+    def connect_to_bucket(self):
+
+        try:
+            # Connect to the bucket specified as 'bucket_name'.
+            # The bucket is started as the object 's3_bucket':
+            self.s3_bucket = self.s3_client.Bucket(self.s3_bucket_name)
+            print(f"Connection with bucket \'{s3_bucket_name}\' stablished.\n")
+            
+        except:
+            
+            print("Failed to connect with the bucket, which usually happens when declaring a wrong bucket\'s name.") 
+            print("Check the spelling of your bucket_name string and remember that it must be all in lower-case.\n")
+        
+        return self
+    
+
+    def map_bucket_contents(self):
+
+        import os
+
+         # Then, let's obtain a list of all objects in the bucket (list bucket_objects):
+        
+        bucket_objects_list = [str(stored_obj.key) for stored_obj in self.s3_bucket.objects.all()]
+
+        # Now get a list to store only the elements from bucket_objects_list that are not folders or directories
+        # (objects with extensions).
+        # If a prefix was provided, only files with that prefix should be added:
+
+        # Loop through all elements 'stored_obj' from the list bucket_objects_list
+        # Check the file extension: file_extension = os.path.splitext(stored_obj)[1][1:]
+        self.bucket_objects_list = [stored_obj for stored_obj in bucket_objects_list if (os.path.splitext(stored_obj)[1][1:] != '')]
+
+        # The os.path.splitext method splits the string into its FIRST dot (".") to
+        # separate the file extension from the full path. Example:
+        # "C:/dir1/dir2/data_table.csv" is split into:
+        # "C:/dir1/dir2/data_table" (root part) and '.csv' (extension part)
+        # https://www.geeksforgeeks.org/python-os-path-splitext-method/?msclkid=2d56198fc5d311ec820530cfa4c6d574
+
+        # os.path.splitext(stored_obj) is a tuple of strings: the first is the complete file
+        # root with no extension; the second is the extension starting with a point: '.txt'
+        # When we set os.path.splitext(stored_obj)[1], we are selecting the second element of
+        # the tuple. By selecting os.path.splitext(stored_obj)[1][1:], we are taking this string
+        # from the second character (index 1), eliminating the dot: 'txt'
+
+        if not (self.s3_obj_prefix is None):
+                        
+            # Check the characters from the position 0 (1st character) to the position
+            # prefix_len - 1. Since a prefix was declared, we want only the objects that this first portion
+            # corresponds to the prefix. string[i:j] slices the string from index i to index j-1
+            # Then, the 1st portion of the string to check is: string[0:(prefix_len)]
+
+            # Slice the string stored_obj from position 0 (1st character) to position prefix_len - 1,
+            # The position that the prefix should end: obj_name_first_part = (stored_obj)[0:(self.prefix_len)]
+            # If this first part is the prefix, then append the object to list:
+            self.bucket_objects_list = [stored_obj for stored_obj in bucket_objects_list if ((stored_obj)[0:(self.prefix_len)] == (self.s3_obj_prefix))]
+           
+        # Now, bucket_objects_list contains the names of all objects from the bucket that must be copied.
+
+        print("Finished mapping objects to fetch. Now, all these objects from S3 bucket will be copied to the notebook\'s workspace, in the specified directory.\n")
+        print(f"A total of {len(self.bucket_objects_list)} files were found in the specified bucket\'s prefix (\'{self.s3_obj_prefix}\').")
+        print(f"The first file found is \'{self.bucket_objects_list[0]}\'; whereas the last file found is \'{self.bucket_objects_list[len(self.bucket_objects_list) - 1]}\'.")
+            
+        return self
+
+
+    def copy_bucket_files(self):
+
+        import os
+        # Now, let's try copying the files:
+            
+        try:
+            
+            self.objects_to_copy = [self.s3_bucket.Object(copied_object) for copied_object in self.bucket_objects_list]
+
+            # Now, copy objects to the workspace:
+            # Set the new file_path. Notice that by now, copied_object may be a string like:
+            # 'dir1/.../dirN/file_name.ext', where dirN is the n-th directory and ext is the file extension.
+            # We want only the file_name to joing with the path to store the imported bucket. So, we can use the
+            # str.split method specifying the separator sep = '/' to break the string into a list of substrings.
+            # The last element from this list will be 'file_name.ext'
+            # https://www.w3schools.com/python/ref_string_split.asp?msclkid=135399b6c63111ecada75d7d91add056
+
+            # 1. Break the copied_object full path into the list object_path_list, using the .split method:
+            objects_paths_lists = [copied_object.split(sep = "/") for copied_object in self.bucket_objects_list]
+            # each element in objects_paths_lists is a list of splitted strings containing information on the paths.
+            # 2. Get the last element from this list. Since it has length len(object_path_list) and indexing starts from
+            # zero, the index of the last element is (len(object_path_list) - 1):
+            self.fetched_objects = [object_path_list[(len(object_path_list) - 1)] for object_path_list in objects_paths_lists]
+            # 3. Finally, join the string fetched_object with the new path (path on the notebook's workspace) to finish
+            # The new object's file_path:
+            self.file_paths = [os.path.join(self.path_to_store_imported_s3_bucket, fetched_object) for fetched_object in fetched_objects]
+
+            # Now, loop through the correspondents objects and paths to download them:
+            for selected_object, fetched_object, file_path in zip(self.objects_to_copy, self.fetched_objects, self.file_paths):
+                # Download the selected object to the workspace in the specified file_path
+                # The parameter Filename must be input with the path of the copied file, including its name and
+                # extension. Example Filename = "/my_table.xlsx" copies a xlsx file named 'my_table' to the notebook's main (root)
+                # directory
+                selected_object.download_file(Filename = file_path)
+                print(f"The file \'{fetched_object}\' was successfully copied to notebook\'s workspace.\n")
+
+            print("Finished copying the files from the bucket to the notebook\'s workspace. It may take a couple of minutes untill they be shown in SageMaker environment.\n") 
+            print("Do not forget to delete these copies after finishing the analysis. They will remain stored in the bucket.\n")
+
+
+        except:
+
+            # Run this code for any other exception that may happen (no exception error
+            # specified, so any exception runs the following code).
+            # Check: https://pythonbasics.org/try-except/?msclkid=4f6b4540c5d011ecb1fe8a4566f632a6
+            # for seeing how to handle successive exceptions
+
+            print("Attention! The function raised an exception error, which is probably due to the AWS Simple Storage Service (S3) permissions.")
+            print("Before running again this function, check this quick guide for configuring the permission roles in AWS.\n")
+            print("It is necessary to create an user with full access permissions to interact with S3 from SageMaker. To configure the User, go to the upper ribbon of AWS, click on Services, and select IAM – Identity and Access Management.")
+            print("1. In IAM\'s lateral panel, search for \'Users\' in the group of Access Management.")
+            print("2. Click on the \'Add users\' button.")
+            print("3. Set an user name in the text box \'User name\'.")
+            print("Attention: users and S3 buckets cannot be written in upper case. Also, selecting a name already used by an Amazon user or bucket will raise an error message.\n")
+            print("4. In the field \'Select type of Access to AWS\'-\'Select type of AWS credentials\' select the option \'Access key - Programmatic access\'. After that, click on the button \'Next: Permissions\'.")
+            print("5. In the field \'Set Permissions\', keep the \'Add user to a group\' button marked.")
+            print("6. In the field \'Add user to a group\', click on \'Create group\' (alternatively, you can be added to a group already configured or copy the permissions of another user.")
+            print("7. In the text box \'Group\'s name\', set a name for the new group of permissions.")
+            print("8. In the search bar below (\'Filter politics\'), search for a politics that fill your needs, and check the option button on the left of this politic. The politics \'AmazonS3FullAccess\' grants full access to the S3 content.")
+            print("9. Finally, click on \'Create a group\'.")
+            print("10. After the group is created, it will appear with a check box marked, over the previous groups. Keep it marked and click on the button \'Next: Tags\'.")
+            print("11. Create and note down the Access key ID and Secret access key. You can also download a comma separated values (CSV) file containing the credentials for future use.")
+            print("ATTENTION: These parameters are required for accessing the bucket\'s content from any application, including AWS SageMaker.")
+            print("12. Click on \'Next: Review\' and review the user credentials information and permissions.")
+            print("13. Click on \'Create user\' and click on the download button to download the CSV file containing the user credentials information.")
+            print("The headers of the CSV file (the stored fields) is: \'User name, Password, Access key ID, Secret access key, Console login link\'.")
+            print("You need both the values indicated as \'Access key ID\' and as \'Secret access key\' to fetch the S3 bucket.")
+            print("\n") # line break
+            print("After acquiring the necessary user privileges, use the boto3 library to fetch the bucket from the Python code. boto3 is AWS S3 Python SDK.")
+            print("For fetching a specific bucket\'s file use the following code:\n")
+            print("1. Set a variable \'access_key\' as the value (string) stored as \'Access key ID\' in your user security credentials CSV file.")
+            print("2. Set a variable \'secret_key\' as the value (string) stored as \'Secret access key\' in your user security credentials CSV file.")
+            print("3. Set a variable \'bucket_name\' as a string containing only the name of the bucket. Do not add subdirectories, folders (prefixes), or file names.")
+            print("Example: if your bucket is named \'my_bucket\' and its main directory contains folders like \'folder1\', \'folder2\', etc, do not declare bucket_name = \'my_bucket/folder1\', even if you only want files from folder1.")
+            print("ALWAYS declare only the bucket\'s name: bucket_name = \'my_bucket\'.")
+            print("4. Set a variable \'file_path\' containing the path from the bucket\'s subdirectories to the file you want to fetch. Include the file name and its extension.")
+            print("If the file is stored in the bucket\'s root (main) directory: file_path = \"my_file.ext\".")
+            print("If the path of the file in the bucket is: \'dir1/…/dirN/my_file.ext\', where dirN is the N-th subdirectory, and dir1 is a folder or directory of the main (root) bucket\'s directory: file_path = \"dir1/…/dirN/my_file.ext\".")
+            print("Also, we say that \'dir1/…/dirN/\' is the file\'s prefix. Notice that the name of the bucket is never declared here as the path for fetching its content from the Python code.")
+            print("5. Set a variable named \'new_path\' to store the path of the file copied to the notebook’s workspace. This path must contain the file name and its extension.")
+            print("Example: if you want to copy \'my_file.ext\' to the root directory of the notebook’s workspace, set: new_path = \"/my_file.ext\".")
+            print("6. Finally, declare the following code, which refers to the defined variables:\n")
+
+            # Let's use triple quotes to declare a formated string
+            example_code = """
+                import boto3
+                # Start S3 client as the object 's3_client'
+                s3_client = boto3.resource('s3', aws_access_key_id = access_key, aws_secret_access_key = secret_key)
+                # Connect to the bucket specified as 'bucket_name'.
+                # The bucket is started as the object 's3_bucket':
+                s3_bucket = s3_client.Bucket(bucket_name)
+                # Select the object in the bucket previously started as 's3_bucket':
+                selected_object = s3_bucket.Object(file_path)
+                # Download the selected object to the workspace in the specified file_path
+                # The parameter Filename must be input with the path of the copied file, including its name and
+                # extension. Example Filename = "/my_table.xlsx" copies a xlsx file named 'my_table' to the notebook's main (root)
+                # directory
+                selected_object.download_file(Filename = new_path)
+                """
+
+            print(example_code)
+
+            print("An object \'my_file.ext\' in the main (root) directory of the s3_bucket is stored in Python environment as:")
+            print("""s3.ObjectSummary(bucket_name='bucket_name', key='my_file.ext'""") 
+            # triple quotes to keep the internal quotes without using too much backslashes "\" (the ignore next character)
+            print("Then, the name of each object is stored as the attribute \'key\' of the object. To view all objects, we can loop through their \'key\' attributes:\n")
+            example_code = """
+                # Loop through all objects of the bucket:
+                for stored_obj in s3_bucket.objects.all():		
+                    # Loop through all elements 'stored_obj' from s3_bucket.objects.all()
+                    # Which stores the ObjectSummary for all objects in the bucket s3_bucket:
+                    # Print the object’s names:
+                    print(stored_obj.key)
+                    """
+
+            print(example_code)
+        
+        return self
+        
+    
+    def run_s3_connection_pipeline (self):
+
+        self = self.get_credentials()
+        self = self.get_bucket_info()
+        self = self.connect_to_s3()
+        self = self.connect_to_bucket()
+
+        return self
+    
+
+    def fetch_s3_files_pipeline (self):
+
+        self = self.map_bucket_contents()
+        self = self.copy_bucket_files()
+
+        return self
+    
+
+    def set_directory_to_export(self, directory_of_notebook_workspace_storing_files_to_export = None):
+
+        # Check if directory_of_notebook_workspace_storing_files_to_export is None. 
+        # If it is, make it the root directory:
+        if ((directory_of_notebook_workspace_storing_files_to_export is None)|(str(directory_of_notebook_workspace_storing_files_to_export) == "/")):
+                
+                # For the S3 buckets, the path should not start with slash. Assign the empty
+                # string instead:
+                self.directory_of_notebook_workspace_storing_files_to_export = ""
+                print("The files will be exported from the notebook\'s root directory to S3.")
+        
+        elif (str(directory_of_notebook_workspace_storing_files_to_export) == ""):
+            
+                # Guarantee that the path is the empty string.
+                # Avoid accessing the else condition, what would raise an error
+                # since the empty string has no character of index 0
+                self.directory_of_notebook_workspace_storing_files_to_export = str(directory_of_notebook_workspace_storing_files_to_export)
+                print("The files will be exported from the notebook\'s root directory to S3.")
+            
+        else:
+            # Use the str attribute to guarantee that the path was read as a string:
+            self.directory_of_notebook_workspace_storing_files_to_export = str(directory_of_notebook_workspace_storing_files_to_export)
+                
+            if(directory_of_notebook_workspace_storing_files_to_export[0] == "/"):
+                # the first character is the slash. Let's remove it
+
+                # In AWS, neither the prefix nor the path to which the file will be imported
+                # (file from S3 to workspace) or from which the file will be exported to S3
+                # (the path in the notebook's workspace) may start with slash, or the operation
+                # will not be concluded. Then, we have to remove this character if it is present.
+
+                # The slash is character 0. Then, we want all characters from character 1 (the
+                # second) to character len(str(path_to_store_imported_s3_bucket)) - 1, the index
+                # of the last character. So, we can slice the string from position 1 to position
+                # the slicing syntax is: string[1:] - all string characters from character 1
+                # string[:10] - all string characters from character 10-1 = 9 (including 9); or
+                # string[1:10] - characters from 1 to 9
+                # So, slice the whole string, starting from character 1:
+                self.directory_of_notebook_workspace_storing_files_to_export = self.directory_of_notebook_workspace_storing_files_to_export[1:]
+                # attention: even though strings may be seem as list of characters, that can be
+                # sliced, we cannot neither simply assign a character to a given position nor delete
+                # a character from a position.
+        
+        return self
+    
+
+    def set_files_to_export(self, list_of_file_names_with_extensions):
+        
+        import os
+        # Now, let's obtain the lists of all file paths in the notebook's workspace and
+        # of the paths that the files should have in S3, after being exported.
+
+        self.list_of_file_names_with_extensions = list_of_file_names_with_extensions
+
+        try:
+            # Get the full path in the notebook's workspace:
+            self.workspace_full_paths = [os.path.join(self.directory_of_notebook_workspace_storing_files_to_export, my_file) for my_file in list_of_file_names_with_extensions]
+            # Get the full path that the file will have in S3:
+            self.s3_full_paths = [os.path.join(self.s3_path, my_file) for my_file in list_of_file_names_with_extensions]
+            # Now, both lists have the same number of elements. For an element (file) i,
+            # workspace_full_paths has the full file path in notebook's workspace, and
+            # s3_full_paths has the path that the new file should have in S3 bucket.
+
+        except:
+            raise InvalidInputsError ("The function returned an error when trying to access the list of files. Declare it as a list of strings, even if there is a single element in the list. Example: list_of_file_names_with_extensions = [\'my_file.ext\']\n")
+        
+        return self
+    
+
+    def export_files(self):
+        
+        # Now, loop through all elements i from the lists.
+        # The first elements of the lists have index 0; the last elements have index
+        # total_of_files - 1, since there are 'total_of_files' elements:
+        
+        # Then, export the correspondent element to S3:
+        
+        try:
+
+            s3_objects = [self.s3_bucket.Object(S3_FILE_PATH) for S3_FILE_PATH in s3_full_paths]
+
+            # Now, loop through the correspondents objects and paths to download them:
+            for new_s3_object, uploaded_object, PATH_IN_WORKSPACE in zip(self.s3_objects, self.list_of_file_names_with_extensions, self.workspace_full_paths):
+                # Upload the selected object from the workspace path PATH_IN_WORKSPACE
+                # to the S3 path specified as S3_FILE_PATH.
+                # The parameter Filename must be input with the path of the copied file, including its name and
+                # extension. Example Filename = "/my_table.xlsx" exports a xlsx file named 'my_table' to the notebook's main (root)
+                # directory
+                new_s3_object.upload_file(Filename = PATH_IN_WORKSPACE)
+                print(f"The file \'{uploaded_object}\' was successfully exported from notebook\'s workspace to AWS Simple Storage Service (S3).\n")
+                
+            print("Finished exporting the files from the the notebook\'s workspace to S3 bucket. It may take a couple of minutes untill they be shown in S3 environment.\n") 
+            print("Do not forget to delete these copies after finishing the analysis. They will remain stored in the bucket.\n")
+
+
+        except:
+
+            # Run this code for any other exception that may happen (no exception error
+            # specified, so any exception runs the following code).
+            # Check: https://pythonbasics.org/try-except/?msclkid=4f6b4540c5d011ecb1fe8a4566f632a6
+            # for seeing how to handle successive exceptions
+
+            print("Attention! The function raised an exception error, which is probably due to the AWS Simple Storage Service (S3) permissions.")
+            print("Before running again this function, check this quick guide for configuring the permission roles in AWS.\n")
+            print("It is necessary to create an user with full access permissions to interact with S3 from SageMaker. To configure the User, go to the upper ribbon of AWS, click on Services, and select IAM – Identity and Access Management.")
+            print("1. In IAM\'s lateral panel, search for \'Users\' in the group of Access Management.")
+            print("2. Click on the \'Add users\' button.")
+            print("3. Set an user name in the text box \'User name\'.")
+            print("Attention: users and S3 buckets cannot be written in upper case. Also, selecting a name already used by an Amazon user or bucket will raise an error message.\n")
+            print("4. In the field \'Select type of Access to AWS\'-\'Select type of AWS credentials\' select the option \'Access key - Programmatic access\'. After that, click on the button \'Next: Permissions\'.")
+            print("5. In the field \'Set Permissions\', keep the \'Add user to a group\' button marked.")
+            print("6. In the field \'Add user to a group\', click on \'Create group\' (alternatively, you can be added to a group already configured or copy the permissions of another user.")
+            print("7. In the text box \'Group\'s name\', set a name for the new group of permissions.")
+            print("8. In the search bar below (\'Filter politics\'), search for a politics that fill your needs, and check the option button on the left of this politic. The politics \'AmazonS3FullAccess\' grants full access to the S3 content.")
+            print("9. Finally, click on \'Create a group\'.")
+            print("10. After the group is created, it will appear with a check box marked, over the previous groups. Keep it marked and click on the button \'Next: Tags\'.")
+            print("11. Create and note down the Access key ID and Secret access key. You can also download a comma separated values (CSV) file containing the credentials for future use.")
+            print("ATTENTION: These parameters are required for accessing the bucket\'s content from any application, including AWS SageMaker.")
+            print("12. Click on \'Next: Review\' and review the user credentials information and permissions.")
+            print("13. Click on \'Create user\' and click on the download button to download the CSV file containing the user credentials information.")
+            print("The headers of the CSV file (the stored fields) is: \'User name, Password, Access key ID, Secret access key, Console login link\'.")
+            print("You need both the values indicated as \'Access key ID\' and as \'Secret access key\' to fetch the S3 bucket.")
+            print("\n") # line break
+            print("After acquiring the necessary user privileges, use the boto3 library to export the file from the notebook’s workspace to the bucket (i.e., to upload a file to the bucket).")
+            print("For exporting the file as a new bucket\'s file use the following code:\n")
+            print("1. Set a variable \'access_key\' as the value (string) stored as \'Access key ID\' in your user security credentials CSV file.")
+            print("2. Set a variable \'secret_key\' as the value (string) stored as \'Secret access key\' in your user security credentials CSV file.")
+            print("3. Set a variable \'bucket_name\' as a string containing only the name of the bucket. Do not add subdirectories, folders (prefixes), or file names.")
+            print("Example: if your bucket is named \'my_bucket\' and its main directory contains folders like \'folder1\', \'folder2\', etc, do not declare bucket_name = \'my_bucket/folder1\', even if you only want files from folder1.")
+            print("ALWAYS declare only the bucket\'s name: bucket_name = \'my_bucket\'.")
+            print("4. Set a variable \'file_path_in_workspace\' containing the path of the file in notebook’s workspace. The file will be exported from “file_path_in_workspace” to the S3 bucket.")
+            print("If the file is stored in the notebook\'s root (main) directory: file_path = \"my_file.ext\".")
+            print("If the path of the file in the notebook workspace is: \'dir1/…/dirN/my_file.ext\', where dirN is the N-th subdirectory, and dir1 is a folder or directory of the main (root) bucket\'s directory: file_path = \"dir1/…/dirN/my_file.ext\".")
+            print("5. Set a variable named \'file_path_in_s3\' containing the path from the bucket’s subdirectories to the file you want to fetch. Include the file name and its extension.")
+            print("6. Finally, declare the following code, which refers to the defined variables:\n")
+
+            # Let's use triple quotes to declare a formated string
+            example_code = """
+                import boto3
+                # Start S3 client as the object 's3_client'
+                s3_client = boto3.resource('s3', aws_access_key_id = access_key, aws_secret_access_key = secret_key)
+                # Connect to the bucket specified as 'bucket_name'.
+                # The bucket is started as the object 's3_bucket':
+                s3_bucket = s3_client.Bucket(bucket_name)
+                # Start the new object in the bucket previously started as 's3_bucket'.
+                # Start it with the specified prefix, in file_path_in_s3:
+                new_s3_object = s3_bucket.Object(file_path_in_s3)
+                # Finally, upload the file in file_path_in_workspace.
+                # Make new_s3_object the exported file:
+                # Upload the selected object from the workspace path file_path_in_workspace
+                # to the S3 path specified as file_path_in_s3.
+                # The parameter Filename must be input with the path of the copied file, including its name and
+                # extension. Example Filename = "/my_table.xlsx" exports a xlsx file named 'my_table' to 
+                # the notebook's main (root) directory.
+                new_s3_object.upload_file(Filename = file_path_in_workspace)
+                """
+
+            print(example_code)
+
+            print("An object \'my_file.ext\' in the main (root) directory of the s3_bucket is stored in Python environment as:")
+            print("""s3.ObjectSummary(bucket_name='bucket_name', key='my_file.ext'""") 
+            # triple quotes to keep the internal quotes without using too much backslashes "\" (the ignore next character)
+            print("Then, the name of each object is stored as the attribute \'key\' of the object. To view all objects, we can loop through their \'key\' attributes:\n")
+            example_code = """
+                # Loop through all objects of the bucket:
+                for stored_obj in s3_bucket.objects.all():		
+                    # Loop through all elements 'stored_obj' from s3_bucket.objects.all()
+                    # Which stores the ObjectSummary for all objects in the bucket s3_bucket:
+                    # Print the object’s names:
+                    print(stored_obj.key)
+                    """
+
+            print(example_code)
+
+
+        return self
+
+
+    def export_to_s3_pipeline(self, list_of_file_names_with_extensions, directory_of_notebook_workspace_storing_files_to_export = None):
+
+        self = self.set_directory_to_export(directory_of_notebook_workspace_storing_files_to_export)
+        self = self.set_files_to_export(list_of_file_names_with_extensions)
+        self = self.export_files()
+
+        return self
 
 
 class IP21Extractor:
@@ -699,15 +1416,16 @@ class SQLServerConnection:
             
         schema_df = pd.read_sql(query, self.cnxn)
         
-        if (show_schema):
-            print("Database schema:")
-            print(f"There are {len(schema_df)} tables registered in the database.\n")
-            try:
-                from IPython.display import display
-                display(schema_df)
-                
-            except:
-                print(schema_df)
+        if ControlVars.show_results: # dominant context
+            if (show_schema):
+                print("Database schema:")
+                print(f"There are {len(schema_df)} tables registered in the database.\n")
+                try:
+                    from IPython.display import display
+                    display(schema_df)
+                    
+                except:
+                    print(schema_df)
                 
         self.schema_df = schema_df
 
@@ -782,14 +1500,15 @@ class SQLServerConnection:
             
         df = pd.read_sql(query, self.cnxn)
 
-        if (show_table):   
-            print("Returned table:\n")
-            try:
-                from IPython.display import display
-                display(df)
-                
-            except:
-                print(df)
+        if ControlVars.show_results: # dominant context
+            if (show_table):   
+                print("Returned table:\n")
+                try:
+                    from IPython.display import display
+                    display(df)
+                    
+                except:
+                    print(df)
 
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -819,14 +1538,15 @@ class SQLServerConnection:
             
         df_table = pd.read_sql(query, self.cnxn)
         
-        if (show_table): 
-            print("Returned table:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -891,6 +1611,123 @@ class SQLServerConnection:
             
         return tag_df
 
+
+class SQLiteConnection:
+    """Class for connecting and manipulating a SQLite Database file"""
+
+    def __init__(self, file_path, pre_created_engine = None):
+
+        self.file_path = file_path
+        self.engine = pre_created_engine
+    
+
+    def create_engine(self):
+        
+        # Make imports and create the engine for the database
+        # Configure the SQLite engine
+        from sqlalchemy import create_engine
+        
+        # SQLAlchemy engines documentation
+        # https://docs.sqlalchemy.org/en/20/core/engines.html
+        # SQLite connects to file-based databases, using the Python built-in module sqlite3 by default.
+        # As SQLite connects to local files, the URL format is slightly different. 
+        # The “file” portion of the URL is the filename of the database. For a relative file path, this requires 
+        # three slashes:
+        # sqlite://<nohostname>/<path>
+        # where <path> is relative:
+
+        try:
+                    
+            if (self.file_path[:2] == './'):
+                # Add a slash, since sqlite engine requires 3 slashes
+                self.file_path = self.file_path[2:]
+                
+            if (self.file_path[0] == '/'):
+                # Add a slash, since sqlite engine requires 3 slashes
+                self.file_path = self.file_path[1:]
+                        
+            self.file_path = """sqlite:///""" + self.file_path
+            # file_path = "sqlite:///my_db.db"
+                    
+            self.engine = create_engine(self.file_path)
+            #And for an absolute file path, the three slashes are followed by the absolute path:
+                
+            """
+            # Unix/Mac - 4 initial slashes in total
+            engine = create_engine("sqlite:////absolute/path/to/foo.db")
+                
+            # Windows
+            engine = create_engine("sqlite:///C:\\path\\to\\foo.db")
+                
+            # Windows alternative using raw string
+            engine = create_engine(r"sqlite:///C:\path\to\foo.db")
+            To use a SQLite :memory: database, specify an empty URL:
+                
+            engine = create_engine("sqlite://")
+            More notes on connecting to SQLite at SQLite.
+            """
+        
+        except:
+            raise InvalidInputsError ("Error trying to create SQLite Engine Database. Check if no more than one slash was added to file path.\n")
+        
+        return self
+    
+
+    def fetch_table(self, table_name):
+        
+        # If there is no engine, create one:
+        if (self.engine is None):
+            self = self.create_engine()
+        
+        try:
+            # Access the table from the database
+            df = pd.read_sql(table_name, self.engine)
+            
+            if ControlVars.show_results: 
+                print(f"Successfully retrieved table {table_name} from the database.")
+                print("Check the 10 first rows of the dataframe:\n")
+                
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(df.head(10))
+                        
+                except: # regular mode
+                    print(df.head(10))
+            
+            return df, self.engine
+        
+        except:
+            raise InvalidInputsError ("Error trying to fetch SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
+        
+
+        def update_or_create_table(self, table_name):
+    
+            # If there is no engine, create one:
+            if (self.engine is None):
+                self = self.create_engine()
+            
+            try:
+                # Set index = False not to add extra indices in the database:
+                df.to_sql(table_name, con = engine, if_exists = 'replace', index = False)
+                
+                if ControlVars.show_results: 
+                    print(f"Successfully updated table {table_name} on the SQLite database.")
+                    print("Check the 10 first rows from this table:\n")
+                        
+                    try:
+                        # only works in Jupyter Notebook:
+                        from IPython.display import display
+                        display(df.head(10))
+                                
+                    except: # regular mode
+                        print(df.head(10))
+
+                return df, self.engine
+            
+            except:
+                raise InvalidInputsError ("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
+                
 
 class GCPBigQueryConnection:
     """
@@ -1198,14 +2035,15 @@ class GCPBigQueryConnection:
         job = client.query(query)
         df = job.to_dataframe()
 
-        if (show_table):   
-            print("Returned table:\n")
-            try:
-                from IPython.display import display
-                display(df)
-                
-            except:
-                print(df)
+        if ControlVars.show_results: # dominant context
+            if (show_table):   
+                print("Returned table:\n")
+                try:
+                    from IPython.display import display
+                    display(df)
+                    
+                except:
+                    print(df)
 
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1244,14 +2082,15 @@ class GCPBigQueryConnection:
         job = client.query(query)
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1359,14 +2198,15 @@ class GCPBigQueryConnection:
 
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table with deleted data:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table with deleted data:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1429,14 +2269,15 @@ class GCPBigQueryConnection:
 
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table with updated data:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table with updated data:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1498,14 +2339,15 @@ class GCPBigQueryConnection:
 
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table with updated data:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table with updated data:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1570,15 +2412,16 @@ class GCPBigQueryConnection:
 
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table with updated data:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
-        
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table with updated data:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
+            
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
         # created by setting a value for a new key;
@@ -1642,14 +2485,15 @@ class GCPBigQueryConnection:
 
         df_table = job.to_dataframe()
         
-        if (show_table): 
-            print("Returned table with updated data:\n")
-            try:
-                from IPython.display import display
-                display(df_table)
-                
-            except:
-                print(df_table)
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned table with updated data:\n")
+                try:
+                    from IPython.display import display
+                    display(df_table)
+                    
+                except:
+                    print(df_table)
         
         # Vars function allows accessing the attributes from a class as a key from a dictionary.
         # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
@@ -1667,3 +2511,4 @@ class GCPBigQueryConnection:
         self.query_counter = query_counter + 1    
             
         return df_table
+

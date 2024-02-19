@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import (TfModels, ModelChecking, SiameseNetworks)
 
 
@@ -101,9 +101,8 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
         if ((X_train.shape[1] % 2) != 0):
             # There is remainder of the division: the number of columns is not even
             print("This architecture requires the inputs to be reshape as pairs of numbers.")
-            print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+            raise InvalidInputsError(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
             
-            return None, None, None
     
     # Put the arrays in the correct shape for the particular architecture
     reshape_function = reshaper(architecture)
@@ -215,39 +214,41 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
     # Calculate model metrics:
     model_check = model_check.model_metrics()
     
-    try:
-        # Retrieve model metrics:
-        metrics_dict = model_check.metrics_dict
-    
-    except:
-        print("Unable to retrieve metrics.\n")
+    if ControlVars.show_results:
+        try:
+            # Retrieve model metrics:
+            metrics_dict = model_check.metrics_dict
+        
+        except:
+            print("Unable to retrieve metrics.\n")
 
-    print("Check the training loss and metrics curve below:\n")
-    print("Regression models: metrics = MAE; loss = MSE.")
-    print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
+        print("Check the training loss and metrics curve below:\n")
+        print("Regression models: metrics = MAE; loss = MSE.")
+        print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
     
     model_check = model_check.plot_training_history (metrics_name = model_check.metrics_name, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
-    print("\n")
-    
-    print("Notice that:")
-    print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
-    print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
-    print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
-    print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
-    print("tf.keras.layers.Dropout(0.5)")
-    print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
-    print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
-    print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
-    print("\n") # line break
-    
-    print("\n") #line break
-    print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
-    print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
-    print("X_train = np.reshape(np.array(X_train), (-1, 1))")
-    # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
-    print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
-    print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+    if ControlVars.show_results:
+        print("\n")
         
+        print("Notice that:")
+        print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
+        print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
+        print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
+        print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
+        print("tf.keras.layers.Dropout(0.5)")
+        print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
+        print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
+        print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
+        print("\n") # line break
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+            
     return model, metrics_dict, history
 
 
@@ -318,9 +319,8 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
         if ((X_train.shape[1] % 2) != 0):
             # There is remainder of the division: the number of columns is not even
             print("This architecture requires the inputs to be reshape as pairs of numbers.")
-            print(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
-            
-            return None, None, None
+            raise InvalidInputsError(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+
     
     # Put the arrays in the correct shape for the particular architecture
     reshape_function = reshaper(architecture)
@@ -425,33 +425,35 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
     except:
         print("Unable to retrieve metrics.\n")
     
-    print("Check the training loss and metrics curve below:\n")
-    print("Regression models: metrics = MAE; loss = MSE.")
-    print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
-    
+    if ControlVars.show_results:
+        print("Check the training loss and metrics curve below:\n")
+        print("Regression models: metrics = MAE; loss = MSE.")
+        print("Classification models: metrics = accuracy; loss = crossentropy (binary or sparse categorical).\n")
+        
     model_check = model_check.plot_history_multiresponses (x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, horizontal_axis_title = horizontal_axis_title, metrics_vertical_axis_title = metrics_vertical_axis_title, loss_vertical_axis_title = loss_vertical_axis_title, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
     
     
-    print("\n")
+    if ControlVars.show_results:
+        print("\n")
 
-    print("Notice that:")
-    print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
-    print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
-    print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
-    print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
-    print("tf.keras.layers.Dropout(0.5)")
-    print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
-    print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
-    print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
-    print("\n") # line break
-    
-    print("\n") #line break
-    print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
-    print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
-    print("X_train = np.reshape(np.array(X_train), (-1, 1))")
-    # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
-    print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
-    print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
+        print("Notice that:")
+        print("1. If the loss did not reach a stable final baseline (a plateau), then the number of epochs should be increased. The ideal number of epochs is the minimum needed for reaching the final baseline. Increasing the number of epochs after this moment only increases the computational costs, without gain of performance.")
+        print("2. A great mismatch between the curves indicates overfitting. This may be noticed as a gain of performance by the training curve (loss reduction or increase on accuracy) without correspondent improvement on the validation set performance (e.g. the validation metrics reaches a baseline very lower than the training curve).")
+        print("If your data is overfitting, you can modify the sizes of training and test sets, modify the hyperparameters, or add a Dropout hidden-layer.")
+        print("Adding dropout is common for image classification problems. The syntax for declaring the layer is:")
+        print("tf.keras.layers.Dropout(0.5)")
+        print("In this example, we added Dropout(0.5). It means that you lose 50\% of nodes. If using Dropout(0.2), you would lose 20\% of nodes.")
+        print("Dropout helps avoiding overfitting because neighbor neurons can have similar weights, and thus can skew the final training.")
+        print("If you set a too high dropout rate, the network will lose specialization to the effect that it would be inefficient or ineffective at learning, driving accuracy down.")
+        print("\n") # line break
+        
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        print("Attention: for classification with Keras/TensorFlow, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class.")
+        print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.")
 
     
     return model, metrics_dict, history

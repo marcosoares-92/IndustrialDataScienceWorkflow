@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import WindowGenerator
 
 
@@ -82,16 +82,17 @@ def separate_and_prepare_features_and_responses (df, features_columns, response_
                 4.40752786, 10.71241577]])
         """
 
-    print("Check the 5 first elements from the tensors or arrays obtained:\n")
-    print("Features tensor or array:\n")
-    print(X[:5])
-    print("\n")
-    print(f"Shape of the complete X tensor or array = {X.shape}\n")
-    # shape attribute is common to tf.Tensor, pd.DataFrame, pd.Series, and np.array
-    print("Responses tensor or array:\n")
-    print(y[:5])
-    print("\n")
-    print(f"Shape of the complete y tensor or array = {y.shape}\n")
+    if ControlVars.show_results:
+        print("Check the 5 first elements from the tensors or arrays obtained:\n")
+        print("Features tensor or array:\n")
+        print(X[:5])
+        print("\n")
+        print(f"Shape of the complete X tensor or array = {X.shape}\n")
+        # shape attribute is common to tf.Tensor, pd.DataFrame, pd.Series, and np.array
+        print("Responses tensor or array:\n")
+        print(y[:5])
+        print("\n")
+        print(f"Shape of the complete y tensor or array = {y.shape}\n")
 
     # Notice that tensors and arrays are sliced in the same way as lists.
     # The slicing also modify the shape attribute from Tensors.
@@ -116,7 +117,8 @@ def separate_and_prepare_features_and_responses (df, features_columns, response_
 
     # Finally, add both dictionaries to a mapping dict:
     column_map_dict = {'features': features_dict, 'responses': responses_dict}
-    print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
+    if ControlVars.show_results:
+        print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
 
     return X, y, column_map_dict
 
@@ -204,10 +206,11 @@ def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, column
         # raises error if we try to use the model to a set without names):
         X = np.array(DATASET)
         
-    print("Check the 5 first elements from the tensor or array obtained:\n")
-    print(X[:5])
-    print("\n")
-    print(f"Shape of the complete X tensor or array = {X.shape}\n")
+    if ControlVars.show_results:
+        print("Check the 5 first elements from the tensor or array obtained:\n")
+        print(X[:5])
+        print("\n")
+        print(f"Shape of the complete X tensor or array = {X.shape}\n")
     # shape attribute is common to tf.Tensor, pd.DataFrame, pd.Series, and np.array
 
     # Notice that tensors and arrays are sliced in the same way as lists.
@@ -227,7 +230,8 @@ def convert_to_tensor (df_or_array_to_convert, columns_to_convert = None, column
             # Add it to the features dictionary, with the column number as key:
             column_map_dict[column_number] = column
 
-        print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
+        if ControlVars.show_results:
+            print("The mapping of the arrays' positions with the columns original names was returned as 'column_map_dict'.")
     
     except:
         pass
@@ -336,15 +340,17 @@ def split_data_into_train_and_test (X, y, percent_of_data_used_for_model_trainin
             X_valid, y_valid = tf.constant(X_valid), tf.constant(y_valid)
             
     
-    print(f"X and y successfully splitted into train: X_train, y_train ({train_fraction*100:.1f}% of data); test: X_test, y_test ({test_fraction*100:.1f}% of data); and validation subsets: X_valid, y_valid ({validation_fraction*100:.1f}% of data).")
+    if ControlVars.show_results:
+        print(f"X and y successfully splitted into train: X_train, y_train ({train_fraction*100:.1f}% of data); test: X_test, y_test ({test_fraction*100:.1f}% of data); and validation subsets: X_valid, y_valid ({validation_fraction*100:.1f}% of data).")
     
     split_dictionary = {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test, 'X_valid': X_valid, 'y_valid': y_valid}
     
-    for subset in split_dictionary.keys():
-        
-        print("\n")
-        print(f"10 first rows from subset {subset}:\n")
-        print(split_dictionary[subset][:10])
+    if ControlVars.show_results:
+        for subset in split_dictionary.keys():
+            
+            print("\n")
+            print(f"10 first rows from subset {subset}:\n")
+            print(split_dictionary[subset][:10])
     
     return split_dictionary
 
@@ -371,7 +377,8 @@ def time_series_train_test_split (X, y, percent_of_data_used_for_model_training 
     y_train, y_test = y[:split_row], y[split_row:]
 
     split_dictionary = {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test}
-    print(f"X and y successfully splitted into train: X_train, y_train ({percent_of_data_used_for_model_training}% of data); and test subsets: X_test, y_test ({100 - percent_of_data_used_for_model_training}% of data).")
+    if ControlVars.show_results:
+        print(f"X and y successfully splitted into train: X_train, y_train ({percent_of_data_used_for_model_training}% of data); and test subsets: X_test, y_test ({100 - percent_of_data_used_for_model_training}% of data).")
     
     if (percent_of_training_data_used_for_model_validation > 0):
         training_rows = X_train.shape[0]
@@ -387,11 +394,12 @@ def time_series_train_test_split (X, y, percent_of_data_used_for_model_training 
         split_dictionary['X_valid'] = X_valid
         split_dictionary['y_valid'] = y_valid
     
-    for subset in split_dictionary.keys():
-        
-        print("\n")
-        print(f"10 first rows from subset {subset}:\n")
-        print(split_dictionary[subset][:10])
+    if ControlVars.show_results:
+        for subset in split_dictionary.keys():
+            
+            print("\n")
+            print(f"10 first rows from subset {subset}:\n")
+            print(split_dictionary[subset][:10])
     
     return split_dictionary
 
@@ -431,8 +439,9 @@ def windowed_dataset_from_time_series (y, window_size = 20, batch_size = 32, shu
     # Batch it
     dataset = dataset.batch(batch_size).prefetch(1)
 
-    print("TensorFlow dataset successfully obtained:")
-    print(dataset)
+    if ControlVars.show_results:
+        print("TensorFlow dataset successfully obtained:")
+        print(dataset)
 
     return dataset
 
@@ -519,15 +528,16 @@ def multi_columns_time_series_tensors (df, response_columns, sequence_stride = 1
     # Retrieve tensors dictionary:
     tensors_dict = w.tensors_dict
 
-    print("Finished preparing the time series datasets for training, testing, and validation. Check their shapes.\n")
-    
-    for key in tensors_dict.keys():
+    if ControlVars.show_results:
+        print("Finished preparing the time series datasets for training, testing, and validation. Check their shapes.\n")
         
-        print(f"{key}-tensors obtained:")
-        nested_dict = tensors_dict[key]
-        print(f"Inputs tensor shape = {nested_dict['inputs'].shape}")
-        print(f"Labels tensor shape = {nested_dict['labels'].shape}\n")
-    
+        for key in tensors_dict.keys():
+            
+            print(f"{key}-tensors obtained:")
+            nested_dict = tensors_dict[key]
+            print(f"Inputs tensor shape = {nested_dict['inputs'].shape}")
+            print(f"Labels tensor shape = {nested_dict['labels'].shape}\n")
+        
     return tensors_dict
 
 
@@ -570,7 +580,8 @@ def union_1_dim_tensors (list_of_tensors_or_arrays):
     # tf.stack([a,b,c], axis = 1), where [a, b, c] is a list of tensors a, b, c (substitute it by
     # list_of_tensors).
     
-    print("Tensors union complete. Check the resulting tensor below:\n")
-    print(tensors_union)
+    if ControlVars.show_results:
+        print("Tensors union complete. Check the resulting tensor below:\n")
+        print(tensors_union)
     
     return tensors_union

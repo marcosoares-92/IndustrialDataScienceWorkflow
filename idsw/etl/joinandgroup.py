@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
-from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+from idsw import (InvalidInputsError, ControlVars)
+from .utils import (EncodeDecode, mode_retrieval)
 
 
 def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_join = "inner", merged_suffixes = ('_left', '_right'), sort_merged_df = False, column_to_sort = None, ascending_sorting = True):
@@ -95,15 +95,16 @@ def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_jo
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Dataframe successfully merged. Check its 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(merged_df.head(10))
-            
-    except: # regular mode
-        print(merged_df.head(10))
+    if ControlVars.show_results:
+        print("Dataframe successfully merged. Check its 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(merged_df.head(10))
+                
+        except: # regular mode
+            print(merged_df.head(10))
     
     return merged_df
 
@@ -407,15 +408,16 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Dataframe successfully merged. Check its 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(merged_df.head(10))
-            
-    except: # regular mode
-        print(merged_df.head(10))
+    if ControlVars.show_results:
+        print("Dataframe successfully merged. Check its 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(merged_df.head(10))
+                
+        except: # regular mode
+            print(merged_df.head(10))
     
     return merged_df
 
@@ -549,15 +551,16 @@ def union_dataframes (list_of_dataframes, what_to_append = 'rows', ignore_index_
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
     # new dataframe:
-    print("Dataframes successfully concatenated. Check the 10 first rows of new dataframe:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(concat_df.head(10))
-            
-    except: # regular mode
-        print(concat_df.head(10))
+    if ControlVars.show_results:
+        print("Dataframes successfully concatenated. Check the 10 first rows of new dataframe:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(concat_df.head(10))
+                
+        except: # regular mode
+            print(concat_df.head(10))
     
     #Now return the concatenated dataframe:
     
@@ -870,15 +873,10 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
         # Let's aggregate the categorical subset
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
-        DATASET = df_categorical
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
-        df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        # The encoded columns received the alias "_OrdinalEnc". Thus, we may drop the columns with the names in categorical_list,
-        # avoiding that scipy try to aggregate them and raise an error:
-        # Remove the columns that do not have numeric variables before grouping
-        df_categorical = df_categorical.drop(columns = categorical_list)
-        # Get the new columns generated from Ordinal Encoding:
-        new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list]
+        # Encode to calculate the mode:
+        enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = categorical_list)
+        enc_dec_obj = enc_dec_obj.encode()
+        df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
 
         if variable_to_group_by in categorical_list:
             variable_to_group_by = variable_to_group_by + "_OrdinalEnc"
@@ -890,48 +888,7 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
             # Loop through each categorical variable:
             for cat_var in new_encoded_cols:
 
-                # save as a series:
-                cat_var_series = np.array(df_categorical[cat_var])
-                # Start a list to store only the modes:
-                list_of_modes = []
-                # Now, loop through each row of cat_var_series. Take the element [0][0]
-                # and append it to the list_of_modes:
-                for i in range(0, len(cat_var_series)):
-                    # Goes from i = 0 to i = len(cat_var_series) - 1, index of the last element
-                    # Append the element [0][0] from row [i]
-                    # try accessing the mode
-                    # mode array is like:
-                    # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
-                    # To retrieve only the mode, we must access the element [0] from this array
-                    # or attribute mode:
-                        
-                    try:
-                        list_of_modes.append(cat_var_series[i].mode)
-                    
-                    except:
-                        try:
-                            list_of_modes.append(cat_var_series[i][0])
-                        except:
-                            try:
-                                if (len(cat_var_series) > 0):
-                                    if ((cat_var_series[i] != np.nan) & (cat_var_series[i] is not None)):
-                                        list_of_modes.append(cat_var_series[i])
-                                    else:
-                                        list_of_modes.append(np.nan)
-
-                                else:
-                                    # This error is generated when trying to access an array storing no values.
-                                    # (i.e., with missing values). Since there is no dimension, it is not possible
-                                    # to access the [0][0] position. In this case, simply append the np.nan (missing value):
-                                    list_of_modes.append(np.nan)
-                            except:
-                                list_of_modes.append(np.nan)
-
-                # Now we finished the nested for loop, list_of_modes contain only the modes
-
-                # Make the column cat_var the list_of_modes itself:
-                df_categorical[cat_var] = list_of_modes
-
+                df_categorical[cat_var] = mode_retrieval(df_categorical[cat_var])
 
         elif (categorical_aggregate == 'count'):
 
@@ -942,11 +899,8 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
             df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.entropy)
         
         # Now, reverse encoding:
-        DATASET = df_categorical
-        ENCODING_LIST = ordinal_encoding_list
-        # Now, reverse encoding and keep only the original column names:
-        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        df_categorical = df_categorical[categorical_list]
+        enc_dec_obj = enc_dec_obj.decode(new_df = df_categorical)
+        df_categorical, cleaned_df = enc_dec_obj.df_categorical, enc_dec_obj.cleaned_df
         
         if (add_suffix_to_aggregated_col == True):
         
@@ -988,28 +942,30 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
     # Now, reset index positions:
     DATASET = DATASET.reset_index(drop = True)
     
-    print("Dataframe successfully grouped. Check its 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
-    
-    if (return_summary_dataframe == True):
-        
-        print("\n")
-        print("Check the summary statistics dataframe, that is also being returned:\n")
+    if ControlVars.show_results:
+        print("Dataframe successfully grouped. Check its 10 first rows:\n")
         
         try:
             # only works in Jupyter Notebook:
             from IPython.display import display
-            display(summary_agg_df)
-
+            display(DATASET.head(10))
+                
         except: # regular mode
-            print(summary_agg_df)
+            print(DATASET.head(10))
+    
+    if (return_summary_dataframe == True):
+        
+        if ControlVars.show_results:
+            print("\n")
+            print("Check the summary statistics dataframe, that is also being returned:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(summary_agg_df)
+
+            except: # regular mode
+                print(summary_agg_df)
         
         return DATASET, summary_agg_df
     

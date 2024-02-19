@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 from .core import ModelChecking
 
 
@@ -159,10 +159,10 @@ def random_forest (X_train, y_train, type_of_problem = "regression", number_of_t
     
     
     if (use_out_of_bag_error): # runs only if the boolean is True
-        
-        print("OOB Score: score of the training dataset obtained using an out-of-bag estimate = ")
-        print(rf_model.oob_score_)
-        print("\n")
+        if ControlVars.show_results:
+            print("OOB Score: score of the training dataset obtained using an out-of-bag estimate = ")
+            print(rf_model.oob_score_)
+            print("\n")
     
     # Get predictions for training, testing, and validation:
     y_preds_for_train = rf_model.predict(X_train)
@@ -198,21 +198,22 @@ def random_forest (X_train, y_train, type_of_problem = "regression", number_of_t
     # Store the importance ranking in the summary dictionary:
     summary_dict['feature_importance_df'] = feature_importance_df
     
-    print("\n") #line break
-    print("To reveal the decision path in the forest for a sample X, call the .decision_path method of the random forest model object. For example, declare:")
-    print("path = rf_model.decision_path(X)")
-    print("And then print path.")
-    
-    print("\n") #line break
-    print("To predict the model output y_pred for a dataframe X, declare: y_pred = rf_model.predict(X)\n")
-    print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
-    print("X_train = np.reshape(np.array(X_train), (-1, 1))")
-    # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
-    
-    if (type_of_problem == 'classification'):
+    if ControlVars.show_results:
+        print("\n") #line break
+        print("To reveal the decision path in the forest for a sample X, call the .decision_path method of the random forest model object. For example, declare:")
+        print("path = rf_model.decision_path(X)")
+        print("And then print path.")
         
-        print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
-        print("y_pred_probabilities = rf_model.predict_proba(X_train)")
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = rf_model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
+        
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = rf_model.predict_proba(X_train)")
 
     return rf_model, summary_dict
 
@@ -382,16 +383,16 @@ def xgboost_model (X_train, y_train, type_of_problem = "regression", number_of_t
     # Store the importance ranking in the summary dictionary:
     summary_dict['feature_importance_df'] = feature_importance_df
     
-    
-    print("\n") #line break
-    print("To predict the model output y_pred for a dataframe X, declare: y_pred = xgb_model.predict(X)\n")
-    print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
-    print("X_train = np.reshape(np.array(X_train), (-1, 1))")
-    # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
-    
-    if (type_of_problem == 'classification'):
+    if ControlVars.show_results:
+        print("\n") #line break
+        print("To predict the model output y_pred for a dataframe X, declare: y_pred = xgb_model.predict(X)\n")
+        print("For a one-dimensional correlation, the one-dimension array or list with format X_train = [x1, x2, ...] must be converted into a dataframe subset, X_train = [[x1, x2, ...]] before the prediction. To do so, create a list with X_train as its element: X_train = [X_train], or use the numpy.reshape(-1,1):")
+        print("X_train = np.reshape(np.array(X_train), (-1, 1))")
+        # numpy reshape: https://numpy.org/doc/1.21/reference/generated/numpy.reshape.html?msclkid=5de33f8bc02c11ec803224a6bd588362
         
-        print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
-        print("y_pred_probabilities = xgb_model.predict_proba(X_train)")
+        if (type_of_problem == 'classification'):
+            
+            print("To predict the probabilities associated to each class for the set X_train, use the .predict_proba(X) method:")
+            print("y_pred_probabilities = xgb_model.predict_proba(X_train)")
 
     return xgb_model, summary_dict

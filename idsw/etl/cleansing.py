@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
 
 
 def apply_row_filters_list (df, list_of_row_filters):
@@ -107,15 +107,16 @@ def apply_row_filters_list (df, list_of_row_filters):
         # Reset index:
         DATASET = DATASET.reset_index(drop = True)
         
-        print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(DATASET.head(10))
-                
-        except: # regular mode
-            print(DATASET.head(10))
+        if ControlVars.show_results:
+            print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(DATASET.head(10))
+                    
+            except: # regular mode
+                print(DATASET.head(10))
         
         return DATASET
 
@@ -187,15 +188,16 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
         DATASET = DATASET.reset_index(drop = True)
         print("The indices of the dataset were successfully restarted.\n")
     
-    print("Check the 10 first rows from the returned dataset:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Check the 10 first rows from the returned dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     return DATASET
 
@@ -282,15 +284,16 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
         DATASET = DATASET.reset_index(drop = True)
         print("The indices of the dataset were successfully restarted.\n")
     
-    print("Check the 10 first rows from the returned dataset:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Check the 10 first rows from the returned dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     return DATASET
 
@@ -331,10 +334,7 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
         
         # Append all elements from df_columns that are not in the list
         # to ignore:
-        for column in df_columns:
-            # loop through all elements named 'column' and check if it satisfies both conditions
-            if (column not in list_of_columns_to_ignore):
-                cols_to_check.append(column)
+        cols_to_check = [column for column in df_columns if column not in list_of_columns_to_ignore]
         
         # create a ignored dataframe and a checked df:
         checked_df = DATASET[cols_to_check].copy(deep = True)
@@ -375,21 +375,22 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     # Now, reset the index:
     DATASET = DATASET.reset_index(drop = True)
     
-    if (((total_rows - len(DATASET)) > 0) | ((total_cols - len(DATASET.columns)) > 0)):
-        
-        # There were modifications in the dataframe.
-        print("Check the first 10 rows of the new returned dataframe:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(DATASET.head(10))
+    if ControlVars.show_results:
+        if (((total_rows - len(DATASET)) > 0) | ((total_cols - len(DATASET.columns)) > 0)):
+            
+            # There were modifications in the dataframe.
+            print("Check the first 10 rows of the new returned dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(DATASET.head(10))
 
-        except: # regular mode
-            print(DATASET.head(10))
-    
-    else:
-        print("No blank columns or rows were found. Returning the original dataframe.\n")
+            except: # regular mode
+                print(DATASET.head(10))
+        
+        else:
+            print("No blank columns or rows were found. Returning the original dataframe.\n")
     
     return DATASET
 
@@ -622,15 +623,16 @@ def slice_dataframe (df, from_row = 'first_only', to_row = 'only', restart_index
     # the number of rows; and dataframe.shape[1] = M is the number of columns
     # of the dataframe
     
-    print("Check the dataframe below:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(sliced_df)
-            
-    except: # regular mode
-        print(sliced_df)
+    if ControlVars.show_results:
+        print("Check the dataframe below:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(sliced_df)
+                
+        except: # regular mode
+            print(sliced_df)
     
     return sliced_df
 
@@ -665,23 +667,24 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
         columns_list = []
     
     if (len(columns_list) == 0):
-        print("Please, input a valid list of columns.\n")
-        return DATASET
+        raise InvalidInputsError("Please, input a valid list of columns.\n")
     
     if (mode == 'select_or_order_columns'):
         
         #filter the dataframe so that it will contain only the cols_list.
         DATASET = DATASET[columns_list]
-        print("Dataframe filtered according to the list provided.\n")
-        print("Check the new dataframe:\n")
         
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(DATASET)
+        if ControlVars.show_results:
+            print("Dataframe filtered according to the list provided.\n")
+            print("Check the new dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(DATASET)
 
-        except: # regular mode
-            print(DATASET)
+            except: # regular mode
+                print(DATASET)
         
     elif (mode == 'rename_columns'):
         
@@ -691,26 +694,27 @@ def select_order_or_rename_columns (df, columns_list, mode = 'select_or_order_co
         
         if (boolean_filter == False):
             #Impossible to rename, number of elements are different.
-            print("The number of columns of the dataframe is different from the number of elements of the list. Please, provide a list with number of elements equals to the number of columns.\n")
-            return DATASET
+            raise InvalidInputsError("The number of columns of the dataframe is different from the number of elements of the list. Please, provide a list with number of elements equals to the number of columns.\n")
+
         
         else:
             #Same number of elements, so that we can update the columns' names.
             DATASET.columns = columns_list
-            print("Dataframe columns renamed according to the list provided.\n")
-            print("Warning: the substitution is element-wise: the first element of the list is now the name of the first column, and so on, ..., so that the last element is the name of the last column.\n")
-            print("Check the new dataframe:\n")
-            try:
-                # only works in Jupyter Notebook:
-                from IPython.display import display
-                display(DATASET)
+            
+            if ControlVars.show_results:
+                print("Dataframe columns renamed according to the list provided.\n")
+                print("Warning: the substitution is element-wise: the first element of the list is now the name of the first column, and so on, ..., so that the last element is the name of the last column.\n")
+                print("Check the new dataframe:\n")
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(DATASET)
 
-            except: # regular mode
-                print(DATASET)
+                except: # regular mode
+                    print(DATASET)
         
     else:
-        print("Enter a valid mode: \'select_or_order_columns\' or \'rename_columns\'.")
-        return DATASET
+        raise InvalidInputsError("Enter a valid mode: \'select_or_order_columns\' or \'rename_columns\'.")
     
     return DATASET
 
@@ -872,15 +876,16 @@ def rename_or_clean_columns_labels (df, mode = 'set_new_names', substring_to_be_
     else:
         raise InvalidInputsError ("Select a valid mode: \'set_new_names\', \'capitalize_columns\', \'lowercase_columns\', \'replace_substrings\', \'trim\', or \'eliminate_trailing_characters\'.\n")
     
-    print("Finished renaming dataframe columns.\n")
-    print("Check the new dataframe:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET)
-            
-    except: # regular mode
-        print(DATASET)
+    if ControlVars.show_results:
+        print("Finished renaming dataframe columns.\n")
+        print("Check the new dataframe:\n")
         
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET)
+                
+        except: # regular mode
+            print(DATASET)
+            
     return DATASET

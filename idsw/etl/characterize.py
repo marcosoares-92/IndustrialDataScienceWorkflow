@@ -3,9 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from idsw.datafetch.core import InvalidInputsError
+from idsw import (InvalidInputsError, ControlVars)
+
 from .core import CapabilityAnalysis
-from .transform import (OrdinalEncoding_df, reverse_OrdinalEncoding)
+from .utils import (EncodeDecode, mode_retrieval)
 
 
 def df_general_characterization (df):
@@ -18,49 +19,55 @@ def df_general_characterization (df):
     # Set a local copy of the dataframe:
     DATASET = df.copy(deep = True)
 
-    # Show dataframe's header
-    print("Dataframe\'s 10 first rows:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        # Show dataframe's header
+        print("Dataframe\'s 10 first rows:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
 
-    # Show dataframe's tail:
-    # Line break before next information:
-    print("\n")
-    print("Dataframe\'s 10 last rows:\n")
-    try:
-        display(DATASET.tail(10))
-    except:
-        print(DATASET.tail(10))
+        # Show dataframe's tail:
+        # Line break before next information:
+        print("\n")
+        print("Dataframe\'s 10 last rows:\n")
+        try:
+            display(DATASET.tail(10))
+        except:
+            print(DATASET.tail(10))
+        
+        # Show dataframe's shape:
+        # Line break before next information:
+        print("\n")
     
-    # Show dataframe's shape:
-    # Line break before next information:
-    print("\n")
     df_shape  = DATASET.shape
-    print("Dataframe\'s shape = (number of rows, number of columns) =\n")
-    try:
-        display(df_shape)
-    except:
-        print(df_shape)
-    
-    # Show dataframe's columns:
-    # Line break before next information:
-    print("\n")
+    if ControlVars.show_results:
+        print("Dataframe\'s shape = (number of rows, number of columns) =\n")
+        try:
+            display(df_shape)
+        except:
+            print(df_shape)
+        
+        # Show dataframe's columns:
+        # Line break before next information:
+        print("\n")
+
     df_columns_array = DATASET.columns
-    print("Dataframe\'s columns =\n")
-    try:
-        display(df_columns_array)
-    except:
-        print(df_columns_array)
-    
-    # Show dataframe's columns types:
-    # Line break before next information:
-    print("\n")
+    if ControlVars.show_results:
+        print("Dataframe\'s columns =\n")
+        try:
+            display(df_columns_array)
+        except:
+            print(df_columns_array)
+        
+        # Show dataframe's columns types:
+        # Line break before next information:
+        print("\n")
+
     df_dtypes = DATASET.dtypes
     # Now, the df_dtypes seroes has the original columns set as index, but this index has no name.
     # Let's rename it using the .rename method from Pandas Index object:
@@ -71,25 +78,30 @@ def df_general_characterization (df):
     # Let's also modify the series label or name:
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.rename.html
     df_dtypes.rename('dtype_series', inplace = True)
-    print("Dataframe\'s variables types:\n")
-    try:
-        display(df_dtypes)
-    except:
-        print(df_dtypes)
     
-    # Show dataframe's general statistics for numerical variables:
-    # Line break before next information:
-    print("\n")
+    if ControlVars.show_results:
+        print("Dataframe\'s variables types:\n")
+        try:
+            display(df_dtypes)
+        except:
+            print(df_dtypes)
+        
+        # Show dataframe's general statistics for numerical variables:
+        # Line break before next information:
+        print("\n")
     df_general_statistics = DATASET.describe()
-    print("Dataframe\'s general (summary) statistics for numeric variables:\n")
-    try:
-        display(df_general_statistics)
-    except:
-        print(df_general_statistics)
-    
-    # Show total of missing values for each variable:
-    # Line break before next information:
-    print("\n")
+
+    if ControlVars.show_results:
+        print("Dataframe\'s general (summary) statistics for numeric variables:\n")
+        try:
+            display(df_general_statistics)
+        except:
+            print(df_general_statistics)
+        
+        # Show total of missing values for each variable:
+        # Line break before next information:
+        print("\n")
+
     total_of_missing_values_series = DATASET.isna().sum()
     # This is a series which uses the original column names as index
     proportion_of_missing_values_series = DATASET.isna().mean()
@@ -116,13 +128,14 @@ def df_general_characterization (df):
     # Append this one_row_df to df_missing_values:
     df_missing_values = pd.concat([df_missing_values, one_row_df])
     
-    print("Missing values on each feature; and missingness considering all rows from the dataframe:")
-    print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
-    
-    try:
-        display(df_missing_values)
-    except:
-        print(df_missing_values)
+    if ControlVars.show_results:
+        print("Missing values on each feature; and missingness considering all rows from the dataframe:")
+        print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
+        
+        try:
+            display(df_missing_values)
+        except:
+            print(df_missing_values)
     
     return df_shape, df_columns_array, df_dtypes, df_general_statistics, df_missing_values
 
@@ -327,16 +340,17 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
         # table. Declare here the non-nested fields, i.e., the fields in the principal JSON. They
         # will be repeated in the rows of the dataframe to give the metadata (context) of the rows.
 
-        print("\n") # line break
-        print("Finished analyzing the categorical variables. Check the summary dataframe:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(cat_vars_summary)
+        if ControlVars.show_results:
+            print("\n") # line break
+            print("Finished analyzing the categorical variables. Check the summary dataframe:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(cat_vars_summary)
 
-        except: # regular mode
-            print(cat_vars_summary)
+            except: # regular mode
+                print(cat_vars_summary)
         
         return cat_vars_summary
     
@@ -420,16 +434,18 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
         frequency = agg_dict[aggregate_time_in_terms_of] 
     
     df_length = len(DATASET)
-    print(f"Count of rows from the dataframe =\n")
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(df_length)
-            
-    except: # regular mode
-        print(df_length)
     
-    print("\n")
+    if ControlVars.show_results:
+        print(f"Count of rows from the dataframe =\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(df_length)
+                
+        except: # regular mode
+            print(df_length)
+        
+        print("\n")
 
     # Show total of missing values for each variable:
     total_of_missing_values_series = DATASET.isna().sum()
@@ -458,128 +474,130 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
     # Append this one_row_df to df_missing_values:
     df_missing_values = pd.concat([df_missing_values, one_row_df])
     
-    print("Missing values on each feature; and missingness considering all rows from the dataframe:")
-    print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
-    
-    try:
-        display(df_missing_values)    
-    except:
-        print(df_missing_values)
-    print("\n") # line_break
-    
-    print("Bar chart of the missing values - Nullity bar:\n")
-    msno.bar(DATASET)
-    plt.show()
-    print("\n")
-    print("The nullity bar allows us to visualize the completeness of the dataframe.\n")
-    
-    print("Nullity Matrix: distribution of missing values through the dataframe:\n")
-    msno.matrix(DATASET)
-    plt.show()
-    print("\n")
-    
-    if not ((slice_time_window_from is None) | (slice_time_window_to is None)):
+    if ControlVars.show_results:
+        print("Missing values on each feature; and missingness considering all rows from the dataframe:")
+        print("(note: \'missingness_accross_rows\' was calculated by: checking which rows have at least one missing value (NA); and then comparing total rows with NAs with total rows in the dataframe).\n")
         
-        # There is at least one of these two values for slicing:
-        if not ((slice_time_window_from is None) & (slice_time_window_to is None)):
-                # both are present
-                
-                if not (aggregate_time_in_terms_of is None):
-                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to], freq = frequency)
+        try:
+            display(df_missing_values)    
+        except:
+            print(df_missing_values)
+        print("\n") # line_break
+    
+    if ControlVars.show_plots:    
+        print("Bar chart of the missing values - Nullity bar:\n")
+        msno.bar(DATASET)
+        plt.show()
+        print("\n")
+        print("The nullity bar allows us to visualize the completeness of the dataframe.\n")
+        
+        print("Nullity Matrix: distribution of missing values through the dataframe:\n")
+        msno.matrix(DATASET)
+        plt.show()
+        print("\n")
+        
+        if not ((slice_time_window_from is None) | (slice_time_window_to is None)):
+            
+            # There is at least one of these two values for slicing:
+            if not ((slice_time_window_from is None) & (slice_time_window_to is None)):
+                    # both are present
                     
-                else:
-                    # do not aggregate:
-                    print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to])
-                
-                plt.show()
-                print("\n")
-        
-        elif not (slice_time_window_from is None):
-            # slice only from the start. The condition where both limits were present was already
-            # checked. To reach this condition, only one is not None
-            # slice from 'slice_time_window_from' to the end of dataframe
+                    if not (aggregate_time_in_terms_of is None):
+                        print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                        msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to], freq = frequency)
+                        
+                    else:
+                        # do not aggregate:
+                        print("Nullity matrix for the defined time window:\n")
+                        msno.matrix(DATASET.loc[slice_time_window_from:slice_time_window_to])
+                    
+                    plt.show()
+                    print("\n")
             
-                if not (aggregate_time_in_terms_of is None):
-                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(DATASET.loc[slice_time_window_from:], freq = frequency)
+            elif not (slice_time_window_from is None):
+                # slice only from the start. The condition where both limits were present was already
+                # checked. To reach this condition, only one is not None
+                # slice from 'slice_time_window_from' to the end of dataframe
                 
-                else:
-                    # do not aggregate:
-                    print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(DATASET.loc[slice_time_window_from:])
-        
-                plt.show()
-                print("\n")
+                    if not (aggregate_time_in_terms_of is None):
+                        print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                        msno.matrix(DATASET.loc[slice_time_window_from:], freq = frequency)
+                    
+                    else:
+                        # do not aggregate:
+                        print("Nullity matrix for the defined time window:\n")
+                        msno.matrix(DATASET.loc[slice_time_window_from:])
             
+                    plt.show()
+                    print("\n")
+                
+            else:
+            # equivalent to elif not (slice_time_window_to is None):
+                # slice only from the beginning to the upper limit. 
+                # The condition where both limits were present was already checked. 
+                # To reach this condition, only one is not None
+                # slice from the beginning to 'slice_time_window_to'
+                
+                    if not (aggregate_time_in_terms_of is None):
+                        print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
+                        msno.matrix(DATASET.loc[:slice_time_window_to], freq = frequency)
+                    
+                    else:
+                        # do not aggregate:
+                        print("Nullity matrix for the defined time window:\n")
+                        msno.matrix(DATASET.loc[:slice_time_window_to])
+                    
+                    plt.show()
+                    print("\n")
+        
         else:
-        # equivalent to elif not (slice_time_window_to is None):
-            # slice only from the beginning to the upper limit. 
-            # The condition where both limits were present was already checked. 
-            # To reach this condition, only one is not None
-            # slice from the beginning to 'slice_time_window_to'
-            
-                if not (aggregate_time_in_terms_of is None):
-                    print("Nullity matrix for the defined time window and for the selected aggregation frequency:\n")
-                    msno.matrix(DATASET.loc[:slice_time_window_to], freq = frequency)
-                
-                else:
-                    # do not aggregate:
-                    print("Nullity matrix for the defined time window:\n")
-                    msno.matrix(DATASET.loc[:slice_time_window_to])
-                
-                plt.show()
-                print("\n")
-    
-    else:
-        # Both slice limits are not. Let's check if we have to aggregate the dataframe:
-        if not (aggregate_time_in_terms_of is None):
-                print("Nullity matrix for the selected aggregation frequency:\n")
-                msno.matrix(DATASET, freq = frequency)
-                plt.show()
-                print("\n")
-    
-    print("The nullity matrix allows us to visualize the location of missing values in the dataset.")
-    print("The nullity matrix describes the nullity in the dataset and appears blank wherever there are missing values.")
-    print("It allows us to quickly analyze the patterns in missing values.")
-    print("The sparkline on the right of the matrix summarizes the general shape of data completeness and points out the row with the minimum number of null values in the dataframe.")
-    print("In turns, the nullity matrix shows the total counts of columns at its bottom.")
-    print("We can previously slice the dataframe for a particular interval of analysis (e.g. slice the time interval) to obtain more clarity on the amount of missingness.")
-    print("Slicing will be particularly helpful when analyzing large datasets.\n")
-    print("MCAR: plotting the missingness matrix plot (nullity matrix) for a MCAR variable will show values missing at random, with no correlation or clear pattern.")
-    print("Correlation here implies the dependency of missing values on another variable present or absent.\n")
-    print("MAR: the nullity matrix for MAR can be visualized as the presence of many missing values for a given feature. In this case, there might be a reason for the missingness that cannot be directly observed.\n")
-    print("MNAR: the nullity matrix for MNAR shows a strong correlation between the missingness of two variables A and B.")
-    print("This correlation is easily observable by sorting the dataframe in terms of A or B before obtaining the matrix.\n")
-    
-    print("Missingness Heatmap:\n")
-    msno.heatmap(DATASET)
-    plt.show()
-    print("\n")
-    
-    print("The missingness heatmap describes the correlation of missingness between columns.")
-    print("The heatmap is a graph of correlation of missing values between columns.")
-    print("It explains the dependencies of missingness between columns.")
-    print("In simple terms, if the missingness for two columns are highly correlated, then the heatmap will show high values of coefficient of correlation R2 for them.")
-    print("That is because columns where the missing values co-occur the maximum are highly related and vice-versa.\n")
-    print("In the graph, the redder the color, the lower the correlation between the missing values of the columns.")
-    print("In turns, the bluer the color, the higher the correlation of missingness between the two variables.\n")
-    print("ATTENTION: before deciding if the missing values in one variable is correlated with other, so that they would be characterized as MAR or MNAR, check the total of missing values.")
-    print("Even if the heatmap shows a certain degree of correlation, the number of missing values may be too small to substantiate that.")
-    print("Missingness in very small number may be considered completely random, and missing values can be eliminated.\n")
-    
-    print("Missingness Dendrogram:\n")
-    msno.dendrogram(DATASET)
-    plt.show()
-    print("\n")
-    
-    print("A dendrogram is a tree diagram that groups similar objects in close branches.")
-    print("So, the missingness dendrogram is a tree diagram of missingness that describes correlation of variables by grouping similarly missing columns together.")
-    print("To interpret this graph, read it from a top-down perspective.")
-    print("Cluster leaves which are linked together at a distance of zero fully predict one another\'s presence.")
-    print("In other words, when two variables are grouped together in the dendogram, one variable might always be empty while another is filled (the presence of one explains the missingness of the other), or they might always both be filled or both empty, and so on (the missingness of one explains the missigness of the other).\n")
-    
+            # Both slice limits are not. Let's check if we have to aggregate the dataframe:
+            if not (aggregate_time_in_terms_of is None):
+                    print("Nullity matrix for the selected aggregation frequency:\n")
+                    msno.matrix(DATASET, freq = frequency)
+                    plt.show()
+                    print("\n")
+        
+        print("The nullity matrix allows us to visualize the location of missing values in the dataset.")
+        print("The nullity matrix describes the nullity in the dataset and appears blank wherever there are missing values.")
+        print("It allows us to quickly analyze the patterns in missing values.")
+        print("The sparkline on the right of the matrix summarizes the general shape of data completeness and points out the row with the minimum number of null values in the dataframe.")
+        print("In turns, the nullity matrix shows the total counts of columns at its bottom.")
+        print("We can previously slice the dataframe for a particular interval of analysis (e.g. slice the time interval) to obtain more clarity on the amount of missingness.")
+        print("Slicing will be particularly helpful when analyzing large datasets.\n")
+        print("MCAR: plotting the missingness matrix plot (nullity matrix) for a MCAR variable will show values missing at random, with no correlation or clear pattern.")
+        print("Correlation here implies the dependency of missing values on another variable present or absent.\n")
+        print("MAR: the nullity matrix for MAR can be visualized as the presence of many missing values for a given feature. In this case, there might be a reason for the missingness that cannot be directly observed.\n")
+        print("MNAR: the nullity matrix for MNAR shows a strong correlation between the missingness of two variables A and B.")
+        print("This correlation is easily observable by sorting the dataframe in terms of A or B before obtaining the matrix.\n")
+        
+        print("Missingness Heatmap:\n")
+        msno.heatmap(DATASET)
+        plt.show()
+        print("\n")
+        
+        print("The missingness heatmap describes the correlation of missingness between columns.")
+        print("The heatmap is a graph of correlation of missing values between columns.")
+        print("It explains the dependencies of missingness between columns.")
+        print("In simple terms, if the missingness for two columns are highly correlated, then the heatmap will show high values of coefficient of correlation R2 for them.")
+        print("That is because columns where the missing values co-occur the maximum are highly related and vice-versa.\n")
+        print("In the graph, the redder the color, the lower the correlation between the missing values of the columns.")
+        print("In turns, the bluer the color, the higher the correlation of missingness between the two variables.\n")
+        print("ATTENTION: before deciding if the missing values in one variable is correlated with other, so that they would be characterized as MAR or MNAR, check the total of missing values.")
+        print("Even if the heatmap shows a certain degree of correlation, the number of missing values may be too small to substantiate that.")
+        print("Missingness in very small number may be considered completely random, and missing values can be eliminated.\n")
+        
+        print("Missingness Dendrogram:\n")
+        msno.dendrogram(DATASET)
+        plt.show()
+        print("\n")
+        
+        print("A dendrogram is a tree diagram that groups similar objects in close branches.")
+        print("So, the missingness dendrogram is a tree diagram of missingness that describes correlation of variables by grouping similarly missing columns together.")
+        print("To interpret this graph, read it from a top-down perspective.")
+        print("Cluster leaves which are linked together at a distance of zero fully predict one another\'s presence.")
+        print("In other words, when two variables are grouped together in the dendogram, one variable might always be empty while another is filled (the presence of one explains the missingness of the other), or they might always both be filled or both empty, and so on (the missingness of one explains the missigness of the other).\n")
+        
     return df_missing_values
 
 
@@ -603,15 +621,16 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # to avoid importing it twice.
     import shutil # component of the standard library to move or copy files.
     
-    print("Missingness across a variable:\n")
-    print("In this analysis, we will graphically analyze the relationship between missing values and non-missing values.")
-    print("To do so, we will start by visualizing the missingness of a variable against another variable.")
-    print("The scatter plot will show missing values in one color, and non-missing values in other color.")
-    print("It will allow us to visualize how missingness of a variable changes against another variable.")
-    print("Analyzing the missingness of a variable against another variable helps you determine any relationships between missing and non-missing values.")
-    print("This is very similar to how you found correlations of missingness between two columns.")
-    print("In summary, we will plot a scatter plot to analyze if there is any correlation of missingness in one column against another column.\n")
-    
+    if ControlVars.show_results:
+        print("Missingness across a variable:\n")
+        print("In this analysis, we will graphically analyze the relationship between missing values and non-missing values.")
+        print("To do so, we will start by visualizing the missingness of a variable against another variable.")
+        print("The scatter plot will show missing values in one color, and non-missing values in other color.")
+        print("It will allow us to visualize how missingness of a variable changes against another variable.")
+        print("Analyzing the missingness of a variable against another variable helps you determine any relationships between missing and non-missing values.")
+        print("This is very similar to how you found correlations of missingness between two columns.")
+        print("In summary, we will plot a scatter plot to analyze if there is any correlation of missingness in one column against another column.\n")
+        
     # To create the graph, we will use the matplotlib library. 
     # However, matplotlib skips all missing values while plotting. 
     # Therefore, we would need to first create a function that fills in dummy values for all the 
@@ -767,66 +786,67 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # True - At least one of col1 or col2 is missing.
     # False - Neither of col1 and col2 values are missing.
 
-    if (plot_title is None):
-        plot_title = "missingness_of_" + "[" + column_to_analyze + "]" + "_vs_" + "[" + column_to_compare_with + "]"
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    fig = plt.figure(figsize = (12, 8))
-    
-    # Create a scatter plot of column_to_analyze and column_to_compare_with 
-    df_dummy.plot(x = column_to_analyze, y = column_to_compare_with, 
-                        kind = 'scatter', alpha = 0.5,
-                        # Set color to nullity of column_to_analyze and column_to_compare_with
-                        # alpha: transparency. alpha = 0.5 = 50% of transparency.
-                        c = nullity,
-                        # The c argument controls the color of the points in the plot.
-                        cmap = 'rainbow',
-                        grid = grid,
-                        legend = True,
-                        title = plot_title)
-    
-    if (export_png == True):
-        # Image will be exported
+    if ControlVars.show_plots:
+        if (plot_title is None):
+            plot_title = "missingness_of_" + "[" + column_to_analyze + "]" + "_vs_" + "[" + column_to_compare_with + "]"
         
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
         
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "comparison_of_missing_values"
+        # Create a scatter plot of column_to_analyze and column_to_compare_with 
+        df_dummy.plot(x = column_to_analyze, y = column_to_compare_with, 
+                            kind = 'scatter', alpha = 0.5,
+                            # Set color to nullity of column_to_analyze and column_to_compare_with
+                            # alpha: transparency. alpha = 0.5 = 50% of transparency.
+                            c = nullity,
+                            # The c argument controls the color of the points in the plot.
+                            cmap = 'rainbow',
+                            grid = grid,
+                            legend = True,
+                            title = plot_title)
         
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+        if (export_png == True):
+            # Image will be exported
+            
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+            
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "comparison_of_missing_values"
+            
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+            
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #fig.tight_layout()
-    
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-    print("Plot Legend:") 
-    print("1 = Missing value")
-    print("0 = Non-missing value")
+        #fig.tight_layout()
+        
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+        print("Plot Legend:") 
+        print("1 = Missing value")
+        print("0 = Non-missing value")
     
     if (show_interpreted_example):
         # Run if it is True. Requires TensorFlow to load. Load the extra library only
@@ -1234,13 +1254,11 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     df_categorical = df_categorical[categorical_list]
                     is_categorical = 1
                     # scipy.stats.mode requires numeric values, so the ordinal encoding is necessary.
-                    DATASET = df_categorical
-                    SUBSET_OF_FEATURES_TO_BE_ENCODED = categorical_list
-                    df_categorical, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-                    # Get the new columns generated from Ordinal Encoding:
-                    new_encoded_cols = [column + "_OrdinalEnc" for column in categorical_list]
-                    # Remove the columns that do not have numeric variables before grouping
-                    df_categorical = df_categorical.drop(columns = categorical_list)
+                    
+                    # Encode to calculate the mode:
+                    enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = categorical_list)
+                    enc_dec_obj = enc_dec_obj.encode()
+                    df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
 
                 if (len(numeric_list) > 0):
 
@@ -1267,33 +1285,34 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     
                     if (is_numeric == 1):
                         
-                        for column in numeric_list:
-                            
-                            # add column as the key, and the mean as the value:
-                            fill_dict[column] = df_numeric[column].mean()
+                        fill_dict = {column: df_numeric[column].mean() for column in numeric_list}
+
                     
                     if (is_categorical == 1):
                         
-                        for column in new_encoded_cols:
-                            
+                        try:
                             # The function stats.mode(X) returns an array as: 
                             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
                             # ModeResult(mode=3, count=5) ac, axis = None, cess mode attribute       
                             # which will return a string like 'a':
+                            fill_dict_mode = {column: stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False).mode for column in new_encoded_cols}
+                            
+                        except:
                             try:
-                                fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False).mode
-                        
+                                fill_dict_mode = {column: stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)[0] for column in new_encoded_cols}
+                            
                             except:
-                                try:
-                                    fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)[0]
-                                except:
+                                for column in new_encoded_cols:
                                     try:
                                         if ((stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) != np.nan) & (stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) is not None)):
-                                            fill_dict[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)
+                                            fill_dict_mode[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)
                                         else:
-                                            fill_dict[column] = np.nan
+                                            fill_dict_mode[column] = np.nan
                                     except:
-                                        fill_dict[column] = np.nan
+                                        fill_dict_mode[column] = np.nan
+                        
+                        # Add this new dictionary to the fill_dict, using the update method:
+                        fill_dict.update(fill_dict_mode)
                     
                     # Now, fill_dict contains the mapping of columns (keys) and 
                     # correspondent values for imputation with the method fillna.
@@ -1352,35 +1371,26 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                         print("Using forward filling to fill missing values of the categorical variables.\n")
                         df_categorical = df_categorical.fillna(method = "ffill")
                     
-                    # Now, let's check if there are both a numeric_subset and a text_subset to merge
-                    
-                    if (is_cat_num == 2):
-                        # Both subsets are present.
-                        # Reverse ordinal encoding
-                        DATASET = df_categorical
-                        ENCODING_LIST = ordinal_encoding_list
-                        # Now, reverse encoding and keep only the original column names:
-                        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-                        df_categorical = df_categorical[categorical_list]
-                        # Concatenate the dataframes in the columns axis (append columns):
-                        cleaned_df = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
+                # Now, let's check if there are both a numeric_subset and a text_subset to merge
+                
+                if (is_cat_num == 2):
+                    # Both subsets are present.
+                    # Reverse ordinal encoding
+                    enc_dec_obj = enc_dec_obj.decode(new_df = df_categorical, df_numeric = df_numeric)
+                    df_categorical, cleaned_df = enc_dec_obj.df_categorical, enc_dec_obj.cleaned_df
 
-                    elif (is_categorical == 1):
-                        # There is only the categorical subset:
-                        # Reverse ordinal encoding
-                        DATASET = df_categorical
-                        ENCODING_LIST = ordinal_encoding_list
-                        # Now, reverse encoding and keep only the original column names:
-                        df_categorical = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-                        df_categorical = df_categorical[categorical_list]
-                        cleaned_df = df_categorical
+                elif (is_categorical == 1):
+                    # There is only the categorical subset:
+                    # Reverse ordinal encoding
+                    enc_dec_obj = enc_dec_obj.decode(new_df = df_categorical)
+                    df_categorical, cleaned_df = enc_dec_obj.df_categorical, enc_dec_obj.cleaned_df
 
-                    elif (is_numeric == 1):
-                        # There is only the numeric subset:
-                        cleaned_df = df_numeric
-                    
-                    else:
-                        print("No valid dataset provided, so returning the input dataset itself.\n")
+                elif (is_numeric == 1):
+                    # There is only the numeric subset:
+                    cleaned_df = df_numeric
+                
+                else:
+                    print("No valid dataset provided, so returning the input dataset itself.\n")
             
             elif ((fill_method == "ffill") | (fill_method == "bfill")):
                 # use forward or backfill
@@ -1400,19 +1410,19 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     #Reset index before returning the cleaned dataframe:
     cleaned_df = cleaned_df.reset_index(drop = True)
     
-    
-    print(f"Number of rows of the dataframe before cleaning = {df.shape[0]} rows.")
-    print(f"Number of rows of the dataframe after cleaning = {cleaned_df.shape[0]} rows.")
-    print(f"Percentual variation of the number of rows = {(df.shape[0] - cleaned_df.shape[0])/(df.shape[0]) * 100} %\n")
-    print("Check the 10 first rows of the cleaned dataframe:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(cleaned_df.head(10))
-            
-    except: # regular mode
-        print(cleaned_df.head(10))
+    if ControlVars.show_results:
+        print(f"Number of rows of the dataframe before cleaning = {df.shape[0]} rows.")
+        print(f"Number of rows of the dataframe after cleaning = {cleaned_df.shape[0]} rows.")
+        print(f"Percentual variation of the number of rows = {(df.shape[0] - cleaned_df.shape[0])/(df.shape[0]) * 100} %\n")
+        print("Check the 10 first rows of the cleaned dataframe:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(cleaned_df.head(10))
+                
+        except: # regular mode
+            print(cleaned_df.head(10))
     
     return cleaned_df
 
@@ -1532,21 +1542,20 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
             # start a list for the associated integer timescale. Put the number zero,
             # associated to the first timestamp:
             int_timescale = [0]
+            # calculate the timedelta between x[i] and x[i-1]:
+            # The delta method from the Timedelta class converts the timedelta to
+            # nanoseconds, guaranteeing the internal compatibility:
+            # The .delta attribute was replaced by .value attribute. 
+            # Both return the number of nanoseconds as an integer.
+            # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+            timedeltas = [pd.Timedelta(ts_array[i] - ts_array[(i-1)]).value for i in range(1, len(ts_array))]
                 
             # loop through each element of the array x, starting from index 1:
-            for i in range(1, len(ts_array)):
-                    
-                # calculate the timedelta between x[i] and x[i-1]:
-                # The delta method from the Timedelta class converts the timedelta to
-                # nanoseconds, guaranteeing the internal compatibility:
-                # The .delta attribute was replaced by .value attribute. 
-                # Both return the number of nanoseconds as an integer.
-                # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-                timedelta = pd.Timedelta(ts_array[i] - ts_array[(i-1)]).value
-                    
-                # Sum this timedelta (integer number of nanoseconds) to the
-                # previous element from int_timescale, and append the result to the list:
-                int_timescale.append((timedelta + int_timescale[(i-1)]))
+            for timedelta in timedeltas:
+                # Concatenate the int_timescale with a list formed by the sum of the last element
+                # with the new timedelta. Example: 0 is summed with the first timedelta, this new value
+                # becomes the second and is summed to the next timedelta.
+                int_timescale = int_timescale + [int_timescale[-1] + timedelta]
                 
             # Now convert the new scale (that preserves the distance between timestamps)
             # to NumPy array:
@@ -1701,94 +1710,97 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     
     # Select best R-squared
     best_imputation = max(imputation_performance_dict, key = imputation_performance_dict.get)
-    print(f"The best imputation strategy for the column {column_to_fill} is {best_imputation}.\n")
     
+    if ControlVars.show_results:
+        print(f"The best imputation strategy for the column {column_to_fill} is {best_imputation}.\n")
     
-    if (show_imputation_comparison_plots & ((column_data_type != 'O') & (column_data_type != 'object'))):
-        
-        # Firstly, converts the values obtained to closest integer (since we
-        # encoded the categorical values as integers, we cannot reconvert
-        # decimals):)): # run if it is True
-    
-        print("Check the Kernel density estimate (KDE) plot for the different imputations.\n")
-        labels_list = ['baseline\ncomplete_case']
-        y = cleaned_df[column_to_fill]
-        X = cleaned_df[timestamp_tag_column] # not the converted scale
-
-        fig = plt.figure(figsize = (12, 8))
-        ax = fig.add_subplot()
-        
-        # Plot graphs of imputed DataFrames and the complete case
-        y.plot(kind = 'kde', c = 'red', linewidth = 3)
-
-        for imputation in list_of_imputations:
+    if ControlVars.show_plots:
+        if (show_imputation_comparison_plots & ((column_data_type != 'O') & (column_data_type != 'object'))):
+            # If user forgot this parameter but changed ControlVars, ControlVars block the plotting
             
-            labels_list.append(imputation)
-            y = cleaned_df[imputation]
-            y.plot(kind = 'kde')
+            # Firstly, converts the values obtained to closest integer (since we
+            # encoded the categorical values as integers, we cannot reconvert
+            # decimals):)): # run if it is True
         
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = 0)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = 0)
-        # XX = 0 DEGREES y_axis (Default)
+            print("Check the Kernel density estimate (KDE) plot for the different imputations.\n")
+            labels_list = ['baseline\ncomplete_case']
+            y = cleaned_df[column_to_fill]
+            X = cleaned_df[timestamp_tag_column] # not the converted scale
 
-        ax.set_title("Kernel_density_estimate_plot_for_each_imputation")
-        ax.set_xlabel(column_to_fill)
-        ax.set_ylabel("density")
+            fig = plt.figure(figsize = (12, 8))
+            ax = fig.add_subplot()
+            
+            # Plot graphs of imputed DataFrames and the complete case
+            y.plot(kind = 'kde', c = 'red', linewidth = 3)
 
-        ax.grid(True) # show grid or not
-        ax.legend(loc = 'upper left')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-        plt.show()
-        
-        print("\n")
-        print(f"Now, check the original time series compared with the values obtained through {best_imputation}:\n")
-        
-        fig = plt.figure(figsize = (12, 8))
-        ax = fig.add_subplot()
-        
-        # Plot the imputed DataFrame in red dotted style
-        selected_imputation = cleaned_df[best_imputation]
-        ax.plot(X, selected_imputation, color = 'red', marker = 'o', linestyle = 'dotted', label = best_imputation)
-        
-        # Plot the original DataFrame with title
-        # Put a degree of transparency (35%) to highlight the imputation.
-        ax.plot(X, y, color = 'darkblue', alpha = 0.65, linestyle = '-', marker = '', label = (column_to_fill + "_original"))
-        
-        plt.xticks(rotation = 70)
-        plt.yticks(rotation = 0)
-        ax.set_title(column_to_fill + "_original_vs_imputations")
-        ax.set_xlabel(timestamp_tag_column)
-        ax.set_ylabel(column_to_fill)
-
-        ax.grid(True) # show grid or not
-        ax.legend(loc = 'upper left')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-        plt.show()
-        print("\n")
-    
+            for imputation in list_of_imputations:
                 
-    print(f"Returning a dataframe where {best_imputation} strategy was used for filling missing values in {column_to_fill} column.\n")
+                labels_list.append(imputation)
+                y = cleaned_df[imputation]
+                y.plot(kind = 'kde')
+            
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = 0)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = 0)
+            # XX = 0 DEGREES y_axis (Default)
+
+            ax.set_title("Kernel_density_estimate_plot_for_each_imputation")
+            ax.set_xlabel(column_to_fill)
+            ax.set_ylabel("density")
+
+            ax.grid(True) # show grid or not
+            ax.legend(loc = 'upper left')
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
+            plt.show()
+            
+            print("\n")
+            print(f"Now, check the original time series compared with the values obtained through {best_imputation}:\n")
+            
+            fig = plt.figure(figsize = (12, 8))
+            ax = fig.add_subplot()
+            
+            # Plot the imputed DataFrame in red dotted style
+            selected_imputation = cleaned_df[best_imputation]
+            ax.plot(X, selected_imputation, color = 'red', marker = 'o', linestyle = 'dotted', label = best_imputation)
+            
+            # Plot the original DataFrame with title
+            # Put a degree of transparency (35%) to highlight the imputation.
+            ax.plot(X, y, color = 'darkblue', alpha = 0.65, linestyle = '-', marker = '', label = (column_to_fill + "_original"))
+            
+            plt.xticks(rotation = 70)
+            plt.yticks(rotation = 0)
+            ax.set_title(column_to_fill + "_original_vs_imputations")
+            ax.set_xlabel(timestamp_tag_column)
+            ax.set_ylabel(column_to_fill)
+
+            ax.grid(True) # show grid or not
+            ax.legend(loc = 'upper left')
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
+            plt.show()
+            print("\n")
     
-    if (best_imputation == 'mice_imputer'):
-        print("MICE = Multiple Imputations by Chained Equations")
-        print("MICE: Performs multiple regressions over random samples of the data.")
-        print("It takes the average of multiple regression values and imputes the missing feature value for the data point.")
-        print("It is a Machine Learning technique to impute missing values.")
-        print("MICE performs multiple regression for imputing and is a very robust model for imputation.\n")
-    
-    elif (best_imputation == 'knn_imputer'):
-        print("KNN = K-Nearest Neighbor")
-        print("KNN selects K nearest or similar data points using all the non-missing features.")
-        print("It takes the average of the selected data points to fill in the missing feature.")
-        print("It is a Machine Learning technique to impute missing values.")
-        print("KNN finds most similar points for imputing.\n")
+    if ControlVars.show_results:  
+        print(f"Returning a dataframe where {best_imputation} strategy was used for filling missing values in {column_to_fill} column.\n")
+        
+        if (best_imputation == 'mice_imputer'):
+            print("MICE = Multiple Imputations by Chained Equations")
+            print("MICE: Performs multiple regressions over random samples of the data.")
+            print("It takes the average of multiple regression values and imputes the missing feature value for the data point.")
+            print("It is a Machine Learning technique to impute missing values.")
+            print("MICE performs multiple regression for imputing and is a very robust model for imputation.\n")
+        
+        elif (best_imputation == 'knn_imputer'):
+            print("KNN = K-Nearest Neighbor")
+            print("KNN selects K nearest or similar data points using all the non-missing features.")
+            print("It takes the average of the selected data points to fill in the missing feature.")
+            print("It is a Machine Learning technique to impute missing values.")
+            print("KNN finds most similar points for imputing.\n")
     
     # Make all rows from the column j equals to the selected imputer:
     cleaned_df.iloc[:, j] = cleaned_df[best_imputation]
@@ -1840,17 +1852,17 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
         # Perform inverse transform of the ordinally encoded columns
         cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped_vals)
 
-
-    print("Check the 10 first rows from the cleaned dataframe:\n")
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(cleaned_df.head(10))
-            
-    except: # regular mode
-        print(cleaned_df.head(10))
-    
-    return cleaned_df
+    if ControlVars.show_results:
+        print("Check the 10 first rows from the cleaned dataframe:\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(cleaned_df.head(10))
+                
+        except: # regular mode
+            print(cleaned_df.head(10))
+        
+        return cleaned_df
 
 
 def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -1879,7 +1891,7 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
 
     # set a local copy of the dataset to perform the calculations:
     DATASET = df.copy(deep = True)
-
+    
     # Let's remove the categorical columns
     print("ATTENTION! The analysis will be performed only for the numeric variables.")
     print("Categorical columns will be automatically ignored.\n")
@@ -1904,95 +1916,96 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
     # Now, obtain the matrix
     correlation_matrix = DATASET.corr(method = 'pearson')
     
-    if (show_masked_plot == False):
-        #Show standard plot
+    if ControlVars.show_plots:
+        if (show_masked_plot == False):
+            #Show standard plot
+            
+            plt.figure(figsize = (12, 8))
+            sns.heatmap((correlation_matrix)**2, annot = True, fmt = ".2f")
+            
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "correlation_plot"
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            plt.show()
+
+        #Once the pandas method .corr() calculates R, we raised it to the second power 
+        # to obtain R². R² goes from zero to 1, where 1 represents the perfect correlation.
         
-        plt.figure(figsize = (12, 8))
-        sns.heatmap((correlation_matrix)**2, annot = True, fmt = ".2f")
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
+        else:
+            
+            # Show masked (cleaner) plot instead of the standard one
+            # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            plt.figure(figsize = (12, 8))
+            # Mask for the upper triangle
+            mask = np.zeros_like((correlation_matrix)**2)
 
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
+            mask[np.triu_indices_from(mask)] = True
 
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "correlation_plot"
+            # Generate a custom diverging colormap
+            cmap = sns.diverging_palette(220, 10, as_cmap = True)
 
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
+            # Heatmap with mask and correct aspect ratio
+            sns.heatmap(((correlation_matrix)**2), mask = mask, cmap = cmap, center = 0,
+                        linewidths = .5)
+            
+            if (export_png == True):
+                # Image will be exported
+                import os
 
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        plt.show()
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
 
-    #Once the pandas method .corr() calculates R, we raised it to the second power 
-    # to obtain R². R² goes from zero to 1, where 1 represents the perfect correlation.
-    
-    else:
-        
-        # Show masked (cleaner) plot instead of the standard one
-        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        plt.figure(figsize = (12, 8))
-        # Mask for the upper triangle
-        mask = np.zeros_like((correlation_matrix)**2)
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "correlation_plot"
 
-        mask[np.triu_indices_from(mask)] = True
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
 
-        # Generate a custom diverging colormap
-        cmap = sns.diverging_palette(220, 10, as_cmap = True)
-
-        # Heatmap with mask and correct aspect ratio
-        sns.heatmap(((correlation_matrix)**2), mask = mask, cmap = cmap, center = 0,
-                    linewidths = .5)
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "correlation_plot"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        plt.show()
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            plt.show()
 
         #Again, the method dataset.corr() calculates R within the variables of dataset.
         #To calculate R², we simply raise it to the second power: (dataset.corr()**2)
@@ -2031,19 +2044,20 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
             # Here, it returns the defined limit of coefficients, set_returned_limit.
             # The default .head() is X = 5.
     
-    print("ATTENTION: The correlation plots show the linear correlations R², which go from 0 (none correlation) to 1 (perfect correlation). Obviously, the main diagonal always shows R² = 1, since the data is perfectly correlated to itself.\n")
-    print("The returned correlation matrix, on the other hand, presents the linear coefficients of correlation R, not R². R values go from -1 (perfect negative correlation) to 1 (perfect positive correlation).\n")
-    print("None of these coefficients take non-linear relations and the presence of a multiple linear correlation in account. For these cases, it is necessary to calculate R² adjusted, which takes in account the presence of multiple preditors and non-linearities.\n")
-    
-    print("Correlation matrix - numeric results:\n")
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(correlation_matrix)
-            
-    except: # regular mode
-        print(correlation_matrix)
-    
+    if ControlVars.show_results:
+        print("ATTENTION: The correlation plots show the linear correlations R², which go from 0 (none correlation) to 1 (perfect correlation). Obviously, the main diagonal always shows R² = 1, since the data is perfectly correlated to itself.\n")
+        print("The returned correlation matrix, on the other hand, presents the linear coefficients of correlation R, not R². R values go from -1 (perfect negative correlation) to 1 (perfect positive correlation).\n")
+        print("None of these coefficients take non-linear relations and the presence of a multiple linear correlation in account. For these cases, it is necessary to calculate R² adjusted, which takes in account the presence of multiple preditors and non-linearities.\n")
+        
+        print("Correlation matrix - numeric results:\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(correlation_matrix)
+                
+        except: # regular mode
+            print(correlation_matrix)
+        
     return correlation_matrix
 
 
@@ -2093,92 +2107,93 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
     covariance_matrix = DATASET.cov(min_periods = None, ddof = 1, numeric_only = False)
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.cov.html
     
-    if (show_masked_plot == False):
-        #Show standard plot
-        
-        plt.figure(figsize = (12, 8))
-        sns.heatmap(covariance_matrix, annot = True, fmt = ".2f")
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
+    if ControlVars.show_plots:
+        if (show_masked_plot == False):
+            #Show standard plot
+            
+            plt.figure(figsize = (12, 8))
+            sns.heatmap(covariance_matrix, annot = True, fmt = ".2f")
+            
+            if (export_png == True):
+                # Image will be exported
+                import os
 
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
 
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "covariance_matrix"
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "covariance_matrix"
 
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
 
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        plt.show()
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            plt.show()
 
-    else:
-        
-        # Show masked (cleaner) plot instead of the standard one
-        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        plt.figure(figsize = (12, 8))
-        # Mask for the upper triangle
-        mask = np.zeros_like(covariance_matrix)
+        else:
+            
+            # Show masked (cleaner) plot instead of the standard one
+            # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            plt.figure(figsize = (12, 8))
+            # Mask for the upper triangle
+            mask = np.zeros_like(covariance_matrix)
 
-        mask[np.triu_indices_from(mask)] = True
+            mask[np.triu_indices_from(mask)] = True
 
-        # Generate a custom diverging colormap
-        cmap = sns.diverging_palette(220, 10, as_cmap = True)
+            # Generate a custom diverging colormap
+            cmap = sns.diverging_palette(220, 10, as_cmap = True)
 
-        # Heatmap with mask and correct aspect ratio
-        sns.heatmap((covariance_matrix), mask = mask, cmap = cmap, center = 0,
-                    linewidths = .5)
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
+            # Heatmap with mask and correct aspect ratio
+            sns.heatmap((covariance_matrix), mask = mask, cmap = cmap, center = 0,
+                        linewidths = .5)
+            
+            if (export_png == True):
+                # Image will be exported
+                import os
 
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
 
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "covariance_matrix"
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "covariance_matrix"
 
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
 
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        plt.show()
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            plt.show()
 
     
     #Sort the values of covariance_matrix in Descending order:
@@ -2206,64 +2221,65 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
     #Now sort the values according to the responses, by passing the list
     # response
     covariance_matrix = covariance_matrix.sort_values(by = responses_to_return_cov, ascending = ascending_modes)
-   
-    explain = """
-
-    Theory
-    -----------------------------------------------------------------------------------------------------------------
-
-    Given that E(X) = mu is the expectation (expected value) from a random variable X, the variance Var(X) is defined as:
-
-        Var(X) = E(X²) - [E(X)]²
     
-    Analogously, the covariance between X and Y, a statistic that reflects how they vary together, is defined by:
+    if ControlVars.show_results:
+        explain = """
 
-        Cov(X,Y) = E(X.Y) - E(X).E(Y)
-    
-    From these equations, we notice that Cov(X,X) = Var(X)
+        Theory
+        -----------------------------------------------------------------------------------------------------------------
 
-    Thus, the covariance matrix between X and Y is given by the matrix:
+        Given that E(X) = mu is the expectation (expected value) from a random variable X, the variance Var(X) is defined as:
 
-        Cov = [[Var(X) Cov(Y,X)]
-                [Cov(X,Y) Var(Y)]]
-
-        where, in general, Cov(Y,X) = Cov(X,Y)
-    
-    For n samples with same probability of occurrence, the covariance may be calculated as:
-
-        Cov(X,Y) = (1/n)*SUM((Xi - Mean(X))*(Yi - Mean(Y))),
+            Var(X) = E(X²) - [E(X)]²
         
-        where (Xi,Yi) represents a single data point. In the case of events with different probabilities,
-        the formula is modified to take this effect in account. 
+        Analogously, the covariance between X and Y, a statistic that reflects how they vary together, is defined by:
 
-    ---------------------------------------------------------------------------------------------------------------------
+            Cov(X,Y) = E(X.Y) - E(X).E(Y)
+        
+        From these equations, we notice that Cov(X,X) = Var(X)
 
-    Interpretation of the matrix
-    ---------------------------------------------------------------------------------------------------------------------
+        Thus, the covariance matrix between X and Y is given by the matrix:
 
-    For randomly spread data:
+            Cov = [[Var(X) Cov(Y,X)]
+                    [Cov(X,Y) Var(Y)]]
 
-    1. Cov(X,Y) ~ 0 (close to zero)
-        Variables are independent from each other
-    
-    2. Cov(X,Y) > 0
-        There is a positive correlation between variables.
+            where, in general, Cov(Y,X) = Cov(X,Y)
+        
+        For n samples with same probability of occurrence, the covariance may be calculated as:
 
-    3. Cov(X,Y) < 0
-        There is a negative correlation between variables. 
-    
-    """
-
-    print(explain)
-     
-    print("Covariance matrix - numeric results:\n")
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(covariance_matrix)
+            Cov(X,Y) = (1/n)*SUM((Xi - Mean(X))*(Yi - Mean(Y))),
             
-    except: # regular mode
-        print(covariance_matrix)
+            where (Xi,Yi) represents a single data point. In the case of events with different probabilities,
+            the formula is modified to take this effect in account. 
+
+        ---------------------------------------------------------------------------------------------------------------------
+
+        Interpretation of the matrix
+        ---------------------------------------------------------------------------------------------------------------------
+
+        For randomly spread data:
+
+        1. Cov(X,Y) ~ 0 (close to zero)
+            Variables are independent from each other
+        
+        2. Cov(X,Y) > 0
+            There is a positive correlation between variables.
+
+        3. Cov(X,Y) < 0
+            There is a negative correlation between variables. 
+        
+        """
+
+        print(explain)
+        
+        print("Covariance matrix - numeric results:\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(covariance_matrix)
+                
+        except: # regular mode
+            print(covariance_matrix)
     
     return covariance_matrix
 
@@ -2326,48 +2342,49 @@ def calculate_vif (df):
     # Organize in descending order:
     variance_inflation_factor_matrix = variance_inflation_factor_matrix.sort_values(by = ['VIF'], ascending = [False])
 
-    explain = """
-    - When selecting variables for a model, we want them to be independent from each other.
-    - In cases where selected predictor variables are not independent of each other, we would not be able to determine or attribute the contribution from the various predictor variables towards the target variable. 
-        — Interpretability of the model coefficients becomes an issue.
-    - The presence of multicollinearity can mask the importance of the respective variable contributions to the target variable.
-    - Collinear variables introduce basically the same information to the model, inflating the importance of a given variable.
-    - One approach to identify multicollinearity is via the Variance Inflation Factor (VIF). 
-    - VIF indicates the percentage of the variance inflated for each variable’s coefficient. 
-    
-    In VIF method, we pick each feature and regress it against all of the other features. 
-    For each regression, the factor is calculated as:
+    if ControlVars.show_results:
+        explain = """
+        - When selecting variables for a model, we want them to be independent from each other.
+        - In cases where selected predictor variables are not independent of each other, we would not be able to determine or attribute the contribution from the various predictor variables towards the target variable. 
+            — Interpretability of the model coefficients becomes an issue.
+        - The presence of multicollinearity can mask the importance of the respective variable contributions to the target variable.
+        - Collinear variables introduce basically the same information to the model, inflating the importance of a given variable.
+        - One approach to identify multicollinearity is via the Variance Inflation Factor (VIF). 
+        - VIF indicates the percentage of the variance inflated for each variable’s coefficient. 
+        
+        In VIF method, we pick each feature and regress it against all of the other features. 
+        For each regression, the factor is calculated as:
 
-        VIF = 1/(1-R²)
+            VIF = 1/(1-R²)
 
-    Where, R-squared is the coefficient of determination in linear regression. Its value lies between 0 and 1.
+        Where, R-squared is the coefficient of determination in linear regression. Its value lies between 0 and 1.
 
-    1. VIF = 1
-        - No collinearity (R² = 0).
-    2. < VIF < 5
-        - Moderate collinearity.
-    3. VIF >= 5
-        - High collinearity.
-        - Some cases where high VIF would be acceptable:
-            - Use of interaction terms, polynomial terms, or dummy variables (nominal variables with three or more categories).
-    
-    - Correlation matrices enable the identification of correlation among variable pairs. 
-    - VIF enables the overall assessment of multicollinearity. 
-    
-    Variables showing high VIFs are usually variables with high collinearity.
+        1. VIF = 1
+            - No collinearity (R² = 0).
+        2. < VIF < 5
+            - Moderate collinearity.
+        3. VIF >= 5
+            - High collinearity.
+            - Some cases where high VIF would be acceptable:
+                - Use of interaction terms, polynomial terms, or dummy variables (nominal variables with three or more categories).
+        
+        - Correlation matrices enable the identification of correlation among variable pairs. 
+        - VIF enables the overall assessment of multicollinearity. 
+        
+        Variables showing high VIFs are usually variables with high collinearity.
 
-    """
-    
-    print(explain)
-     
-    print("Calculated Variance Inflation Factors (VIFs):\n")
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(variance_inflation_factor_matrix)
-            
-    except: # regular mode
-        print(variance_inflation_factor_matrix)
+        """
+        
+        print(explain)
+        
+        print("Calculated Variance Inflation Factors (VIFs):\n")
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(variance_inflation_factor_matrix)
+                
+        except: # regular mode
+            print(variance_inflation_factor_matrix)
     
     return variance_inflation_factor_matrix
 
@@ -2546,51 +2563,19 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name, response_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name, response_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         response_var_name = response_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.mode)
-        ENCODING_LIST = ordinal_encoding_list
+        
+        # Use the helper function to retrieve mode:
+        DATASET[response_var_name] = mode_retrieval(DATASET[response_var_name])
 
-        # Save the series as an array:
-        list_of_modes_arrays = np.array(DATASET[response_var_name])
-        # Start a list of modes:
-        list_of_modes = []
-            
-        # Loop through each element from the list of arrays:
-        for mode_array in list_of_modes_arrays:
-            # try accessing the mode
-            # mode array is like:
-            # ModeResult(mode=calculated_mode, count=counting_of_occurrences))
-            # To retrieve only the mode, we must access the element [0] from this array
-            # or attribute mode:
-                
-            try:
-                list_of_modes.append(mode_array.mode)
-            
-            except:
-                # This error is generated when trying to access an array storing no values.
-                # (i.e., with missing values). Since there is no dimension, it is not possible
-                # to access the [0][0] position. In this case, simply append the np.nan 
-                # the (missing value):
-                try:
-                    list_of_modes.append(mode_array[0])
-                except:
-                    try:
-                        if ((mode_array != np.nan) & (mode_array is not None)):
-                            list_of_modes.append(mode_array)
-                        else:
-                            list_of_modes.append(np.nan)
-                    except:
-                        list_of_modes.append(np.nan)
-        
-        # Make the list of modes the column itself:
-        DATASET[response_var_name] = list_of_modes
-        
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = [categorical_var_name, response_var_name])
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
 
     elif (aggregate_function == 'sum'):
         
@@ -2667,60 +2652,87 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     # The functions from scipy.stats module require the ordinal encoding of the categorical variables,
     # even for numeric aggregates. It is the same procedure used for the mode evaluation.
     elif (aggregate_function == 'kurtosis'):
-        # Numeric aggregate
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+
+        response = np.array(DATASET[response_var_name])
+
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        # re-add the response
+        DATASET[response_var_name] = response
+
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.kurtosis)
-        ENCODING_LIST = ordinal_encoding_list
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = categorical_var_name)
+        
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
 
     elif (aggregate_function == 'skew'):
-        # Numeric aggregate
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+
+        response = np.array(DATASET[response_var_name])
+
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        # re-add the response
+        DATASET[response_var_name] = response
+
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
-        ENCODING_LIST = ordinal_encoding_list
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = categorical_var_name)
+        
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
 
     elif (aggregate_function == 'interquartile_range'):
-        # Numeric aggregate
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+
+        response = np.array(DATASET[response_var_name])
+
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        # re-add the response
+        DATASET[response_var_name] = response
+
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.iqr)
-        ENCODING_LIST = ordinal_encoding_list
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = categorical_var_name)
+        
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
 
     elif (aggregate_function == 'mean_standard_error'):
-        # Numeric aggregate
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+
+        response = np.array(DATASET[response_var_name])
+
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        # re-add the response
+        DATASET[response_var_name] = response
+
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.sem)
-        ENCODING_LIST = ordinal_encoding_list
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = categorical_var_name)
+        
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
 
     else: # entropy
-        SUBSET_OF_FEATURES_TO_BE_ENCODED = [categorical_var_name, response_var_name]
-        DATASET, ordinal_encoding_list = OrdinalEncoding_df (df = DATASET, subset_of_features_to_be_encoded = SUBSET_OF_FEATURES_TO_BE_ENCODED)
-        DATASET = DATASET.drop(columns = SUBSET_OF_FEATURES_TO_BE_ENCODED)
+        
+        enc_dec_obj = EncodeDecode(df_categorical = DATASET, categorical_list = [categorical_var_name, response_var_name])
+        enc_dec_obj = enc_dec_obj.encode()
+        DATASET, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
+        
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         response_var_name = response_var_name + "_OrdinalEnc"
         DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.entropy)
-        ENCODING_LIST = ordinal_encoding_list
-        DATASET = reverse_OrdinalEncoding (df = DATASET, encoding_list = ENCODING_LIST)
-        DATASET = DATASET.drop(columns = [categorical_var_name, response_var_name])
-    
+
+        enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
+        DATASET = enc_dec_obj.cleaned_df
+        
+  
     # List of columns of the aggregated dataset:
     list_of_columns = list(DATASET.columns) # convert to a list
     
@@ -2785,17 +2797,20 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         # 100 (%):
         cum_pct_col = response_var_name + "_cum_pct"
         DATASET[cum_pct_col] = (DATASET[cumsum_col])/(total_sum) * 100
-        print(f"Successfully calculated cumulative sum and cumulative percent correspondent to the response variable {response_var_name}.")
+        
+        if ControlVars.show_results:
+            print(f"Successfully calculated cumulative sum and cumulative percent correspondent to the response variable {response_var_name}.")
     
-    print("Successfully aggregated and ordered the dataset to plot. Check the 10 first rows of this returned dataset:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(DATASET.head(10))
-            
-    except: # regular mode
-        print(DATASET.head(10))
+    if ControlVars.show_results:
+        print("Successfully aggregated and ordered the dataset to plot. Check the 10 first rows of this returned dataset:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(DATASET.head(10))
+                
+        except: # regular mode
+            print(DATASET.head(10))
     
     # Check if the total of plotted categories is limited:
     if not (limit_of_plotted_categories is None):
@@ -2914,172 +2929,172 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         if (calculate_and_plot_cumulative_percent):
             cum_pct = DATASET[cum_pct_col]
     
-    
-    # Now the data is prepared and we only have to plot 
-    # categories, responses, and cum_pct:
-    
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    # Set labels and titles for the case they are None
-    if (plot_title is None):
+    if ControlVars.show_plots:
+        # Now the data is prepared and we only have to plot 
+        # categories, responses, and cum_pct:
         
-        if (aggregate_function == 'count'):
-            # The graph is the same count, no matter the response
-            plot_title = f"Bar_chart_count_of_{categorical_var_name}"
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
         
-        else:
-            plot_title = f"Bar_chart_for_{response_var_name}_by_{categorical_var_name}"
-    
-    if (horizontal_axis_title is None):
-
-        horizontal_axis_title = categorical_var_name
-
-    if (vertical_axis_title is None):
-        # Notice that response_var_name already has the suffix indicating the
-        # aggregation function
-        vertical_axis_title = response_var_name
-    
-    fig, ax1 = plt.subplots(figsize = (12, 8))
-    # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 70 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    plt.title(plot_title)
-    
-    if (orientation == 'horizontal'):
-        
-        # invert the axes in relation to the default (vertical, below)
-        ax1.set_ylabel(horizontal_axis_title)
-        ax1.set_xlabel(vertical_axis_title, color = 'darkblue')
-        
-        # Horizontal bars used - barh method (bar horizontal):
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.barh.html
-        # Now, the categorical variables stored in series categories must be
-        # positioned as the vertical axis Y, whereas the correspondent responses
-        # must be in the horizontal axis X.
-        ax1.barh(categories, responses, color = 'darkblue', alpha = OPACITY, label = categorical_var_name)
-        #.barh(y, x, ...)
-        
-        if (calculate_and_plot_cumulative_percent):
-            # Let's plot the line for the cumulative percent
-            # Set the grid for the bar chart as False. If it is True, there will
-            # be two grids, one for the bars and other for the percents, making 
-            # the image difficult to interpretate:
-            ax1.grid(False)
+        # Set labels and titles for the case they are None
+        if (plot_title is None):
             
-            # Create the twin plot for the cumulative percent:
-            # for the vertical orientation, we use the twinx. Here, we use twiny
-            ax2 = ax1.twiny()
-            # Here, the x axis must be the cum_pct value, and the Y
-            # axis must be categories (it must be correspondent to the
-            # bar chart)
-            ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
-            #.plot(x, y, ...)
-            ax2.tick_params('x', color = 'red')
-            ax2.set_xlabel("Cumulative Percent (%)", color = 'red')
-            ax2.legend()
-            ax2.grid(grid) # shown if user set grid = True
-            # If user wants to see the grid, it is shown only for the cumulative line.
-        
-        else:
-            # There is no cumulative line, so the parameter grid must control 
-            # the bar chart's grid
-            ax1.legend()
-            ax1.grid(grid)
-        
-    else: 
-        
-        ax1.set_xlabel(horizontal_axis_title)
-        ax1.set_ylabel(vertical_axis_title, color = 'darkblue')
-        # If None or an invalid orientation was used, set it as vertical
-        # Use Matplotlib standard bar method (vertical bar):
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.bar.html#matplotlib.pyplot.bar
-        
-        # In this standard case, the categorical variables (categories) are positioned
-        # as X, and the responses as Y:
-        ax1.bar(categories, responses, color = 'darkblue', alpha = OPACITY, label = categorical_var_name)
-        #.bar(x, y, ...)
-        
-        if (calculate_and_plot_cumulative_percent):
-            # Let's plot the line for the cumulative percent
-            # Set the grid for the bar chart as False. If it is True, there will
-            # be two grids, one for the bars and other for the percents, making 
-            # the image difficult to interpretate:
-            ax1.grid(False)
+            if (aggregate_function == 'count'):
+                # The graph is the same count, no matter the response
+                plot_title = f"Bar_chart_count_of_{categorical_var_name}"
             
-            # Create the twin plot for the cumulative percent:
-            ax2 = ax1.twinx()
-            ax2.plot(categories, cum_pct, '-ro', label = "cumulative\npercent")
-            #.plot(x, y, ...)
-            ax2.tick_params('y', color = 'red')
-            ax2.set_ylabel("Cumulative Percent (%)", color = 'red', rotation = 270)
-            # rotate the twin axis so that its label is inverted in relation to the main
-            # vertical axis.
-            ax2.legend()
-            ax2.grid(grid) # shown if user set grid = True
-            # If user wants to see the grid, it is shown only for the cumulative line.
+            else:
+                plot_title = f"Bar_chart_for_{response_var_name}_by_{categorical_var_name}"
         
-        else:
-            # There is no cumulative line, so the parameter grid must control 
-            # the bar chart's grid
-            ax1.legend()
-            ax1.grid(grid)
-    
-    # Notice that the .plot method is used for generating the plot for both orientations.
-    # It is different from .bar and .barh, which specify the orientation of a bar; or
-    # .hline (creation of an horizontal constant line); or .vline (creation of a vertical
-    # constant line).
-    
-    # Now the parameters specific to the configurations are finished, so we can go back
-    # to the general code:
-    
-    if (export_png == True):
-        # Image will be exported
-        import os
+        if (horizontal_axis_title is None):
+
+            horizontal_axis_title = categorical_var_name
+
+        if (vertical_axis_title is None):
+            # Notice that response_var_name already has the suffix indicating the
+            # aggregation function
+            vertical_axis_title = response_var_name
         
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+        fig, ax1 = plt.subplots(figsize = (12, 8))
+        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 70 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
         
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "bar_chart"
+        plt.title(plot_title)
         
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+        if (orientation == 'horizontal'):
+            
+            # invert the axes in relation to the default (vertical, below)
+            ax1.set_ylabel(horizontal_axis_title)
+            ax1.set_xlabel(vertical_axis_title, color = 'darkblue')
+            
+            # Horizontal bars used - barh method (bar horizontal):
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.barh.html
+            # Now, the categorical variables stored in series categories must be
+            # positioned as the vertical axis Y, whereas the correspondent responses
+            # must be in the horizontal axis X.
+            ax1.barh(categories, responses, color = 'darkblue', alpha = OPACITY, label = categorical_var_name)
+            #.barh(y, x, ...)
+            
+            if (calculate_and_plot_cumulative_percent):
+                # Let's plot the line for the cumulative percent
+                # Set the grid for the bar chart as False. If it is True, there will
+                # be two grids, one for the bars and other for the percents, making 
+                # the image difficult to interpretate:
+                ax1.grid(False)
+                
+                # Create the twin plot for the cumulative percent:
+                # for the vertical orientation, we use the twinx. Here, we use twiny
+                ax2 = ax1.twiny()
+                # Here, the x axis must be the cum_pct value, and the Y
+                # axis must be categories (it must be correspondent to the
+                # bar chart)
+                ax2.plot(cum_pct, categories, '-ro', label = "cumulative\npercent")
+                #.plot(x, y, ...)
+                ax2.tick_params('x', color = 'red')
+                ax2.set_xlabel("Cumulative Percent (%)", color = 'red')
+                ax2.legend()
+                ax2.grid(grid) # shown if user set grid = True
+                # If user wants to see the grid, it is shown only for the cumulative line.
+            
+            else:
+                # There is no cumulative line, so the parameter grid must control 
+                # the bar chart's grid
+                ax1.legend()
+                ax1.grid(grid)
+            
+        else: 
+            
+            ax1.set_xlabel(horizontal_axis_title)
+            ax1.set_ylabel(vertical_axis_title, color = 'darkblue')
+            # If None or an invalid orientation was used, set it as vertical
+            # Use Matplotlib standard bar method (vertical bar):
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.bar.html#matplotlib.pyplot.bar
+            
+            # In this standard case, the categorical variables (categories) are positioned
+            # as X, and the responses as Y:
+            ax1.bar(categories, responses, color = 'darkblue', alpha = OPACITY, label = categorical_var_name)
+            #.bar(x, y, ...)
+            
+            if (calculate_and_plot_cumulative_percent):
+                # Let's plot the line for the cumulative percent
+                # Set the grid for the bar chart as False. If it is True, there will
+                # be two grids, one for the bars and other for the percents, making 
+                # the image difficult to interpretate:
+                ax1.grid(False)
+                
+                # Create the twin plot for the cumulative percent:
+                ax2 = ax1.twinx()
+                ax2.plot(categories, cum_pct, '-ro', label = "cumulative\npercent")
+                #.plot(x, y, ...)
+                ax2.tick_params('y', color = 'red')
+                ax2.set_ylabel("Cumulative Percent (%)", color = 'red', rotation = 270)
+                # rotate the twin axis so that its label is inverted in relation to the main
+                # vertical axis.
+                ax2.legend()
+                ax2.grid(grid) # shown if user set grid = True
+                # If user wants to see the grid, it is shown only for the cumulative line.
+            
+            else:
+                # There is no cumulative line, so the parameter grid must control 
+                # the bar chart's grid
+                ax1.legend()
+                ax1.grid(grid)
         
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #fig.tight_layout()
-    
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
+        # Notice that the .plot method is used for generating the plot for both orientations.
+        # It is different from .bar and .barh, which specify the orientation of a bar; or
+        # .hline (creation of an horizontal constant line); or .vline (creation of a vertical
+        # constant line).
+        
+        # Now the parameters specific to the configurations are finished, so we can go back
+        # to the general code:
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+            
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+            
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "bar_chart"
+            
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+            
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #fig.tight_layout()
+        
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
     
     return DATASET
 
@@ -3148,18 +3163,19 @@ def calculate_cumulative_stats (df, column_to_analyze, cumulative_statistic = 's
         # named as new_cum_stats_col_name
         DATASET[new_cum_stats_col_name] = dict_of_methods[cumulative_statistic]
         
-        print(f"The cumulative {cumulative_statistic} statistic was successfully calculated and added as the column \'{new_cum_stats_col_name}\' of the returned dataframe.\n")
-        print("Check the new dataframe's 10 first rows:\n")
-        
-        try:
-            # only works in Jupyter Notebook:
-            from IPython.display import display
-            display(DATASET.head(10))
+        if ControlVars.show_results:
+            print(f"The cumulative {cumulative_statistic} statistic was successfully calculated and added as the column \'{new_cum_stats_col_name}\' of the returned dataframe.\n")
+            print("Check the new dataframe's 10 first rows:\n")
+            
+            try:
+                # only works in Jupyter Notebook:
+                from IPython.display import display
+                display(DATASET.head(10))
 
-        except: # regular mode
-            print(DATASET.head(10))
-        
-        return DATASET
+            except: # regular mode
+                print(DATASET.head(10))
+            
+            return DATASET
 
 
 def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_predict_var_x = None, column_with_response_var_y = None, column_with_labels = None, list_of_dictionaries_with_series_to_analyze = [{'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}], x_axis_rotation = 70, y_axis_rotation = 0, show_linear_reg = True, grid = True, add_splines_lines = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330): 
@@ -3459,23 +3475,23 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 
                 # start a list for the associated integer timescale. Put the number zero,
                 # associated to the first timestamp:
+                
                 int_timescale = [0]
-                
+                # calculate the timedelta between x[i] and x[i-1]:
+                # The delta method from the Timedelta class converts the timedelta to
+                # nanoseconds, guaranteeing the internal compatibility:
+                # The .delta attribute was replaced by .value attribute. 
+                # Both return the number of nanoseconds as an integer.
+                # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                timedeltas = [pd.Timedelta(x[i] - x[(i-1)]).value for i in range(1, len(x))]
+                    
                 # loop through each element of the array x, starting from index 1:
-                for i in range(1, len(x)):
+                for timedelta in timedeltas:
+                    # Concatenate the int_timescale with a list formed by the sum of the last element
+                    # with the new timedelta. Example: 0 is summed with the first timedelta, this new value
+                    # becomes the second and is summed to the next timedelta.
+                    int_timescale = int_timescale + [int_timescale[-1] + timedelta]
                     
-                    # calculate the timedelta between x[i] and x[i-1]:
-                    # The delta method from the Timedelta class converts the timedelta to
-                    # nanoseconds, guaranteeing the internal compatibility:
-                    # The .delta attribute was replaced by .value attribute. 
-                    # Both return the number of nanoseconds as an integer.
-                    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).value
-                    
-                    # Sum this timedelta (integer number of nanoseconds) to the
-                    # previous element from int_timescale, and append the result to the list:
-                    int_timescale.append((timedelta + int_timescale[(i-1)]))
-                
                 # Now convert the new scale (that preserves the distance between timestamps)
                 # to NumPy array:
                 int_timescale = np.array(int_timescale)
@@ -3555,204 +3571,207 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # Finally, append this dictionary to list support_list:
             list_of_dictionaries_with_series_and_predictions.append(dictionary)
         
-        print("Returning a list of dictionaries. Each one contains the arrays of valid series and labels, and the equations, R² and values predicted by the linear regressions.\n")
+        if ControlVars.show_results:
+            print("Returning a list of dictionaries. Each one contains the arrays of valid series and labels, and the equations, R² and values predicted by the linear regressions.\n")
         
-        # Now we finished the loop, list_of_dictionaries_with_series_and_predictions 
-        # contains all series converted to NumPy arrays, with timestamps parsed as datetimes, 
-        # and all the information regarding the linear regression, including the predicted 
-        # values for plotting.
-        # This list will be the object returned at the end of the function. Since it is an
-        # JSON-formatted list, we can use the function json_obj_to_pandas_dataframe to convert
-        # it to a Pandas dataframe.
-        
-        
-        # Now, we can plot the figure.
-        # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
-        # so that one series do not completely block the visualization of the other.
-        
-        # Let's retrieve the list of Matplotlib CSS colors:
-        css4 = mcolors.CSS4_COLORS
-        # css4 is a dictionary of colors: {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7', ...}
-        # Each key of this dictionary is a color name to be passed as argument color on the plot
-        # function. So let's retrieve the array of keys, and use the list attribute to convert this
-        # array to a list of colors:
-        list_of_colors = list(css4.keys())
-        
-        # In 11 May 2022, this list of colors had 148 different elements
-        # Since this list is in alphabetic order, let's create a random order for the colors.
-        
-        # Function random.sample(input_sequence, number_of_samples): 
-        # this function creates a list containing a total of elements equals to the parameter 
-        # "number_of_samples", which must be an integer.
-        # This list is obtained by ramdomly selecting a total of "number_of_samples" elements from the
-        # list "input_sequence" passed as parameter.
-        
-        # Function random.choices(input_sequence, k = number_of_samples):
-        # similarly, randomly select k elements from the sequence input_sequence. This function is
-        # newer than random.sample
-        # Since we want to simply randomly sort the sequence, we can pass k = len(input_sequence)
-        # to obtain the randomly sorted sequence:
-        list_of_colors = random.choices(list_of_colors, k = len(list_of_colors))
-        # Now, we have a random list of colors to use for plotting the charts
-        
-        if (add_splines_lines == True):
-            LINE_STYLE = '-'
-
-        else:
-            LINE_STYLE = ''
-        
-        # Matplotlib linestyle:
-        # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
-        
-        if (plot_title is None):
-            # Set graphic title
-            plot_title = f"Y_x_X"
-
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            horizontal_axis_title = "X"
-
-        if (vertical_axis_title is None):
-            # Set vertical axis title
-            vertical_axis_title = "Y"
-        
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
-        
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        fig = plt.figure(figsize = (12, 8))
-        ax = fig.add_subplot()
-
-        i = 0 # Restart counting for the loop of colors
-        
-        # Loop through each dictionary from list_of_dictionaries_with_series_and_predictions:
-        for dictionary in list_of_dictionaries_with_series_and_predictions:
+        if ControlVars.show_plots:
+            # Now we finished the loop, list_of_dictionaries_with_series_and_predictions 
+            # contains all series converted to NumPy arrays, with timestamps parsed as datetimes, 
+            # and all the information regarding the linear regression, including the predicted 
+            # values for plotting.
+            # This list will be the object returned at the end of the function. Since it is an
+            # JSON-formatted list, we can use the function json_obj_to_pandas_dataframe to convert
+            # it to a Pandas dataframe.
             
-            # Try selecting a color from list_of_colors:
-            try:
-                
-                COLOR = list_of_colors[i]
-                # Go to the next element i, so that the next plot will use a different color:
-                i = i + 1
             
-            except IndexError:
-                
-                # This error will be raised if list index is out of range, 
-                # i.e. if i >= len(list_of_colors) - we used all colors from the list (at least 148).
-                # So, return the index to zero to restart the colors from the beginning:
-                i = 0
-                COLOR = list_of_colors[i]
-                i = i + 1
+            # Now, we can plot the figure.
+            # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
+            # so that one series do not completely block the visualization of the other.
             
-            # Access the arrays and label from the dictionary:
-            X = dictionary['x']
-            Y = dictionary['y']
-            LABEL = dictionary['lab']
+            # Let's retrieve the list of Matplotlib CSS colors:
+            css4 = mcolors.CSS4_COLORS
+            # css4 is a dictionary of colors: {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7', ...}
+            # Each key of this dictionary is a color name to be passed as argument color on the plot
+            # function. So let's retrieve the array of keys, and use the list attribute to convert this
+            # array to a list of colors:
+            list_of_colors = list(css4.keys())
             
-            # Scatter plot:
-            ax.plot(X, Y, linestyle = LINE_STYLE, marker = "o", color = COLOR, alpha = OPACITY, label = LABEL)
-            # Axes.plot documentation:
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+            # In 11 May 2022, this list of colors had 148 different elements
+            # Since this list is in alphabetic order, let's create a random order for the colors.
             
-            # x and y are positional arguments: they are specified by their position in function
-            # call, not by an argument name like 'marker'.
+            # Function random.sample(input_sequence, number_of_samples): 
+            # this function creates a list containing a total of elements equals to the parameter 
+            # "number_of_samples", which must be an integer.
+            # This list is obtained by ramdomly selecting a total of "number_of_samples" elements from the
+            # list "input_sequence" passed as parameter.
             
-            # Matplotlib markers:
-            # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+            # Function random.choices(input_sequence, k = number_of_samples):
+            # similarly, randomly select k elements from the sequence input_sequence. This function is
+            # newer than random.sample
+            # Since we want to simply randomly sort the sequence, we can pass k = len(input_sequence)
+            # to obtain the randomly sorted sequence:
+            list_of_colors = random.choices(list_of_colors, k = len(list_of_colors))
+            # Now, we have a random list of colors to use for plotting the charts
             
-            if (show_linear_reg == True):
-                
-                # Plot the linear regression using the same color.
-                # Access the array of fitted Y's in the dictionary:
-                Y_PRED = dictionary['y_pred_lin_reg']
-                Y_PRED_LABEL = 'lin_reg_' + str(LABEL) # for the case where label is numeric
-                
-                ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
+            if (add_splines_lines == True):
+                LINE_STYLE = '-'
 
-        # Now we finished plotting all of the series, we can set the general configuration:
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-        
-        ax.set_title(plot_title)
-        ax.set_xlabel(horizontal_axis_title)
-        ax.set_ylabel(vertical_axis_title)
-
-        ax.grid(grid) # show grid or not
-        ax.legend(loc = 'upper left')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
-
-        if (export_png == True):
-            # Image will be exported
-            import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "scatter_plot_lin_reg"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        plt.show()
-        
-        if (show_linear_reg == True):
+            else:
+                LINE_STYLE = ''
             
-            try:
-                # only works in Jupyter Notebook:
-                from IPython.display import display
-            except:
-                pass
+            # Matplotlib linestyle:
+            # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
             
-            print("\nLinear regression summaries (equations and R²):\n")
+            if (plot_title is None):
+                # Set graphic title
+                plot_title = f"Y_x_X"
+
+            if (horizontal_axis_title is None):
+                # Set horizontal axis title
+                horizontal_axis_title = "X"
+
+            if (vertical_axis_title is None):
+                # Set vertical axis title
+                vertical_axis_title = "Y"
             
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
+            
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            fig = plt.figure(figsize = (12, 8))
+            ax = fig.add_subplot()
+
+            i = 0 # Restart counting for the loop of colors
+            
+            # Loop through each dictionary from list_of_dictionaries_with_series_and_predictions:
             for dictionary in list_of_dictionaries_with_series_and_predictions:
                 
-                print(f"Linear regression summary for {dictionary['lab']}:\n")
+                # Try selecting a color from list_of_colors:
+                try:
+                    
+                    COLOR = list_of_colors[i]
+                    # Go to the next element i, so that the next plot will use a different color:
+                    i = i + 1
+                
+                except IndexError:
+                    
+                    # This error will be raised if list index is out of range, 
+                    # i.e. if i >= len(list_of_colors) - we used all colors from the list (at least 148).
+                    # So, return the index to zero to restart the colors from the beginning:
+                    i = 0
+                    COLOR = list_of_colors[i]
+                    i = i + 1
+                
+                # Access the arrays and label from the dictionary:
+                X = dictionary['x']
+                Y = dictionary['y']
+                LABEL = dictionary['lab']
+                
+                # Scatter plot:
+                ax.plot(X, Y, linestyle = LINE_STYLE, marker = "o", color = COLOR, alpha = OPACITY, label = LABEL)
+                # Axes.plot documentation:
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+                
+                # x and y are positional arguments: they are specified by their position in function
+                # call, not by an argument name like 'marker'.
+                
+                # Matplotlib markers:
+                # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+                
+                if (show_linear_reg == True):
+                    
+                    # Plot the linear regression using the same color.
+                    # Access the array of fitted Y's in the dictionary:
+                    Y_PRED = dictionary['y_pred_lin_reg']
+                    Y_PRED_LABEL = 'lin_reg_' + str(LABEL) # for the case where label is numeric
+                    
+                    ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
+
+            # Now we finished plotting all of the series, we can set the general configuration:
+            
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+            
+            ax.set_title(plot_title)
+            ax.set_xlabel(horizontal_axis_title)
+            ax.set_ylabel(vertical_axis_title)
+
+            ax.grid(grid) # show grid or not
+            ax.legend(loc = 'upper left')
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
+
+            if (export_png == True):
+                # Image will be exported
+                import os
+
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
+
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "scatter_plot_lin_reg"
+
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
+
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            #fig.tight_layout()
+
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+            plt.show()
+        
+        if ControlVars.show_results:
+            if (show_linear_reg == True):
                 
                 try:
-                    display(dictionary['lin_reg_equation'])
-                    display(dictionary['r2_lin_reg'])
-
-                except: # regular mode                  
-                    print(dictionary['lin_reg_equation'])
-                    print(dictionary['r2_lin_reg'])
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                except:
+                    pass
                 
-                print("\n")
+                print("\nLinear regression summaries (equations and R²):\n")
+                
+                for dictionary in list_of_dictionaries_with_series_and_predictions:
+                    
+                    print(f"Linear regression summary for {dictionary['lab']}:\n")
+                    
+                    try:
+                        display(dictionary['lin_reg_equation'])
+                        display(dictionary['r2_lin_reg'])
+
+                    except: # regular mode                  
+                        print(dictionary['lin_reg_equation'])
+                        print(dictionary['r2_lin_reg'])
+                    
+                    print("\n")
         
         
         return list_of_dictionaries_with_series_and_predictions
@@ -4060,23 +4079,23 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                 
                 # start a list for the associated integer timescale. Put the number zero,
                 # associated to the first timestamp:
+                
                 int_timescale = [0]
-                
+                # calculate the timedelta between x[i] and x[i-1]:
+                # The delta method from the Timedelta class converts the timedelta to
+                # nanoseconds, guaranteeing the internal compatibility:
+                # The .delta attribute was replaced by .value attribute. 
+                # Both return the number of nanoseconds as an integer.
+                # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
+                timedeltas = [pd.Timedelta(x[i] - x[(i-1)]).value for i in range(1, len(x))]
+                    
                 # loop through each element of the array x, starting from index 1:
-                for i in range(1, len(x)):
+                for timedelta in timedeltas:
+                    # Concatenate the int_timescale with a list formed by the sum of the last element
+                    # with the new timedelta. Example: 0 is summed with the first timedelta, this new value
+                    # becomes the second and is summed to the next timedelta.
+                    int_timescale = int_timescale + [int_timescale[-1] + timedelta]
                     
-                    # calculate the timedelta between x[i] and x[i-1]:
-                    # The delta method from the Timedelta class converts the timedelta to
-                    # nanoseconds, guaranteeing the internal compatibility:
-                    # The .delta attribute was replaced by .value attribute. 
-                    # Both return the number of nanoseconds as an integer.
-                    # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-                    timedelta = pd.Timedelta(x[i] - x[(i-1)]).value
-                    
-                    # Sum this timedelta (integer number of nanoseconds) to the
-                    # previous element from int_timescale, and append the result to the list:
-                    int_timescale.append((timedelta + int_timescale[(i-1)]))
-                
                 # Now convert the new scale (that preserves the distance between timestamps)
                 # to NumPy array:
                 int_timescale = np.array(int_timescale)
@@ -4146,20 +4165,21 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                                                                                 'sequence_of_floats': int_timescale
                                                                                 }
             
-            print("Polynomial summary:\n")
-            print(f"Polynomial format = {full_polynomial_format}\n")
-            print("Polynomial coefficients:")
-            
-            for i in range(0, len(coeff_array)):
-                print(f"{str('a') + str(i)} = {coeff_array[i]}")
-            
-            print(f"Fitted polynomial = {dictionary['fitted_polynomial']}")
-            print("\n")
-            
-            if (x_is_datetime):
-                print(coeff_dict['warning'])
-                print(coeff_dict['numeric_to_datetime_correlation'])
+            if ControlVars.show_results:
+                print("Polynomial summary:\n")
+                print(f"Polynomial format = {full_polynomial_format}\n")
+                print("Polynomial coefficients:")
+                
+                for i in range(0, len(coeff_array)):
+                    print(f"{str('a') + str(i)} = {coeff_array[i]}")
+                
+                print(f"Fitted polynomial = {dictionary['fitted_polynomial']}")
                 print("\n")
+                
+                if (x_is_datetime):
+                    print(coeff_dict['warning'])
+                    print(coeff_dict['numeric_to_datetime_correlation'])
+                    print("\n")
             
             # Add it to the main dictionary:
             dictionary['fitted_polynomial_coefficients'] = coeff_dict
@@ -4236,177 +4256,178 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
         
         print("Returning a list of dictionaries. Each one contains the arrays of valid series and labels, as well as the regression statistics obtained.\n")
         
-        # Now we finished the loop, list_of_dictionaries_with_series_and_predictions 
-        # contains all series converted to NumPy arrays, with timestamps parsed as datetimes, 
-        # and all the information regarding the linear regression, including the predicted 
-        # values for plotting.
-        # This list will be the object returned at the end of the function. Since it is an
-        # JSON-formatted list, we can use the function json_obj_to_pandas_dataframe to convert
-        # it to a Pandas dataframe.
-        
-        # Now, we can plot the figure.
-        # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
-        # so that one series do not completely block the visualization of the other.
-        
-        # Let's retrieve the list of Matplotlib CSS colors:
-        css4 = mcolors.CSS4_COLORS
-        # css4 is a dictionary of colors: {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7', ...}
-        # Each key of this dictionary is a color name to be passed as argument color on the plot
-        # function. So let's retrieve the array of keys, and use the list attribute to convert this
-        # array to a list of colors:
-        list_of_colors = list(css4.keys())
-        
-        # In 11 May 2022, this list of colors had 148 different elements
-        # Since this list is in alphabetic order, let's create a random order for the colors.
-        
-        # Function random.sample(input_sequence, number_of_samples): 
-        # this function creates a list containing a total of elements equals to the parameter 
-        # "number_of_samples", which must be an integer.
-        # This list is obtained by ramdomly selecting a total of "number_of_samples" elements from the
-        # list "input_sequence" passed as parameter.
-        
-        # Function random.choices(input_sequence, k = number_of_samples):
-        # similarly, randomly select k elements from the sequence input_sequence. This function is
-        # newer than random.sample
-        # Since we want to simply randomly sort the sequence, we can pass k = len(input_sequence)
-        # to obtain the randomly sorted sequence:
-        list_of_colors = random.choices(list_of_colors, k = len(list_of_colors))
-        # Now, we have a random list of colors to use for plotting the charts
-        
-        if (add_splines_lines == True):
-            LINE_STYLE = '-'
-
-        else:
-            LINE_STYLE = ''
-        
-        # Matplotlib linestyle:
-        # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
-        
-        if (plot_title is None):
-            # Set graphic title
-            plot_title = f"Y_x_X"
-
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            horizontal_axis_title = "X"
-
-        if (vertical_axis_title is None):
-            # Set vertical axis title
-            vertical_axis_title = "Y"
-        
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
-        
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        fig = plt.figure(figsize = (12, 8))
-        ax = fig.add_subplot()
-
-        i = 0 # Restart counting for the loop of colors
-        
-        # Loop through each dictionary from list_of_dictionaries_with_series_and_predictions:
-        for dictionary in list_of_dictionaries_with_series_and_predictions:
+        if ControlVars.show_plots:
+            # Now we finished the loop, list_of_dictionaries_with_series_and_predictions 
+            # contains all series converted to NumPy arrays, with timestamps parsed as datetimes, 
+            # and all the information regarding the linear regression, including the predicted 
+            # values for plotting.
+            # This list will be the object returned at the end of the function. Since it is an
+            # JSON-formatted list, we can use the function json_obj_to_pandas_dataframe to convert
+            # it to a Pandas dataframe.
             
-            # Try selecting a color from list_of_colors:
-            try:
+            # Now, we can plot the figure.
+            # we set alpha = 0.95 (opacity) to give a degree of transparency (5%), 
+            # so that one series do not completely block the visualization of the other.
+            
+            # Let's retrieve the list of Matplotlib CSS colors:
+            css4 = mcolors.CSS4_COLORS
+            # css4 is a dictionary of colors: {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7', ...}
+            # Each key of this dictionary is a color name to be passed as argument color on the plot
+            # function. So let's retrieve the array of keys, and use the list attribute to convert this
+            # array to a list of colors:
+            list_of_colors = list(css4.keys())
+            
+            # In 11 May 2022, this list of colors had 148 different elements
+            # Since this list is in alphabetic order, let's create a random order for the colors.
+            
+            # Function random.sample(input_sequence, number_of_samples): 
+            # this function creates a list containing a total of elements equals to the parameter 
+            # "number_of_samples", which must be an integer.
+            # This list is obtained by ramdomly selecting a total of "number_of_samples" elements from the
+            # list "input_sequence" passed as parameter.
+            
+            # Function random.choices(input_sequence, k = number_of_samples):
+            # similarly, randomly select k elements from the sequence input_sequence. This function is
+            # newer than random.sample
+            # Since we want to simply randomly sort the sequence, we can pass k = len(input_sequence)
+            # to obtain the randomly sorted sequence:
+            list_of_colors = random.choices(list_of_colors, k = len(list_of_colors))
+            # Now, we have a random list of colors to use for plotting the charts
+            
+            if (add_splines_lines == True):
+                LINE_STYLE = '-'
+
+            else:
+                LINE_STYLE = ''
+            
+            # Matplotlib linestyle:
+            # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html?msclkid=68737f24d16011eca9e9c4b41313f1ad
+            
+            if (plot_title is None):
+                # Set graphic title
+                plot_title = f"Y_x_X"
+
+            if (horizontal_axis_title is None):
+                # Set horizontal axis title
+                horizontal_axis_title = "X"
+
+            if (vertical_axis_title is None):
+                # Set vertical axis title
+                vertical_axis_title = "Y"
+            
+            # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+            # so that the bars do not completely block other views.
+            OPACITY = 0.95
+            
+            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+            fig = plt.figure(figsize = (12, 8))
+            ax = fig.add_subplot()
+
+            i = 0 # Restart counting for the loop of colors
+            
+            # Loop through each dictionary from list_of_dictionaries_with_series_and_predictions:
+            for dictionary in list_of_dictionaries_with_series_and_predictions:
                 
-                COLOR = list_of_colors[i]
-                # Go to the next element i, so that the next plot will use a different color:
-                i = i + 1
-            
-            except IndexError:
+                # Try selecting a color from list_of_colors:
+                try:
+                    
+                    COLOR = list_of_colors[i]
+                    # Go to the next element i, so that the next plot will use a different color:
+                    i = i + 1
                 
-                # This error will be raised if list index is out of range, 
-                # i.e. if i >= len(list_of_colors) - we used all colors from the list (at least 148).
-                # So, return the index to zero to restart the colors from the beginning:
-                i = 0
-                COLOR = list_of_colors[i]
-                i = i + 1
-            
-            # Access the arrays and label from the dictionary:
-            X = dictionary['x']
-            Y = dictionary['y']
-            LABEL = dictionary['lab']
-            
-            # Scatter plot:
-            ax.plot(X, Y, linestyle = LINE_STYLE, marker = "o", color = COLOR, alpha = OPACITY, label = LABEL)
-            # Axes.plot documentation:
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
-            
-            # x and y are positional arguments: they are specified by their position in function
-            # call, not by an argument name like 'marker'.
-            
-            # Matplotlib markers:
-            # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
-            
-            if (show_polynomial_reg == True):
+                except IndexError:
+                    
+                    # This error will be raised if list index is out of range, 
+                    # i.e. if i >= len(list_of_colors) - we used all colors from the list (at least 148).
+                    # So, return the index to zero to restart the colors from the beginning:
+                    i = 0
+                    COLOR = list_of_colors[i]
+                    i = i + 1
                 
-                # Plot the linear regression using the same color.
-                # Access the array of fitted Y's in the dictionary:
-                Y_PRED = dictionary['fitted_polynomial_series']
-                Y_PRED_LABEL = 'fitted_pol_' + str(LABEL) # for the case where label is numeric
+                # Access the arrays and label from the dictionary:
+                X = dictionary['x']
+                Y = dictionary['y']
+                LABEL = dictionary['lab']
                 
-                ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
+                # Scatter plot:
+                ax.plot(X, Y, linestyle = LINE_STYLE, marker = "o", color = COLOR, alpha = OPACITY, label = LABEL)
+                # Axes.plot documentation:
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html?msclkid=42bc92c1d13511eca8634a2c93ab89b5
+                
+                # x and y are positional arguments: they are specified by their position in function
+                # call, not by an argument name like 'marker'.
+                
+                # Matplotlib markers:
+                # https://matplotlib.org/stable/api/markers_api.html?msclkid=36c5eec5d16011ec9583a5777dc39d1f
+                
+                if (show_polynomial_reg == True):
+                    
+                    # Plot the linear regression using the same color.
+                    # Access the array of fitted Y's in the dictionary:
+                    Y_PRED = dictionary['fitted_polynomial_series']
+                    Y_PRED_LABEL = 'fitted_pol_' + str(LABEL) # for the case where label is numeric
+                    
+                    ax.plot(X, Y_PRED,  linestyle = '-', marker = '', color = COLOR, alpha = OPACITY, label = Y_PRED_LABEL)
 
-        # Now we finished plotting all of the series, we can set the general configuration:
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-        
-        ax.set_title(plot_title)
-        ax.set_xlabel(horizontal_axis_title)
-        ax.set_ylabel(vertical_axis_title)
+            # Now we finished plotting all of the series, we can set the general configuration:
+            
+            #ROTATE X AXIS IN XX DEGREES
+            plt.xticks(rotation = x_axis_rotation)
+            # XX = 0 DEGREES x_axis (Default)
+            #ROTATE Y AXIS IN XX DEGREES:
+            plt.yticks(rotation = y_axis_rotation)
+            # XX = 0 DEGREES y_axis (Default)
+            
+            ax.set_title(plot_title)
+            ax.set_xlabel(horizontal_axis_title)
+            ax.set_ylabel(vertical_axis_title)
 
-        ax.grid(grid) # show grid or not
-        ax.legend(loc = 'upper left')
-        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-        # https://www.statology.org/matplotlib-legend-position/
+            ax.grid(grid) # show grid or not
+            ax.legend(loc = 'upper left')
+            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+            # https://www.statology.org/matplotlib-legend-position/
 
-        if (export_png == True):
-            # Image will be exported
-            import os
+            if (export_png == True):
+                # Image will be exported
+                import os
 
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
+                #check if the user defined a directory path. If not, set as the default root path:
+                if (directory_to_save is None):
+                    #set as the default
+                    directory_to_save = ""
 
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "polynomial_fitting"
+                #check if the user defined a file name. If not, set as the default name for this
+                # function.
+                if (file_name is None):
+                    #set as the default
+                    file_name = "polynomial_fitting"
 
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
+                #check if the user defined an image resolution. If not, set as the default 110 dpi
+                # resolution.
+                if (png_resolution_dpi is None):
+                    #set as 330 dpi
+                    png_resolution_dpi = 330
 
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        #fig.tight_layout()
+                #Get the new_file_path
+                new_file_path = os.path.join(directory_to_save, file_name)
+                new_file_path = new_file_path + ".png"
+                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                #Export the file to this new path:
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+            
+            #fig.tight_layout()
 
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        plt.show()
+            ## Show an image read from an image file:
+            ## import matplotlib.image as pltimg
+            ## img=pltimg.imread('mydecisiontree.png')
+            ## imgplot = plt.imshow(img)
+            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+            ##  '03_05_END.ipynb'
+            plt.show()
         
         return list_of_dictionaries_with_series_and_predictions
 
@@ -4481,7 +4502,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
     # https://docs.python.org/3/library/random.html?msclkid=9d0c34b2d13111ec9cfa8ddaee9f61a1
     import matplotlib.colors as mcolors
     
-
+    """This function is only called to plot, so ControlVars cannot interfere here."""
     # List the possible numeric data types for a Pandas dataframe column:
     numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
@@ -4897,127 +4918,128 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
     fitted_normal = specification_limits['fitted_normal']
     actual_pdf = specification_limits['actual_pdf']
     
-    string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
-    
-    if not (plot_title is None):
-        plot_title = plot_title + string_for_title
-        # %.2f: the number between . and f indicates the number of printed decimal cases
-        # the notation $\ - Latex code for printing formatted equations and symbols.
-    
-    else:
-        # Set graphic title
-        plot_title = f"histogram_of_{column_to_analyze}" + string_for_title
-
-    if (horizontal_axis_title is None):
-        # Set horizontal axis title
-        horizontal_axis_title = column_to_analyze
-
-    if (vertical_axis_title is None):
-        # Set vertical axis title
-        vertical_axis_title = "Counting/Frequency"
+    if ControlVars.show_plots:
+        string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
         
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    y_hist = DATASET[column_to_analyze]
-    
-    # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    fig = plt.figure(figsize = (12, 8))
-    ax = fig.add_subplot()
-    
-    #STANDARD MATPLOTLIB METHOD:
-    #bins = number of bins (intervals) of the histogram. Adjust it manually
-    #increasing bins will increase the histogram's resolution, but height of bars
-    
-    ax.hist(y_hist, bins = total_of_bins, alpha = OPACITY, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
-    #ax.hist(y, bins=20, width = bar_width, label=xlabel, color='blue')
-    #IF GRAPHIC IS NOT SHOWN: THAT IS BECAUSE THE DISTANCES BETWEEN VALUES ARE LOW, AND YOU WILL
-    #HAVE TO USE THE STANDARD HISTOGRAM METHOD FROM MATPLOTLIB.
-    #TO DO THAT, UNMARK LINE ABOVE: ax.hist(y, bins=20, width = bar_width, label=xlabel, color='blue')
-    #AND MARK LINE BELOW AS COMMENT: ax.bar(xhist, yhist, width = bar_width, label=xlabel, color='blue')
-    
-    #IF YOU WANT TO CREATE GRAPHIC AS A BAR CHART BASED ON THE CALCULATED DISTRIBUTION TABLE, 
-    #MARK THE LINE ABOVE AS COMMENT AND UNMARK LINE BELOW:
-    #ax.bar(x_hist, y_hist, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
-    #ajuste manualmente a largura, width, para deixar as barras mais ou menos proximas
-    
-    # Plot the probability density function for the data:
-    pdf_x = actual_pdf['x']
-    pdf_y = actual_pdf['y']
-    
-    ax.plot(pdf_x, pdf_y, color = 'darkgreen', linestyle = '-', alpha = OPACITY, label = 'probability\ndensity')
-    
-    if (normal_curve_overlay == True):
+        if not (plot_title is None):
+            plot_title = plot_title + string_for_title
+            # %.2f: the number between . and f indicates the number of printed decimal cases
+            # the notation $\ - Latex code for printing formatted equations and symbols.
         
-        # Check if a normal curve was obtained:
-        x_of_normal = fitted_normal['x']
-        y_normal = fitted_normal['y']
+        else:
+            # Set graphic title
+            plot_title = f"histogram_of_{column_to_analyze}" + string_for_title
 
-        if (len(x_of_normal) > 0):
-            # Non-empty list, add the normal curve:
-            ax.plot(x_of_normal, y_normal, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'expected\nnormal_curve')
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = column_to_analyze
 
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "Counting/Frequency"
+            
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
+        
+        y_hist = DATASET[column_to_analyze]
+        
+        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        #STANDARD MATPLOTLIB METHOD:
+        #bins = number of bins (intervals) of the histogram. Adjust it manually
+        #increasing bins will increase the histogram's resolution, but height of bars
+        
+        ax.hist(y_hist, bins = total_of_bins, alpha = OPACITY, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
+        #ax.hist(y, bins=20, width = bar_width, label=xlabel, color='blue')
+        #IF GRAPHIC IS NOT SHOWN: THAT IS BECAUSE THE DISTANCES BETWEEN VALUES ARE LOW, AND YOU WILL
+        #HAVE TO USE THE STANDARD HISTOGRAM METHOD FROM MATPLOTLIB.
+        #TO DO THAT, UNMARK LINE ABOVE: ax.hist(y, bins=20, width = bar_width, label=xlabel, color='blue')
+        #AND MARK LINE BELOW AS COMMENT: ax.bar(xhist, yhist, width = bar_width, label=xlabel, color='blue')
+        
+        #IF YOU WANT TO CREATE GRAPHIC AS A BAR CHART BASED ON THE CALCULATED DISTRIBUTION TABLE, 
+        #MARK THE LINE ABOVE AS COMMENT AND UNMARK LINE BELOW:
+        #ax.bar(x_hist, y_hist, label = f'counting_of\n{column_to_analyze}', color = 'darkblue')
+        #ajuste manualmente a largura, width, para deixar as barras mais ou menos proximas
+        
+        # Plot the probability density function for the data:
+        pdf_x = actual_pdf['x']
+        pdf_y = actual_pdf['y']
+        
+        ax.plot(pdf_x, pdf_y, color = 'darkgreen', linestyle = '-', alpha = OPACITY, label = 'probability\ndensity')
+        
+        if (normal_curve_overlay == True):
+            
+            # Check if a normal curve was obtained:
+            x_of_normal = fitted_normal['x']
+            y_normal = fitted_normal['y']
 
-    ax.set_title(plot_title)
-    ax.set_xlabel(horizontal_axis_title)
-    ax.set_ylabel(vertical_axis_title)
+            if (len(x_of_normal) > 0):
+                # Non-empty list, add the normal curve:
+                ax.plot(x_of_normal, y_normal, color = 'crimson', linestyle = 'dashed', alpha = OPACITY, label = 'expected\nnormal_curve')
 
-    ax.grid(grid) # show grid or not
-    ax.legend(loc = 'upper right')
-    # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-    # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-    # https://www.statology.org/matplotlib-legend-position/
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
 
-    if (export_png == True):
-        # Image will be exported
-        import os
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+        ax.grid(grid) # show grid or not
+        ax.legend(loc = 'upper right')
+        # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
+        # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
+        # https://www.statology.org/matplotlib-legend-position/
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "histogram"
+        if (export_png == True):
+            # Image will be exported
+            import os
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    #plt.figure(figsize = (12, 8))
-    #fig.tight_layout()
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "histogram"
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-    
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+        
     stats_dict = {
                 'statistics': ['mean', 'median', 'standard_deviation', f'lowest_{column_to_analyze}', 
                                 f'highest_{column_to_analyze}', 'count_of_values', 'number_of_bins', 
@@ -5040,25 +5062,26 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
     # None is returned from the method):
     general_stats.set_index(['statistics'], inplace = True)
     
-    print("Check the general statistics from the analyzed variable:\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(general_stats)
-            
-    except: # regular mode
-        print(general_stats)
-    
-    print("\n")
-    print("Check the frequency table:\n")
-    
-    freq_table = histogram_dict['df']
-    
-    try:    
-        display(freq_table)    
-    except:
-        print(freq_table)
+    if ControlVars.show_results:
+        print("Check the general statistics from the analyzed variable:\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(general_stats)
+                
+        except: # regular mode
+            print(general_stats)
+        
+        print("\n")
+        print("Check the frequency table:\n")
+        
+        freq_table = histogram_dict['df']
+        
+        try:    
+            display(freq_table)    
+        except:
+            print(freq_table)
 
     return general_stats, freq_table
 
@@ -5164,82 +5187,84 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
         # Finally, append the series dictionary to the support list:
         support_list.append(series_dict)
         
-        if ((total_elements_to_test >= 20) & (show_probability_plot == True)):
-            
-            y = series_dict['series']
-        
-            print("\n")
-            #Obtain the probability plot  
-            fig, ax = plt.subplots(figsize = (12, 8))
-
-            ax.set_title(f"probability_plot_of_{series_id}_for_normal_distribution")
-            
-            plot_results = stats.probplot(y, dist = 'norm', fit = True, plot = ax)
-            #This function resturns a tuple, so we must store it into res
-            
-            ax.grid(grid)
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = x_axis_rotation)
-            # XX = 70 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = y_axis_rotation)
-            # XX = 0 DEGREES y_axis (Default)   
-            
-            # Other distributions to check, see scipy Stats documentation. 
-            # you could test dist=stats.loggamma, where stats was imported from scipy
-            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
-
-            if (export_png == True):
-                # Image will be exported
-                import os
-
-                #check if the user defined a directory path. If not, set as the default root path:
-                if (directory_to_save is None):
-                    #set as the default
-                    directory_to_save = ""
-
-                #check if the user defined a file name. If not, set as the default name for this
-                # function.
-                if (file_name is None):
-                    #set as the default
-                    file_name = "probability_plot_normal"
-
-                #check if the user defined an image resolution. If not, set as the default 110 dpi
-                # resolution.
-                if (png_resolution_dpi is None):
-                    #set as 330 dpi
-                    png_resolution_dpi = 330
-
-                #Get the new_file_path
-                new_file_path = os.path.join(directory_to_save, file_name)
-                new_file_path = new_file_path + ".png"
-                # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                #Export the file to this new path:
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-            
-            #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-            #plt.figure(figsize = (12, 8))
-            #fig.tight_layout()
-            ## Show an image read from an image file:
-            ## import matplotlib.image as pltimg
-            ## img=pltimg.imread('mydecisiontree.png')
-            ## imgplot = plt.imshow(img)
-            ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-            ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-            ##  '03_05_END.ipynb'
-            plt.show()
+        if ControlVars.show_plots:
+            if ((total_elements_to_test >= 20) & (show_probability_plot == True)):
                 
-            print("\n")
+                y = series_dict['series']
+            
+                print("\n")
+                #Obtain the probability plot  
+                fig, ax = plt.subplots(figsize = (12, 8))
+
+                ax.set_title(f"probability_plot_of_{series_id}_for_normal_distribution")
+                
+                plot_results = stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+                #This function resturns a tuple, so we must store it into res
+                
+                ax.grid(grid)
+                #ROTATE X AXIS IN XX DEGREES
+                plt.xticks(rotation = x_axis_rotation)
+                # XX = 70 DEGREES x_axis (Default)
+                #ROTATE Y AXIS IN XX DEGREES:
+                plt.yticks(rotation = y_axis_rotation)
+                # XX = 0 DEGREES y_axis (Default)   
+                
+                # Other distributions to check, see scipy Stats documentation. 
+                # you could test dist=stats.loggamma, where stats was imported from scipy
+                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
+
+                if (export_png == True):
+                    # Image will be exported
+                    import os
+
+                    #check if the user defined a directory path. If not, set as the default root path:
+                    if (directory_to_save is None):
+                        #set as the default
+                        directory_to_save = ""
+
+                    #check if the user defined a file name. If not, set as the default name for this
+                    # function.
+                    if (file_name is None):
+                        #set as the default
+                        file_name = "probability_plot_normal"
+
+                    #check if the user defined an image resolution. If not, set as the default 110 dpi
+                    # resolution.
+                    if (png_resolution_dpi is None):
+                        #set as 330 dpi
+                        png_resolution_dpi = 330
+
+                    #Get the new_file_path
+                    new_file_path = os.path.join(directory_to_save, file_name)
+                    new_file_path = new_file_path + ".png"
+                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+                    #Export the file to this new path:
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+                
+                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+                #plt.figure(figsize = (12, 8))
+                #fig.tight_layout()
+                ## Show an image read from an image file:
+                ## import matplotlib.image as pltimg
+                ## img=pltimg.imread('mydecisiontree.png')
+                ## imgplot = plt.imshow(img)
+                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+                ##  '03_05_END.ipynb'
+                plt.show()
+                    
+                print("\n")
             
     # Now we left the for loop, make the list of dicts support list itself:
     list_of_dicts = support_list
     
-    print("\n")
-    print("Finished normality tests. Returning a list of dictionaries, where each dictionary contains the series analyzed and the p-values obtained.\n")
-    print("Now, check general statistics of the data distribution:\n")
-    
+    if ControlVars.show_results:
+        print("\n")
+        print("Finished normality tests. Returning a list of dictionaries, where each dictionary contains the series analyzed and the p-values obtained.\n")
+        print("Now, check general statistics of the data distribution:\n")
+        
     # Now, let's obtain general statistics for all of the series, even those without the normality
     # test results.
     
@@ -5272,31 +5297,33 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
         # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
         # else Pearson’s definition is used (normal 3.0) if set to False.
         # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
-        print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
-        print("For the data analyzed:\n")
-        print(f"skewness = {data_skew}")
-        print(f"kurtosis = {data_kurtosis}\n")
+        
+        if ControlVars.show_results:
+            print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
+            print("For the data analyzed:\n")
+            print(f"skewness = {data_skew}")
+            print(f"kurtosis = {data_kurtosis}\n")
 
-        if (data_skew < 0):
+            if (data_skew < 0):
 
-            print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
+                print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
 
-        elif (data_skew > 0):
+            elif (data_skew > 0):
 
-            print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
+                print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
 
-        else:
+            else:
 
-            print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
-                
+                print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
+                    
 
-        if (data_kurtosis == 0):
+            if (data_kurtosis == 0):
 
-            print("Data kurtosis = 0. No long-tail effects detected.\n")
+                print("Data kurtosis = 0. No long-tail effects detected.\n")
 
-        else:
+            else:
 
-            print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
+                print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
 
         #Calculate the mode of the distribution:
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
@@ -5497,31 +5524,33 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
             # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
             # else Pearson’s definition is used (normal 3.0) if set to False.
             # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
-            print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
-            print("For the data analyzed:\n")
-            print(f"skewness = {data_skew}")
-            print(f"kurtosis = {data_kurtosis}\n")
+            
+            if ControlVars.show_results:
+                print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
+                print("For the data analyzed:\n")
+                print(f"skewness = {data_skew}")
+                print(f"kurtosis = {data_kurtosis}\n")
 
-            if (data_skew < 0):
+                if (data_skew < 0):
 
-                print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
+                    print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
 
-            elif (data_skew > 0):
+                elif (data_skew > 0):
 
-                print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
+                    print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
 
-            else:
+                else:
 
-                print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
-                
+                    print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
+                    
 
-            if (data_kurtosis == 0):
+                if (data_kurtosis == 0):
 
-                print("Data kurtosis = 0. No long-tail effects detected.\n")
+                    print("Data kurtosis = 0. No long-tail effects detected.\n")
 
-            else:
+                else:
 
-                print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
+                    print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
 
             #Calculate the mode of the distribution:
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
@@ -5546,14 +5575,15 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
 
             anderson_darling_statistic = diagnostic.anderson_statistic(y, dist = (callable_statistical_distributions_dict[statistical_distribution_to_test]), fit = True)
             
-            print(f"Anderson-Darling statistic for the distribution {statistical_distribution_to_test} = {anderson_darling_statistic}\n")
-            print("The Anderson–Darling test assesses whether a sample comes from a specified distribution.")
-            print("It makes use of the fact that, when given a hypothesized underlying distribution and assuming the data does arise from this distribution, the cumulative distribution function (CDF) of the data can be assumed to follow a uniform distribution.")
-            print("Then, data can be tested for uniformity using an appropriate distance test (Shapiro 1980).\n")
-            # source: https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
+            if ControlVars.show_results:
+                print(f"Anderson-Darling statistic for the distribution {statistical_distribution_to_test} = {anderson_darling_statistic}\n")
+                print("The Anderson–Darling test assesses whether a sample comes from a specified distribution.")
+                print("It makes use of the fact that, when given a hypothesized underlying distribution and assuming the data does arise from this distribution, the cumulative distribution function (CDF) of the data can be assumed to follow a uniform distribution.")
+                print("Then, data can be tested for uniformity using an appropriate distance test (Shapiro 1980).\n")
+                # source: https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
 
-            # Fit the distribution and get its parameters
-            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_continuous.fit.html
+                # Fit the distribution and get its parameters
+                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_continuous.fit.html
 
             if(statistical_distribution_to_test == 'alpha'):
                 distribution_parameters = stats.alpha.fit(y)
@@ -5737,22 +5767,23 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
 
             # distribution_parameters: Estimates for any shape parameters (if applicable), 
             # followed by those for location and scale.
-            print(f"Distribution shape parameters calculated for {statistical_distribution_to_test} = {distribution_parameters}\n")
-            
-            print("ATTENTION:\n")
-            print("The critical values for the Anderson-Darling test are dependent on the specific distribution that is being tested.")
-            print("Tabulated values and formulas have been published (Stephens, 1974, 1976, 1977, 1979) for a few specific distributions: normal, lognormal, exponential, Weibull, logistic, extreme value type 1.")
-            print("The test consists on an one-sided test of the hypothesis that the distribution is of a specific form.")
-            print("The hypothesis is rejected if the test statistic, A, is greater than the critical value for that particular distribution.")
-            print("Note that, for a given distribution, the Anderson-Darling statistic may be multiplied by a constant which usually depends on the sample size, n).")
-            print("These constants are given in the various papers by Stephens, and may be simply referred as the \'adjusted Anderson-Darling statistic\'.")
-            print("This adjusted statistic is what should be compared against the critical values.")
-            print("Also, be aware that different constants (and therefore critical values) have been published.")
-            print("Therefore, you just need to be aware of what constant was used for a given set of critical values (the needed constant is typically given with the correspondent critical values).")
-            print("To learn more about the Anderson-Darling statistics and the check the full references of Stephens, go to the webpage from the National Institute of Standards and Technology (NIST):\n")
-            print("https://itl.nist.gov/div898/handbook/eda/section3/eda3e.htm")
-            print("\n")
-            
+            if ControlVars.show_results:
+                print(f"Distribution shape parameters calculated for {statistical_distribution_to_test} = {distribution_parameters}\n")
+                
+                print("ATTENTION:\n")
+                print("The critical values for the Anderson-Darling test are dependent on the specific distribution that is being tested.")
+                print("Tabulated values and formulas have been published (Stephens, 1974, 1976, 1977, 1979) for a few specific distributions: normal, lognormal, exponential, Weibull, logistic, extreme value type 1.")
+                print("The test consists on an one-sided test of the hypothesis that the distribution is of a specific form.")
+                print("The hypothesis is rejected if the test statistic, A, is greater than the critical value for that particular distribution.")
+                print("Note that, for a given distribution, the Anderson-Darling statistic may be multiplied by a constant which usually depends on the sample size, n).")
+                print("These constants are given in the various papers by Stephens, and may be simply referred as the \'adjusted Anderson-Darling statistic\'.")
+                print("This adjusted statistic is what should be compared against the critical values.")
+                print("Also, be aware that different constants (and therefore critical values) have been published.")
+                print("Therefore, you just need to be aware of what constant was used for a given set of critical values (the needed constant is typically given with the correspondent critical values).")
+                print("To learn more about the Anderson-Darling statistics and the check the full references of Stephens, go to the webpage from the National Institute of Standards and Technology (NIST):\n")
+                print("https://itl.nist.gov/div898/handbook/eda/section3/eda3e.htm")
+                print("\n")
+                
             #Create general statistics dictionary:
             general_statistics_dict = {
 
@@ -5776,22 +5807,23 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
     # Now we left the for loop, make the list of dicts support list itself:
     list_of_dicts = support_list
     
-    print("General statistics successfully returned in the list \'list_of_dicts\'.\n")
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(list_of_dicts)
-            
-    except: # regular mode
-        print(list_of_dicts)
-    
-    print("\n")
-    
-    print("Note: the obtention of the probability plot specific for each distribution requires shape parameters.")
-    print("Check Scipy documentation for additional information:")
-    print("https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html")
-    
+    if ControlVars.show_results:
+        print("General statistics successfully returned in the list \'list_of_dicts\'.\n")
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(list_of_dicts)
+                
+        except: # regular mode
+            print(list_of_dicts)
+        
+        print("\n")
+        
+        print("Note: the obtention of the probability plot specific for each distribution requires shape parameters.")
+        print("Check Scipy documentation for additional information:")
+        print("https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html")
+        
     return list_of_dicts
 
 
@@ -5876,134 +5908,136 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
 
     f_per_year = f_per_dataset/years_per_dataset
     
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    if (plot_title is None):
-        # Set graphic title
-        plot_title = "obtained_frequencies"
-
-    if (horizontal_axis_title is None):
-        # Set horizontal axis title
-        horizontal_axis_title = "frequency_log_scale"
-
-    if (vertical_axis_title is None):
-        # Set vertical axis title
-        vertical_axis_title = "abs(fft)"
-    
-    # fft is a complex tensor. Let's pick the absolute value of each complex:
-    abs_fft = np.abs(fft)
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    fig = plt.figure(figsize = (12, 8))
-    ax = fig.add_subplot()
-    
-    ax.step(f_per_year, abs_fft, color = 'crimson', linestyle = '-', alpha = OPACITY)
-    
-    # Set limits of the axes:
-    # Y from 0 to a value 1% higher than the maximum
-    # X from 0.1, close to zero, to the maximum. Zero cannot be present in log scale
-    
-    plt.xlim([0.1, max(plt.xlim())])
-    
-    plt.xscale('log')
-    plt.xticks(xtick_list, labels = labels_list)
+    if ControlVars.show_plots:
+        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
+        # so that the bars do not completely block other views.
+        OPACITY = 0.95
         
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
+        if (plot_title is None):
+            # Set graphic title
+            plot_title = "obtained_frequencies"
 
-    ax.set_title(plot_title)
-    ax.set_xlabel(horizontal_axis_title)
-    ax.set_ylabel(vertical_axis_title)
+        if (horizontal_axis_title is None):
+            # Set horizontal axis title
+            horizontal_axis_title = "frequency_log_scale"
 
-    ax.grid(grid) # show grid or not
-    
-    if (export_png == True):
-        # Image will be exported
-        import os
-
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
-
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "fast_fourier_transform"
-
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
-
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-    #plt.figure(figsize = (12, 8))
-    #fig.tight_layout()
-
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-
-    print("\n")
-    explanaining = f"""The returned frequencies are always in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.
+        if (vertical_axis_title is None):
+            # Set vertical axis title
+            vertical_axis_title = "abs(fft)"
         
-    Plot starts in 0 counts per year; goes from 0.1 to 1 per year (log scale); and grows to 365.2524 = 1 count per day; to the limit defined.
-                    
-    Thus, to when reading the results, one can simply pick the frequency and use as given, considering that the unit is (year)**-1.
+        # fft is a complex tensor. Let's pick the absolute value of each complex:
+        abs_fft = np.abs(fft)
         
-    Instead, the following rules can be applied:
-
-    - 1/year = 1 count per year
-
-    - 365.2524/year = 365.2524 counts per year = 1/day = 1 count per day
-
-    - ({24 * 365.2524:.4f})/year = (24 * 365.2524) counts per year = 24 counts/day = 1/h = 1 count per hour.
-
-    - ({60 * 24 * 365.2524:.4f})/year = (60 * 24 * 365.2524) counts per year = 60*24 counts/day = 60 counts/hour = 1/min = 1 count per minute.
-
-    - ({60 * 60 * 24 * 365.2524:.4f})/year = (60 * 60 * 24 * 365.2524) counts per year = ... =  1/min = 60 counts per min = 1/s = 1 count per second.
-                    
-    - ({(60 * 60 * 24 * 365.2524 * (10**3)):e})/year = (60 * 60 * 24 * 365.2524 * (10**3)) counts per year = ... = 10**3 counts per second = 1/ms = 1 count per millisecond.
-
-    - ({(60 * 60 * 24 * 365.2524 * (10**9)):e})/year = (60 * 60 * 24 * 365.2524 * (10**9)) counts per year = ... = 10**9 counts per second = 1/ns = 1 count per nanosecond.
-                    
-    """
-    print(explanaining)
-
-    returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
-    
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(returned_df)
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        fig = plt.figure(figsize = (12, 8))
+        ax = fig.add_subplot()
+        
+        ax.step(f_per_year, abs_fft, color = 'crimson', linestyle = '-', alpha = OPACITY)
+        
+        # Set limits of the axes:
+        # Y from 0 to a value 1% higher than the maximum
+        # X from 0.1, close to zero, to the maximum. Zero cannot be present in log scale
+        
+        plt.xlim([0.1, max(plt.xlim())])
+        
+        plt.xscale('log')
+        plt.xticks(xtick_list, labels = labels_list)
             
-    except: # regular mode
-        print(returned_df)
+        #ROTATE X AXIS IN XX DEGREES
+        plt.xticks(rotation = x_axis_rotation)
+        # XX = 0 DEGREES x_axis (Default)
+        #ROTATE Y AXIS IN XX DEGREES:
+        plt.yticks(rotation = y_axis_rotation)
+        # XX = 0 DEGREES y_axis (Default)
 
-    print("\n")
-    # conversion_rule =  zip([(60 * 60 * 24 * 365.2524 * (10**3)), (60 * 60 * 24 * 365.2524 * (10**9))], ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms', '1/ns'])
+        ax.set_title(plot_title)
+        ax.set_xlabel(horizontal_axis_title)
+        ax.set_ylabel(vertical_axis_title)
+
+        ax.grid(grid) # show grid or not
+        
+        if (export_png == True):
+            # Image will be exported
+            import os
+
+            #check if the user defined a directory path. If not, set as the default root path:
+            if (directory_to_save is None):
+                #set as the default
+                directory_to_save = ""
+
+            #check if the user defined a file name. If not, set as the default name for this
+            # function.
+            if (file_name is None):
+                #set as the default
+                file_name = "fast_fourier_transform"
+
+            #check if the user defined an image resolution. If not, set as the default 110 dpi
+            # resolution.
+            if (png_resolution_dpi is None):
+                #set as 330 dpi
+                png_resolution_dpi = 330
+
+            #Get the new_file_path
+            new_file_path = os.path.join(directory_to_save, file_name)
+            new_file_path = new_file_path + ".png"
+            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
+            #Export the file to this new path:
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
+            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
+            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
+        
+        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
+        #plt.figure(figsize = (12, 8))
+        #fig.tight_layout()
+
+        ## Show an image read from an image file:
+        ## import matplotlib.image as pltimg
+        ## img=pltimg.imread('mydecisiontree.png')
+        ## imgplot = plt.imshow(img)
+        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
+        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
+        ##  '03_05_END.ipynb'
+        plt.show()
+
+    if ControlVars.show_results:
+        print("\n")
+        explanaining = f"""The returned frequencies are always in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.
+            
+        Plot starts in 0 counts per year; goes from 0.1 to 1 per year (log scale); and grows to 365.2524 = 1 count per day; to the limit defined.
+                        
+        Thus, to when reading the results, one can simply pick the frequency and use as given, considering that the unit is (year)**-1.
+            
+        Instead, the following rules can be applied:
+
+        - 1/year = 1 count per year
+
+        - 365.2524/year = 365.2524 counts per year = 1/day = 1 count per day
+
+        - ({24 * 365.2524:.4f})/year = (24 * 365.2524) counts per year = 24 counts/day = 1/h = 1 count per hour.
+
+        - ({60 * 24 * 365.2524:.4f})/year = (60 * 24 * 365.2524) counts per year = 60*24 counts/day = 60 counts/hour = 1/min = 1 count per minute.
+
+        - ({60 * 60 * 24 * 365.2524:.4f})/year = (60 * 60 * 24 * 365.2524) counts per year = ... =  1/min = 60 counts per min = 1/s = 1 count per second.
+                        
+        - ({(60 * 60 * 24 * 365.2524 * (10**3)):e})/year = (60 * 60 * 24 * 365.2524 * (10**3)) counts per year = ... = 10**3 counts per second = 1/ms = 1 count per millisecond.
+
+        - ({(60 * 60 * 24 * 365.2524 * (10**9)):e})/year = (60 * 60 * 24 * 365.2524 * (10**9)) counts per year = ... = 10**9 counts per second = 1/ns = 1 count per nanosecond.
+                        
+        """
+        print(explanaining)
+
+        returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
+        
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(returned_df)
+                
+        except: # regular mode
+            print(returned_df)
+
+        print("\n")
+        # conversion_rule =  zip([(60 * 60 * 24 * 365.2524 * (10**3)), (60 * 60 * 24 * 365.2524 * (10**9))], ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms', '1/ns'])
 
     # Return fft and the dataframe:
     return fft, returned_df
