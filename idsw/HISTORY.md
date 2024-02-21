@@ -42,3 +42,12 @@
 ### Fixed
 - Export of figures generated a message like with '{new_file_path}.png.png'. Fixed to '{new_file_path}.png'.
 
+## 1.3.0
+### Added
+- New functionalities added.
+
+### Reshape of project design.
+- New division of functions and classes and correspondent modules.
+- Refactoring of functions and classes to improve code efficiency.
+- Added new pipelines for fetching data and modified the storage of connectors.
+- Added ControlVars dataclass to store if the user wants to hide results and plots.

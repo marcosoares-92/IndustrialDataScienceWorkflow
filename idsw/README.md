@@ -51,3 +51,74 @@ for importing all idsw functions without the alias idsw; or:
 	import idsw
 
 to import the package with the alias idsw.
+
+### Alternatively, if you do not want to clone the repository, you may download the file `load.py` and copy it to the working directory.
+1. After downloading load.py and copying it to the working directory, in your Python environment, run:
+	
+	import load
+
+2. After conclusion of this step, you may import the package as:
+
+	from idsw import *
+
+or as:
+	
+	import idsw
+
+#### The `load.py` file runs the following code, which may be copied to your Python environment and run:
+
+	class LoadIDSW:
+
+	  def __init__(self, timeout = 60):  
+	    self.cmd_line1 = """git clone https://github.com/marcosoares-92/IndustrialDataScienceWorkflow IndustrialDataScienceWorkflow"""
+	    self.msg1 = "Cloning IndustrialDataScienceWorkflow to working directory."
+	    self.cmd_line2 = """mv IndustrialDataScienceWorkflow/idsw ."""
+	    self.msg2 = "Subdirectory 'idsw' moved to root directory. Now it can be directly imported."
+	    self.timeout = timeout
+
+  	  def set_process (self, cmd_line):
+	    from subprocess import Popen, PIPE, TimeoutExpired
+	    proc = Popen(cmd_line.split(" "), stdout = PIPE, stderr = PIPE)
+	    return proc
+
+	  def run_process (self, proc, msg = ''):
+	    try:
+	        output, error = proc.communicate(timeout = self.timeout)
+	        if len(msg > 0):
+	          print (msg)
+	    except:
+	        output, error = proc.communicate()       
+	    return output, error
+
+	  def clone_repo(self):
+	    self.proc1 = self.set_process (self.cmd_line1)
+	    self.output1, self.error1 = self.run_process(self.proc1, self.msg1)
+	    return self
+
+	  def move_pkg(self):
+	    self.proc2 = self.set_process (self.cmd_line2)
+	    self.output2, self.error2 = self.run_process(self.proc2, self.msg2)
+	    return self
+
+	  def move_pkg_alternative(self):
+	    import shutil
+	    source = 'IndustrialDataScienceWorkflow/idsw'  
+	    destination = '.'
+	    dest = shutil.move(source, destination)    
+	    return self
+
+	loader = LoadIDSW(timeout = 60)
+	loader = loader.clone_repo()
+	loader = loader.move_pkg()
+
+	try:
+	  from idsw import *
+	except ModuleNotFoundError:
+	  loader = loader.move_pkg_alternative()
+
+	msg = """Package copied to the working directory.
+		To import its whole content, run:
+		
+		    from idsw import *
+		"""
+	print(msg)
