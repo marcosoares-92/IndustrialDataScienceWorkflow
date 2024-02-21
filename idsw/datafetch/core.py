@@ -35,18 +35,8 @@ class Connectors:
   # While persistent = True, the system will try to use the same connector already created.
   # User must change this variable state to create new connectors.
   persistent = True
-  # Google Drive Connector
-  google_drive_connector = None
-  # AWS S3 Connector
-  aws_s3_connector = None
-  #SQLite Connector
-  sqlite_connector = None
-  # IP21 Connector
-  ip21_connector = None
-  # GCP Connector
-  gcp_connector = None
-  # SQLServer connector:
-  sqlserver_connector = None
+  
+  # This class will also store the connectors, once they are created.
 
 
 class MountGoogleDrive:

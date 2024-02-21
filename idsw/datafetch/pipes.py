@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from idsw import (InvalidInputsError, ControlVars)
-from .core import (Connectors, MountGoogleDrive, AWSS3Connection, SQLiteConnection, IP21Extractor)
+from .core import (Connectors, MountGoogleDrive, AWSS3Connection, IP21Extractor, SQLServerConnection, 
+                    SQLiteConnection, GCPBigQueryConnection)
 
 from idsw.modelling.core import AnomalyDetector
 
@@ -74,31 +75,33 @@ def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '',
 
     if (source == 'google'):
         
-        if Connectors.google_drive_connector:
-            if Connectors.persistent:
-                # Run if there is a persistent connector (if it is not None):
-                google_drive_connector = Connectors.google_drive_connector
-            else: # Create the connector    
-                google_drive_connector = MountGoogleDrive()
-                Connectors.google_drive_connector = google_drive_connector
+        try: # try accessing the connector, if it exists
+            if Connectors.google_drive_connector:
+                if Connectors.persistent:
+                    # Run if there is a persistent connector (if it is not None):
+                    google_drive_connector = Connectors.google_drive_connector
+                else: # Create the connector    
+                    google_drive_connector = MountGoogleDrive()
+                    Connectors.google_drive_connector = google_drive_connector
 
-        else: # Create the connector    
+        except: # Create the connector    
             google_drive_connector = MountGoogleDrive()
             Connectors.google_drive_connector = google_drive_connector
 
     elif (source == 'aws'):
 
-        if Connectors.aws_s3_connector:
-            if Connectors.persistent:
-                # Run if there is a persistent connector  (if it is not None):
-                aws_s3_connector = Connectors.aws_s3_connector
-            else: # Create the connector
-                aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
-                aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
-                aws_s3_connector = aws_s3_connector.fetch_s3_files_pipeline()
-                Connectors.aws_s3_connector = aws_s3_connector
+        try: # try accessing the connector, if it exists
+            if Connectors.aws_s3_connector:
+                if Connectors.persistent:
+                    # Run if there is a persistent connector  (if it is not None):
+                    aws_s3_connector = Connectors.aws_s3_connector
+                else: # Create the connector
+                    aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
+                    aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
+                    aws_s3_connector = aws_s3_connector.fetch_s3_files_pipeline()
+                    Connectors.aws_s3_connector = aws_s3_connector
         
-        else: # Create the connector
+        except: # Create the connector
             aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
             aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
             aws_s3_connector = aws_s3_connector.fetch_s3_files_pipeline()
@@ -127,15 +130,16 @@ def upload_to_or_download_file_from_colab (action = 'download', file_to_download
       To export a model named keras_model, declare object_to_download_from_colab = 'keras_model.h5'
     """
     
-    if Connectors.google_drive_connector:
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            google_drive_connector = Connectors.google_drive_connector
-        else: # Create the connector    
-            google_drive_connector = MountGoogleDrive()
-            Connectors.google_drive_connector = google_drive_connector
+    try: # try accessing the connector, if it exists
+        if Connectors.google_drive_connector:
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                google_drive_connector = Connectors.google_drive_connector
+            else: # Create the connector    
+                google_drive_connector = MountGoogleDrive()
+                Connectors.google_drive_connector = google_drive_connector
 
-    else: # Create the connector    
+    except: # Create the connector    
         google_drive_connector = MountGoogleDrive()
         Connectors.google_drive_connector = google_drive_connector
 
@@ -228,17 +232,18 @@ def export_files_to_s3 (list_of_file_names_with_extensions, directory_of_noteboo
     """
 
     
-    if Connectors.aws_s3_connector:
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            aws_s3_connector = Connectors.aws_s3_connector
-        else:
-            aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
-            aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
-            aws_s3_connector = aws_s3_connector.export_to_s3_pipeline(list_of_file_names_with_extensions, directory_of_notebook_workspace_storing_files_to_export)
-            Connectors.aws_s3_connector = aws_s3_connector
-        
-    else: # Create the connector
+    try: # try accessing the connector, if it exists
+        if Connectors.aws_s3_connector:
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                aws_s3_connector = Connectors.aws_s3_connector
+            else:
+                aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
+                aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
+                aws_s3_connector = aws_s3_connector.export_to_s3_pipeline(list_of_file_names_with_extensions, directory_of_notebook_workspace_storing_files_to_export)
+                Connectors.aws_s3_connector = aws_s3_connector
+            
+    except: # Create the connector
         aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
         aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
         aws_s3_connector = aws_s3_connector.export_to_s3_pipeline(list_of_file_names_with_extensions, directory_of_notebook_workspace_storing_files_to_export)
@@ -1987,16 +1992,17 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
       be appended. Example: previous_df_for_concatenation = dataset.   
     """
 
-    if (Connectors.ip21_connector):
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            ip21_connector = Connectors.ip21_connector
-        else:
-            # Create the connector
-            ip21_connector = IP21Extractor(previous_df_for_concatenation)
-            ip21_connector = ip21_connector.get_credentials(ip21_server, data_source, username, password)
+    try: # try accessing the connector, if it exists
+        if (Connectors.ip21_connector):
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                ip21_connector = Connectors.ip21_connector
+            else:
+                # Create the connector
+                ip21_connector = IP21Extractor(previous_df_for_concatenation)
+                ip21_connector = ip21_connector.get_credentials(ip21_server, data_source, username, password)
             
-    else:
+    except:
         # Create the connector
         ip21_connector = IP21Extractor(previous_df_for_concatenation)
         ip21_connector = ip21_connector.get_credentials(ip21_server, data_source, username, password)
@@ -2108,15 +2114,16 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
     """
 
     
-    if (Connectors.sqlite_connector):
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            sqlite_connector = Connectors.sqlite_connector
-        else:
-            # Create the connector
-            sqlite_connector = SQLiteConnection(file_path, pre_created_engine)
+    try: # try accessing the connector, if it exists
+        if (Connectors.sqlite_connector):
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                sqlite_connector = Connectors.sqlite_connector
+            else:
+                # Create the connector
+                sqlite_connector = SQLiteConnection(file_path, pre_created_engine)
     
-    else:
+    except:
         # Create the connector
         sqlite_connector = SQLiteConnection(file_path, pre_created_engine)
 
@@ -2290,16 +2297,17 @@ def bigquery_pipeline(project = '', dataset = '', already_authenticated = True,
     : param: view_id (str): The ID of the view to be created. If no ID is provided, a table is created
     """
     
-    if (Connectors.gcp_connector):
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            gcp_connector = Connectors.gcp_connector
-        else:
-            # Create the connector
-            gcp_connector = GCPBigQueryConnection(project, dataset, already_authenticated)
-            gcp_connector = gcp_connector.authenticate(authentication_method, vault_secret_path, app_role, app_secret)
-    
-    else:
+    try: # try accessing the connector, if it exists
+        if (Connectors.gcp_connector):
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                gcp_connector = Connectors.gcp_connector
+            else:
+                # Create the connector
+                gcp_connector = GCPBigQueryConnection(project, dataset, already_authenticated)
+                gcp_connector = gcp_connector.authenticate(authentication_method, vault_secret_path, app_role, app_secret)
+        
+    except:
         # Create the connector
         gcp_connector = GCPBigQueryConnection(project, dataset, already_authenticated)
         gcp_connector = gcp_connector.authenticate(authentication_method, vault_secret_path, app_role, app_secret)
@@ -2412,15 +2420,16 @@ def sqlserver_pipeline (server,
     """
     
 
-    if (Connectors.sqlserver_connector):
-        if Connectors.persistent:
-            # Run if there is a persistent connector  (if it is not None):
-            sqlserver_connector = Connectors.sqlserver_connector
-        else:
-            # Create the connector
-            sqlserver_connector = SQLServerConnection(server, database, username, password, system)
+    try: # try accessing the connector, if it exists
+        if (Connectors.sqlserver_connector):
+            if Connectors.persistent:
+                # Run if there is a persistent connector  (if it is not None):
+                sqlserver_connector = Connectors.sqlserver_connector
+            else:
+                # Create the connector
+                sqlserver_connector = SQLServerConnection(server, database, username, password, system)
             
-    else:
+    except:
         # Create the connector
         sqlserver_connector = SQLServerConnection(server, database, username, password, system)
     
