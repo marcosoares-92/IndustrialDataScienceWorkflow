@@ -1,4 +1,8 @@
 """FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+Pipelines for Google Cloud Platform (GCP), Google Colab and Google Drive
+Pipelines for Amazon Simple Storage Service (S3)
+Pipelines for reading tables and non-structured sheets on Excel
+Pipelines for loading Pandas dataframe and exporting as CSV and Excel
 Extract data from Plant Information Management (PIMS) systems
 AspenTech IP21
 Connect to SQLite Database
@@ -35,6 +39,14 @@ class Connectors:
   google_drive_connector = None
   # AWS S3 Connector
   aws_s3_connector = None
+  #SQLite Connector
+  sqlite_connector = None
+  # IP21 Connector
+  ip21_connector = None
+  # GCP Connector
+  gcp_connector = None
+  # SQLServer connector:
+  sqlserver_connector = None
 
 
 class MountGoogleDrive:
@@ -744,7 +756,7 @@ class IP21Extractor:
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
 
-    def __init__ (self, tag_to_extract = None, actual_tag_name = None, ip21_server = None, data_source = 'localhost', start_timestamp = None, stop_timestamp = None, ip21time_array = [], previous_df_for_concatenation = None, username = None, password = None):
+    def __init__ (self, previous_df_for_concatenation):
         
         # If the user passes the argument, use them. Otherwise, use the standard values.
         # Set the class objects' attributes.
@@ -752,6 +764,48 @@ class IP21Extractor:
         # assistant.assistant_startup, for instance.
         # So, we can save the variables as objects' attributes.
         
+        # Check if there is a previous dataset for concatenating with new data:
+        self.dataset = previous_df_for_concatenation
+                
+    # Define the class methods.
+    # All methods must take an object from the class (self) as one of the parameters
+
+
+    def get_credentials (self, server, data_source, username, password):
+     
+        from getpass import getpass
+        
+        if (username is None):
+            
+            username = input("Enter your username: ")
+            
+        if (password is None):
+            
+            password = getpass("Enter your password: ")
+        
+        # Remove trailing whitespaces:
+        username = str(username).strip()
+        password = str(password).strip()
+        
+        if (data_source is None):
+            data_source = 'localhost'
+        
+        # Attention: do not include http:// in the server, only the server name
+        # (what appears after http://)
+        self.server = ip21_server
+        
+        # If no specific data source is provided, use 'localhost'
+        self.data_source = data_source
+        
+        # Create an attribute that checks if another API call is needed:
+        self.need_next_call = True
+       
+
+        return self
+    
+
+    def set_query_parameters (self, tag_to_extract = None, actual_tag_name = None, start_timestamp = None, stop_timestamp = None, ip21time_array = [], previous_df_for_concatenation = None):
+
         self.tag = tag_to_extract
         # If actual_tag_name is None, make it equal to the tag:
         if (actual_tag_name is None):
@@ -768,31 +822,8 @@ class IP21Extractor:
             ip21time_array = []
         
         self.ip21time_array = np.array(ip21time_array)
-        
-        # Attention: do not include http:// in the server, only the server name
-        # (what appears after http://)
-        self.server = ip21_server
-        
-        # If no specific data source is provided, use 'localhost'
-        self.data_source = data_source
-        
-        # Create an attribute that checks if another API call is needed:
-        self.need_next_call = True
-        
-        # Check if there is a previous dataset for concatenating with new data:
-        self.dataset = previous_df_for_concatenation
-        
-        # Save credentials:
-        self.username = username
-        self.password = password
-        
-        # to check the class attributes, use the __dict__ method. Examples:
-        ## object.__dict__ will show all attributes from object
-        # You can also manipule this dictionary through vars function:
-        # vars(object)['attribute'] = value
-                
-    # Define the class methods.
-    # All methods must take an object from the class (self) as one of the parameters
+
+        return self
     
 
     def convert_window_to_ip21_timescale (self):
@@ -1380,7 +1411,6 @@ class SQLServerConnection:
 
         
         import pyodbc
-        import pandas as pd
         # Some other example server values are
         # server = 'localhost\sqlexpress' # for a named instance
         # server = 'myserver,port' # to specify an alternate port
@@ -1410,8 +1440,10 @@ class SQLServerConnection:
         
 
     def get_db_schema (self, show_schema = True, export_csv = False, saving_directory_path = "db_schema.csv"):
+        """
+        : param: show_schema (bool): if True, the schema of the tables on the SQL Server will be shown.
+        """
             
-        import pandas as pd
         query = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'"
             
         schema_df = pd.read_sql(query, self.cnxn)
@@ -1439,11 +1471,12 @@ class SQLServerConnection:
         
         
     def run_sql_query (self, query, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
+        """
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
 
         # SQL SERVER INNER JOIN:
         """
@@ -1494,8 +1527,6 @@ class SQLServerConnection:
         END AS variable,
         """
 
-        import pandas as pd
-
         query_counter = self.query_counter
             
         df = pd.read_sql(query, self.cnxn)
@@ -1529,8 +1560,9 @@ class SQLServerConnection:
         
         
     def get_full_table (self, table, show_table = True, export_csv = False, saving_directory_path = ""):
-            
-        import pandas as pd
+        """
+        : param: table (str): string containing the name of the table that will be queried.
+        """
         
         query_counter = self.query_counter
 
@@ -1567,13 +1599,12 @@ class SQLServerConnection:
     
     
     def query_specific_tag_ip21sqlserver (self, tag, variable_name = None, show_table = True, export_csv = False, saving_directory_path = ""):
-        """ : param: tag: string with tag as registered in IP21. e.g. tag = 'ABC00AA101-01'.
+        """ : param: tag (str): string with tag as registered in IP21. e.g. tag = 'ABC00AA101-01'.
         
-            : param: variable_name: string containing a more readable name for the tag, that will be also shown.
+            : param: variable_name (str): string containing a more readable name for the tag, that will be also shown.
             e.g. variable_name = 'Temperature in C'
         """
         
-        import pandas as pd
         # https://www.sqlservertutorial.net/sql-server-basics/sql-server-inner-join/
         # https://www.w3schools.com/sqL/sql_top.asp
         # https://learn.microsoft.com/en-us/sql/t-sql/queries/where-transact-sql?view=sql-server-ver16
@@ -1701,101 +1732,96 @@ class SQLiteConnection:
             raise InvalidInputsError ("Error trying to fetch SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
         
 
-        def update_or_create_table(self, table_name):
+    def update_or_create_table(self, table_name):
     
-            # If there is no engine, create one:
-            if (self.engine is None):
-                self = self.create_engine()
+        # If there is no engine, create one:
+        if (self.engine is None):
+            self = self.create_engine()
             
-            try:
-                # Set index = False not to add extra indices in the database:
-                df.to_sql(table_name, con = engine, if_exists = 'replace', index = False)
+        try:
+            # Set index = False not to add extra indices in the database:
+            df.to_sql(table_name, con = engine, if_exists = 'replace', index = False)
                 
-                if ControlVars.show_results: 
-                    print(f"Successfully updated table {table_name} on the SQLite database.")
-                    print("Check the 10 first rows from this table:\n")
-                        
-                    try:
-                        # only works in Jupyter Notebook:
-                        from IPython.display import display
-                        display(df.head(10))
-                                
-                    except: # regular mode
-                        print(df.head(10))
+            if ControlVars.show_results: 
+                print(f"Successfully updated table {table_name} on the SQLite database.")
+                print("Check the 10 first rows from this table:\n")
+                    
+                try:
+                    # only works in Jupyter Notebook:
+                    from IPython.display import display
+                    display(df.head(10))
+                            
+                except: # regular mode
+                    print(df.head(10))
 
-                return df, self.engine
+            return df, self.engine
+        
+        except:
+            raise InvalidInputsError ("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
             
-            except:
-                raise InvalidInputsError ("Error trying to update SQLite Database. If an pre-created engine was provided, check if it is correct and working.\n")
-                
 
 class GCPBigQueryConnection:
     """
     Class for accessing Google Cloud Platform (GCP) BigQuery data.
 
-    : param: system = 'windows', 'macos' or 'linux'
+    : param: project (str): project name on BigQuery
+    : param: dataset (str): dataset that user wants to connect
 
-        If the user passes the argument, use them. Otherwise, use the standard values.
-        Set the class objects' attributes.
-        Suppose the object is named assistant. We can access the attribute as:
-        assistant.assistant_startup, for instance.
-        So, we can save the variables as objects' attributes.
+    : param: already_authenticated (bool): True if the manual connection to GCP was already performed
+        and so the user is authorized.
         
-    : param: authetication_method = 'manual' for GCP standard manual authentication on browser
-     
-    MANUAL AUTHENTICATION INSTRUCTION
-        
-        - BEFORE INSTATIATING THE CLASS, FOLLOW THESE GUIDELINES!
-        
-        1. Copy and run the following line in a notebook cell. Do not add quotes.
-        The "!" sign must be added to indicate the use of a command line software:
+        This connection can be done by running the following command directly on a cell or on the console
+        from Python environment. Attention: follow the command line authentication instruction below.
 
-
-                            !gcloud auth application-default login
+            !gcloud auth application-default login
         
-
-        2. Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
-        It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
-
-        2.1. To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
-        
-        
-    : param: authetication_method = 'vault' for Vault automatic authentication, dependent on corporate
-        cibersecurity and data asset.
-    : params: vault_secret_path = '', app_role = '', app_secret = '' are the parameters for vault authorization
-        
-        
-    Install Google Cloud Software Development Kit (SDK) before running
-            
-    General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
-    Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
-    Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
-    Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
     
-    From: https://stackoverflow.com/questions/39419754/downloading-and-importing-google-cloud-python
-    First, make sure you have installed gcloud on your system then run the commands like this:
+        COMMAND LINE AUTHENTICATION INSTRUCTION
+            
+            - BEFORE INSTATIATING THE CLASS, FOLLOW THESE GUIDELINES!
+            
+            1. Copy and run the following line in a notebook cell. Do not add quotes.
+            The "!" sign must be added to indicate the use of a command line software:
 
-    First: gcloud components update in your terminal.
-    then: pip install google-cloud
-    And for the import error:
-    Adding "--ignore-installed" to pip command may work.
-    This might be a bug in pip - see this page for more details: https://github.com/pypa/pip/issues/2751
+                !gcloud auth application-default login
+            
+            2. Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
+            It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
 
-    This pipeline may be blocked also due to security configurations, and may fail on some Virtual Private Networks (VPNs).
-    - Try to run this pipeline outside of the VPN in case it fails
+            2.1. To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
+            
+
+        Install Google Cloud Software Development Kit (SDK) before running
+                
+        General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+        Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+        Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+        Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+        
+        From: https://stackoverflow.com/questions/39419754/downloading-and-importing-google-cloud-python
+        First, make sure you have installed gcloud on your system then run the commands like this:
+
+        First: gcloud components update in your terminal.
+        then: pip install google-cloud
+        And for the import error:
+        Adding "--ignore-installed" to pip command may work.
+        This might be a bug in pip - see this page for more details: https://github.com/pypa/pip/issues/2751
+
+        This pipeline may be blocked also due to security configurations, and may fail on some Virtual Private Networks (VPNs).
+        - Try to run this pipeline outside of the VPN in case it fails
+
     """
     
     # Initialize instance attributes.
     # define the Class constructor, i.e., how are its objects:
 
-    def __init__ (self, project = '', dataset = '', authentication_method = 'manual',
-                  vault_secret_path = '', app_role = '', app_secret = ''):
-        
-        
-        
+    def __init__ (self, project = '', dataset = '', already_authenticated = True):
+       
+
         from google.cloud import bigquery
-        import pandas as pd
-        
+        from google.cloud import bigquery_storage
+        from google.oauth2 import service_account
+        import google.auth
         
         if ((project is None)|(project == '')):
             # Ask the user to provide the credentials:
@@ -1805,7 +1831,7 @@ class GCPBigQueryConnection:
             # The individual datasets are revealed after expanding the project name by clicking on the arrow.
             print("\n")
             self.project = input(f"Enter the name of the project registered on Google Cloud Platform (GCP).\n")
-        
+            
         if ((dataset is None)|(dataset == '')):
             # Ask the user to provide the credentials:
             # E.g.: core
@@ -1813,126 +1839,166 @@ class GCPBigQueryConnection:
             self.dataset = input(f"Enter the name of the dataset from project {self.project} registered on GCP, containing the tables that will be queried.\n")
 
         self.query_counter = 0
+        self.already_authenticated = already_authenticated
         
-        if (authentication_method == 'manual'):
-            self.client = self.connect_to_gcp_project()
-        
-        elif (authentication_method == 'vault'):
-            self.client, self.storage_client = self.connect_to_gcp_project(vault_secret_path = vault_secret_path, app_role = app_role, app_secret = app_secret)
 
-
-    def connect_to_gcp_project (self):
-        
-        start_msg = """
-        This function allows the manual autentication: if the command 
-
-            !gcloud auth application-default login
-
-        was run for GCP authentication, this protocol will allow the creation of the client.
-        It is not designed to be used with a corporate protocol for fully automatic pipelines, such as Vault access. For that, the Cybersecurity or Data Asset team must be contacted.
-            """
-        
-        print(start_msg)
-        
-        # Some other example server values are
-        # server = 'localhost\sqlexpress' # for a named instance
-        # server = 'myserver,port' # to specify an alternate port
-        
-        # subprocess module allows running shell commands. Each portion from a Bash script is declared as an element 
-        # from a list of strings. Outputs are captured as a list of strings as well.        
-        # Example:
+    def authenticate (self, authentication_method = 'manual',
+                  vault_secret_path = '', app_role = '', app_secret = ''):
         """
-        with Popen(["ls"], stdout=PIPE) as proc:
-        out = proc.readlines()
-        print(out)
-        
-        output: ['some_file.txt','some_other_file.txt']
-        # Notice that a Python variable of string type may be included to the list for generating dynamic execution of commands.
-        """
+        : param: authentication_method (str): 'manual' or 'vault' authentication
+            : param: authetication_method = 'manual' for GCP standard manual authentication on browser. System will try
+                to access the authorization window, in case it was not done yet.
+            : param: authetication_method = 'vault' for Vault automatic authentication, dependent on corporate
+                cibersecurity and data asset.
 
+        : param: vault_secret_path (str): path to access the secret
+        : params: vault_secret_path = '', app_role = '', app_secret = '' are the parameters for vault authorization
+            
         """
-        Example 2 command: python -m pip show pandas
-        from subprocess import Popen, PIPE, TimeoutExpired
-        proc = Popen(["python", "-m", "pip", "show", "pandas"], stdout = PIPE, stderr = PIPE)
+        
+        if self.already_authenticated:
+            self.bqclient = bigquery.Client(project = self.project)
+            try:
+                self.bqstorageclient = bigquery_storage.BigQueryReadClient()
+            except:
+                self.bqstorageclient = None # create an empty attribute
+        
+        else:
+
+            if (authentication_method == 'manual'):
+                self = self.manual_authentication()
+            
+            elif (authentication_method == 'vault'):
+                self = self.vault_authentication(vault_secret_path = vault_secret_path, app_role = app_role, app_secret = app_secret)
+
+        return self
+
+
+    def manual_authentication (self):
+
+        from google.cloud import bigquery
+        from google.cloud import bigquery_storage
+        from google.oauth2 import service_account
+        import google.auth
+        
         try:
-            output, error = proc.communicate(timeout = 15)
-            print(output)
+            # Setting authorization from cloud. Might seem no effect if CLI is configured
+            self.credentials, self.project = google.auth.default(
+                scopes = ["https://www.googleapis.com/auth/cloud-platform"]) 
+            
+            self.bqclient = bigquery.Client(credentials = self.credentials, project = self.project)
+            self.bqstorageclient = bigquery_storage.BigQueryReadClient(credentials = self.credentials)
+        
         except:
-                    # General exception
-            output, error = proc.communicate()
-            print(f"Process with output: {output}, error: {error}.\n")
-
-        output: b'Name: pandas\r\nVersion: 2.0.3\r\nSummary: Powerful data structures for data analysis, time series, and statistics\r\nHome-page: \r\nAuthor: \r\nAuthor-email: The Pandas Development Team <pandas-dev@python.org>\r\nLicense: BSD 3-Clause License\r\n        \r\n        Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team\r\n        All rights reserved.\r\n        \r\n        Copyright (c) 2011-2023, Open source contributors.\r\n        \r\n        Redistribution and use in source and binary forms, with or without\r\n        modification, are permitted provided that the following conditions are met:\r\n        \r\n        * Redistributions of source code must retain the above copyright notice, this\r\n          list of conditions and the following disclaimer.\r\n        \r\n        * Redistributions in binary form must reproduce the above copyright notice,\r\n          this list of conditions and the following disclaimer in the documentation\r\n          and/or other materials provided with the distribution.\r\n        \r\n        * Neither the name of the copyright holder nor the names of its\r\n          contributors may be used to endorse or promote products derived from\r\n          this software without specific prior written permission.\r\n        \r\n        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\r\n        AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\r\n        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\r\n        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\r\n        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\r\n        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\r\n        SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\r\n        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\r\n        OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\n        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\r\n        \r\nLocation: c:\\users\\gnklm\\appdata\\local\\anaconda3\\lib\\site-packages\r\nRequires: numpy, python-dateutil, pytz, tzdata\r\nRequired-by: cmdstanpy, datashader, holoviews, hvplot, prophet, seaborn, shap, statsmodels, xarray\r\n'
-        """
-
-        from subprocess import Popen, PIPE, TimeoutExpired
-
-        # Start a long running process using subprocess.Popen()
-        # Command to run:
-        """!gcloud auth application-default login"""
-
-        try:
-            proc = Popen(["gcloud", "auth", "application-default", "login"], stdout = PIPE, stderr = PIPE)
-
+            # Some other example server values are
+            # server = 'localhost\sqlexpress' # for a named instance
+            # server = 'myserver,port' # to specify an alternate port
+            
+            # subprocess module allows running shell commands. Each portion from a Bash script is declared as an element 
+            # from a list of strings. Outputs are captured as a list of strings as well.        
+            # Example:
             """
-            You will use the subprocess.communicate() method to wait for the command to finish running for up to 15 seconds. 
-            The process will then timeout and it will return an Exception: i.e. error detected during execution, which will be caught 
-            and the process will be cleaned up by proc.kill(). 
+            with Popen(["ls"], stdout=PIPE) as proc:
+            out = proc.readlines()
+            print(out)
+            
+            output: ['some_file.txt','some_other_file.txt']
+            # Notice that a Python variable of string type may be included to the list for generating dynamic execution of commands.
             """
 
-            # Use subprocess.communicate() to create a timeout 
+            """
+            Example 2 command: python -m pip show pandas
+            from subprocess import Popen, PIPE, TimeoutExpired
+            proc = Popen(["python", "-m", "pip", "show", "pandas"], stdout = PIPE, stderr = PIPE)
             try:
                 output, error = proc.communicate(timeout = 15)
-                # Simply remove timeout argument if process is not supposed to finish after a given time.
-
-            except TimeoutExpired:
-
-                # Cleanup the process if it takes longer than the timeout
-                proc.kill()
-
-                # Read standard out and standard error streams and print
-                output, error = proc.communicate()
-                print(f"Process timed out with output: {output}, error: {error}.")
-
+                print(output)
             except:
-                # General exception
-                proc.kill()
+                        # General exception
                 output, error = proc.communicate()
-                print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
+                print(f"Process with output: {output}, error: {error}.\n")
 
-                warning = """
-                Install Google Cloud Software Development Kit (SDK) before running this function.
+            output: b'Name: pandas\r\nVersion: 2.0.3\r\nSummary: Powerful data structures for data analysis, time series, and statistics\r\nHome-page: \r\nAuthor: \r\nAuthor-email: The Pandas Development Team <pandas-dev@python.org>\r\nLicense: BSD 3-Clause License\r\n        \r\n        Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team\r\n        All rights reserved.\r\n        \r\n        Copyright (c) 2011-2023, Open source contributors.\r\n        \r\n        Redistribution and use in source and binary forms, with or without\r\n        modification, are permitted provided that the following conditions are met:\r\n        \r\n        * Redistributions of source code must retain the above copyright notice, this\r\n          list of conditions and the following disclaimer.\r\n        \r\n        * Redistributions in binary form must reproduce the above copyright notice,\r\n          this list of conditions and the following disclaimer in the documentation\r\n          and/or other materials provided with the distribution.\r\n        \r\n        * Neither the name of the copyright holder nor the names of its\r\n          contributors may be used to endorse or promote products derived from\r\n          this software without specific prior written permission.\r\n        \r\n        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\r\n        AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\r\n        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\r\n        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\r\n        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\r\n        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\r\n        SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\r\n        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\r\n        OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\r\n        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\r\n        \r\nLocation: c:\\users\\gnklm\\appdata\\local\\anaconda3\\lib\\site-packages\r\nRequires: numpy, python-dateutil, pytz, tzdata\r\nRequired-by: cmdstanpy, datashader, holoviews, hvplot, prophet, seaborn, shap, statsmodels, xarray\r\n'
+            """
 
-                General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
-                Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
-                Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
-                Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+            from subprocess import Popen, PIPE, TimeoutExpired
+
+            # Start a long running process using subprocess.Popen()
+            # Command to run:
+            """!gcloud auth application-default login"""
+
+            try:
+                proc = Popen(["gcloud", "auth", "application-default", "login"], stdout = PIPE, stderr = PIPE)
+
+                """
+                You will use the subprocess.communicate() method to wait for the command to finish running for up to 15 seconds. 
+                The process will then timeout and it will return an Exception: i.e. error detected during execution, which will be caught 
+                and the process will be cleaned up by proc.kill(). 
                 """
 
-                print(warning)
+                # Use subprocess.communicate() to create a timeout 
+                try:
+                    output, error = proc.communicate(timeout = 15)
+                    # Simply remove timeout argument if process is not supposed to finish after a given time.
 
-            """try:
-                from IPython.display import display 
-                # from IPython.display import display, display_html
-                out = list(proc._fileobj2output.keys())
-                out1, out2 = out[1], out[0]
-                display(proc._fileobj2output[out1][0])
-                print("\n")
-                # display(proc._fileobj2output[out2][0])
-                # display_html(proc._fileobj2output[out2][0])
+                except TimeoutExpired:
 
+                    # Cleanup the process if it takes longer than the timeout
+                    proc.kill()
+
+                    # Read standard out and standard error streams and print
+                    output, error = proc.communicate()
+                    print(f"Process timed out with output: {output}, error: {error}.")
+
+                except:
+                    # General exception
+                    proc.kill()
+                    output, error = proc.communicate()
+                    print(f"Process of Google Cloud Mount with output: {output}, error: {error}.\n")
+
+                    warning = """
+                    Install Google Cloud Software Development Kit (SDK) before running this function.
+
+                    General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+                    Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+                    Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+                    Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+                    """
+
+                    print(warning)
+
+                """try:
+                    from IPython.display import display 
+                    # from IPython.display import display, display_html
+                    out = list(proc._fileobj2output.keys())
+                    out1, out2 = out[1], out[0]
+                    display(proc._fileobj2output[out1][0])
+                    print("\n")
+                    # display(proc._fileobj2output[out2][0])
+                    # display_html(proc._fileobj2output[out2][0])
+
+                except:
+                    pass"""
+            
             except:
-                pass"""
+                pass
         
-        except:
-            pass
-        
-        
-        from google.cloud import bigquery
+            try:
+                self.bqclient = bigquery.Client(project = self.project)
+            except:
 
-        client = bigquery.Client(project = self.project)
+                error_msg = """
+                Impossible to Connect with the input parameters or protocols. 
+                Try manual connection running
 
-        return client
+                    !gcloud auth application-default login
+                
+                on a cell or on the Python IDE's terminal.
+                """
+                raise InvalidInputsError(error_msg)
+
+
+        return self
 
 
     def get_vault_secret (self, vault_secret_path: str, app_role: str, app_secret: str):
@@ -1980,15 +2046,17 @@ class GCPBigQueryConnection:
 
         if 'data' in vault_secret and type(vault_secret['data']) == str:
             service_account_creds = json.loads(base64.b64decode(vault_secret['data']))
+        
         else:
             # in case credentials are saved directly as json object in vault (not encoded) you can get it directly
             service_account_creds = json.loads(base64.b64decode(vault_secret))
+        
         bq_credentials = service_account.Credentials.from_service_account_info(service_account_creds)
 
         return bq_credentials
 
 
-    def vault_access_gcp (self, vault_secret_path = '', app_role = '', app_secret = ''):     
+    def vault_authentication (self, vault_secret_path = '', app_role = '', app_secret = ''):     
         
         import base64
         import json
@@ -2014,24 +2082,44 @@ class GCPBigQueryConnection:
 
         self.credentials = self.get_vault_credentials(vault_secret_path = vault_secret_path, app_role = app_role, app_secret = app_secret)
 
-        client = bigquery.Client(credentials = self.credentials, project = self.project)
-        storage_client = bigquery_storage.BigQueryReadClient(credentials = self.credentials)
+        self.bqclient = bigquery.Client(credentials = self.credentials, project = self.project)
+        self.bqstorageclient = bigquery_storage.BigQueryReadClient(credentials = self.credentials)
 
-        return client, storage_client
+        return self
 
- 
+
+    def table_exists (self, table_id: str) -> bool:
+        """
+        Checks if a table with the specified ID exists in BigQuery.
+
+        Parameters:
+        - client (bigquery.Client): The BigQuery client.
+        - table_id (str): The ID of the table to check.
+
+        Returns:
+        bool: True if the table exists, False otherwise.
+        """
+        client = self.bqclient
+
+        try:
+            client.get_table(table_id)
+            return True
+        
+        except:
+            return False
+
+
     def run_sql_query (self, query, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
-
-        import pandas as pd
+        """
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
 
         query_counter = self.query_counter
 
-        client = self.client
+        client = self.bqclient
         job = client.query(query)
         df = job.to_dataframe()
 
@@ -2064,13 +2152,13 @@ class GCPBigQueryConnection:
         
         
     def get_full_table (self, table, show_table = True, export_csv = False, saving_directory_path = ""):
-        
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
-        
-        import pandas as pd
+        """
+        : param: table (str): name of the table to be retrieved. Full table name is `{self.project}.{self.dataset}.{str(table)}`
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
 
         table_name = f"""`{self.project}.{self.dataset}.{str(table)}`"""
         
@@ -2078,7 +2166,7 @@ class GCPBigQueryConnection:
 
         query = "SELECT * FROM " + table_name
             
-        client = self.client
+        client = self.bqclient
         job = client.query(query)
         df_table = job.to_dataframe()
         
@@ -2111,12 +2199,12 @@ class GCPBigQueryConnection:
     
 
     def write_data_on_bigquery_table (self, table, df):
-        
-        # df: Pandas dataframe to be written on BigQuery table
-        # table: string with table name
-        import pandas as pd
+        """
+        : param: table (str): string with table name
+        : param: df (pd.DataFrame): Pandas dataframe to be written on BigQuery table
+        """
 
-        client = self.client
+        client = self.bqclient
         table_ref = client.dataset(self.dataset).table(str(table))
         table = client.get_table(table_ref)
 
@@ -2133,17 +2221,20 @@ class GCPBigQueryConnection:
 
 
     def delete_specific_values_from_column_on_table (self, table, column, values_to_delete, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
+        """
+        : param: column (str): is the column name on a given BigQuery table (a string).
+        : param: values_to_delete is a single value (numeric or string) or an iterable containing a set
+          of values to be deleted.
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
         
         # column is the column name on a given BigQuery table (a string).
         # values_to_delete is a single value (numeric or string) or an iterable containing a set
         # of values to be deleted.
 
-        import pandas as pd
 
         if (type(values_to_delete) == str):
             # put inside list:
@@ -2182,7 +2273,7 @@ class GCPBigQueryConnection:
             else:
                 delete_query = delete_query + f"""OR {column} = {val} """
 
-        client = self.client
+        client = self.bqclient
         query_counter = self.query_counter
 
         table_ref = client.dataset(self.dataset).table(str(table))
@@ -2227,17 +2318,15 @@ class GCPBigQueryConnection:
 
 
     def update_specific_value_from_column_on_table (self, table, column, old_value, updated_value, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
-        
-        # column is the column name on a given BigQuery table (a string).
-        # old_value: value that must be replaced
-        # updated_value: new value to be added.
-
-        import pandas as pd
+        """
+        : param: column (str): is the column name on a given BigQuery table (a string).
+        : param: old_value: value that must be replaced
+        : param: updated_value: new value to be added.
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
             
         if ((type(old_value) == str)|(type(updated_value) == str)):
                 update_query = f"""
@@ -2253,7 +2342,7 @@ class GCPBigQueryConnection:
                         WHERE `{column}` = {old_value}
                         """
             
-        client = self.client
+        client = self.bqclient
         query_counter = self.query_counter
 
         table_ref = client.dataset(self.dataset).table(str(table))
@@ -2298,16 +2387,14 @@ class GCPBigQueryConnection:
 
 
     def update_entire_column_from_table (self, table, column, updated_value, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
-        
-        # column is the column name on a given BigQuery table (a string).
-        # updated_value: new value to be added.
-
-        import pandas as pd
+        """
+        : param: column (str): is the column name on a given BigQuery table (a string).
+        : param: updated_value: new value to be added.
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
             
         if (type(updated_value) == str):
                 update_query = f"""
@@ -2323,7 +2410,7 @@ class GCPBigQueryConnection:
                         WHERE TRUE
                         """
             
-        client = self.client
+        client = self.bqclient
         query_counter = self.query_counter
 
         table_ref = client.dataset(self.dataset).table(str(table))
@@ -2368,20 +2455,18 @@ class GCPBigQueryConnection:
 
 
     def update_value_when_finding_str_or_substring_on_another_column (self, table, column, updated_value, string_column, str_or_substring_to_search, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
+        """
+        : param: column (str): is the column name on a given BigQuery table (a string).
+        : param: updated_value: new value to be added.
+        : param: string_column (str): column containing a string or substring that will be searched.
+        : param: str_or_substring_to_search (str): (in quotes): string or substring that will be searched on 
+            column 'string_column'. When it is find, the value on 'column' will be updated.
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
         
-        # column is the column name on a given BigQuery table (a string).
-        # updated_value: new value to be added.
-        # string_column: column containing a string or substring that will be searched.
-        # str_or_substring_to_search (in quotes): string or substring that will be searched on column 'string_column'. 
-        # When it is find, the value on 'column' will be updated.
-
-        import pandas as pd
-            
         if (type(updated_value) == str):
                 update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
@@ -2396,7 +2481,7 @@ class GCPBigQueryConnection:
                         WHERE CONTAINS_SUBSTR({string_column}, "{str_or_substring_to_search}")
                         """
             
-        client = self.client
+        client = self.bqclient
         query_counter = self.query_counter
 
         table_ref = client.dataset(self.dataset).table(str(table))
@@ -2441,20 +2526,18 @@ class GCPBigQueryConnection:
 
 
     def update_value_when_finding_numeric_value_on_another_column (self, table, column, updated_value, comparative_column, value_to_search, show_table = True, export_csv = False, saving_directory_path = ""):
-
-        # show_table: keep as True to print the queried table, set False to hide it.
-        # export_csv: set True to export the queried table as CSV file, or set False not to export it.
-        # saving_directory_path: full path containing directories and table name, with .csv extension, used when
-        # export_csv = True
+        """
+        : param: column (str): is the column name on a given BigQuery table (a string).
+        : param: updated_value: new value to be added.
+        : param: comparative_column (str): column containing a numeric value that will be searched.
+        : param: value_to_search: numeric value that will be searched 
+            on column 'comparative_colum'. When it is find, the value on 'column' will be updated.
+        : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+        : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+        : param: saving_directory_path (str): full path containing directories and table name, 
+            with .csv extension, used when export_csv = True
+        """
         
-        # column is the column name on a given BigQuery table (a string).
-        # updated_value: new value to be added.
-        # comparative_column: column containing a numeric value that will be searched.
-        # value_to_search (in quotes): numeric value that will be searched on column 'comparative_colum'. 
-        # When it is find, the value on 'column' will be updated.
-
-        import pandas as pd
-            
         if (type(updated_value) == str):
                 update_query = f"""
                     UPDATE `{self.project}.{self.dataset}.{str(table)}`
@@ -2469,7 +2552,7 @@ class GCPBigQueryConnection:
                         WHERE `{comparative_column}` = {value_to_search}
                         """
             
-        client = self.client
+        client = self.bqclient
         query_counter = self.query_counter
 
         table_ref = client.dataset(self.dataset).table(str(table))
@@ -2511,4 +2594,281 @@ class GCPBigQueryConnection:
         self.query_counter = query_counter + 1    
             
         return df_table
+    
+
+    def create_new_view (self, view_id, query, show_table = True, export_csv = False, saving_directory_path = ""):
+        """
+        Creates a view in Google BigQuery if a view with the same name does not already exist.
+        
+        Important! This function uses a connection from google cloud sdk already configured
+
+        Parameters:
+        : param: view_id (str): The ID of the view to be created. If no ID is provided, a table is created
+        : param: query (str): The SQL query defining the view.
+
+        Returns:
+        None
+        """
+
+        from google.cloud import bigquery
+
+        view_id, query = str(view_id), str(query)
+        # self.project = project
+        bqclient, bqstorageclient = self.bqclient, self.bqstorageclient
+        
+        # Check if the view already exists
+        if self.table_exists(bqclient, view_id):
+            print(f"A view with the ID '{view_id}' already exists. Not creating a new view.")
+            return self
+
+        
+        df = (
+            bqclient.query(query)
+            .result()
+            .to_dataframe()
+        )
+
+        # This step creates the table for specified view
+        view = bigquery.Table(view_id)
+        view.view_query = query
+
+        # Make an API request to create the view.
+        view = bqclient.create_table(view)
+
+        query_counter = self.query_counter
+        
+        if ControlVars.show_results: # dominant context
+            if (show_table): 
+                print("Returned view:\n")
+                try:
+                    from IPython.display import display
+                    display(df)
+                    
+                except:
+                    print(df)
+        
+        # Vars function allows accessing the attributes from a class as a key from a dictionary.
+        # vars(object) is a dictionary where each key is one attribute from the object. A new attribute may be
+        # created by setting a value for a new key;
+        # Then, an attribute name may be created as a string:
+        vars(self)[f"df_view{query_counter}"] = df
+
+        if (export_csv):
+            if ((saving_directory_path is None)|(saving_directory_path == '')):
+                saving_directory_path = f"table{query_counter}.csv"
+            
+            df.to_csv(saving_directory_path)
+         
+        # Update counter:
+        self.query_counter = query_counter + 1 
+
+        return df
+
+
+class IngestExcelTables:
+    """
+    Class for picking Excel files with non-structured data saved into several tables.
+    For this class to work, the tables do not need to be input in a structured format, but they must be formatted
+    as tables. With that, they can be detected and converted to Pandas dataframes. Alternatively, if no table is
+    detected, the whole sheet is loaded
+
+    : param: file_path (str): full path where the Excel file is locally stored. The file extension must be provided 
+    (xlsx, etc).
+
+    """
+    
+    def __init__ (self, file_path):
+        
+        self.file_path = file_path
+        # Load workbook Openpyxl documentation:
+        # https://openpyxl.readthedocs.io/en/stable/worksheet_tables.html?highlight=load_workbook#table-as-a-print-area
+        self.wb = openpyxl.load_workbook(file_path)
+        self.worksheets = self.wb.worksheets # list of worksheets
+        self.loaded_dfs = [] # list of loaded dataframes
+    
+    
+    def pre_cleansing(self, df):
+        """Pre-cleansing of the dataframe. The methods are highly prone to result in duplicate rows and 
+        completely blank rows or columns"""
+        
+        # Remove completely blank columns:
+        df = df.dropna(axis = 1, how = 'all')
+        # Remove completely blank rows:
+        df = df.dropna(axis = 0, how = 'all')
+        # Drop duplicates:
+        df = df.drop_duplicates()
+        # Reset index:
+        df = df.reset_index(drop = True)
+        
+        return df
+    
+    
+    def get_table_parameters(self, tab_range):
+        
+        """Use the table ranges identified by Openpyxl to obtain the
+        parameters skiprows and usecols from pd.read_excel function.
+        
+        skiprows (int): indicates row much rows to skip.
+        usecols (str): indicates the columns to use, in format "A:B"
+        
+        The tab_range obtained with openpyxl, in turns, is a string as "A10:BC78", which
+        may contain an arbitrary number of letters, followed by an arbitrary number of digits.
+        """
+        
+        # Split string as "A10:BC78" in ":". It will create a list with two strings ["A10", "BC78"]
+        ranges = tab_range.split(":")
+        
+        # Iterate through characters in the first string from list ranges
+        for i in range(len(ranges[0])):
+            try:
+                # If it was possible to break the string in two and convert the second part to
+                # integer, thus the process may be finished:
+                first_col, first_row = ranges[0][:i], int(ranges[0][i:])
+                break
+            
+            except:
+                # the error is raised if it was not possible to convert to int (e.g. 'A1') is not
+                # conversible. So pass, and try again.
+                pass
+        
+        # Repeat the process for the second string
+        for i in range(len(ranges[1])):
+            try:
+                last_col, last_row = ranges[1][:i], int(ranges[1][i:])
+                break
+            
+            except:
+                pass
+        
+        # Concatenate strings to obtain usecols parameter:
+        usecols = first_col + ":" + last_col
+        
+        # Parameter skipcols will be one unit less tha first_row
+        # For instance, "A10" starts on the tenth row, so 9 rows must be skipped:
+        skiprows = first_row - 1
+        
+        return usecols, skiprows
+
+        
+    def read_table(self, sheet_name, tab_range, has_header = True):
+        
+        # Get table parameters for pd.read_excel function:
+        usecols, skiprows = self.get_table_parameters(tab_range)
+        
+        # Read table as pandas dataframe:
+        
+        if (has_header == True):         
+            table = pd.read_excel(self.file_path, sheet_name = sheet_name, skiprows = skiprows, usecols = usecols, na_values = None, verbose = False, parse_dates = True)
+        
+        else:
+            table = pd.read_excel(self.file_path, sheet_name = sheet_name, header = None, skiprows = skiprows, usecols = usecols, na_values = None, verbose = False, parse_dates = True)
+        
+        # Do the pre-cleansing:
+        table = self.pre_cleansing(table)
+            
+        return table
+    
+    
+    def read_full_sheet(self, sheet_name, has_header = True):
+        """Read the entire sheet, instead of an individual table"""
+        
+        if (has_header == True):         
+            table = pd.read_excel(self.file_path, sheet_name = sheet_name, na_values = None, verbose = False, parse_dates = True)
+
+        else:
+            table = pd.read_excel(self.file_path, sheet_name = sheet_name, header = None, na_values = None, verbose = False, parse_dates = True)
+                    
+        # Pre-cleansing:
+        table = self.pre_cleansing(table)
+        
+        return table
+
+    
+    def load_dfs(self, has_header = True):
+        
+        loaded_dfs = self.loaded_dfs
+        
+        for ws in self.worksheets:
+            sheet_name = ws.title
+            
+            # ws.tables is a dictionary containing the tables in a given sheet. If the dictionary is empty,
+            # (len = 0), load the whole sheet as a dataframe:
+            if (len(ws.tables) == 0):
+                table = self.read_full_sheet(sheet_name, has_header)
+                # Store on the list:
+                loaded_dfs.append({'sheet': sheet_name, 'table': sheet_name, 'df': table})
+                
+            
+            else:
+                # Loop through each table:
+                for table_name, tab_values in zip(ws.tables, ws.tables.values()):
+                    tab_range = tab_values.ref
+
+                    # Read the table:
+                    table = self.read_table(sheet_name, tab_range, has_header)
+                    # Store on the list:
+                    loaded_dfs.append({'sheet': sheet_name, 'table': table_name, 'df': table})
+        
+        
+        # Save list as attribute:
+        self.loaded_dfs = loaded_dfs
+                
+        return self
+    
+    
+    def export_processed_excel_file(self):
+        
+        file_path = "processed_excel.xlsx"
+        
+        try:
+            # The replacement of a Sheet will only occur in the append ('a') mode.
+            # 'a' is a mode available for the cases where an Excel file is already present.
+            # Let's check if there is an Excel file previously created, so that we will not
+            # delete it:
+            with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
+                                datetime_format = "YYYY-MM-DD HH:MM:SS",
+                                mode = 'a', if_sheet_exists = 'replace') as writer:
+                
+                for loaded_df in self.loaded_dfs:
+                    df, table = loaded_df['df'], loaded_df['table']
+                    
+                    if (table != loaded_df['sheet']):
+                        table = loaded_df['sheet'] + "_" + table
+                        
+                    df.to_excel(writer, sheet_name = table, na_rep='', 
+                                    header = True, index = False, 
+                                    startrow = 0, startcol = 0, merge_cells = False, 
+                                    inf_rep = 'inf')
+        
+        except:
+            # The context manager created by class ExcelWriter with 'a' mode returns an error when
+            # there is no Excel file available. Since we do not have the risk of overwriting the file,
+            # we can open the writer in write ('w') mode to create a new spreadsheet:
+            with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
+                                datetime_format = "YYYY-MM-DD HH:MM:SS", mode = 'w') as writer:   
+                
+                for loaded_df in self.loaded_dfs:
+                    df, table = loaded_df['df'], loaded_df['table']
+                    
+                    if (table != loaded_df['sheet']):
+                        table = loaded_df['sheet'] + "_" + table
+                        
+                    df.to_excel(writer, sheet_name = table, index = False, 
+                                startrow = 0, startcol = 0, merge_cells = False, 
+                                inf_rep = 'inf')
+        
+        
+        if ControlVars.show_results: 
+            print(f"Dataframes exported as Excel file to notebook\'s workspace as \'{file_path}\'.")
+            print("Warning: if there was a sheet with the same name as the exported ones, it was replaced by the exported dataframe.")
+        
+        
+    def ingestion_pipeline(self, has_header = True, export_excel = True):
+        
+        self = self.load_dfs(has_header)
+        
+        if export_excel:
+            self.export_processed_excel_file()
+        
+        return self
 

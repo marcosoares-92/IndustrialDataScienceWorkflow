@@ -78,6 +78,9 @@ def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '',
             if Connectors.persistent:
                 # Run if there is a persistent connector (if it is not None):
                 google_drive_connector = Connectors.google_drive_connector
+            else: # Create the connector    
+                google_drive_connector = MountGoogleDrive()
+                Connectors.google_drive_connector = google_drive_connector
 
         else: # Create the connector    
             google_drive_connector = MountGoogleDrive()
@@ -89,6 +92,11 @@ def mount_storage_system (source = 'aws', path_to_store_imported_s3_bucket = '',
             if Connectors.persistent:
                 # Run if there is a persistent connector  (if it is not None):
                 aws_s3_connector = Connectors.aws_s3_connector
+            else: # Create the connector
+                aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
+                aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
+                aws_s3_connector = aws_s3_connector.fetch_s3_files_pipeline()
+                Connectors.aws_s3_connector = aws_s3_connector
         
         else: # Create the connector
             aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
@@ -123,6 +131,9 @@ def upload_to_or_download_file_from_colab (action = 'download', file_to_download
         if Connectors.persistent:
             # Run if there is a persistent connector  (if it is not None):
             google_drive_connector = Connectors.google_drive_connector
+        else: # Create the connector    
+            google_drive_connector = MountGoogleDrive()
+            Connectors.google_drive_connector = google_drive_connector
 
     else: # Create the connector    
         google_drive_connector = MountGoogleDrive()
@@ -216,12 +227,17 @@ def export_files_to_s3 (list_of_file_names_with_extensions, directory_of_noteboo
       the notebook's workspace.
     """
 
-
+    
     if Connectors.aws_s3_connector:
         if Connectors.persistent:
             # Run if there is a persistent connector  (if it is not None):
             aws_s3_connector = Connectors.aws_s3_connector
-    
+        else:
+            aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
+            aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
+            aws_s3_connector = aws_s3_connector.export_to_s3_pipeline(list_of_file_names_with_extensions, directory_of_notebook_workspace_storing_files_to_export)
+            Connectors.aws_s3_connector = aws_s3_connector
+        
     else: # Create the connector
         aws_s3_connector = AWSS3Connection(path_to_store_imported_s3_bucket, s3_bucket_name, s3_obj_prefix)
         aws_s3_connector = aws_s3_connector.run_s3_connection_pipeline()
@@ -899,8 +915,10 @@ def export_pd_dataframe_as_excel (file_name_without_extension, exported_tables =
         with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
                             datetime_format = "YYYY-MM-DD HH:MM:SS",
                             mode = 'a', if_sheet_exists = 'replace') as writer:
+            
             for storage_dict in exported_tables:
                 df, sheet = storage_dict['dataframe_obj_to_be_exported'], storage_dict['excel_sheet_name']
+                
                 if ((df is not None) & (sheet is not None) & (type(df) == pd.DataFrame)):
                     # Guarantee sheet name is a string
                     sheet = str(sheet)
@@ -915,8 +933,10 @@ def export_pd_dataframe_as_excel (file_name_without_extension, exported_tables =
         # we can open the writer in write ('w') mode to create a new spreadsheet:
         with pd.ExcelWriter(file_path, date_format = "YYYY-MM-DD",
                             datetime_format = "YYYY-MM-DD HH:MM:SS", mode = 'w') as writer:
+            
             for storage_dict in exported_tables:
                 df, sheet = storage_dict['dataframe_obj_to_be_exported'], storage_dict['excel_sheet_name']
+                
                 if ((df is not None) & (sheet is not None) & (type(df) == pd.DataFrame)):
                     # Guarantee sheet name is a string
                     sheet = str(sheet)
@@ -1967,22 +1987,20 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
       be appended. Example: previous_df_for_concatenation = dataset.   
     """
 
-    from getpass import getpass
-    
-    if (username is None):
-        
-        username = input("Enter your username: ")
-        
-    if (password is None):
-        
-        password = getpass("Enter your password: ")
-    
-    # Remove trailing whitespaces:
-    username = str(username).strip()
-    password = str(password).strip()
-    
-    if (data_source is None):
-        data_source = 'localhost'
+    if (Connectors.ip21_connector):
+        if Connectors.persistent:
+            # Run if there is a persistent connector  (if it is not None):
+            ip21_connector = Connectors.ip21_connector
+        else:
+            # Create the connector
+            ip21_connector = IP21Extractor(previous_df_for_concatenation)
+            ip21_connector = ip21_connector.get_credentials(ip21_server, data_source, username, password)
+            
+    else:
+        # Create the connector
+        ip21_connector = IP21Extractor(previous_df_for_concatenation)
+        ip21_connector = ip21_connector.get_credentials(ip21_server, data_source, username, password)
+
     
     if (start_time is None):
         start_time = 'yesterday'
@@ -2011,33 +2029,32 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
         
         tag_to_extract = tag_dict['tag']
         actual_tag_name = tag_dict['actual_name']
-        
-        # Instantiate an object from class IP21Extractor:
-        extractor = IP21Extractor(tag_to_extract = tag_to_extract, actual_tag_name = actual_tag_name, ip21_server = ip21_server, data_source = data_source, start_timestamp = start_time, stop_timestamp = stop_time, ip21time_array = ip21time_array, previous_df_for_concatenation = previous_df_for_concatenation, username = username, password = password)
+
+        ip21_connector = ip21_connector.set_query_parameters(tag_to_extract, actual_tag_name, start_time, stop_time, ip21time_array)
         # Define the extracted time window:
-        extractor = extractor.set_extracted_time_window(start_timedelta_unit = start_timedelta_unit, stop_timedelta_unit = stop_timedelta_unit)
+        ip21_connector = ip21_connector.set_extracted_time_window(start_timedelta_unit = start_timedelta_unit, stop_timedelta_unit = stop_timedelta_unit)
         
         while (extractor.need_next_call == True):
             
             try:
-                print(f"API call {api_call_number}: fetching IP21 timestamps from {extractor.start_ip21_scale} to {extractor.stop_ip21_scale}.\n")
+                print(f"API call {api_call_number}: fetching IP21 timestamps from {ip21_connector.start_ip21_scale} to {ip21_connector.stop_ip21_scale}.\n")
                 # Get Rest API URL:
-                extractor = extractor.get_rest_api_url()
+                ip21_connector = ip21_connector.get_rest_api_url()
                 # Fetch the Database:
-                extractor = extractor.fetch_database(request_type = 'get')
+                ip21_connector = ip21_connector.fetch_database(request_type = 'get')
                 # Retrieve Pandas dataframe:
-                extractor = extractor.retrieve_pd_dataframe()
+                ip21_connector = ip21_connector.retrieve_pd_dataframe()
                 
                 # Go to the next call number:
             
             except:
-                print(f"Failed API call {api_call_number} with IP21 timestamps from {extractor.start_ip21_scale} to {extractor.stop_ip21_scale}.")
+                print(f"Failed API call {api_call_number} with IP21 timestamps from {ip21_connector.start_ip21_scale} to {ip21_connector.stop_ip21_scale}.")
                 print("Returning the last valid dataframe extracted.\n")
                 # Force the modification of the attribute with vars function:
-                vars(extractor)['need_next_call'] = False
+                vars(ip21_connector)['need_next_call'] = False
         
             # Get the dataset:
-            extracted_df = extractor.dataset
+            extracted_df = ip21_connector.dataset
 
             # Get a dictionary with the returned information:
             returned_data = tag_dict
@@ -2065,7 +2082,8 @@ def get_data_from_ip21 (ip21_server, list_of_tags_to_extract = [{'tag': None, 'a
         returned_dfs_list.append(returned_data)
     
     # At this level, all tags were saved (finished 'for' loop)
-    
+    Connectors.ip21_connector = ip21_connector
+
     # Return all queried tags. If a single query was queried, there is only one dictionary in the list.
     return returned_dfs_list
 
@@ -2089,16 +2107,345 @@ def manipulate_sqlite_db (file_path, table_name, action = 'fetch_table', pre_cre
       Example: df = dataset.
     """
 
-    # Create the connector
-    sqlite_conn = SQLiteConnection(file_path, pre_created_engine)
+    
+    if (Connectors.sqlite_connector):
+        if Connectors.persistent:
+            # Run if there is a persistent connector  (if it is not None):
+            sqlite_connector = Connectors.sqlite_connector
+        else:
+            # Create the connector
+            sqlite_connector = SQLiteConnection(file_path, pre_created_engine)
+    
+    else:
+        # Create the connector
+        sqlite_connector = SQLiteConnection(file_path, pre_created_engine)
+
 
     if (action == 'fetch_table'):
 
-            df, engine = sqlite_conn.fetch_table(table_name)
+            df, engine = sqlite_connector.fetch_table(table_name)
+            Connectors.sqlite_connector = sqlite_connector
+            
             return df, engine
         
     elif (action == 'update_table'):
 
-            df, engine = sqlite_conn.update_or_create_table(table_name)
+            df, engine = sqlite_connector.update_or_create_table(table_name)
+            Connectors.sqlite_connector = sqlite_connector
+
             return df, engine
+
+
+def bigquery_pipeline(project = '', dataset = '', already_authenticated = True,
+                        authentication_method = 'manual',
+                        vault_secret_path = '', app_role = '', app_secret = '',
+                        action = 'connect',
+                        query = '',
+                        show_table = True, export_csv = False, saving_directory_path = "",
+                        table = '',
+                        df = None,
+                        column = '', values_to_delete = None,
+                        old_value = None,
+                        updated_value = None, comparative_column = None, value_to_search = None, 
+                        string_column = '', str_or_substring_to_search = '',
+                        view_id = ''
+                        ):
+    """
+    Pipeline for fetching or updating data stored on Google Cloud Platform (GCP).
+
+
+    : param: action (str): which action will be performed.
         
+        - 'connect': only a connector will be created in the memory. Requires no query declaration
+        
+        - 'run_sql_query': run a specified SQL query (parameter 'query') and returns a pandas dataframe.
+            Notice that 'query' cannot be an empty string for using this action.
+        
+        - 'get_full_table': run a query to return the full content from a table declared in parameter 'table'
+            Notice that 'table' cannot be an empty string or None object for using this action.
+        
+        - 'write_data_on_bigquery_table': write data from a dataframe declared in
+            parameter 'df' on a table declared in parameter 'table'. Notice that neither 'table' nor 'df' cannot
+            be empty strings or None objects for using this action.
+        
+        - 'delete_specific_values_from_column_on_table': look at a column specified in the parameter 'column' from a
+            table declared in parameter 'table'; and then search for values specified as 'values_to_delete'. 
+            Notice that 'column', 'table' or 'values_to_delete' cannot be empty strings or None objects for 
+            using this action.
+        
+        - 'update_specific_value_from_column_on_table': look at a column specified in the parameter 'column' from a
+            table declared in parameter 'table'; and then search for a value specified as 'old_value' in this column. 
+            If this value is found on, then update the row  with the value specified in 'updated_value'. 
+            Notice that 'column', 'table', 'old_value', or 'updated_value' cannot be empty strings or 
+            None objects for using this action.
+
+        - 'update_entire_column_from_table': look at a column specified in the parameter 'column' from a
+            table declared in parameter 'table'; and then replace all values from this column with the value defined
+            as 'updated_value'. Notice that 'column', 'table' or 'updated_value' cannot be empty strings or None objects 
+            for using this action.
+
+        - 'update_value_when_finding_str_or_substring_on_another_column': look at a column specified in the parameter 
+            'column' from a table declared in parameter 'table'; and then search for a string or substring 
+            specified as 'str_or_substring_to_search' in a second column named 'string_column'. 
+            If this value is found on 'string_column', then update the
+            correspondent row in 'column' with the value specified in 'updated_value'. 
+            Notice that 'column', 'table', 'str_or_substring_to_search' or 'string_column' cannot be empty 
+            strings or None objects for using this action.
+
+        - 'update_value_when_finding_numeric_value_on_another_column': look at a column specified in the parameter 
+            'column' from a table declared in parameter 'table'; and then search for a numeric value
+            specified as 'value_to_search' in a second column named 'comparative_column'. 
+            If this value is found on 'comparative_column', then update the
+            correspondent row in 'column' with the value specified in 'updated_value'. 
+            Notice that 'column', 'table', 'value_to_search', 'updated_value' or 'comparative_column' cannot be empty 
+            strings or None objects for using this action.
+        
+        - 'create_new_view': given an ID defined as 'view_id', create a new view with this ID if it does not exists.
+            The view is created following the instructions passed as 'query'.
+            A view is a dynamic query that is automatically updated when data is modified or added. In SAP system,
+            the views are called transactions. Notice that 'view_id' or 'query' cannot be None or empty for 
+            using this action.
+
+    : param: project (str): project name on BigQuery
+    : param: dataset (str): dataset that user wants to connect
+
+    
+    : param: already_authenticated (bool): True if the manual connection to GCP was already performed
+        and so the user is authorized.
+        
+        This connection can be done by running the following command directly on a cell or on the console
+        from Python environment. Attention: follow the command line authentication instruction below.
+
+            !gcloud auth application-default login
+        
+    
+        COMMAND LINE AUTHENTICATION INSTRUCTION
+            
+            - BEFORE INSTATIATING THE CLASS, FOLLOW THESE GUIDELINES!
+            
+            1. Copy and run the following line in a notebook cell. Do not add quotes.
+            The "!" sign must be added to indicate the use of a command line software:
+
+                !gcloud auth application-default login
+            
+            2. Also, you can run the SQL query on GCP console and, when the query results appear, click on EXPLORE DATA - Explore with Python notebook.
+            It will launch a Google Colab Python notebook that you may run for data exploring, manipulation and exporting.
+
+            2.1. To export data, you expand the hamburger icon on the left side of the Google Colab, click on Files, and then select an exported CSV or other files. Finally, click on the ellipsis (3 dots) and select Download to obtain it.
+            
+
+        Install Google Cloud Software Development Kit (SDK) before running
+                
+        General Instructions for Installation: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#installing_the_latest_version
+        Instructions for Windows: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#windows
+        Instructions for Mac OS: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#mac
+        Instructions for Linux: https://cloud.google.com/sdk/docs/install-sdk?hl=pt-br#linux
+        
+        From: https://stackoverflow.com/questions/39419754/downloading-and-importing-google-cloud-python
+        First, make sure you have installed gcloud on your system then run the commands like this:
+
+        First: gcloud components update in your terminal.
+        then: pip install google-cloud
+        And for the import error:
+        Adding "--ignore-installed" to pip command may work.
+        This might be a bug in pip - see this page for more details: https://github.com/pypa/pip/issues/2751
+
+        This pipeline may be blocked also due to security configurations, and may fail on some Virtual Private Networks (VPNs).
+        - Try to run this pipeline outside of the VPN in case it fails
+    
+
+    : param: authentication_method (str): 'manual' or 'vault' authentication
+            : param: authetication_method = 'manual' for GCP standard manual authentication on browser. System will try
+                to access the authorization window, in case it was not done yet.
+            : param: authetication_method = 'vault' for Vault automatic authentication, dependent on corporate
+                cibersecurity and data asset.
+
+    : param: vault_secret_path (str): path to access the secret
+    : params: vault_secret_path = '', app_role = '', app_secret = '' are the parameters for vault authorization
+    
+
+    : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+    : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+    : param: saving_directory_path (str): full path containing directories and table name, 
+        with .csv extension, used when export_csv = True
+
+    : param: table (str): name of the table to be retrieved. Full table name is `{self.project}.{self.dataset}.{str(table)}`
+    : param: df (pd.DataFrame): Pandas dataframe to be written on BigQuery table
+    
+    : param: column (str): is the column name on a given BigQuery table (a string).
+    : param: values_to_delete is a single value (numeric or string) or an iterable containing a set
+        of values to be deleted.
+    
+    : param: old_value: value that must be replaced
+    : param: updated_value: new value to be added.
+    
+    : param: comparative_column (str): column containing a numeric value that will be searched.
+    : param: value_to_search: numeric value that will be searched 
+        on column 'comparative_colum'. When it is find, the value on 'column' will be updated.
+    
+    : param: string_column (str): column containing a string or substring that will be searched.
+    : param: str_or_substring_to_search (str): (in quotes): string or substring that will be searched on 
+        column 'string_column'. When it is find, the value on 'column' will be updated.
+
+    : param: view_id (str): The ID of the view to be created. If no ID is provided, a table is created
+    """
+    
+    if (Connectors.gcp_connector):
+        if Connectors.persistent:
+            # Run if there is a persistent connector  (if it is not None):
+            gcp_connector = Connectors.gcp_connector
+        else:
+            # Create the connector
+            gcp_connector = GCPBigQueryConnection(project, dataset, already_authenticated)
+            gcp_connector = gcp_connector.authenticate(authentication_method, vault_secret_path, app_role, app_secret)
+    
+    else:
+        # Create the connector
+        gcp_connector = GCPBigQueryConnection(project, dataset, already_authenticated)
+        gcp_connector = gcp_connector.authenticate(authentication_method, vault_secret_path, app_role, app_secret)
+    
+
+    if (action == 'connect'):
+        Connectors.gcp_connector = gcp_connector
+        return gcp_connector
+    
+    elif (action == 'run_sql_query'):
+        df = gcp_connector.run_sql_query(query, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df
+    
+    elif (action == 'get_full_table'):
+        df_table = gcp_connector.get_full_table(table, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'write_data_on_bigquery_table'):
+        gcp_connector = gcp_connector.write_data_on_bigquery_table(table, df)
+        Connectors.gcp_connector = gcp_connector
+        return gcp_connector
+    
+    elif (action == 'delete_specific_values_from_column_on_table'):
+        df_table = gcp_connector.delete_specific_values_from_column_on_table(table, column, values_to_delete, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'update_specific_value_from_column_on_table'):
+        df_table = gcp_connector.update_specific_value_from_column_on_table(table, column, old_value, updated_value, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'update_entire_column_from_table'):
+        df_table = gcp_connector.update_entire_column_from_table(table, column, updated_value, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'update_value_when_finding_str_or_substring_on_another_column'):
+        df_table = gcp_connector.update_value_when_finding_str_or_substring_on_another_column(table, column, updated_value, string_column, str_or_substring_to_search, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'update_value_when_finding_numeric_value_on_another_column'):
+        df_table = gcp_connector.update_value_when_finding_numeric_value_on_another_column(table, column, updated_value, comparative_column, value_to_search, show_table, export_csv, saving_directory_path)
+        Connectors.gcp_connector = gcp_connector
+        return df_table
+    
+    elif (action == 'create_new_view'):
+        df = gcp_connector.create_new_view(view_id, query, show_table, export_csv, saving_directory_path)
+        return df
+    
+
+def sqlserver_pipeline (server, 
+                  database,
+                  username = '', 
+                  password = '',
+                  system = 'windows',
+                  show_schema = True, export_csv = False, saving_directory_path = "",
+                  query = '', show_table = True,
+                  table = '',
+                  tag = '', variable_name = None,   
+                  ):
+    """
+    Pipeline for fetching or updating data stored on Microsoft SQL Server.
+
+    : param: system = 'windows', 'macos' or 'linux'
+
+        If the user passes the argument, use them. Otherwise, use the standard values.
+        Set the class objects' attributes.
+        Suppose the object is named assistant. We can access the attribute as:
+        assistant.assistant_startup, for instance.
+        So, we can save the variables as objects' attributes.
+
+        INSTALL ODBC DRIVER IF USING MACOS OR LINUX (Windows already has it):
+        - MacOS Installation: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos?view=sql-server-ver16
+        - Linux Installation: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver16&tabs=alpine18-install%2Calpine17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline
+        
+
+    : param: action (str): which action will be performed.
+        
+        - 'connect': only a connector will be created in the memory. Requires no query declaration
+        
+        - 'get_db_schema': get the schema of tables (data model) stored on SQL Server.
+
+        - 'run_sql_query': run a specified SQL query (parameter 'query') and returns a pandas dataframe.
+            Notice that 'query' cannot be an empty string for using this action.
+
+        - 'get_full_table': run a query to return the full content from a table declared in parameter 'table'
+            Notice that 'table' cannot be an empty string or None object for using this action.
+
+        - 'query_specific_tag_ip21sqlserver': if the IP21 plant information system (PIMS) is stored on SQL Server,
+            use this action to query only a specific tag (variable or attribute). Notice that the parameter 'tag'
+            cannot be empty string or None object for using this action. The parameter 'variable_name' is optional
+            and can be used to modify the tag to a name of variable easier to understand.
+    
+    : param: show_schema (bool): if True, the schema of the tables on the SQL Server will be shown.
+    : param: show_table (bool): keep as True to print the queried table, set False to hide it.
+    : param: export_csv (bool): set True to export the queried table as CSV file, or set False not to export it.
+    : param: saving_directory_path (str): full path containing directories and table name, 
+        with .csv extension, used when export_csv = True
+
+    : param: table (str): string containing the name of the table that will be queried.
+
+    : param: tag (str): string with tag as registered in IP21. e.g. tag = 'ABC00AA101-01'.
+    : param: variable_name (str): string containing a more readable name for the tag, that will be also shown.
+        e.g. variable_name = 'Temperature in C'
+    
+    """
+    
+
+    if (Connectors.sqlserver_connector):
+        if Connectors.persistent:
+            # Run if there is a persistent connector  (if it is not None):
+            sqlserver_connector = Connectors.sqlserver_connector
+        else:
+            # Create the connector
+            sqlserver_connector = SQLServerConnection(server, database, username, password, system)
+            
+    else:
+        # Create the connector
+        sqlserver_connector = SQLServerConnection(server, database, username, password, system)
+    
+
+    if (action == 'connect'):
+        Connectors.sqlserver_connector = sqlserver_connector
+        return sqlserver_connector
+    
+    elif (action == 'get_db_schema'):
+        sqlserver_connector = sqlserver_connector.get_db_schema(show_schema, export_csv, saving_directory_path)
+        Connectors.sqlserver_connector = sqlserver_connector
+        return sqlserver_connector
+    
+    elif (action == 'run_sql_query'):
+        sqlserver_connector = sqlserver_connector.run_sql_query(query, show_table, export_csv, saving_directory_path)
+        Connectors.sqlserver_connector = sqlserver_connector
+        return sqlserver_connector
+    
+    elif (action == 'get_full_table'):
+        sqlserver_connector = sqlserver_connector.get_full_table(table, show_table, export_csv, saving_directory_path)
+        Connectors.sqlserver_connector = sqlserver_connector
+        return sqlserver_connector
+    
+    elif (action == 'query_specific_tag_ip21sqlserver'):
+        sqlserver_connector = sqlserver_connector.query_specific_tag_ip21sqlserver(tag, variable_name, show_table, export_csv, saving_directory_path)
+        Connectors.sqlserver_connector = sqlserver_connector
+        return sqlserver_connector
+    
