@@ -10,6 +10,7 @@ plotly>=5.17.0
 requests>=2.31.0
 requests_ntlm>=1.2.0
 sqlalchemy>=2.0.21
+openpyxl>=3.0.10
 shap>=0.43.0
 xgboost>=2.0.0
 dash>=2.13.0
