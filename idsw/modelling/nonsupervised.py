@@ -395,23 +395,23 @@ def anomaly_detection (X_tensor, defined_threshold = 0.00001, X_test = None, y_t
     return anomaly_detection_model, outliers
 
 
-def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
+def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, diff_alert_threshold = 20,
                        horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 0, 
                        y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, 
                        png_resolution_dpi = 330):
     """
-    Check the presence of FINANCIAL OUTLIERS through Benford's Law
-    
-    https://www.journalofaccountancy.com/issues/2017/apr/excel-and-benfords-law-to-detect-fraud.html
-    
-    Briefly explained, Benford's Law maintains that the numeral 1 will be the leading digit in a genuine
-    data set of numbers 30.1% of the time; the numeral 2 will be the leading digit 17.6% of the time; 
-    and each subsequent numeral, 3 through 9, will be the leading digit with decreasing frequency. 
-    This expected occurrence of leading digits can be illustrated as shown in the chart "Benford's Law."
+    Check the presence of FINANCIAL OUTLIERS through Benford's Law. It may be also applied to fraud detection.
+    Examples of situations to analyze: accounting transactions, credit card transactions, customer balances, death rates, 
+        diameter of planets, electricity and telephone bills, Fibonacci numbers, incomes, insurance claims, 
+        lengths and flow rates of rivers, loan data, numbers of newspaper articles, physical and mathematical constants, 
+        populations of cities, powers of 2, purchase orders, stock and house prices.
     
     : param: df (pd.DataFrame): Dataframe with values to be analyzed.
     
     : param: column_to_analyze (str): column with the values to be analyzed.
+
+    : param: digits_to_analyze (integer): 1, 2 or 3. If 1, only the first digit is used for the analysis. If 2,
+        the analysis for the first 2 digits is performed; if 3, the first 3 digits are used.
     
     : param: difference_alert (float): percent of deviation from the curve to add an alert. Example: if difference_alert = 20,
         a difference between the percent of leading digit occurence and the expected from the curve of 20% will be sufficient
@@ -423,28 +423,130 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
         threshold set as diff_alert_threshold.
         
         outliers_df, a smaller dataframe containing only the data labelled as potential outliers (digit and % of occurrence).
+
+    
+    Theory:
+
+        https://www.journalofaccountancy.com/issues/2017/apr/excel-and-benfords-law-to-detect-fraud.html
+        
+        Briefly explained, Benford's Law maintains that the numeral 1 will be the leading digit in a genuine
+        data set of numbers 30.1% of the time; the numeral 2 will be the leading digit 17.6% of the time; 
+        and each subsequent numeral, 3 through 9, will be the leading digit with decreasing frequency. 
+        This expected occurrence of leading digits can be illustrated as shown in the chart "Benford's Law."
+
+        https://s3.amazonaws.com/assets.datacamp.com/production/course_8916/slides/chapter4.pdf
+
+        Many datasets satisfy Benford's Law
+            - data where numbers represent sizes of facts or events
+            - data in which numbers have no relationship to each other
+            - data sets that grow exponentially or arise from multiplicative fluctuations
+            - mixtures of different data sets
+            - Some well-known infinite integer sequences
+            Preferably, more than 1000 numbers that go across multiple orders.
+
+        https://repositorio.ufmg.br/bitstream/1843/BUBD-A35FFR/1/tcc___bruno_c_gomes___completo.pdf
+        (page 10)
+        
+        - Benford law for a single digit d1:
+            Probability(d1) = P(d1) = log(1 + 1/d1)
+        - For 2 digits d1 and d2:
+            P(d1d2) = log(1 + (1/d1d2))
+            - Notice that the number formed by digit d1 followed by d2 is actually 10*d1 + d2
+                e.g. 17 = 10*(1) + 7, d1 = 1, d2 = 7
+        - For 3 digits d1, d2, d3:
+            P(d1d2d3) = log(1 + (1/d1d2d3))
+            - Notice that the number formed by digit d1 followed by d2 is actually 100*d1 + 10*d2 + d3
+                e.g. 171 = 100*(1) + 10*(7) + 1, d1 = 1, d2 = 7, d3 = 1
+        
+        - all log are in base 10
     """
     
+    import math
+    # https://www.w3schools.com/python/ref_math_log.asp
+    
+
+    benford_prob = lambda x: (math.log((1 + 1/x), 10)) * 100
+    """
+    Calculates probabilities in percents.
+        syntax: math.log(x, base), default base is e;
+        - math.log(x): natural logarithm of x
+        - math.log(x, 10): logarithm of x in base 10
+
+    benford_prob is the probability of obtaining a given x. x may be a single, 2-, or 3-digit number
+    """
+
     # total entries on the dataset
     total = len(df)
     
-    # Expected Benford curve, with values in percent (key: leading digit, value: expected percent of occurrence)
-    expected_curve = {0: 0.0, 1: 30.1, 2: 17.6, 3: 12.5, 4: 9.7, 5: 7.9, 6: 6.7, 7: 5.8, 8: 5.1, 9: 4.6}
+    if (digits_to_analyze == 1):
+        # Expected Benford curve, with values in percent (key: leading digit, value: expected percent of occurrence)
+        # expected_curve = {0: 0.0, 1: 30.1, 2: 17.6, 3: 12.5, 4: 9.7, 5: 7.9, 6: 6.7, 7: 5.8, 8: 5.1, 9: 4.6}
+        expected_curve = {d1: benford_prob(d1) for d1 in range(1, 10)} # values from 1 to 9
+        expected_curve[0] = 100 - np.sum(list(expected_curve.values())) #100% - all other percents, which must be ~0%
+        # This is important for plotting the chart. That is because a digit zero may appear in the obtained strings.
     
+    elif (digits_to_analyze == 2):
+
+        possible_numbers = range(10, 100) 
+        # when slicing to the second digit, we may obtain values 10, 11,..., 99
+        # Naturally, 0 may be obtained.
+        expected_curve = {d1d2: benford_prob(d1d2) for d1d2 in possible_numbers}
+        # Here, sum of probabilities is ~99.99999999999997%
+    
+    elif (digits_to_analyze == 3):
+        possible_numbers = range(100, 1000) 
+        # when slicing to the second digit, we may obtain values 100, 101, 999
+        expected_curve = {d1d2d3: benford_prob(d1d2d3) for d1d2d3 in possible_numbers}
+        # Here, sum of probabilities is ~99.99999999999993%
+
+    else:
+        raise InvalidInputsError("digits_to_analyze must be an integer equals to 1, 2 or 3.")
+        
     # Create a local copy of the dataset to manipulate
     dataset = df.copy(deep = True)
     
     # Extract the first character and count the occurences
     # convert to string and apply a lambda function that extracts the first character from a str x
-    dataset['leading_digit'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[0])
-    # Since the object is a Pandas series, the axis = 1 (rows) is implicit for the apply method.
+    if (digits_to_analyze == 1):
+        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[0])
+        # Since the object is a Pandas series, the axis = 1 (rows) is implicit for the apply method.
     
-    dataset = dataset.groupby(by = 'leading_digit', as_index = False, sort = True).count()
+    elif (digits_to_analyze == 2):
+        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:2])
+        # slice only the first two digits
+        initial_len = len(dataset) # entries before drop.
+        # Filter only entries with exactly 2 digits (strings with length == 2)
+        dataset = dataset[dataset['leading_digits'].apply(len) == 2]
+        if (initial_len != len(dataset)):
+            # Entries that do not have 2 digits were dropped. Warn user.
+            warning = f"""The probability calculation is based on the assumption that there are exactly 2 digits.
+                There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100} % of the dataset)
+                that did not presented exactly 2 digits, so they were not considered in the analysis.
+                """
+            print(warning)
+            dataset = dataset.reset_index(drop = True)
+
+    elif (digits_to_analyze == 3):
+        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:3])
+        # slice only the first three digits
+        initial_len = len(dataset) # entries before drop.
+        # Filter only entries with exactly 3 digits (strings with length == 3)
+        dataset = dataset[dataset['leading_digits'].apply(len) == 3]
+        if (initial_len != len(dataset)):
+            # Entries that do not have 3 digits were dropped. Warn user.
+            warning = f"""The probability calculation is based on the assumption that there are exactly 3 digits.
+                There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100} % of the dataset)
+                that did not presented exactly 3 digits, so they were not considered in the analysis.
+                """
+            print(warning)
+            dataset = dataset.reset_index(drop = True)
+
+    dataset = dataset.groupby(by = 'leading_digits', as_index = False, sort = True).count()
     
     dataset = dataset.rename(columns = {column_to_analyze: 'counts'})
     
     # leading digit can be reconverted to integer, to save memory on the dataframe:
-    dataset['leading_digit'] = dataset['leading_digit'].astype(int)
+    dataset['leading_digits'] = dataset['leading_digits'].astype(int)
     
     # Round to 1 digit, such as the Benford curve
     dataset['digits_pct'] = np.round((np.array(dataset.counts) / total * 100), 1)
@@ -452,7 +554,7 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
     # Add a column with the expected_curve: access the index given by 'digit' and the correspondent value on the
     # dictionary expected_curve. Here, as the whole table is manipulated, parameter axis = 1 must be passed to the
     # apply method, avoiding the imputation to a whole column.
-    dataset['benford'] = dataset.apply(lambda x: expected_curve[x.leading_digit], axis = 1)
+    dataset['benford'] = dataset.apply(lambda x: expected_curve[x.leading_digits], axis = 1)
     
     # Calculate the difference between theoretical and actual percent (absolute value):
     dataset['pct_diff'] = np.round((abs(dataset['digits_pct'] - dataset['benford'])/dataset['benford'] * 100), 2)
@@ -463,7 +565,7 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
     # Filter potential outliers
     outliers_df = outliers_df[outliers_df['label'] == 'potential_outlier']
     # keep only the columns digit and % of occurrence
-    outliers_df = outliers_df[['leading_digit', 'digits_pct']]
+    outliers_df = outliers_df[['leading_digits', 'digits_pct']]
      
     if ControlVars.show_results:
         print("Successfully calculated and returned the dataset comparing the digits with Benford's Law, as well as a dataframe containing only data labelled as potential outliers:\n")
@@ -491,7 +593,7 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
         
         if (horizontal_axis_title is None):
 
-            horizontal_axis_title = 'leading_digit'
+            horizontal_axis_title = 'leading_digits'
 
         if (vertical_axis_title is None):
             # Notice that response_var_name already has the suffix indicating the
@@ -513,16 +615,16 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
         ax.set_xlabel(horizontal_axis_title)
         ax.set_ylabel(vertical_axis_title, color = 'darkblue')
 
-        ax.bar(dataset['leading_digit'], dataset['digits_pct'], color = 'darkblue', alpha = OPACITY, label = 'digits_pct')
+        ax.bar(dataset['leading_digits'], dataset['digits_pct'], color = 'darkblue', alpha = OPACITY, label = 'digits_pct')
 
-        ax.plot(dataset['leading_digit'], dataset['benford'], color = 'fuchsia', linestyle = 'dashed', alpha = OPACITY, label = "Benford's Law\nTheoretical Percent (%)")
+        ax.plot(dataset['leading_digits'], dataset['benford'], color = 'fuchsia', linestyle = 'dashed', alpha = OPACITY, label = "Benford's Law\nTheoretical Percent (%)")
         
         
         # If there are red points labelled as potential outliers, plot them above the graph
         # (plot as scatter plot, with no spline, and 100% opacity = 1.0):
         if (len(outliers_df) > 0):
             
-            ax.plot(outliers_df['leading_digit'], outliers_df['digits_pct'], linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0, label = "Potential\nOutlier")
+            ax.plot(outliers_df['leading_digits'], outliers_df['digits_pct'], linestyle = '', marker = 'o', color = 'firebrick', alpha = 1.0, label = "Potential\nOutlier")
         
         ax.legend()
         ax.grid(grid) # shown if user set grid = True
@@ -560,6 +662,42 @@ def check_financial_outliers (df, column_to_analyze, diff_alert_threshold = 20,
     
         plt.show()
     
+
+    if ControlVars.show_results:
+        fraud_text = """
+        Benford's Law for fraud detection (from DataCamp)
+        Fraud is typically committed by adding invented numbers or changing real observations.
+        - Benford’s Law is popular tool for fraud detection and is even legally admissible as evidence in the US.
+        - It has for example been successfully applied for claims fraud, check fraud, electricity theft, forensic accounting 
+        and payments fraud.
+        - See also the book Benford's Law: Applications for forensic accounting, auditing, and fraud detection of Nigrini (John Wiley & Sons, 2012).
+        
+        Be careful!
+        Note that it is always possible that data does just not conform to Benford's Law:
+        - If there is lower and/or upper bound or data is concentrated in narrow interval
+            e.g. hourly wage rate, height of people.
+        - If numbers are used as identification numbers or labels
+            e.g. social security number, flight numbers, car license plate numbers, phone numbers.
+        - Additive fluctuations instead of multiplicative fluctuations
+            e.g. heartbeats on a given day
+        
+        Check the presence of FINANCIAL OUTLIERS through Benford's Law. It may be also applied to fraud detection.
+        Examples of situations to analyze: accounting transactions, credit card transactions, customer balances, death rates, 
+            diameter of planets, electricity and telephone bills, Fibonacci numbers, incomes, insurance claims, 
+            lengths and flow rates of rivers, loan data, numbers of newspaper articles, physical and mathematical constants, 
+            populations of cities, powers of 2, purchase orders, stock and house prices.
+        
+        Many datasets satisfy Benford's Law
+        - data where numbers represent sizes of facts or events
+        - data in which numbers have no relationship to each other
+        - data sets that grow exponentially or arise from multiplicative fluctuations
+        - mixtures of different data sets
+        - Some well-known infinite integer sequences
+        Preferably, more than 1000 numbers that go across multiple orders.
+
+        """
+        print(fraud_text)
     
+
     return dataset, outliers_df
 

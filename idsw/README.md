@@ -17,6 +17,9 @@ Authors:
 - Gabriel Fernandes Luz, Senior Data Scientist
   - gfluz94@gmail.com
 
+- Sergio Guilherme Neto, Data Analyst
+  - sguilhermeneto@gmail.com
+
 - If you cannot install the last version from idsw package directly from PyPI using `pip install idsw`:
 
 1. Open the terminal and:

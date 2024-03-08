@@ -9,7 +9,7 @@ and Statistica software.
 Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 """
 
-__author__ = """Marco Cesar Prado Soares; Gabriel Fernandes Luz"""
+__author__ = """Marco Cesar Prado Soares; Gabriel Fernandes Luz; Sergio Guilherme Neto"""
 __version__ = "1.3.0"
 
 

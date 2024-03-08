@@ -16,7 +16,7 @@ setup(
     url="""https://github.com/marcosoares-92/IndustrialDataScienceWorkflow""",
     version="1.3.0",
     license='MIT',
-    author="Marco Cesar Prado Soares; Gabriel Fernandes Luz",
+    author="Marco Cesar Prado Soares; Gabriel Fernandes Luz; Sergio Guilherme Neto",
     author_email="marcosoares.feq@gmail.com",
     description=idsw_description,
     packages=find_packages(include=['idsw', 'idsw.*']),

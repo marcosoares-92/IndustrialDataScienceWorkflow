@@ -50,4 +50,5 @@
 - New division of functions and classes and correspondent modules.
 - Refactoring of functions and classes to improve code efficiency.
 - Added new pipelines for fetching data and modified the storage of connectors.
+- It includes pipelines for fetching table regions in Excel files, even if they are stored in a same tab; and a pipeline for downloading files stored in MS SharePoint.
 - Added ControlVars dataclass to store if the user wants to hide results and plots.
