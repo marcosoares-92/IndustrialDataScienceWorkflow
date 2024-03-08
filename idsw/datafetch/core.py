@@ -2862,3 +2862,197 @@ class IngestExcelTables:
         
         return self
 
+
+class SharePointDownloader:
+    """Pipeline for accessing SharePoint files"""
+
+    def __init__(self):
+
+        import os
+        from dotenv import load_dotenv
+        from msal import ConfidentialClientApplication
+        load_dotenv()
+
+        # Environment variables loading
+        self.CLIENT_ID = os.environ.get('CLIENT_ID')
+        self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+        self.TENANT_ID = os.environ.get('TENANT_ID')
+        self.SHAREPOINT_SITE_ID = os.environ.get('SHAREPOINT_SITE_ID')
+        
+        # This url is used at each request, as it is the main request url
+        self.url = f'https://graph.microsoft.com/v1.0/sites/{self.SHAREPOINT_SITE_ID}/drives/'
+            
+        # Authentication Config
+        self.authority = 'https://login.microsoftonline.com/' + self.TENANT_ID
+        self.scope = ['https://graph.microsoft.com/.default']
+
+        # APP Initialization
+        self.app = ConfidentialClientApplication(
+            self.CLIENT_ID, 
+            authority = self.authority,
+            client_credential = self.CLIENT_SECRET
+        )
+    
+
+    def get_token(self):
+        """
+        This function aims to create a 'headers' object to be used at each get request on the Graph API.
+        The return is a json/dictionary object to be read by the headers argument, as it can be seen in the functions below.
+        """
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        try:
+            result = self.app.acquire_token_for_client(scopes = self.scope)
+            access_token = result['access_token']
+            headers = {'Authorization': 'Bearer ' + access_token}
+            return headers
+        
+        except Exception as e:
+            print(f'Error: {e}')
+        
+    
+    def get_response_id(self, result_json, match):
+        """
+            This function is responsible to read all API response and return the folder/file IDs.
+            It converts the response from get() method into a JSON format and gets the intended ID by matching the subsequent name on arg.
+            
+            The arguments of this function are:
+            - result_json: inputs the obtject as type requests.models.Response, which is converted to json and read by the function
+            - match: string of folder/file to be found by the function. 
+            
+            If the name is not match as required, the return is none.
+        """
+
+        import json
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        try:
+            # Converting the response into JSON format
+            result_json = json.loads(result_json.content)
+            
+            # Verifying the id for the object
+            for item in result_json['value']:
+                if item['name'] == match:
+                    return item['id']
+            return None
+        
+        except Exception as e:
+            print(f'Error: {e}')
+    
+
+    def get_drive_id(self, main_sharepoint_directory, path):
+        """
+        : param: main_sharepoint_directory (str): represents the primary location for fetching the information.
+            Usually, this information is present in a location called 'Documents'.
+        
+        : param: path (str): path within the main directory. Example: if you want to access a folder called "SPC data"
+            in the 'Documents' directory, path = 'SPC data'. If you want to access the content from 'Documents', keep
+            path = None
+        """
+        import requests
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        
+        try: 
+            headers = self.get_token()
+            response = requests.get(self.url, headers = headers)
+            drive_id = self.get_response_id(result_json = response, match = main_sharepoint_directory)
+            
+            if path: # run if it is not None
+                drive_response = requests.get(self.url + f'{drive_id}/root/children', headers = headers)
+                root_folder_id = self.get_response_id(result_json = drive_response, match = path)
+                
+            return drive_id, root_folder_id
+        
+        except Exception as e:
+            print(f'Error: {e}')
+
+
+    def find_file(self, drive_id: str, folder_id: str, target_file_name: str, headers):
+        """
+            find_file is a API scraping function to find the ID of the target file on sharepoint.
+            
+            The arguments of this function are:
+            - drive_id: string, the ID of the root folder on the API.
+            - folder_id: string, uses the IDs of the folders from the root folder to search the target file.
+            - target_file_name: string, the name of file to be searched. If found, stops the search.
+            - headers: JSON, the authorization to run the get() request method.
+            
+            If the name is not match as required, the return is none.
+        """
+        import requests
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+        try:
+            # Requests to search the file ID.
+            folder_url = f"{self.url}/{drive_id}/items/{folder_id}/children"
+            folder_response = requests.get(folder_url, headers = headers)
+            folder_result = folder_response.json()
+            
+            # This loops looks for the Download URL. If do not finds the file in the loop, it looks inside each folder.
+            for item in folder_result['value']:
+                if '@microsoft.graph.downloadUrl' in item:  # Check if it is a valid file
+                    if item['name'] == target_file_name:
+                        return item['id']
+                else:
+                    if 'folder' in item:
+                        sub_folder_id = item['id']
+                        file_id = self.find_file(drive_id, sub_folder_id, target_file_name, headers)
+                        if file_id:
+                            return file_id
+            return None
+        
+        except Exception as e:
+            print(f'Error: {e}')
+
+
+    def download_file(self, target_file_name, main_sharepoint_directory = 'Documents', path = None):
+        """
+            : param: main_sharepoint_directory (str): represents the primary location for fetching the information.
+            Usually, this information is present in a location called 'Documents'.
+        
+            : param: path (str): path within the main directory. Example: if you want to access a folder called "SPC data"
+                in the 'Documents' directory, path = 'SPC data'. If you want to access the content from 'Documents', keep
+                path = None
+
+            The function is able to read and download the sharepoint hosted file from the result given the file ID obtained by the method find_file()
+            
+            The arguments of this function are:
+            - file_id: string, the ID of the root folder on the API.
+            - target_file_name: string, the name of file to be searched. If found, stops the search.
+            - headers: JSON, the authorization to run the get() request method.
+            
+            If the name is not match as required, the return is none.
+        """
+        import requests
+        from urllib.request import urlretrieve
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+        try:
+            # Getting each important ID to download the file
+            headers = self.get_token()
+            drive_id, root_folder_id = self.get_drive_id(main_sharepoint_directory, path)
+            file_id = self.find_file(drive_id, root_folder_id, target_file_name, headers)
+            
+            # Requests the Download URL from the API and downloads it within the system set up.
+            if file_id:
+                file_url = f"{self.url}/{drive_id}/items/{file_id}"
+                file_result = requests.get(file_url, headers = headers).json()
+                file_download_url = file_result["@microsoft.graph.downloadUrl"]
+                urlretrieve(file_download_url, file_result['name'])
+                print("Download successful!")
+            else:
+                raise InvalidInputsError("File not found.")
+                
+        except Exception as e:
+            print(f'Error: {e}')
+        # sharepoint_downloader = SharePointDownloader()
+        # sharepoint_downloader.download_file(target_file_name = "data.xlsx")
+
