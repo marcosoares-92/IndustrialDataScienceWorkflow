@@ -482,8 +482,6 @@ def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, di
         # Expected Benford curve, with values in percent (key: leading digit, value: expected percent of occurrence)
         # expected_curve = {0: 0.0, 1: 30.1, 2: 17.6, 3: 12.5, 4: 9.7, 5: 7.9, 6: 6.7, 7: 5.8, 8: 5.1, 9: 4.6}
         expected_curve = {d1: benford_prob(d1) for d1 in range(1, 10)} # values from 1 to 9
-        expected_curve[0] = 100 - np.sum(list(expected_curve.values())) #100% - all other percents, which must be ~0%
-        # This is important for plotting the chart. That is because a digit zero may appear in the obtained strings.
     
     elif (digits_to_analyze == 2):
 
@@ -504,39 +502,77 @@ def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, di
         
     # Create a local copy of the dataset to manipulate
     dataset = df.copy(deep = True)
+
+    # Firstly, guarantee that the column contains only integers. For that, let's eliminate the decimal separators:
+    def eliminate_decimal_seps(x):
+        # Get absolute values from x, so that the minus sign will not interfere:
+        arr = np.absolute(x)
+        # Convert to string
+        arr = np.array(arr, dtype = str)
+        # https://numpy.org/doc/stable/reference/generated/numpy.char.replace.html
+        arr = np.char.replace(arr, '.', '') # replaces decimal separator by empty string.
+        # Truncate so that there are no more than 3 characters in the string (3 is the max number to be tested)
+        # So we will make the algorithm faster
+        arr = pd.Series(arr).apply(lambda x: x[:3])
+        # Convert to int and return as numpy array
+        arr = np.array(arr, dtype = int)
+        return arr
+
+    dataset[column_to_analyze] = eliminate_decimal_seps(dataset[column_to_analyze])
     
     # Extract the first character and count the occurences
     # convert to string and apply a lambda function that extracts the first character from a str x
     if (digits_to_analyze == 1):
         dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[0])
         # Since the object is a Pandas series, the axis = 1 (rows) is implicit for the apply method.
-    
-    elif (digits_to_analyze == 2):
-        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:2])
-        # slice only the first two digits
+        
+        # Filter only entries with first digit different from zero:
         initial_len = len(dataset) # entries before drop.
-        # Filter only entries with exactly 2 digits (strings with length == 2)
-        dataset = dataset[dataset['leading_digits'].apply(len) == 2]
+        dataset = dataset[dataset['leading_digits'] != '0']
+        
         if (initial_len != len(dataset)):
             # Entries that do not have 2 digits were dropped. Warn user.
-            warning = f"""The probability calculation is based on the assumption that there are exactly 2 digits.
-                There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100} % of the dataset)
-                that did not presented exactly 2 digits, so they were not considered in the analysis.
+            warning = f"""The probability calculation is based on the assumption that no leading digit is zero.
+                There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100 : .2f} % of the dataset)
+                that had 0 as 1st digit, so they were not considered in the analysis.
+                """
+            print(warning)
+            dataset = dataset.reset_index(drop = True)
+    
+    elif (digits_to_analyze == 2):
+        # slice only the first two digits
+        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:2])
+        
+        initial_len = len(dataset) # entries before drop.
+        # Filter only entries with first digit different from zero:
+        dataset = dataset[dataset['leading_digits'].apply(lambda x: x[0]) != '0']
+        # Filter only entries with exactly 2 digits (strings with length == 2)
+        dataset = dataset[dataset['leading_digits'].apply(len) == 2]
+        
+        if (initial_len != len(dataset)):
+            # Entries that do not have 2 digits were dropped. Warn user.
+            warning = f"""The probability calculation is based on the assumption that there are exactly 2 digits and the first digit
+                is not 0. There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100 : .2f} % of the dataset)
+                that did not presented exactly 2 digits or had 0 as 1st digit, so they were not considered in the analysis.
                 """
             print(warning)
             dataset = dataset.reset_index(drop = True)
 
     elif (digits_to_analyze == 3):
-        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:3])
         # slice only the first three digits
+        dataset['leading_digits'] = dataset[column_to_analyze].astype(str).apply(lambda x: x[:3])
+        
         initial_len = len(dataset) # entries before drop.
+        # Filter only entries with first digit different from zero:
+        dataset = dataset[dataset['leading_digits'].apply(lambda x: x[0]) != '0']
         # Filter only entries with exactly 3 digits (strings with length == 3)
         dataset = dataset[dataset['leading_digits'].apply(len) == 3]
+        
         if (initial_len != len(dataset)):
             # Entries that do not have 3 digits were dropped. Warn user.
-            warning = f"""The probability calculation is based on the assumption that there are exactly 3 digits.
-                There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100} % of the dataset)
-                that did not presented exactly 3 digits, so they were not considered in the analysis.
+            warning = f"""The probability calculation is based on the assumption that there are exactly 3 digits and the first digit
+                is not 0. There were {initial_len - len(dataset)} rows ({(initial_len - len(dataset))/initial_len*100 : .2f} % of the dataset)
+                that did not presented exactly 3 digits or had 0 as 1st digit, so they were not considered in the analysis.
                 """
             print(warning)
             dataset = dataset.reset_index(drop = True)
@@ -554,10 +590,14 @@ def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, di
     # Add a column with the expected_curve: access the index given by 'digit' and the correspondent value on the
     # dictionary expected_curve. Here, as the whole table is manipulated, parameter axis = 1 must be passed to the
     # apply method, avoiding the imputation to a whole column.
-    dataset['benford'] = dataset.apply(lambda x: expected_curve[x.leading_digits], axis = 1)
+    dataset['benford_pct'] = dataset.apply(lambda x: expected_curve[x.leading_digits], axis = 1)
+
+    # Calculate the counting of occurrences predicted by benford curve:
+    dataset['benford_predicted_counts'] = np.round(dataset['benford_pct']/100 * total, 0) # 0 decimals, it is a counting
+    dataset['benford_predicted_counts'] = dataset['benford_predicted_counts'].astype(int)
     
-    # Calculate the difference between theoretical and actual percent (absolute value):
-    dataset['pct_diff'] = np.round((abs(dataset['digits_pct'] - dataset['benford'])/dataset['benford'] * 100), 2)
+    # Calculate the difference between theoretical and actual predicted counting:
+    dataset['pct_diff'] = np.round((abs(dataset['counts'] - dataset['benford_predicted_counts'])/dataset['benford_predicted_counts'] * 100), 2)
     dataset['label'] = np.where(dataset['pct_diff'] >= diff_alert_threshold, 'potential_outlier', 'below_threshold')
     
     # Let's create a outliers_df containing only data marked as potential outliers:
@@ -603,6 +643,18 @@ def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, di
         fig, ax = plt.subplots(figsize = (12, 8))
         # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
 
+        # Set xticks - scale of X-Axis:
+        if (digits_to_analyze == 1):
+            xtick_list = list(range(1, 10)) # every integer from 1 to 9
+        
+        elif (digits_to_analyze == 2):
+            xtick_list = list(range(10, 100, 10)) # every integer from 10 to 99, spaced of 10 units
+        
+        elif (digits_to_analyze == 3):
+            xtick_list = list(range(100, 1000, 100)) # every integer from 100 to 999, spaced of 100 units
+
+        plt.xticks(xtick_list)
+
         #ROTATE X AXIS IN XX DEGREES
         plt.xticks(rotation = x_axis_rotation)
         # XX = 70 DEGREES x_axis (Default)
@@ -617,7 +669,7 @@ def benford_outliers_detection (df, column_to_analyze, digits_to_analyze = 1, di
 
         ax.bar(dataset['leading_digits'], dataset['digits_pct'], color = 'darkblue', alpha = OPACITY, label = 'digits_pct')
 
-        ax.plot(dataset['leading_digits'], dataset['benford'], color = 'fuchsia', linestyle = 'dashed', alpha = OPACITY, label = "Benford's Law\nTheoretical Percent (%)")
+        ax.plot(dataset['leading_digits'], dataset['benford_pct'], color = 'fuchsia', linestyle = 'dashed', alpha = OPACITY, label = "Benford's Law\nTheoretical Percent (%)")
         
         
         # If there are red points labelled as potential outliers, plot them above the graph
