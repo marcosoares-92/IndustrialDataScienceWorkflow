@@ -2864,23 +2864,70 @@ class IngestExcelTables:
 
 
 class SharePointDownloader:
-    """Pipeline for accessing SharePoint files"""
+    """Pipeline for accessing SharePoint files
+    This class provides a reusable tool for connecting to SharePoint and manipulating dataframes sourced from it.
 
-    def __init__(self):
+    The behavior of the class revolves around six main points:
+    1. The initialization method gathers essential information, except for two pieces of information required during the download method call:
+        - CLIENT_ID, CLIENT_SECRET, and TENANT_ID: These are from the Azure APP created, necessary for the application to run successfully. They should be set as environment variables with secret encapsulation.
+        - SITE_NAME: This variable is set for each call, representing the SharePoint site to be accessed. Without it, the URL requesting (get() method) cannot proceed.
+        - COMPANY_TENANT_ID: This variable sets the company tenant ID, similar to the initial part of the SharePoint URL (e.g., your_company.sharepoint.com).
+     
+        You can identify it in your url address as: 
+                                
+                                your_company.sharepoint.com
+    
+    : param: company_tenant_id (str): you may pass it directly to the constructor as a string. example:
+        sharepointdownloader = SharePointDownloader(company_tenant_id = 'your_company'). Alternatively, keep
+        company_tenant_id = None to try to collect it from the environment.
+    
+    The class provides five main functions:
+    1. get_token: Retrieves the header information required for each get() method.
+    2. get_response_id: Searches for the ID for every folder/file level, crucial for constructing the URL to be accessed.
+    3. get_drive_id: Retrieves the drive ID information from the first level of folders in the SharePoint library.
+    4. find_file: Searches for the desired file within each folder on the pipeline. It avoids looping the same search after finding each level of subfolder.
+    5. download_file: Initiates the entire pipeline. This method requires setting two variables:
+        - target_file_name: The name of the file, along with its type (e.g., 'file.xlsx' for Excel, 'file.csv' for CSV).
+        - folder_match: The folder name to be matched, to find the root folder ID.
+    """
+
+    def __init__(self, ccompany_tenant_id = None, client_id = None, client_secret = None, 
+                tenant_id = None, site_name = None):
+        """
+        Initializes the SharepointDownloader object.
+
+        params: 
+            - company_tenant_id (str): you may pass it directly to the constructor as a string. 
+            - client_id (str): you may pass it directly to the constructor as a string. 
+            - client_secret (str): you may pass it directly to the constructor as a string. 
+            - tenant_id (str): you may pass it directly to the constructor as a string. 
+            - site_name (str): you may pass it directly to the constructor as a string. 
+            
+        example:
+            sharepointdownloader = SharePointDownloader(
+                                                        company_tenant_id = 'your_company', 
+                                                        client_id = 'you client ID from Azure',
+                                                        client_secret = 'you client secret from Azure', 
+                                                        tenant_id = 'you tenant ID from Azure',
+                                                        site_name = 'The sharepoint site name as shown at the sharepoint's URL',
+                                                        ). 
+            Alternatively, keep company_tenant_id = None to try to collect it from the environment (or any/all other variables).
+        """
 
         import os
         from dotenv import load_dotenv
         from msal import ConfidentialClientApplication
+        import requests
+
         load_dotenv()
 
-        # Environment variables loading
-        self.CLIENT_ID = os.environ.get('CLIENT_ID')
-        self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
-        self.TENANT_ID = os.environ.get('TENANT_ID')
-        self.SHAREPOINT_SITE_ID = os.environ.get('SHAREPOINT_SITE_ID')
-        
-        # This url is used at each request, as it is the main request url
-        self.url = f'https://graph.microsoft.com/v1.0/sites/{self.SHAREPOINT_SITE_ID}/drives/'
+         # Environment variables loading
+         # If None, use the second option (os.environ.get method)
+        self.COMPANY_TENANT_ID = company_tenant_id or os.environ.get('COMPANY_TENANT_ID')   
+        self.CLIENT_ID = client_id or os.environ.get('CLIENT_ID')
+        self.CLIENT_SECRET = client_secret or os.environ.get('CLIENT_SECRET')
+        self.TENANT_ID = tenant_id or os.environ.get('TENANT_ID')
+        self.SITE_NAME = site_name or os.environ.get('SITE_NAME')
             
         # Authentication Config
         self.authority = 'https://login.microsoftonline.com/' + self.TENANT_ID
@@ -2892,6 +2939,12 @@ class SharePointDownloader:
             authority = self.authority,
             client_credential = self.CLIENT_SECRET
         )
+        
+        # This variable is retrieved after the Env variableS "site name" and "company tenant (like your_company.sharepoint.com)" is set, dynamically searching the sharepoint site ID.
+        self.SHAREPOINT_SITE_ID = requests.get(f'https://graph.microsoft.com/v1.0/sites/{self.COMPANY_TENANT_ID}:/sites/{self.SITE_NAME}', headers = self.get_token()).json()['id']
+       
+        # This url is used at each request, as it is the main request url
+        self.url = f'https://graph.microsoft.com/v1.0/sites/{self.SHAREPOINT_SITE_ID}/drives/'
     
 
     def get_token(self):
@@ -2912,16 +2965,16 @@ class SharePointDownloader:
             print(f'Error: {e}')
         
     
-    def get_response_id(self, result_json, match):
+    def get_response_id(self, result_json, folder_match):
         """
             This function is responsible to read all API response and return the folder/file IDs.
             It converts the response from get() method into a JSON format and gets the intended ID by matching the subsequent name on arg.
             
             The arguments of this function are:
             - result_json: inputs the obtject as type requests.models.Response, which is converted to json and read by the function
-            - match: string of folder/file to be found by the function. 
+            - folder_match: string of folder/file to be found by the function. 
             
-            If the name is not match as required, the return is none.
+            If the name is not match as required, the return is None.
         """
 
         import json
@@ -2934,7 +2987,7 @@ class SharePointDownloader:
             
             # Verifying the id for the object
             for item in result_json['value']:
-                if item['name'] == match:
+                if item['name'] == folder_match:
                     return item['id']
             return None
         
@@ -2942,14 +2995,15 @@ class SharePointDownloader:
             print(f'Error: {e}')
     
 
-    def get_drive_id(self, main_sharepoint_directory, path):
+    def get_drive_id(self, main_sharepoint_directory = 'Documents', folder_match = None):
         """
         : param: main_sharepoint_directory (str): represents the primary location for fetching the information.
-            Usually, this information is present in a location called 'Documents'.
+            Usually, this information is present in a location called 'Documents', the default value.
         
-        : param: path (str): path within the main directory. Example: if you want to access a folder called "SPC data"
-            in the 'Documents' directory, path = 'SPC data'. If you want to access the content from 'Documents', keep
-            path = None
+        : param: folder_match (str): path within the main directory. It is the folder that will indicate 
+            where the file must be located, within any levels that may have. Example: if you want to access a folder 
+            called "SPC data" in the 'Documents' directory, folder_match = 'SPC data'. 
+            If you want to access the content directly from 'Documents' root, keep folder_match = None
         """
         import requests
         from dotenv import load_dotenv
@@ -2959,11 +3013,12 @@ class SharePointDownloader:
         try: 
             headers = self.get_token()
             response = requests.get(self.url, headers = headers)
-            drive_id = self.get_response_id(result_json = response, match = main_sharepoint_directory)
+            drive_id = self.get_response_id(result_json = response, folder_match = main_sharepoint_directory)
+
             
-            if path: # run if it is not None
+            if folder_match: # run if it is not None        
                 drive_response = requests.get(self.url + f'{drive_id}/root/children', headers = headers)
-                root_folder_id = self.get_response_id(result_json = drive_response, match = path)
+                root_folder_id = self.get_response_id(result_json = drive_response, folder_match = folder_match)
                 
             return drive_id, root_folder_id
         
@@ -2973,7 +3028,7 @@ class SharePointDownloader:
 
     def find_file(self, drive_id: str, folder_id: str, target_file_name: str, headers):
         """
-            find_file is a API scraping function to find the ID of the target file on sharepoint.
+            find_file is an API scraping function to find the ID of the target file on sharepoint.
             
             The arguments of this function are:
             - drive_id: string, the ID of the root folder on the API.
@@ -2981,7 +3036,7 @@ class SharePointDownloader:
             - target_file_name: string, the name of file to be searched. If found, stops the search.
             - headers: JSON, the authorization to run the get() request method.
             
-            If the name is not match as required, the return is none.
+            If the name is not match as required, the return is None.
         """
         import requests
         from dotenv import load_dotenv
@@ -3011,23 +3066,23 @@ class SharePointDownloader:
             print(f'Error: {e}')
 
 
-    def download_file(self, target_file_name, main_sharepoint_directory = 'Documents', path = None):
+    def download_file(self, target_file_name, main_sharepoint_directory = 'Documents', folder_match = None):
         """
             : param: main_sharepoint_directory (str): represents the primary location for fetching the information.
-            Usually, this information is present in a location called 'Documents'.
+            Usually, this information is present in a location called 'Documents', the default value.
         
-            : param: path (str): path within the main directory. Example: if you want to access a folder called "SPC data"
-                in the 'Documents' directory, path = 'SPC data'. If you want to access the content from 'Documents', keep
-                path = None
+            : param: folder_match (str): path within the main directory. It is the folder that will indicate 
+                where the file must be located, within any levels that may have. Example: if you want to access a folder 
+                called "SPC data" in the 'Documents' directory, folder_match = 'SPC data'. 
+                If you want to access the content directly from 'Documents' root, keep folder_match = None
 
             The function is able to read and download the sharepoint hosted file from the result given the file ID obtained by the method find_file()
             
             The arguments of this function are:
-            - file_id: string, the ID of the root folder on the API.
             - target_file_name: string, the name of file to be searched. If found, stops the search.
-            - headers: JSON, the authorization to run the get() request method.
+            - match: match the root folder of the application, after the documents folder is already accessed.
             
-            If the name is not match as required, the return is none.
+            If the name is not match as required, the return is None.
         """
         import requests
         from urllib.request import urlretrieve
@@ -3038,7 +3093,7 @@ class SharePointDownloader:
         try:
             # Getting each important ID to download the file
             headers = self.get_token()
-            drive_id, root_folder_id = self.get_drive_id(main_sharepoint_directory, path)
+            drive_id, root_folder_id = self.get_drive_id(main_sharepoint_directory, folder_match)
             file_id = self.find_file(drive_id, root_folder_id, target_file_name, headers)
             
             # Requests the Download URL from the API and downloads it within the system set up.

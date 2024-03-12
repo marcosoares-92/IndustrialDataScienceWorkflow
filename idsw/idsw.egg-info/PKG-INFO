@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: idsw
-Version: 1.3.0
+Version: 1.3.1
 Summary: Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data.
 Home-page: https://github.com/marcosoares-92/IndustrialDataScienceWorkflow
 Author: Marco Cesar Prado Soares; Gabriel Fernandes Luz; Sergio Guilherme Neto
@@ -222,3 +222,8 @@ or as:
 - Added new pipelines for fetching data and modified the storage of connectors.
 - It includes pipelines for fetching table regions in Excel files, even if they are stored in a same tab; and a pipeline for downloading files stored in MS SharePoint.
 - Added ControlVars dataclass to store if the user wants to hide results and plots.
+
+## 1.3.1
+### Improved
+- Benford algorith for fraud and outlier detection.
+- Pipeline for fetching SharePoint and downloading files.
