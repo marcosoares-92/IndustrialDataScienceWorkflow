@@ -1477,7 +1477,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
         """
 
         y1, y2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze']), np.array(list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze'])
-        lab1, lab2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['label']), np.array(list_of_dictionaries_with_series_to_analyze[1]['label'])
+        lab1, lab2 = list_of_dictionaries_with_series_to_analyze[0]['label'], list_of_dictionaries_with_series_to_analyze[1]['label']
         
         summary_dict = {'alpha': alpha}
         # Perform the t-test
