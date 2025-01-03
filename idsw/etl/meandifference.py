@@ -1476,7 +1476,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
         This ensures that the denominator of the expression for the standard deviation is N-1 rather than N.
         """
 
-        y1, y2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['y']), np.array(list_of_dictionaries_with_series_to_analyze[1]['y'])
+        y1, y2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze']), np.array(list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze'])
         lab1, lab2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['label']), np.array(list_of_dictionaries_with_series_to_analyze[1]['label'])
         
         summary_dict = {'alpha': alpha}
