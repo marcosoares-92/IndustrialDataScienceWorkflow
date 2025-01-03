@@ -109,14 +109,6 @@ def support_vector_machines (X_train, y_train, type_of_problem = "regression", X
     
     # Store the metrics dictionary in the summary dictionary:
     summary_dict['metrics_dict'] = metrics_dict
-
-    # Get feature importance ranking:
-    model_check = model_check.feature_importance_ranking (model_class = 'tree', orientation = orientation, horizontal_axis_title = horizontal_axis_title, vertical_axis_title = vertical_axis_title, plot_title = plot_title, x_axis_rotation = x_axis_rotation, y_axis_rotation = y_axis_rotation, grid = grid, export_png = export_png, directory_to_save = directory_to_save, file_name = file_name, png_resolution_dpi = png_resolution_dpi)
-    # Retrieve the feature importance ranking:
-    feature_importance_df = model_check.feature_importance_df
-    
-    # Store the importance ranking in the summary dictionary:
-    summary_dict['feature_importance_df'] = feature_importance_df
     
     if ControlVars.show_results:
       
