@@ -434,7 +434,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
 
                 if ((txt_csv_col_sep == "comma") | (txt_csv_col_sep == ",")):
 
-                    dataset = pd.read_csv(file_path, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                    dataset = pd.read_csv(file_path, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
                     # verbose = True for showing number of NA values placed in non-numeric columns.
                     #  parse_dates = True: try parsing the index; infer_datetime_format = True : If True and parse_dates is enabled, pandas will attempt to infer the format of the datetime strings in 
                     # the columns, and if it can be inferred, switch to a faster method of parsing them. In some cases this can increase the 
@@ -442,7 +442,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
 
                 elif ((txt_csv_col_sep == "whitespace") | (txt_csv_col_sep == " ")):
 
-                    dataset = pd.read_csv(file_path, delim_whitespace = True, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                    dataset = pd.read_csv(file_path, delim_whitespace = True, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
                     
                     
                 else:
@@ -450,7 +450,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                     try:
                         
                         # Try using the character specified as the argument txt_csv_col_sep:
-                        dataset = pd.read_csv(file_path, sep = txt_csv_col_sep, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                        dataset = pd.read_csv(file_path, sep = txt_csv_col_sep, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
                     
                     except:
                         # An error was raised, the separator is not valid
@@ -462,12 +462,12 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
 
                 if ((txt_csv_col_sep == "comma") | (txt_csv_col_sep == ",")):
 
-                    dataset = pd.read_csv(file_path, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                    dataset = pd.read_csv(file_path, header = None, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
 
                     
                 elif ((txt_csv_col_sep == "whitespace") | (txt_csv_col_sep == " ")):
 
-                    dataset = pd.read_csv(file_path, delim_whitespace = True, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                    dataset = pd.read_csv(file_path, delim_whitespace = True, header = None, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
                     
                     
                 else:
@@ -475,7 +475,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                     try:
                         
                         # Try using the character specified as the argument txt_csv_col_sep:
-                        dataset = pd.read_csv(file_path, sep = txt_csv_col_sep, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True, decimal = decimal_separator)
+                        dataset = pd.read_csv(file_path, sep = txt_csv_col_sep, header = None, na_values = how_missing_values_are_registered, parse_dates = True, decimal = decimal_separator)
                     
                     except:
                         # An error was raised, the separator is not valid
@@ -530,7 +530,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
             
             if (has_header == True):
                 
-                xlsx_doc = pd.read_excel(file_path, sheet_name = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                xlsx_doc = pd.read_excel(file_path, sheet_name = None, na_values = how_missing_values_are_registered, parse_dates = True)
                 # verbose = True for showing number of NA values placed in non-numeric columns.
                 #  parse_dates = True: try parsing the index; infer_datetime_format = True : If True and parse_dates is enabled, pandas will attempt to infer the format of the datetime strings in 
                 # the columns, and if it can be inferred, switch to a faster method of parsing them. In some cases this can increase the 
@@ -538,7 +538,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                 
             else:
                 #No header
-                xlsx_doc = pd.read_excel(file_path, sheet_name = None, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                xlsx_doc = pd.read_excel(file_path, sheet_name = None, header = None, na_values = how_missing_values_are_registered, parse_dates = True)
             
             # xlsx_doc is a dictionary containing the sheet names as keys, and dataframes as items.
             # Let's convert it to the desired format.
@@ -581,7 +581,7 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
             
             if (has_header == True):
                 
-                dataset = pd.read_excel(file_path, sheet_name = sheet_to_load, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                dataset = pd.read_excel(file_path, sheet_name = sheet_to_load, na_values = how_missing_values_are_registered, parse_dates = True)
                 # verbose = True for showing number of NA values placed in non-numeric columns.
                 #  parse_dates = True: try parsing the index; infer_datetime_format = True : If True and parse_dates is enabled, pandas will attempt to infer the format of the datetime strings in 
                 # the columns, and if it can be inferred, switch to a faster method of parsing them. In some cases this can increase the 
@@ -589,18 +589,18 @@ def load_pandas_dataframe (file_directory_path, file_name_with_extension, load_t
                 
             else:
                 #No header
-                dataset = pd.read_excel(file_path, sheet_name = sheet_to_load, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                dataset = pd.read_excel(file_path, sheet_name = sheet_to_load, header = None, na_values = how_missing_values_are_registered, parse_dates = True)
                 
         
         else:
             #No sheet specified
             if (has_header == True):
                 
-                dataset = pd.read_excel(file_path, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                dataset = pd.read_excel(file_path, na_values = how_missing_values_are_registered, parse_dates = True)
                 
             else:
                 #No header
-                dataset = pd.read_excel(file_path, header = None, na_values = how_missing_values_are_registered, verbose = True, parse_dates = True)
+                dataset = pd.read_excel(file_path, header = None, na_values = how_missing_values_are_registered, parse_dates = True)
 
     if ControlVars.show_results:       
         print(f"Dataset extracted from {file_path}. Check the 10 first rows of this dataframe:\n")
