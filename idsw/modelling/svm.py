@@ -31,7 +31,7 @@ def support_vector_machines (X_train, y_train, type_of_problem = "regression"):
         
     elif (type_of_problem == "classification"):
         
-        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.svm import SVC
         # Instantiate a model checker object to verify if there are only two classes:
         check_classes = ModelChecking()
         # Use the vars function to access the attributes dictionary and set the value from y_train:
