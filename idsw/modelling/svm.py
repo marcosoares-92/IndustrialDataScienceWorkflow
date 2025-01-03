@@ -8,7 +8,7 @@ from idsw import (InvalidInputsError, ControlVars)
 from .core import ModelChecking
 
 
-def support_vector_machines (X_train, y_train, type_of_problem = "regression"):
+def support_vector_machines (X_train, y_train, type_of_problem = "regression", X_test = None, y_test = None, X_valid = None, y_valid = None, column_map_dict = None):
     """
     https://scikit-learn.org/1.5/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC
     
