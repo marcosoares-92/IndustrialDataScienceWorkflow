@@ -1486,7 +1486,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
 
         if (what_to_compare == 'mean'):
 
-            h0 = "There is no difference between the mean values obtained for each tested subgroup."
+            h0 = "There is no difference between the mean values obtained for each tested subgroup"
             summary_dict['comparison'] = what_to_compare
             summary_dict['h0'] = h0
 
@@ -1611,7 +1611,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
 
         elif (what_to_compare == 'proportion'):
 
-            h0 = "There is no difference between the proportions obtained for each tested subgroup."
+            h0 = "There is no difference between the proportions obtained for each tested subgroup"
             summary_dict['comparison'] = what_to_compare
             summary_dict['h0'] = h0
 
