@@ -8,7 +8,7 @@ from idsw import (InvalidInputsError, ControlVars)
 from .core import ModelChecking
 
 
-def random_forest (X_train, y_train, type_of_problem = "regression"):
+def support_vector_machines (X_train, y_train, type_of_problem = "regression"):
     """
     https://scikit-learn.org/1.5/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC
     
