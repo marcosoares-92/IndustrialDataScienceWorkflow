@@ -1839,7 +1839,8 @@ class TfModels:
         
         elif (type_of_problem == 'classification'):
             
-            self.metrics = 'acc'
+            self.metrics = [tf.keras.metrics.Accuracy()]
+            # https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Accuracy
             self.metrics_name = 'acc'
             
             if (number_of_classes == 2):
