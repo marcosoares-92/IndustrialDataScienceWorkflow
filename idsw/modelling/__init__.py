@@ -46,3 +46,4 @@ from .trees import *
 from .mlp import *
 from .deep import *
 from .nonsupervised import *
+from .svm import *
