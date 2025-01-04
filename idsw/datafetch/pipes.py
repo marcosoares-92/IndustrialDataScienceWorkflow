@@ -1243,7 +1243,101 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
             
             elif (model_type == 'tensorflow_general'):
                 import tensorflow as tf
+                """The Legacy saved_model format had several modifications on Keras 3, and was deprecated.
+                From Keras 3, both the model and the layer should be saved as a TFSMLayer artifact.
+                Thus, the procedure from loading a model like this is longer - like the one for transfer
+                learning from a trained model.
+                """
                 
+                import re
+
+                def read_tensor_info():
+                    """Read the tensor information by preloading it with function tf.saved_model.load()"""
+                    model_0 = tf.saved_model.load("saved_model")
+                    return str(model_0.serve.concrete_functions[0])
+
+                def find_tensor_spec(string):
+                    """
+                    Function designed with support of Google Gemini 1.5 Flash with prompts with context for creating specific regular expressions.
+                    Finds the expression "TensorSpec(shape=(None, ...))" with any number of dimensions in a string.
+
+                    Args:
+                        string: The input string to search.
+
+                    Returns:
+                        A list like [' 5, 1', ' 2, 1'] where each element correspond to an input or output shape
+
+                    To find a spec like "TensorSpec(shape=(None, *, *)" the Regex would be: r"TensorSpec\(shape=\(None, (\d+), (\d+)\)"
+                    To find a specific spec like "TensorSpec(shape=(None, 5, 1)" the regex would be: r"TensorSpec\(shape=\(None, 5, 1\)"
+                    """
+                    pattern = r"TensorSpec\(shape=\(None,((?:\s*\d+\s*,?\s*)*)\)" 
+                    return re.findall(pattern, string)
+
+                def return_input_shape (string):
+                    """
+                    Finds the expression the shape of the input tensors 
+                    The tensor information is obtained from a string like "TensorSpec(shape=(None, ...))" 
+                    with any number of dimensions in a string.
+
+                    Args:
+                        string: The input string to search.
+
+                    Returns:
+                        A boolean indicating whether the expression was found.
+                    
+                    """
+                    # Get a list of the shapes:
+                    shapes = find_tensor_spec(string)
+                    """string is like:
+                        ConcreteFunction Input Parameters:
+                        args_0 (POSITIONAL_OR_KEYWORD): TensorSpec(shape=(None, 5, 1), dtype=tf.float32, name='input_layer')
+                        Output Type:
+                        TensorSpec(shape=(None, 2, 1), dtype=tf.float32, name='unknown')
+                        Captures:
+                        None
+                    -----------------------
+                    Thus, shapes is like [' 5, 1', ' 2, 1']
+                    Strip each element to remove blank spaces:
+                    """
+                    shapes = [strings.strip() for strings in shapes]
+                    # Each string in shapes can be split in comma to create a list of values.
+                    # Thus, by converting these new lists into tuples, we create a list of tuples containing the shapes
+                    shapes = [tuple([int(strings) for strings in strings.split(",")]) for strings in shapes]
+                    return shapes
+
+                def get_tensor_input_shape ():
+                    """Retrieve tensor input shape"""
+                    tensor_info = read_tensor_info()
+                    input_shape = return_input_shape(tensor_info)[0]
+                    return input_shape
+
+                def create_input_layer ():
+                    """Create an input layer for the imported model, with the correct input shape"""
+                    input_shape = get_tensor_input_shape()
+                    return tf.keras.layers.Input(shape = input_shape)
+
+                def read_TFSMLayer(saved_directory = 'saved_model'):
+                    """
+                    Read the tensorflow saved model or layer saved as an artifact using TFSM Layer
+
+                    https://keras.io/api/layers/backend_specific_layers/tfsm_layer/
+                    https://www.tensorflow.org/api_docs/python/tf/saved_model/load
+                    https://www.tensorflow.org/api_docs/python/tf/keras/layers/TFSMLayer
+
+                    TF no longer supports the previous format saved_model to read directly from the saved_model folder (like on tensorflow 2.12)
+                    """
+                    return tf.keras.layers.TFSMLayer(saved_directory, call_endpoint = 'serve')
+
+                def compiled_model(saved_directory = 'saved_model'):
+                    """
+                    Compile the tensorflow saved model or layer saved as an artifact using TFSM Layer
+                    """
+                    TFSMLayer = read_TFSMLayer(saved_directory)
+                    input_layer = create_input_layer()
+                    x = TFSMLayer(input_layer)
+                    model = tf.keras.models.Model(inputs = input_layer, outputs = x)
+                    return model
+
                 print("Warning, save the model in a directory called 'saved_model' (before compressing.)\n")
                 # Create a temporary folder in case it does not exist:
                 # https://www.geeksforgeeks.org/python-os-makedirs-method/
@@ -1255,7 +1349,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     key = model_file_name
                      
                     try:
-                        model = tf.keras.models.load_model("saved_model")
+                        model = compiled_model(saved_directory = 'saved_model')
                         if ControlVars.show_results: 
                             print(f"TensorFlow model successfully imported to environment.")
                     
@@ -1263,14 +1357,15 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     except:
                             
                         try:
-                            model = tf.keras.models.load_model("tmp/saved_model")
+                            model = compiled_model(saved_directory = "tmp/saved_model")
                             if ControlVars.show_results: 
                                 print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
 
                         except:
 
                             try:
-                                model = tf.keras.models.load_model(model_file_name)
+                                # Case where the user has a keras file and accidentaly input as tensorflow_general
+                                model = tf.keras.models.load_model(f"{model_file_name}.keras")
                                 if ControlVars.show_results: 
                                     print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
 
@@ -1324,7 +1419,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                                 #    ! tar --extract --file=model_path --verbose --verbose tmp/
 
                                 try:
-                                    model = tf.keras.models.load_model("tmp/saved_model")
+                                    model = compiled_model(saved_directory = "tmp/saved_model")
                                     if ControlVars.show_results: 
                                         print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
 
@@ -1336,21 +1431,22 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                     # Try simply accessing the directory:
                     
                     try:
-                        model = tf.keras.models.load_model("saved_model")
+                        model = compiled_model(saved_directory = "saved_model")
                         if ControlVars.show_results: 
                             print(f"TensorFlow model: successfully imported to environment.")
                     
                     except:
 
                         try:
-                            model = tf.keras.models.load_model("tmp/saved_model")
+                            model = compiled_model(saved_directory = "tmp/saved_model")
                             if ControlVars.show_results: 
                                 print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
 
                         except:
 
                             try:
-                                model = tf.keras.models.load_model(model_file_name)
+                                # Case where the user has a keras file and accidentaly input as tensorflow_general
+                                model = tf.keras.models.load_model(f"{model_file_name}.keras")
                                 if ControlVars.show_results: 
                                     print(f"TensorFlow model: {model_file_nameh} successfully imported to environment.")
 
@@ -1394,7 +1490,7 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
 
 
                             try:
-                                model = tf.keras.models.load_model("tmp/saved_model")
+                                model = compiled_model(saved_directory = "tmp/saved_model")
                                 if ControlVars.show_results: 
                                     print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
 
@@ -1595,7 +1691,14 @@ def import_export_model_list_dict (action = 'import', objects_manipulated = 'mod
                 
                 # Save your model in the SavedModel format
                 # Save as a directory named 'saved_model'
-                model_to_export.save('saved_model')
+                """From Keras 3, the save method should not be used for exporting the full model as a folder.
+                The save method can be used only for .keras exported files. Instead, use the export method to
+                export the model or layer as a TFSMLayer artifact.
+                https://www.tensorflow.org/guide/keras/serialization_and_saving
+                https://www.tensorflow.org/api_docs/python/tf/keras/layers/TFSMLayer
+                
+                """
+                model_to_export.export('saved_model')
                 model_path = 'saved_model'
             
                 try:
@@ -2458,3 +2561,30 @@ def sqlserver_pipeline (server,
         Connectors.sqlserver_connector = sqlserver_connector
         return sqlserver_connector
     
+
+def import_and_print_img_file (file_path):
+    """
+    Use this function to import an image file to your environment and print it with matplotlib:
+    : file_path: string containing the path of the image file
+
+    returns image file as a numpy array of pixels
+    From Matplotlib docs (https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imread.html):
+
+    The image data. The returned array has shape
+    (M, N) for grayscale images.
+    (M, N, 3) for RGB images.
+    (M, N, 4) for RGBA images.
+    PNG images are returned as float arrays (0-1). All other formats are returned as int arrays, with a bit depth determined by the file's contents.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+
+    img = mpimg.imread(file_path)
+
+    # Display the image
+    fig = plt.figure(figsize = (12, 8))
+    plt.imshow(img)
+    plt.axis('off')  # Optional: Turn off axis labels
+    plt.show()
+
+    return img
