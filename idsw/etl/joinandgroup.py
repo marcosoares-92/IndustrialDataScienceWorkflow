@@ -7,7 +7,7 @@ from idsw import (InvalidInputsError, ControlVars)
 from .utils import (EncodeDecode, mode_retrieval)
 
 
-def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_join = "inner", merged_suffixes = ('_left', '_right'), sort_merged_df = False, column_to_sort = None, ascending_sorting = True):
+def merge_and_sort_dataframes (df_left, df_right, left_keys, right_keys, how_to_join = "inner", merged_suffixes = ('_left', '_right'), sort_merged_df = False, column_to_sort = None, ascending_sorting = True):
     """
     WARNING: Only two dataframes can be merged on each call of the function.
     
@@ -15,9 +15,11 @@ def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_jo
     
     : param: df_right: dataframe to be joined as the right one
     
-    : param: left_key: (String) name of column of the left dataframe to be used as key for joining.
+    : param: left_keys: (String) name of column of the left dataframe to be used as key for joining; or (list of strings)
+                with the name of the columns, in case multiple columns are used as keys.
     
-    : param: right_key: (String) name of column of the right dataframe to be used as key for joining.
+    : param: right_keys: (String) name of column of the right dataframe to be used as key for joining; or (list of strings)
+                with the name of the columns, in case multiple columns are used as keys.
     
     : param: how_to_join: joining method: "inner", "outer", "left", "right". The default is "inner".
     
@@ -56,19 +58,51 @@ def merge_and_sort_dataframes (df_left, df_right, left_key, right_key, how_to_jo
     # of the input parameters, but completely independent from it.
     DF_LEFT = df_left.copy(deep = True)
     DF_RIGHT = df_right.copy(deep = True)
+
+    # Convert all the column names to strings, for running the function for the case of numeric indexes:
+    DF_LEFT.columns = [str(column) for column in DF_LEFT.columns]
+    DF_RIGHT.columns = [str(column) for column in DF_RIGHT.columns]
     
-    # check if the keys are the same:
-    boolean_check = (left_key == right_key)
-    # if boolean_check is True, we will merge using the on parameter, instead of left_on and right_on:
-    
-    if (boolean_check): # runs if it is True:
-        
-        merged_df = DF_LEFT.merge(DF_RIGHT, on = left_key, how = how_to_join, suffixes = merged_suffixes)
-    
+    # Check if left_keys and right_keys have the same size. If not, adjust them so that they can match:
+    if ((type(left_keys) != list) | (type(left_keys) != list)):
+        # Check if both are strings. A single key should be present
+        if (type(left_keys) == list): # Pick only the first element to match:
+            left_key = str(left_keys[0])
+        elif (type(right_keys) == list):
+            right_key = str(right_keys[0])
+        else:
+            # Both are strings
+            left_key = str(left_keys)
+            right_key = str(right_keys)
+
+        # Now, check if both strings are the same. If they are, we will merge using the on parameter, instead of left_on and right_on:
+        if (left_key == right_key):
+            merged_df = DF_LEFT.merge(DF_RIGHT, on = left_key, how = how_to_join, suffixes = merged_suffixes)
+        else:
+            merged_df = DF_LEFT.merge(DF_RIGHT, left_on = left_key, right_on = right_key, how = how_to_join, suffixes = merged_suffixes)
+
     else:
+        # Firstly, check if the lists have different length:
+        left_keys_length = len(left_keys)
+        right_keys_length = len(right_keys)
+        if (left_keys_length > right_keys_length):
+            # Slice them so that both have the same length:
+            left_keys = left_keys[:right_keys_length]
+            print(f"Attention. Left list contains {left_keys_length} keys, and right list contains {right_keys_length}. Using only the firstly {right_keys_length} to merge.\n")
+        
+        elif (right_keys_length > left_keys_length):
+            # Slice them so that both have the same length:
+            right_keys = right_keys[:left_keys_length]
+            print(f"Attention. Left list contains {left_keys_length} keys, and right list contains {right_keys_length}. Using only the firstly {left_keys_length} to merge.\n")
+        
+        # Now, guarantee that all elements are strings:
+        left_keys = [str(key) for key in left_keys]
+        right_keys = [str(key) for key in right_keys]
+
         # use left_on and right_on
-        merged_df = DF_LEFT.merge(DF_RIGHT, left_on = left_key, right_on = right_key, how = how_to_join, suffixes = merged_suffixes)
+        merged_df = DF_LEFT.merge(DF_RIGHT, left_on = left_keys, right_on = right_keys, how = how_to_join, suffixes = merged_suffixes)
     
+
     # Check if the dataframe should be sorted:
     if (sort_merged_df == True):
         
@@ -191,9 +225,14 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
       (If the key contains None, the new dictionary will be ignored).
     """
 
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install recordlinkage package, which is not required for running IDSW
+                
+                                            ! pip install recordlinkage
+
+            """
+    print(error_msg)
     import recordlinkage
     
-
     print("Record linkage attempts to join data sources that have similarly fuzzy duplicate values.")
     print("The object is to end up with a final DataFrame with no duplicates by using string similarity.\n")
     
@@ -204,6 +243,10 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
     # of the input parameters, but completely independent from it.
     DF_LEFT = df_left.copy(deep = True)
     DF_RIGHT = df_right.copy(deep = True)
+    
+    # Convert all the column names to strings, for running the function for the case of numeric indexes:
+    DF_LEFT.columns = [str(column) for column in DF_LEFT.columns]
+    DF_RIGHT.columns = [str(column) for column in DF_RIGHT.columns]
     
     # If an invalid value was set for threshold_for_percent_of_similarity, correct it to 80% standard:
                 
@@ -233,6 +276,10 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
         # Check if no key is None:
         if ((left_df_column is not None) & (right_df_column is not None)):
             
+            # Guarantee that both are strings
+            left_df_column = str(left_df_column)
+            right_df_column = str(right_df_column)
+            
             # If right_df_column is different from left_df_column, rename them to
             # make them equal:
             if (left_df_column != right_df_column):
@@ -253,6 +300,10 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
         
         # Check if no key is None:
         if ((left_df_column is not None) & (right_df_column is not None)):
+            
+            # Guarantee that both are strings
+            left_df_column = str(left_df_column)
+            right_df_column = str(right_df_column)
             
             # If right_df_column is different from left_df_column, rename them to
             # make them equal:
@@ -567,15 +618,16 @@ def union_dataframes (list_of_dataframes, what_to_append = 'rows', ignore_index_
     return concat_df
 
 
-def group_dataframe_by_variable (df, variable_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
+def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
     """
-    group_dataframe_by_variable (df, variable_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
+    group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataframe = False, subset_of_columns_to_aggregate = None, aggregate_function = 'mean', add_suffix_to_aggregated_col = True, suffix = None):
 
     : param: df: dataframe being analyzed
     
-    : param: variable_to_group_by: string (inside quotes) containing the name 
-      of the column in terms of which the dataframe will be grouped by. e.g. 
-      variable_to_group_by = "column1" will group the dataframe in terms of 'column1'.
+    : param: variables_to_group_by: string (inside quotes) containing the name 
+      of the column in terms of which the dataframe will be grouped by.; or (list of strings)
+                with the name of the columns, in case multiple columns are used as keys.
+      e.g. variables_to_group_by = "column1" will group the dataframe in terms of 'column1'.
       WARNING: do not use this function to group a dataframe in terms of a timestamp. To group by
       a timestamp, use function group_variables_by_timestamp instead.
     
@@ -624,6 +676,18 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
     
     # Create a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
+
+    # Convert all the column names to strings, for running the function for the case of numeric indexes:
+    DATASET.columns = [str(column) for column in DATASET.columns]
+    
+    # Check if (type(variables_to_group_by) is list)
+    if (type(variables_to_group_by) != list):
+        # Create a list with the variable as single element
+        variables_to_group_by = [str(variables_to_group_by)]
+    
+    else:
+        # Guarantee everything is string:
+        variables_to_group_by = [str(var) for var in variables_to_group_by]
     
     # Get the list of columns:
     cols_list = list(DATASET.columns)
@@ -634,9 +698,9 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
         cols_list = subset_of_columns_to_aggregate
     
     # Start a list of numerical columns, and a list of categorical columns, containing only the
-    # column for aggregation as the first element:
-    numeric_list = [variable_to_group_by]
-    categorical_list = [variable_to_group_by]
+    # columns for aggregation as elements:
+    numeric_list = variables_to_group_by
+    categorical_list = variables_to_group_by
     # List the possible numeric data types for a Pandas dataframe column:
     numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
@@ -668,11 +732,19 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
     # It is important to drop before seggregating the dataframes, so that the rows correspondence
     # will not be lost:
     DATASET = DATASET.reset_index(drop = True)
-    
-    # Convert variable_to_group_by to Pandas 'category' type. If the variable is represented by
+
+    # Convert each variable_to_group_by to Pandas 'category' type. If the variable is represented by
     # a number, the dataframe will be grouped in terms of an aggregation of the variable, instead
     # of as a category. It will prevents this to happen:
-    DATASET[variable_to_group_by] = DATASET[variable_to_group_by].astype("category")
+    for variable_to_group_by in variables_to_group_by:
+        DATASET[variable_to_group_by] = DATASET[variable_to_group_by].astype("category")
+    
+    """
+        ATTENTION: Code for harmonizing with previous IDSW version (<= 1.3.1)
+        Before, function allowed grouping by single variable called variable_to_group_by.
+        Thus, the conversion variable_to_group_by = variables_to_group_by is performed in order for not modifying the whole complex function.
+    """
+    variable_to_group_by = variables_to_group_by
     
     # Create two subsets:
     if (len(categorical_list) > 1):
@@ -865,7 +937,7 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
             # The str attribute guarantees that the name was read as string
             # Pick only the values from the second and concatenate the correct name 
             # for the aggregation column (eliminate the first element from the list):
-            new_num_names = [variable_to_group_by] + new_num_names[1:]
+            new_num_names = variable_to_group_by + new_num_names[1:]
             # Set new_num_names as the new columns names:
             df_numeric.columns = new_num_names
     
@@ -878,8 +950,7 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
         enc_dec_obj = enc_dec_obj.encode()
         df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
 
-        if variable_to_group_by in categorical_list:
-            variable_to_group_by = variable_to_group_by + "_OrdinalEnc"
+        variable_to_group_by = [var + "_OrdinalEnc" if var in categorical_list else var for var in variable_to_group_by]
 
         if (categorical_aggregate == 'mode'):
             
@@ -917,7 +988,7 @@ def group_dataframe_by_variable (df, variable_to_group_by, return_summary_datafr
             # The str attribute guarantees that the name was read as string
             # Pick only the values from the second and concatenate the correct name 
             # for the aggregation column (eliminate the first element from the list):
-            new_cat_names = [variable_to_group_by] + new_cat_names[1:]
+            new_cat_names = variable_to_group_by + new_cat_names[1:]
             # Set new_num_names as the new columns names:
             df_categorical.columns = new_cat_names
     

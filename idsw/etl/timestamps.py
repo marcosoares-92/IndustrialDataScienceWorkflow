@@ -49,6 +49,11 @@ def merge_on_timestamp (df_left, df_right, left_key, right_key, how_to_join = "i
     DF_LEFT = df_left.copy(deep = True)
     DF_RIGHT = df_right.copy(deep = True)
     
+    # Convert all the column names to strings, for running the function for the case of numeric indexes:
+    DF_LEFT.columns = [str(column) for column in DF_LEFT.columns]
+    DF_RIGHT.columns = [str(column) for column in DF_RIGHT.columns]
+    left_key, right_key = str(left_key), str(right_key)
+    
     # Firstly, let's guarantee that the keys were actually read as timestamps of the same type.
     # We will do that by converting all values to np.datetime64. If fails, then
     # try to convert to Pandas timestamps.
@@ -1267,6 +1272,8 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     timedelta_column_name = timedelta_column_name + "_" + returned_timedelta_unit
     
     DATASET[timedelta_column_name] = TimedeltaList
+    # Check positions where one of the timestamps is not present, so the timedelta should be null
+    DATASET[timedelta_column_name] = np.where((DATASET[timestamp_tag_column1].isna() | DATASET[timestamp_tag_column2].isna()), np.nan, DATASET[timedelta_column_name])
     
     # Sort the dataframe in ascending order of timestamps.
     # Importance order: timestamp1, timestamp2, timedelta
