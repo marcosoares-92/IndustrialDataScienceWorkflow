@@ -1422,7 +1422,9 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     
     #Now, add the timedelta to the timestamp, and store it into a proper list/series:
     new_timestamps = DATASET[timestamp_tag_column].copy()
-    new_timestamps = new_timestamps + timedelta
+    # Check positions where one of the timestamps is not present, so the time attribute should be null
+    # Where it is null, simply keep it null. Alternatively, pick the new value.
+    new_timestamps = np.where(new_timestamps.isna(), new_timestamps, (new_timestamps + timedelta))
     
     #Finally, create a column in the dataframe named as new_timestamp_col
     #and store the new timestamps into it
@@ -1438,9 +1440,7 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
         #the correct units.
     
     DATASET[new_timestamp_col] = new_timestamps
-    # Check positions where one of the timestamps is not present, so the time attribute should be null
-    DATASET[new_timestamp_col] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_timestamp_col])
-
+    
     # Sort the dataframe in ascending order of timestamps.
     # Importance order: timestamp, new_timestamp_col
     DATASET = DATASET.sort_values(by = [timestamp_tag_column, new_timestamp_col], ascending = [True, True])
