@@ -1038,11 +1038,15 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         # the slices goes from the 1st element; if the last element is not included, slices goes to
         # the last element.
         
+        # To calculate the mean, we firstly need to remove the null entries:
+        # Filter the numpy array to the opposite of the null entries (~)
+        TimedeltaList = TimedeltaList[~np.isnan(TimedeltaList)]
+
         # Now we calculate the average value:
         avg_delay = np.average(TimedeltaList)
         
         if ControlVars.show_results:
-            print(f"Average delay = {avg_delay} {returned_timedelta_unit}\n")
+            print(f"Average delay = {avg_delay:.2f} {returned_timedelta_unit}\n")
         
         # Return the dataframe and the average value:
         return DATASET, avg_delay
