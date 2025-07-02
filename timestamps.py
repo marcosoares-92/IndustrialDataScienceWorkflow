@@ -803,6 +803,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # Now, let's store it into a column (series) of the dataframe:
     timestamp_tag_column2 = timestamp_tag_column + "_delayed"
     DATASET[timestamp_tag_column2] = following_timestamp
+    # If the timestamp was originall missing, the delayed timestamp must be missing too
+    DATASET[timestamp_tag_column2] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[timestamp_tag_column2])
     
     # Pandas Timestamps can be subtracted to result into a Pandas Timedelta.
     # We will apply the delta method from Pandas Timedeltas.
