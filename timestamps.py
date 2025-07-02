@@ -996,15 +996,14 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     #Append the selected unit as a suffix on the new_timedelta_column_name:
     new_timedelta_column_name = new_timedelta_column_name + "_" + returned_timedelta_unit
     
-    DATASET[new_timedelta_column_name] = TimedeltaList
     # Check positions where one of the timestamps is not present, so the time attribute should be null too
     # Here, we cannot repeat the variable itself because the info is a float, not a date. So, we have to create a float var.
     # (np.nan) creates a float, not a missing date 'NaT'
-    DATASET[new_timedelta_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_timedelta_column_name])
+    TimedeltaList = np.where(DATASET[timestamp_tag_column].isna(), np.nan, np.array(TimedeltaList))
     # Also, check if DATASET[timestamp_tag_column2] is null:
-    DATASET[new_timedelta_column_name] = np.where(DATASET[timestamp_tag_column2].isna(), np.nan, DATASET[new_timedelta_column_name])
-    # Update TimedeltaList with these corrections:
-    TimedeltaList = np.array(DATASET[new_timedelta_column_name])
+    TimedeltaList = np.where(DATASET[timestamp_tag_column2].isna(), np.nan, TimedeltaList)
+    
+    DATASET[new_timedelta_column_name] = TimedeltaList
     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
