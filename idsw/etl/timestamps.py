@@ -630,38 +630,38 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
             if (extracted_info == 'year'):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.year
-                # Check positions where one of the timestamps is not present, so the time attribute should be null
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                # Check positions where one of the timestamps is not present, so the time attribute should be null too (simply repeat it)
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "month"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.month
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "week"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.isocalendar().week
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "day"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.day
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "hour"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.hour
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "minute"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.minute
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "second"):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.second
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             else:
 
@@ -672,37 +672,37 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
             if (extracted_info == 'year'):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).year for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "month"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).month for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "week"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).week for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "day"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).day for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "hour"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).hour for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "minute"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).minute for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             elif (extracted_info == "second"):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).second for timestamp in DATASET[timestamp_tag_column]]
-                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_column_name])
 
             else:
 
@@ -993,8 +993,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     new_timedelta_column_name = new_timedelta_column_name + "_" + returned_timedelta_unit
     
     DATASET[new_timedelta_column_name] = TimedeltaList
-    # Check positions where one of the timestamps is not present, so the timedelta should be null
-    DATASET[new_timedelta_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_timedelta_column_name])
+    # Check positions where one of the timestamps is not present, so the time attribute should be null too (simply repeat it)
+    DATASET[new_timedelta_column_name] = np.where(DATASET[timestamp_tag_column].isna(), DATASET[timestamp_tag_column], DATASET[new_timedelta_column_name])
     
     # Pandas .head(Y) method results in a dataframe containing the first Y rows of the 
     # original dataframe. The default .head() is Y = 5. Print first 10 rows of the 
@@ -1290,7 +1290,11 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     
     DATASET[timedelta_column_name] = TimedeltaList
     # Check positions where one of the timestamps is not present, so the timedelta should be null
-    DATASET[timedelta_column_name] = np.where((DATASET[timestamp_tag_column1].isna() | DATASET[timestamp_tag_column2].isna()), np.nan, DATASET[timedelta_column_name])
+    # simply repeat the null value
+    # Check null in 1st column
+    DATASET[timedelta_column_name] = np.where(DATASET[timestamp_tag_column1].isna(), DATASET[timestamp_tag_column1], DATASET[timedelta_column_name])
+    # Check null in 2nd column
+    DATASET[timedelta_column_name] = np.where(DATASET[timestamp_tag_column2].isna(), DATASET[timestamp_tag_column2], DATASET[timedelta_column_name])
     
     # Sort the dataframe in ascending order of timestamps.
     # Importance order: timestamp1, timestamp2, timedelta

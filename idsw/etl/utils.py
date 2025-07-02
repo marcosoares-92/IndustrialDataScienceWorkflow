@@ -23,15 +23,20 @@ class EncodeDecode:
     
     def encode(self):
 
-        if ControlVars.show_results:
-            # Silence the encoder:
-            ControlVars.show_results = False
-        
-        df_categorical, self.ordinal_encoding_list = OrdinalEncoding_df (df = self.df, subset_of_features_to_be_encoded = self.features)
-        # Get the new columns generated from Ordinal Encoding:
-        self.new_encoded_cols = [column + "_OrdinalEnc" for column in self.features]
-        # Remove the columns that do not have numeric variables before grouping
-        self.df_categorical = df_categorical.drop(columns = categorical_list)
+        # Use a try-except block in order for not turning-off the ControlVars.show_results in case of failing:
+        try:
+            if ControlVars.show_results:
+                # Silence the encoder:
+                ControlVars.show_results = False
+            
+            # Use a try-except block in order for not turning-off the ControlVars.show_results in case of failing:
+            df_categorical, self.ordinal_encoding_list = OrdinalEncoding_df (df = self.df, subset_of_features_to_be_encoded = self.features)
+            # Get the new columns generated from Ordinal Encoding:
+            self.new_encoded_cols = [column + "_OrdinalEnc" for column in self.features]
+            # Remove the columns that do not have numeric variables before grouping
+            self.df_categorical = df_categorical.drop(columns = categorical_list)
+        except:
+            pass
         
         if not ControlVars.show_results:
             # Turn-on the encoder again:
