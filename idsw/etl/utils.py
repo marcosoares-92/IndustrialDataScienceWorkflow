@@ -18,7 +18,7 @@ class EncodeDecode:
     """
     def __init__ (self, df_categorical, categorical_list):
         
-        self.df = df_categorical.copy(deep = True)
+        self.df_categorical = df_categorical.copy(deep = True)
         self.features = categorical_list
     
     def encode(self):
@@ -30,7 +30,7 @@ class EncodeDecode:
                 ControlVars.show_results = False
             
             # Use a try-except block in order for not turning-off the ControlVars.show_results in case of failing:
-            df_categorical, self.ordinal_encoding_list = OrdinalEncoding_df (df = self.df, subset_of_features_to_be_encoded = self.features)
+            df_categorical, self.ordinal_encoding_list = OrdinalEncoding_df (df = self.df_categorical, subset_of_features_to_be_encoded = self.features)
             # Get the new columns generated from Ordinal Encoding:
             self.new_encoded_cols = [column + "_OrdinalEnc" for column in self.features]
             # Remove the columns that do not have numeric variables before grouping
@@ -51,20 +51,23 @@ class EncodeDecode:
         and now it will be decoded.
         """
 
-        if ControlVars.show_results:
-            # Silence the encoder:
-            ControlVars.show_results = False
-        
-        """
-        Run next step if there is a new dataframe. For a variable var, syntax 
-            if var:
-                # is equivalent to: "run only when variable var is not None." or "run only if var is True".
-        """
-        if new_df:
-            self.df_categorical = new_df.copy(deep = True)
+        try:
+            if ControlVars.show_results:
+                # Silence the encoder:
+                ControlVars.show_results = False
+            
+            """
+            Run next step if there is a new dataframe. For a variable var, syntax 
+                if var:
+                    # is equivalent to: "run only when variable var is not None." or "run only if var is True".
+            """
+            if new_df:
+                self.df_categorical = new_df.copy(deep = True)
 
-        # Now, reverse encoding and keep only the original column names:
-        self.df_categorical = reverse_OrdinalEncoding (df = self.df_categorical, encoding_list = self.ordinal_encoding_list)
+            # Now, reverse encoding and keep only the original column names:
+            self.df_categorical = reverse_OrdinalEncoding (df = self.df_categorical, encoding_list = self.ordinal_encoding_list)
+        except:
+            pass
         
         if not ControlVars.show_results:
             # Turn-on the encoder again:
