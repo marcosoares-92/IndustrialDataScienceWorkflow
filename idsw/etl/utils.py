@@ -30,7 +30,7 @@ class EncodeDecode:
         # Get the new columns generated from Ordinal Encoding:
         self.new_encoded_cols = [column + "_OrdinalEnc" for column in self.features]
         # Remove the columns that do not have numeric variables before grouping
-        self.df_categorical = df_categorical.drop(columns = df.categorical_list)
+        self.df_categorical = df_categorical.drop(columns = self.categorical_list)
         ControlVars.show_results = True
         
         return self
