@@ -57,7 +57,7 @@ class EncodeDecode:
         
         try:
             # Try dropping columns with name of the features + "_OrdinalEnc":
-            df_categorical = df_categorical.drop(columns = self.new_encoded_cols)
+            self.df_categorical = df_categorical.drop(columns = self.new_encoded_cols)
         except:
             # If impossible, simply select the original features:
             self.df_categorical = df_categorical[self.features]
