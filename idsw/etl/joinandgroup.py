@@ -752,6 +752,10 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
         # Has at least one column plus the variable_to_group_by:
         df_categorical = DATASET.copy(deep = True)
         df_categorical = df_categorical[categorical_list]
+        # It is possible that a timestamp column was passed as string. To avoid conversion errors, convert each categorical column to str:
+        for col in df_categorical.columns:
+            df_categorical[col] = df_categorical[col].astype(str)
+            
         is_categorical = 1
     
     if (len(numeric_list) > 1):

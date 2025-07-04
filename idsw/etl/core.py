@@ -69,7 +69,14 @@ class SPCChartAssistant:
     
 
     def download_assistant_imgs (self):
+
+        error_msg = """If ModuleNotFoundError is raised, run the following command to install html2image package, which is not required for running IDSW
                 
+                                            ! pip install html2image
+
+            """
+        print(error_msg)
+
         import os
         import shutil # component of the standard library to move or copy files.
         from html2image import Html2Image
@@ -1002,6 +1009,9 @@ class SPCPlot:
             
             df_agg_mode = df.copy(deep = True)
             df_agg_mode = df_agg_mode[categorical_cols]
+            # It is possible that a timestamp column was passed as string. To avoid conversion errors, convert each categorical column to str:
+            for col in df_agg_mode.columns:
+                df_agg_mode[col] = df_agg_mode[col].astype(str)
             # stats.mode now only works for numerically encoded variables (the previous ordinal
             # encoding is required)
 

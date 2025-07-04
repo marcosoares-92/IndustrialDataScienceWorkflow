@@ -216,6 +216,8 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
         unique_vals = []
 
         # Now, check the unique values of the categorical variable:
+        # Firstly guarantee that it is a string, even if a timestamp was incorrectly passed:
+        DATASET[categorical_var] = DATASET[categorical_var].astype(str)
         unique_vals_array = DATASET[categorical_var].unique()
         # unique_vals_array is a NumPy array containing the different values from the categorical variable.
 
@@ -385,6 +387,13 @@ def visualize_and_characterize_missing_values (df, slice_time_window_from = None
       'month' to aggregate in terms of months; or set aggregate_time_in_terms_of = 'D' or 'day'
       to aggregate in terms of days.
     """
+    
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install missingno package, which is not required for running IDSW
+                
+                                            ! pip install missingno
+
+            """
+    print(error_msg)
 
     import missingno as msno
     # misssingno package is built for visualizing missing values. 
@@ -1252,6 +1261,10 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                     # Has at least one column:
                     df_categorical = cleaned_df.copy(deep = True)
                     df_categorical = df_categorical[categorical_list]
+                    # It is possible that a timestamp column was passed as string. To avoid conversion errors, convert each categorical column to str:
+                    for col in df_categorical.columns:
+                        df_categorical[col] = df_categorical[col].astype(str)
+                        
                     is_categorical = 1
                     # scipy.stats.mode requires numeric values, so the ordinal encoding is necessary.
                     
@@ -1476,6 +1489,13 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
       MICE performs multiple regression for imputing. MICE is a very robust model for imputation.
     """
     
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install fancyimpute package, which is not required for running IDSW
+                
+                                            ! pip install fancyimpute
+
+            """
+    print(error_msg)
+
     from scipy.stats import linregress
     from sklearn.impute import SimpleImputer
     from sklearn.preprocessing import OrdinalEncoder

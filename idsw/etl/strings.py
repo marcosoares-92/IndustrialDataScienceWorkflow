@@ -230,8 +230,14 @@ def add_contractions_to_library (list_of_contractions = [{'contracted_expression
       list_of_contractions = [{'contracted_expression': 'mychange', 'correct_expression': 'my change'}]
     """
 
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install contractions package, which is not required for running IDSW
+                
+                                            ! pip install contractions
+
+            """
+    print(error_msg)
+
     import contractions
-    
     
     for dictionary in list_of_contractions:
         
@@ -270,6 +276,13 @@ def correct_contracted_strings (df, column_to_analyze, create_new_column = True,
       Alternatively, input inside quotes a string with the desired suffix. Recommendation:
       start the suffix with "_" to separate it from the original name.
     """
+    
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install contractions package, which is not required for running IDSW
+                
+                                            ! pip install contractions
+
+            """
+    print(error_msg)
 
     import contractions
     
@@ -1220,6 +1233,13 @@ def string_replacement_ml (df, column_to_analyze, mode = 'find_and_replace', thr
       Alternatively, input inside quotes a string with the desired suffix. Recommendation:
       start the suffix with "_" to separate it from the original name.
     """
+    
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install fuzzywuzzy package, which is not required for running IDSW
+                
+                                            ! pip install fuzzywuzzy
+
+            """
+    print(error_msg)
 
     from fuzzywuzzy import process
     

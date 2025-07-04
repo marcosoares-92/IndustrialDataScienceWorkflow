@@ -377,6 +377,10 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         # Has at least one column plus the variable_to_group_by:
         df_categorical = df_copy.copy(deep = True)
         df_categorical = df_categorical[categorical_list]
+        # It is possible that a timestamp column was passed as string. To avoid conversion errors, convert each categorical column to str:
+        for col in df_categorical.columns:
+            df_categorical[col] = df_categorical[col].astype(str)
+
         is_categorical = 1
     
     if (len(numeric_list) > 1):
@@ -1558,8 +1562,9 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     new_timestamps = DATASET[timestamp_tag_column].copy()
     # Check positions where one of the timestamps is not present, so the time attribute should be null
     new_timestamps = new_timestamps + timedelta
-    # Where it is null, simply keep it null. Alternatively, pick the new value.
-    new_timestamps = np.where(timedeltas_mask, None, new_timestamps)
+    # Where it is not null, keep the right value. Otherwise, pick the null.
+    # Guarantee the correct data type
+    new_timestamps = np.array(np.where(timedeltas_mask, new_timestamps, None), dtype = 'datetime64[ns]')
     
     #Finally, create a column in the dataframe named as new_timestamp_col
     #and store the new timestamps into it

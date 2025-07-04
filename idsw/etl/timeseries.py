@@ -312,7 +312,7 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
       to get less restrictive results.
     """
 
-    import statsmodels as sm
+    import statsmodels.api as sm
     from statsmodels.graphics.tsaplots import plot_predict
     #this model is present only in the most recent versions of statsmodels
 
@@ -681,7 +681,7 @@ def arima_forecasting (arima_model_object, df = None, column_to_forecast = None,
       to get less restrictive results.
     """
 
-    import statsmodels as sm
+    import statsmodels.api as sm
     from statsmodels.graphics.tsaplots import plot_predict
     #this model is present only in the most recent versions of statsmodels
 
@@ -1785,7 +1785,7 @@ def seasonal_decomposition (df, response_column_to_analyze, column_with_timestam
       https://machinelearningmastery.com/decompose-time-series-data-trend-seasonality/#:~:text=The%20statsmodels%20library%20provides%20an%20implementation%20of%20the,careful%20to%20be%20critical%20when%20interpreting%20the%20result.
     """
 
-    import statsmodels as sm
+    import statsmodels.api as sm
     from statsmodels.tsa.seasonal import DecomposeResult
     from statsmodels.tsa.seasonal import seasonal_decompose
     
