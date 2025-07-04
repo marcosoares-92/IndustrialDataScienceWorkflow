@@ -72,6 +72,7 @@ def apply_row_filters_list (df, list_of_row_filters):
         
         # Set a local copy of the dataframe:
         DATASET = df.copy(deep = True)
+        initial_len = len(DATASET)
         
         # Get the original index and convert it to a list
         original_index = list(DATASET.index)
@@ -106,9 +107,15 @@ def apply_row_filters_list (df, list_of_row_filters):
         
         # Reset index:
         DATASET = DATASET.reset_index(drop = True)
+        final_len = len(DATASET)
+        variation_msg = f"""Initial number of rows: {initial_len}
+                            Final number of rows: {final_len}
+                            Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
+                            """
         
         if ControlVars.show_results:
             print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
+            print(variation_msg)
             
             try:
                 # only works in Jupyter Notebook:
@@ -169,7 +176,8 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
             print(f"The columns in {cols_list} headers list were successfully removed.\n")
     
     elif (what_to_drop == 'rows'):
-        
+
+        initial_len = len(DATASET)
         if (row_index_list is None):
             #check if a list was not input:
             raise InvalidInputsError ("Input a list of rows indices row_index_list to be dropped.")
@@ -177,7 +185,12 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
         else:
             #Drop the rows in row_index_list:
             DATASET = DATASET.drop(row_index_list)
+            final_len = len(DATASET)
+            variation_msg = f"""Initial number of rows: {initial_len}
+                                        Final number of rows: {final_len}
+                                        Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)"""
             print(f"The rows in {row_index_list} indices list were successfully removed.\n")
+            print(variation_msg)
     
     else:
         raise InvalidInputsError ("Input a valid string as what_to_drop, rows or columns.")
@@ -235,6 +248,7 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
     # Use the copy method to effectively create a second object with the same properties
     # of the input parameters, but completely independent from it.
     DATASET = df.copy(deep = True)
+    initial_len = len(DATASET)
     
     if (which_row_to_keep == 'last'):
         
@@ -278,6 +292,12 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
                 print(f"The rows with duplicate values for the columns in {list_of_columns_to_analyze} headers list were successfully removed.")
                 print("Only the first one of the duplicate entries was kept in the dataset.\n")
     
+    final_len = len(DATASET)
+    variation_msg = f"""Initial number of rows: {initial_len}
+                                Final number of rows: {final_len}
+                                Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
+                                """
+
     if (reset_index_after_drop == True):
         
         #restart the indexing
@@ -285,6 +305,8 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
         print("The indices of the dataset were successfully restarted.\n")
     
     if ControlVars.show_results:
+        
+        print(variation_msg)
         print("Check the 10 first rows from the returned dataset:\n")
         
         try:
@@ -356,7 +378,7 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     # Remove rows that contain only missing values:
     
     checked_df = checked_df.dropna(axis = 0, how = 'all')
-    print(f"{total_rows - len(checked_df)} rows were completely blank and were removed.\n")
+    print(f"{total_rows - len(checked_df)} rows (f"{total_rows - len(checked_df)/total_rows*100:.2f} % of the rows) were completely blank and were removed.")
     
     # Remove columns that contain only missing values:
     checked_df = checked_df.dropna(axis = 1, how = 'all')
