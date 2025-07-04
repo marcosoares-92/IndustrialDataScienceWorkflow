@@ -152,9 +152,8 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
       If you want to aggregate the whole subset, keep subset_of_columns_to_aggregate = None.
     
     : param: grouping_frequency_unit: the frequency of aggregation. The possible values are:
-    
-            grp_frq_unit_dict = {'year': "Y", 'month': "M", 'week': "W", 
-                            'day': "D", 'hour': "H", 'minute': "min", 'second': 'S'}
+      'year' (or 'y'), 'month' (or 'm'), 'week' (or 'w'), 'day' (or 'd'), 'hour' (or 'h'), 
+      'minute' (or 'min'), 'second' (or 's'), 'microsecond' (or 'us'), 'nanosecond' (or 'ns').
     
      Simply provide the key: 'year', 'month', 'week',..., 'second', and this dictionary
      will convert to the Pandas coding.
@@ -183,12 +182,49 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     
     print("WARNING: The categorical variables will be grouped in terms of mode, i.e., as the most common value observed during the aggregated time period. This is the maximum of the statistical distribution of that variable.\n")
     
-    grp_frq_unit_dict = {'year': "Y", 'month': "M", 'week': "W", 
-                            'day': "D", 'hour': "H", 'minute': "min", 'second': 'S'}
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
     
-    #Convert the input to Pandas encoding:
-    frq_unit = grp_frq_unit_dict[grouping_frequency_unit]
+    if ((extracted_info == 'year') | (extracted_info == 'y')):
+
+        frq_unit = 'YE'
+
+    elif ((extracted_info == 'month') | (extracted_info == 'm')):
+
+        frq_unit = 'ME'
+
+    elif ((extracted_info == 'week') | (extracted_info == 'w')):
+
+        frq_unit = 'W'
     
+    elif ((extracted_info == 'day') | (extracted_info == 'd')):
+        
+        frq_unit = 'D'
+
+    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
+        
+        frq_unit = 'h'
+    
+    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+        
+        frq_unit = 'min'
+            
+    elif ((extracted_info == 'second') | (extracted_info == 's')):
+        
+        frq_unit = 's'
+         
+    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+        
+        frq_unit = 'ms'
+         
+    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+        
+        frq_unit = 'us'
+        
+    else:
+
+        frq_unit = 'ns'
+        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).\n")
+
 
     if (number_of_periods_to_group <= 0):
         
@@ -206,37 +242,39 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         #Concatenate the strings:
         FREQ = number_of_periods_to_group + frq_unit
         #Expected output be like '2D' for a 2-days grouping
-    
-
-    agg_dict = {
-        
-        'mean': 'mean',
-        'sum': 'sum',
-        'median': 'median',
-        'std': 'std',
-        'count': 'count',
-        'min': 'min',
-        'max': 'max',
-        'mode': stats.mode,
-        'geometric_mean': stats.gmean,
-        'harmonic_mean': stats.hmean,
-        'kurtosis': stats.kurtosis,
-        'skew': stats.skew,
-        'geometric_std': stats.gstd,
-        'interquartile_range': stats.iqr,
-        'mean_standard_error': stats.sem,
-        
-    }
   
     # Convert the input into the correct aggregation function. Access the value on key
     # aggregate_function in dictionary agg_dict:
     
-    if (aggregate_function in agg_dict.keys()):
-        
-        aggregate_function = agg_dict[aggregate_function]
+    if (aggregate_function in ['mean', 'sum', 'median', 'std', 'count', 'min', 'max']):
+        aggregate_function = aggregate_function
+    
+    elif (aggregate_function == 'mode'):
+        aggregate_function = stats.mode
+    
+    elif (aggregate_function == 'geometric_mean'):
+        aggregate_function = stats.gmean
+    
+    elif (aggregate_function == 'harmonic_mean'):
+        aggregate_function = stats.hmean
+    
+    elif (aggregate_function == 'kurtosis'):
+        aggregate_function = stats.kurtosis
+    
+    elif (aggregate_function == 'skew'):
+        aggregate_function = stats.skew
+    
+    elif (aggregate_function == 'geometric_std'):
+        aggregate_function = stats.gstd
+    
+    elif (aggregate_function == 'interquartile_range'):
+        aggregate_function = stats.iqr
+    
+    elif (aggregate_function == 'mean_standard_error'):
+        aggregate_function = stats.sem
     
     else:
-        raise InvalidInputsError (f"Select a valid aggregate function: {agg_dict.keys()}")
+        raise InvalidInputsError (f"Select a valid aggregate function: {['mean', 'sum', 'median', 'std', 'count', 'min', 'max', 'mode', 'geometric_mean', 'harmonic_mean', 'kurtosis', 'skew', 'geometric_std', 'interquartile_range', 'mean_standard_error']}")
     
     # Now, aggregate_function actually stores the value that must be passed to the agg method.
     
@@ -560,8 +598,9 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
     
     : param: list_of_info_to_extract: list of information to extract from the timestamp. Each information
       will be extracted as a separate column. The allowed values are:
-      'year', 'month', 'week', 'day', 'hour', 'minute', or 'second'. Declare as a list even if only
-      one information is going to be extracted. For instance:
+      'year' (or 'y'), 'month' (or 'm'), 'week' (or 'w'), 'day' (or 'd'), 'hour' (or 'h'), 
+      'minute' (or 'min'), 'second' (or 's'), 'microsecond' (or 'us'), 'nanosecond' (or 'ns'). 
+      Declare as a list even if only one information is going to be extracted. For instance:
       list_of_info_to_extract = ['second'] extracts only the second.
       list_of_info_to_extract = ['year', 'month', 'week', 'day'] extracts year, month, week and day. 
     
@@ -627,7 +666,7 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
         
         try: # try accessing the dt attribute:
             
-            if (extracted_info == 'year'):
+            if ((extracted_info == 'year') | (extracted_info == 'y')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.year
                 # Check positions where one of the timestamps is not present, so the time attribute should be null too
@@ -635,34 +674,44 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
                 # (np.nan) creates a float, not a missing date 'NaT'
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "month"):
+            elif ((extracted_info == 'month') | (extracted_info == 'm')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.month
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "week"):
+            elif ((extracted_info == 'week') | (extracted_info == 'w')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.isocalendar().week
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "day"):
+            elif ((extracted_info == 'day') | (extracted_info == 'd')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.day
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "hour"):
+            elif ((extracted_info == 'hour') | (extracted_info == 'h')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.hour
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "minute"):
+            elif ((extracted_info == 'minute') | (extracted_info == 'min')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.minute
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "second"):
+            elif ((extracted_info == 'second') | (extracted_info == 's')):
 
                 DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.second
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+            
+            elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+
+                DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.microsecond
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+            
+            elif ((extracted_info == 'nanosecond') | (extracted_info == 'ns')):
+
+                DATASET[new_column_name] = DATASET[timestamp_tag_column].dt.nanosecond
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
             else:
@@ -671,39 +720,49 @@ def extract_timestamp_info (df, timestamp_tag_column, list_of_info_to_extract, l
 
         except: # access the attributes from individual objects
 
-            if (extracted_info == 'year'):
+            if ((extracted_info == 'year') | (extracted_info == 'y')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).year for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "month"):
+            elif ((extracted_info == 'month') | (extracted_info == 'm')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).month for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "week"):
+            elif ((extracted_info == 'week') | (extracted_info == 'w')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).week for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "day"):
+            elif ((extracted_info == 'day') | (extracted_info == 'd')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).day for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "hour"):
+            elif ((extracted_info == 'hour') | (extracted_info == 'h')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).hour for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "minute"):
+            elif ((extracted_info == 'minute') | (extracted_info == 'min')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).minute for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
-            elif (extracted_info == "second"):
+            elif ((extracted_info == 'second') | (extracted_info == 's')):
 
                 DATASET[new_column_name] = [pd.Timestamp(timestamp).second for timestamp in DATASET[timestamp_tag_column]]
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+            
+            elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).microsecond for timestamp in DATASET[timestamp_tag_column]]
+                DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
+            
+            elif ((extracted_info == 'nanosecond') | (extracted_info == 'ns')):
+
+                DATASET[new_column_name] = [pd.Timestamp(timestamp).nanosecond for timestamp in DATASET[timestamp_tag_column]]
                 DATASET[new_column_name] = np.where(DATASET[timestamp_tag_column].isna(), np.nan, DATASET[new_column_name])
 
             else:
@@ -755,7 +814,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     : param: returned_timedelta_unit: unit of the new column. If no value is provided, the unit will be
       considered as nanoseconds. 
       POSSIBLE VALUES FOR THE TIMEDELTA UNIT:
-     'year', 'month', 'day', 'hour', 'minute', 'second'.
+      'year' (or 'y'), 'month' (or 'm'), 'day' (or 'd'), 'hour' (or 'h'), 'minute' (or 'min'), 
+      'second' (or 's'), 'millisecond' (or 'ms'), 'microsecond' (or 'us'), 'nanosecond' (or 'ns').
     """
     
     if (new_timedelta_column_name is None):
@@ -794,11 +854,18 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # Reset indices:
     DATASET = DATASET.reset_index(drop = True)
     
-    # Now, let's create a list of the following timestamps, starting from the second element
-    # (index 1) of the timestamp_list:
-    following_timestamp = timestamp_list[1:]
-    # Append the last element again, since the last timestamp has no following time yet:
-    following_timestamp = following_timestamp + timestamp_list[-1:]
+    # Let's create an array of timestamps:
+    timestamps = np.array(DATASET[timestamp_tag_column], dtype = 'datetime64[ns]')
+    # Start an empty array that will store the delayed timestamps:
+    following_timestamp = np.empty(shape = timestamps.shape, dtype = 'datetime64[ns]')
+    # This array contains random elements. The last element should be a missing value, since there is no future after the last timestamp
+    # Example: if we had originally an array like [1 2 3 4], the delayed array must be [2 3 4 None] - it starts in the 2nd element,
+    # but there is no element after 4.
+    # Assign the missing value to the last index of the new array:
+    following_timestamp[-1] = None
+    # Now, fill the new timestamps with the old timestamps, starting from the second position. Only the last position will not be filled.
+    # For that, slice the following_timestamp for picking all but the last element, and slice the old one to pick all from 2nd element:
+    following_timestamp[:-1] = timestamps[1:]
      
     # Now, let's store it into a column (series) of the dataframe:
     timestamp_tag_column2 = timestamp_tag_column + "_delayed"
@@ -820,7 +887,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # (tag_column2, timestamp lower). Since we repeated the last timestamp twice,
     # in the last row it will be subtracted from itself, resulting in zero.
     # This is the expected, since we do not have a delay yet
-    timedelta_series = DATASET[timestamp_tag_column2] - DATASET[timestamp_tag_column]
+    timedeltas = pd.Series(following_timestamp - timestamps)
+    timedeltas_mask = ~timedeltas.isna() # values that are not null
     
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
@@ -832,6 +900,8 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     
     #5. Create an empty list to store the timedeltas in nanoseconds
     TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
+    # Keep only valid data, indicated in the boolean mask:
+    TimedeltaList = np.where(timedeltas_mask, TimedeltaList, np.nan)
     
     #6. Loop through each timedelta_obj and convert it to nanoseconds using the Delta
     # method. Both pd.Timedelta function and the delta method can be applied to a 
@@ -870,7 +940,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     
     #Convert the array to the desired unit by dividing it by the proper factor:
     
-    if (returned_timedelta_unit == 'year'):
+    if ((extracted_info == 'year') | (extracted_info == 'y')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -895,7 +965,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
-    elif (returned_timedelta_unit == 'month'):
+    elif ((extracted_info == 'month') | (extracted_info == 'm')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -919,7 +989,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
-    elif (returned_timedelta_unit == 'day'):
+    elif ((extracted_info == 'day') | (extracted_info == 'd')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -937,9 +1007,9 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         #The .0 after the numbers guarantees a float division.
         
         print("Returned timedelta in days.\n")
-        
-    
-    elif (returned_timedelta_unit == 'hour'):
+
+
+    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -956,7 +1026,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in hours [h].\n")
     
 
-    elif (returned_timedelta_unit == 'minute'):
+    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -970,7 +1040,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in minutes [min].\n")
         
         
-    elif (returned_timedelta_unit == 'second'):
+    elif ((extracted_info == 'second') | (extracted_info == 's')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -979,8 +1049,30 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         #The .0 after the numbers guarantees a float division.
         
         print("Returned timedelta in seconds [s].\n")
+         
         
+    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
         
+        #1. Convert the list to milliseconds (1 ms = 10**6 ns, where 10**6 represents
+        #the potentiation operation in Python, i.e., 10^6. e.g. 10**2 = 100):
+        TimedeltaList = TimedeltaList / (10**6) #in milliseconds
+        
+        #The .0 after the numbers guarantees a float division.
+        
+        print("Returned timedelta in milliseconds [ms].\n")
+         
+        
+    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+        
+        #1. Convert the list to microseconds (1 us = 10**3 ns, where 10**3 represents
+        #the potentiation operation in Python, i.e., 10^3. e.g. 10**2 = 100):
+        TimedeltaList = TimedeltaList / (10**3) #in microseconds
+        
+        #The .0 after the numbers guarantees a float division.
+        
+        print("Returned timedelta in microseconds [us].\n")
+
+
     else:
         
         returned_timedelta_unit = 'ns'
@@ -998,6 +1090,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # Check positions where one of the timestamps is not present, so the time attribute should be null too
     # Here, we cannot repeat the variable itself because the info is a float, not a date. So, we have to create a float var.
     # (np.nan) creates a float, not a missing date 'NaT'
+    # LAST CHECKERS - Only to confirm
     TimedeltaList = np.where(DATASET[timestamp_tag_column].isna(), np.nan, TimedeltaList)
     # Also, check if DATASET[timestamp_tag_column2] is null:
     TimedeltaList = np.where(DATASET[timestamp_tag_column2].isna(), np.nan, TimedeltaList)
@@ -1021,23 +1114,6 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     
     if (return_avg_delay == True):
         
-        # Let's calculate the average delay, print and return it:
-        # Firstly, we must remove the last element of the TimedeltaList.
-        # Remember that this element is 0 because there is no delay. It was added to allow
-        # the element-wise operations between the series.
-        # Let's eliminate the last element from TimedeltaList. Since this list was already
-        # copied to the dataframe, there is no risk of losing information.
-        
-        # Index of the last element:
-        last_element_index = len(TimedeltaList) - 1
-        
-        # Slice TimedeltaList until the element of index last_element_index - 1.
-        # It will eliminate the last element before we obtain the average:
-        TimedeltaList = TimedeltaList[:last_element_index]
-        # slice[i:j] slices including index i to index j-1; if the first element is not included,
-        # the slices goes from the 1st element; if the last element is not included, slices goes to
-        # the last element.
-        
         # To calculate the mean, we firstly need to remove the null entries:
         # Filter the numpy array to the opposite of the null entries (~)
         TimedeltaList = TimedeltaList[~np.isnan(TimedeltaList)]
@@ -1046,7 +1122,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         avg_delay = np.average(TimedeltaList)
         
         if ControlVars.show_results:
-            print(f"Average delay = {avg_delay:.2f} {returned_timedelta_unit}\n")
+            print(f"Average delay = {avg_delay:.6f} {returned_timedelta_unit}\n")
         
         # Return the dataframe and the average value:
         return DATASET, avg_delay
@@ -1085,7 +1161,8 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     : param: returned_timedelta_unit: unit of the new column. If no value is provided, the unit will be
       considered as nanoseconds. 
       POSSIBLE VALUES FOR THE TIMEDELTA UNIT:
-      'year', 'month', 'day', 'hour', 'minute', 'second'.
+      'year' (or 'y'), 'month' (or 'm'), 'day' (or 'd'), 'hour' (or 'h'), 'minute' (or 'min'), 
+      'second' (or 's'), 'millisecond' (or 'ms'), 'microsecond' (or 'us'), 'nanosecond' (or 'ns').
     """
     
     if (timedelta_column_name is None):
@@ -1133,8 +1210,8 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # called df[timestamp_tag_column1] and df[timestamp_tag_column2]. These two series now
     # can be submitted to direct operations.
     
-    timedelta_series = DATASET[timestamp_tag_column1] - DATASET[timestamp_tag_column2]
-    
+    timedelta_series = pd.Series(np.array(DATASET[timestamp_tag_column1], dtype = 'datetime64[ns]') - np.array(DATASET[timestamp_tag_column2], dtype = 'datetime64[ns]'))
+    timedeltas_mask = ~timedeltas.isna() # values that are not null
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
     # the series to obtain the float values in nanoseconds. Even though this loop may 
@@ -1145,7 +1222,13 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     
     #5. Create an empty list to store the timedeltas in nanoseconds
     TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
-    
+    # Keep only valid data, indicated in the boolean mask:
+    TimedeltaList = np.where(timedeltas_mask, TimedeltaList, np.nan)
+    # LAST CHECKERS - Only to confirm
+    TimedeltaList = np.where(DATASET[timestamp_tag_column1].isna(), np.nan, TimedeltaList)
+    # Also, check if DATASET[timestamp_tag_column2] is null:
+    TimedeltaList = np.where(DATASET[timestamp_tag_column2].isna(), np.nan, TimedeltaList)
+
     #Notice that the loop is needed because Pandas cannot handle a series/list of
     #Timedelta objects simultaneously. It can manipulate a single object
     # in each call or iteration.
@@ -1175,7 +1258,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
   
     #Convert the array to the desired unit by dividing it by the proper factor:
     
-    if (returned_timedelta_unit == 'year'):
+    if ((extracted_info == 'year') | (extracted_info == 'y')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1200,7 +1283,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
-    elif (returned_timedelta_unit == 'month'):
+    elif ((extracted_info == 'month') | (extracted_info == 'm')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1224,7 +1307,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
-    elif (returned_timedelta_unit == 'day'):
+    elif ((extracted_info == 'day') | (extracted_info == 'd')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1244,7 +1327,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in days.\n")
         
     
-    elif (returned_timedelta_unit == 'hour'):
+    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1261,7 +1344,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in hours [h].\n")
     
 
-    elif (returned_timedelta_unit == 'minute'):
+    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1275,7 +1358,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in minutes [min].\n")
         
         
-    elif (returned_timedelta_unit == 'second'):
+    elif ((extracted_info == 'second') | (extracted_info == 's')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1284,6 +1367,28 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         #The .0 after the numbers guarantees a float division.
         
         print("Returned timedelta in seconds [s].\n")
+    
+
+    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+        
+        #1. Convert the list to milliseconds (1 ms = 10**6 ns, where 10**6 represents
+        #the potentiation operation in Python, i.e., 10^6. e.g. 10**2 = 100):
+        TimedeltaList = TimedeltaList / (10**6) #in milliseconds
+        
+        #The .0 after the numbers guarantees a float division.
+        
+        print("Returned timedelta in milliseconds [ms].\n")
+         
+        
+    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+        
+        #1. Convert the list to microseconds (1 us = 10**3 ns, where 10**3 represents
+        #the potentiation operation in Python, i.e., 10^3. e.g. 10**2 = 100):
+        TimedeltaList = TimedeltaList / (10**3) #in microseconds
+        
+        #The .0 after the numbers guarantees a float division.
+        
+        print("Returned timedelta in microseconds [us].\n")
         
         
     else:
@@ -1301,12 +1406,6 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     timedelta_column_name = timedelta_column_name + "_" + returned_timedelta_unit
     
     DATASET[timedelta_column_name] = TimedeltaList
-    # Check positions where one of the timestamps is not present, so the time attribute should be null too
-    # Here, we cannot repeat the variable itself because the info is a float, not a date. So, we have to create a float var.
-    # (np.nan) creates a float, not a missing date 'NaT'
-    DATASET[timedelta_column_name] = np.where(DATASET[timestamp_tag_column1].isna(), np.nan, DATASET[timedelta_column_name])
-    # Check null in 2nd column
-    DATASET[timedelta_column_name] = np.where(DATASET[timestamp_tag_column2].isna(), np.nan, DATASET[timedelta_column_name])
     
     # Sort the dataframe in ascending order of timestamps.
     # Importance order: timestamp1, timestamp2, timedelta
@@ -1363,7 +1462,8 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     
     : param: timedelta_unit: unit of the timedelta interval. If no value is provided, 
       the unit will be considered 'ns' (default). Possible values are:
-     'day', 'hour', 'minute', 'second', 'ns'.
+      day' (or 'd'), 'hour' (or 'h'), 'minute' (or 'min'), 
+      'second' (or 's'), 'millisecond' (or 'ms'), 'microsecond' (or 'us'), 'nanosecond' (or 'ns').
     """
 
     if (timedelta_unit is None):
@@ -1397,6 +1497,8 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
         DATASET[timestamp_tag_column] = [pd.Timestamp(timestamp, unit = 'ns') for timestamp in DATASET[timestamp_tag_column]]
     
     # The Pandas Timestamp can be directly added to a Pandas Timedelta.
+    # Check the valid values:
+    timedeltas_mask = ~DATASET[timestamp_tag_column].isna() # values that are not null
 
     #Dictionary for converting the timedelta_unit to Pandas encoding for the
     # Timedelta method. to access the element of a dictionary d = {"key": element},
@@ -1407,28 +1509,44 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # 'd', "D" or "day" for day, for instance. So, we avoid having to check the whole
     # documentation by creating a simpler common encoding for the functions in this notebook.
     
-    unit_dict = {
+    if ((extracted_info == 'day') | (extracted_info == 'd')):
         
-        'day': 'd',
-        'd':'d',
-        'hour': 'h',
-        'h':'h',
-        'minute': 'min',
-        'min':'min',
-        'second': 's',
-        's':'s',
-        'millisecond': 'ms',
-        'ms': 'ms',
-        'microsecond':'us',
-        'us':'us',
-        'nanosecond':'ns',
-        'ns': 'ns'
+        timedelta_unit = 'd'
+        print("Returned timedelta in days.\n")
+
+    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
         
-    }
+        timedelta_unit = 'h'
+        print("Returned timedelta in hours [h].\n")
     
+    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+        
+        timedelta_unit = 'min'
+        print("Returned timedelta in minutes [min].\n")
+            
+    elif ((extracted_info == 'second') | (extracted_info == 's')):
+        
+        timedelta_unit = 's'
+        print("Returned timedelta in seconds [s].\n")
+         
+    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+        
+        timedelta_unit = 'ms'
+        print("Returned timedelta in milliseconds [ms].\n")
+         
+    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+        
+        timedelta_unit = 'us'
+        print("Returned timedelta in microseconds [us].\n")
+        
+    else:
+        
+        timedelta_unit = 'ns'
+        print("No unit or invalid unit provided for timedelta. Then, returned timedelta in nanoseconds (1s = 10^9 ns).\n")
+
     #Create the Pandas timedelta object from the timedelta value and the selected
     # time units:
-    timedelta = pd.Timedelta(timedelta, unit_dict[timedelta_unit])
+    timedelta = pd.Timedelta(timedelta, timedelta_unit)
     
     #A pandas Timedelta object has total compatibility with a pandas
     #Timestamp, so we can simply add the Timedelta to the Timestamp to obtain a new 
@@ -1440,7 +1558,7 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     new_timestamps = DATASET[timestamp_tag_column].copy()
     # Check positions where one of the timestamps is not present, so the time attribute should be null
     # Where it is null, simply keep it null. Alternatively, pick the new value.
-    new_timestamps = np.where(new_timestamps.isna(), new_timestamps, (new_timestamps + timedelta))
+    new_timestamps = np.where(timedeltas_mask, None, (new_timestamps + timedelta))
     
     #Finally, create a column in the dataframe named as new_timestamp_col
     #and store the new timestamps into it
