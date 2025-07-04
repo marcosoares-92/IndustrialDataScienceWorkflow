@@ -764,17 +764,16 @@ class IP21Extractor:
         # Check if there is a previous dataset for concatenating with new data:
         self.dataset = previous_df_for_concatenation
                 
-    # Define the class methods.
-    # All methods must take an object from the class (self) as one of the parameters
-    
-    error_msg = """If ModuleNotFoundError is raised, run the following commands to install requests and requests_ntlm packages, which are not required for running IDSW
-                
-                                            ! pip install requests
-                                            ! pip install requests_ntlm
+        # Define the class methods.
+        # All methods must take an object from the class (self) as one of the parameters
+        error_msg = """If ModuleNotFoundError is raised, run the following commands to install requests and requests_ntlm packages, which are not required for running IDSW
+                    
+                                                ! pip install requests
+                                                ! pip install requests_ntlm
 
-            """
-    print(error_msg)
-    self.dataset = previous_df_for_concatenation
+                """
+        print(error_msg)
+
 
     def get_credentials (self, server, data_source, username, password):
      
@@ -1664,12 +1663,12 @@ class SQLiteConnection:
         self.engine = pre_created_engine
     
     
-    error_msg = """If ModuleNotFoundError is raised, run the following command to install sqlalchemy package, which is not required for running IDSW
-                
-                                            ! pip install sqlalchemy
+        error_msg = """If ModuleNotFoundError is raised, run the following command to install sqlalchemy package, which is not required for running IDSW
+                    
+                                                ! pip install sqlalchemy
 
-            """
-    print(error_msg)
+                """
+        print(error_msg)
     
 
     def create_engine(self):
