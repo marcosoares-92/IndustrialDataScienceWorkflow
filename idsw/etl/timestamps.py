@@ -398,6 +398,8 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     
     # Let's try to group the df_numeric dataframe.
     if (is_numeric == 1):
+        # Guarantee that 'timestamp_obj' was correctly read as datetime for grouping:
+        df_numeric['timestamp_obj'] = df_numeric['timestamp_obj'].astype('datetime64[ns]')
         
         if (start_time is not None):
 
@@ -491,7 +493,9 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = categorical_list[1:]) # Do not pick the timestamp to encode
         enc_dec_obj = enc_dec_obj.encode()
         df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
-
+        # During the encoding procedure, the 'timestamp_obj' may have been incorrectly converted to string. 
+        # Guarantee it is a timestamp for grouping:
+        df_categorical['timestamp_obj'] = df_categorical['timestamp_obj'].astype('datetime64[ns]')
 
         if (start_time is not None):
 

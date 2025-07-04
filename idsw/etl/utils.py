@@ -48,7 +48,7 @@ class EncodeDecode:
             # is equivalent to: "run only when variable var is not None." or "run only if var is True".
         """
         ControlVars.show_results = False
-        if new_df:
+        if new_df is not None:
             self.df_categorical = new_df.copy(deep = True)
 
         # Now, reverse encoding and keep only the original column names:
@@ -57,18 +57,18 @@ class EncodeDecode:
         
         try:
             # Try dropping columns with name of the features + "_OrdinalEnc":
-            self.df_categorical = df_categorical.drop(columns = self.new_encoded_cols)
+            self.df_categorical = self.df_categorical.drop(columns = self.new_encoded_cols)
         except:
             # If impossible, simply select the original features:
-            self.df_categorical = df_categorical[self.features]
+            self.df_categorical = self.df_categorical[self.features]
         
         # Run next step if there is a numeric dataset.
-        if df_numeric:
+        if df_numeric is not None:
             # Concatenate the dataframes in the columns axis (append columns):
             self.cleaned_df = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
         
         else:
-            self.cleaned_df = df_categorical
+            self.cleaned_df = self.df_categorical
         
         return self
 
