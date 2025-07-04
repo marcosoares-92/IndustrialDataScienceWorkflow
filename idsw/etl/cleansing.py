@@ -108,10 +108,11 @@ def apply_row_filters_list (df, list_of_row_filters):
         # Reset index:
         DATASET = DATASET.reset_index(drop = True)
         final_len = len(DATASET)
-        variation_msg = f"""Initial number of rows: {initial_len}
-                            Final number of rows: {final_len}
-                            Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
-                            """
+        variation_msg = f"""
+            Initial number of rows: {initial_len}
+            Final number of rows: {final_len}
+            Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
+            """
         
         if ControlVars.show_results:
             print("Successfully filtered the dataframe. Check the 10 first rows of the filtered and returned dataframe:\n")
@@ -186,9 +187,11 @@ def drop_columns_or_rows (df, what_to_drop = 'columns', cols_list = None, row_in
             #Drop the rows in row_index_list:
             DATASET = DATASET.drop(row_index_list)
             final_len = len(DATASET)
-            variation_msg = f"""Initial number of rows: {initial_len}
-                                        Final number of rows: {final_len}
-                                        Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)"""
+            variation_msg = f"""
+                Initial number of rows: {initial_len}
+                Final number of rows: {final_len}
+                Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
+                """
             print(f"The rows in {row_index_list} indices list were successfully removed.\n")
             print(variation_msg)
     
@@ -293,10 +296,11 @@ def remove_duplicate_rows (df, list_of_columns_to_analyze = None, which_row_to_k
                 print("Only the first one of the duplicate entries was kept in the dataset.\n")
     
     final_len = len(DATASET)
-    variation_msg = f"""Initial number of rows: {initial_len}
-                                Final number of rows: {final_len}
-                                Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
-                                """
+    variation_msg = f"""
+            Initial number of rows: {initial_len}
+            Final number of rows: {final_len}
+            Eliminated {initial_len - final_len} rows ({((initial_len - final_len)/initial_len*100):.2f} % of the rows.)
+            """
 
     if (reset_index_after_drop == True):
         
@@ -378,7 +382,7 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     # Remove rows that contain only missing values:
     
     checked_df = checked_df.dropna(axis = 0, how = 'all')
-    print(f"{total_rows - len(checked_df)} rows ({total_rows - len(checked_df)/total_rows*100:.2f} % of the rows) were completely blank and were removed.")
+    print(f"{total_rows - len(checked_df)} rows ({((total_rows - len(checked_df))/total_rows)*100:.2f} % of the rows) were completely blank and were removed.")
     
     # Remove columns that contain only missing values:
     checked_df = checked_df.dropna(axis = 1, how = 'all')
