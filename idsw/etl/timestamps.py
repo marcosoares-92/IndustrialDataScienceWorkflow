@@ -1557,8 +1557,9 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     #Now, add the timedelta to the timestamp, and store it into a proper list/series:
     new_timestamps = DATASET[timestamp_tag_column].copy()
     # Check positions where one of the timestamps is not present, so the time attribute should be null
+    new_timestamps = new_timestamps + timedelta
     # Where it is null, simply keep it null. Alternatively, pick the new value.
-    new_timestamps = np.where(timedeltas_mask, None, (new_timestamps + timedelta))
+    new_timestamps = np.where(timedeltas_mask, None, new_timestamps)
     
     #Finally, create a column in the dataframe named as new_timestamp_col
     #and store the new timestamps into it
