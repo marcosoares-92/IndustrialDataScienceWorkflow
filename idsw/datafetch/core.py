@@ -147,6 +147,13 @@ class AWSS3Connection:
 
         from getpass import getpass
 
+        error_msg = """If ModuleNotFoundError is raised, run the following command to install boto3 package, which is not required for running IDSW
+                
+                                            ! pip install boto3
+
+            """
+        print(error_msg)
+
         self.s3_bucket_name = s3_bucket_name
         self.s3_obj_prefix = s3_obj_prefix
 
@@ -759,7 +766,15 @@ class IP21Extractor:
                 
     # Define the class methods.
     # All methods must take an object from the class (self) as one of the parameters
+    
+    error_msg = """If ModuleNotFoundError is raised, run the following commands to install requests and requests_ntlm packages, which are not required for running IDSW
+                
+                                            ! pip install requests
+                                            ! pip install requests_ntlm
 
+            """
+    print(error_msg)
+    self.dataset = previous_df_for_concatenation
 
     def get_credentials (self, server, data_source, username, password):
      
@@ -1400,6 +1415,13 @@ class SQLServerConnection:
                   system = 'windows'):
 
         
+        error_msg = """If ModuleNotFoundError is raised, run the following command to install pyodbc package, which is not required for running IDSW
+                
+                                            ! pip install pyodbc
+
+            """
+        print(error_msg)
+
         import pyodbc
         # Some other example server values are
         # server = 'localhost\sqlexpress' # for a named instance
@@ -1641,6 +1663,14 @@ class SQLiteConnection:
         self.file_path = file_path
         self.engine = pre_created_engine
     
+    
+    error_msg = """If ModuleNotFoundError is raised, run the following command to install sqlalchemy package, which is not required for running IDSW
+                
+                                            ! pip install sqlalchemy
+
+            """
+    print(error_msg)
+    
 
     def create_engine(self):
         
@@ -1807,6 +1837,13 @@ class GCPBigQueryConnection:
 
     def __init__ (self, project = '', dataset = '', already_authenticated = True):
        
+        error_msg = """If ModuleNotFoundError is raised, run the following commands to install GCP packages, which are not required for running IDSW
+                
+                                            ! pip install google-cloud
+                                            ! pip install google-cloud-bigquery
+
+            """
+        print(error_msg)
 
         from google.cloud import bigquery
         from google.cloud import bigquery_storage
@@ -2913,6 +2950,14 @@ class SharePointDownloader:
                                                         ). 
             Alternatively, keep company_tenant_id = None to try to collect it from the environment (or any/all other variables).
         """
+
+        error_msg = """If ModuleNotFoundError is raised, run the following commands to install msal and requests packages, which are not required for running IDSW
+                
+                                            ! pip install msal
+                                            ! pip install requests
+
+            """
+        print(error_msg)
 
         import os
         from dotenv import load_dotenv

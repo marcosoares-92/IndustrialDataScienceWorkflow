@@ -792,14 +792,15 @@ def set_schema_pd_df (df, schema_list = [{'column_name': None, 'column_type': No
             pass
     
     print("Check the 10 first rows of the returned dataframe:\n")
-        
-    try:
-        # only works in Jupyter Notebook:
-        from IPython.display import display
-        display(dataset.head(10))
-                
-    except: # regular mode
-        print(dataset.head(10))
+    
+    if ControlVars.show_results:     
+        try:
+            # only works in Jupyter Notebook:
+            from IPython.display import display
+            display(dataset.head(10))
+                    
+        except: # regular mode
+            print(dataset.head(10))
     
     print("\n")
     df_dtypes = dataset.dtypes
