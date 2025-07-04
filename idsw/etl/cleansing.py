@@ -378,7 +378,7 @@ def remove_completely_blank_rows_and_columns (df, list_of_columns_to_ignore = No
     # Remove rows that contain only missing values:
     
     checked_df = checked_df.dropna(axis = 0, how = 'all')
-    print(f"{total_rows - len(checked_df)} rows (f"{total_rows - len(checked_df)/total_rows*100:.2f} % of the rows) were completely blank and were removed.")
+    print(f"{total_rows - len(checked_df)} rows ({total_rows - len(checked_df)/total_rows*100:.2f} % of the rows) were completely blank and were removed.")
     
     # Remove columns that contain only missing values:
     checked_df = checked_df.dropna(axis = 1, how = 'all')
