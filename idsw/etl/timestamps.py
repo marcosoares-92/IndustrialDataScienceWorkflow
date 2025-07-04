@@ -184,39 +184,39 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     
     # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
     
-    if ((extracted_info == 'year') | (extracted_info == 'y')):
+    if ((grouping_frequency_unit == 'year') | (grouping_frequency_unit == 'y')):
 
         frq_unit = 'YE'
 
-    elif ((extracted_info == 'month') | (extracted_info == 'm')):
+    elif ((grouping_frequency_unit == 'month') | (grouping_frequency_unit == 'm')):
 
         frq_unit = 'ME'
 
-    elif ((extracted_info == 'week') | (extracted_info == 'w')):
+    elif ((grouping_frequency_unit == 'week') | (grouping_frequency_unit == 'w')):
 
         frq_unit = 'W'
     
-    elif ((extracted_info == 'day') | (extracted_info == 'd')):
+    elif ((grouping_frequency_unit == 'day') | (grouping_frequency_unit == 'd')):
         
         frq_unit = 'D'
 
-    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
+    elif ((grouping_frequency_unit == 'hour') | (grouping_frequency_unit == 'h')):
         
         frq_unit = 'h'
     
-    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+    elif ((grouping_frequency_unit == 'minute') | (grouping_frequency_unit == 'min')):
         
         frq_unit = 'min'
             
-    elif ((extracted_info == 'second') | (extracted_info == 's')):
+    elif ((grouping_frequency_unit == 'second') | (grouping_frequency_unit == 's')):
         
         frq_unit = 's'
          
-    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+    elif ((grouping_frequency_unit == 'millisecond') | (grouping_frequency_unit == 'ms')):
         
         frq_unit = 'ms'
          
-    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+    elif ((grouping_frequency_unit== 'microsecond') | (grouping_frequency_unit == 'us')):
         
         frq_unit = 'us'
         
@@ -899,7 +899,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # to manipulate timedeltas.
     
     #5. Create an empty list to store the timedeltas in nanoseconds
-    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
+    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedeltas])
     # Keep only valid data, indicated in the boolean mask:
     TimedeltaList = np.where(timedeltas_mask, TimedeltaList, np.nan)
     
@@ -940,7 +940,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     
     #Convert the array to the desired unit by dividing it by the proper factor:
     
-    if ((extracted_info == 'year') | (extracted_info == 'y')):
+    if ((returned_timedelta_unit == 'year') | (returned_timedelta_unit == 'y')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -965,7 +965,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
-    elif ((extracted_info == 'month') | (extracted_info == 'm')):
+    elif ((returned_timedelta_unit == 'month') | (returned_timedelta_unit == 'm')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -989,7 +989,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
-    elif ((extracted_info == 'day') | (extracted_info == 'd')):
+    elif ((returned_timedelta_unit == 'day') | (returned_timedelta_unit == 'd')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1009,7 +1009,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in days.\n")
 
 
-    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
+    elif ((returned_timedelta_unit == 'hour') | (returned_timedelta_unit == 'h')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1026,7 +1026,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in hours [h].\n")
     
 
-    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+    elif ((returned_timedelta_unit == 'minute') | (returned_timedelta_unit == 'min')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1040,7 +1040,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in minutes [min].\n")
         
         
-    elif ((extracted_info == 'second') | (extracted_info == 's')):
+    elif ((returned_timedelta_unit == 'second') | (returned_timedelta_unit == 's')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1051,7 +1051,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in seconds [s].\n")
          
         
-    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+    elif ((returned_timedelta_unit == 'millisecond') | (returned_timedelta_unit == 'ms')):
         
         #1. Convert the list to milliseconds (1 ms = 10**6 ns, where 10**6 represents
         #the potentiation operation in Python, i.e., 10^6. e.g. 10**2 = 100):
@@ -1062,7 +1062,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         print("Returned timedelta in milliseconds [ms].\n")
          
         
-    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+    elif ((returned_timedelta_unit == 'microsecond') | (returned_timedelta_unit == 'us')):
         
         #1. Convert the list to microseconds (1 us = 10**3 ns, where 10**3 represents
         #the potentiation operation in Python, i.e., 10^3. e.g. 10**2 = 100):
@@ -1210,7 +1210,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # called df[timestamp_tag_column1] and df[timestamp_tag_column2]. These two series now
     # can be submitted to direct operations.
     
-    timedelta_series = pd.Series(np.array(DATASET[timestamp_tag_column1], dtype = 'datetime64[ns]') - np.array(DATASET[timestamp_tag_column2], dtype = 'datetime64[ns]'))
+    timedeltas = pd.Series(np.array(DATASET[timestamp_tag_column1], dtype = 'datetime64[ns]') - np.array(DATASET[timestamp_tag_column2], dtype = 'datetime64[ns]'))
     timedeltas_mask = ~timedeltas.isna() # values that are not null
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
@@ -1221,7 +1221,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # to manipulate timedeltas.
     
     #5. Create an empty list to store the timedeltas in nanoseconds
-    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedelta_series])
+    TimedeltaList = np.array([pd.Timedelta(timedelta_obj).value for timedelta_obj in timedeltas])
     # Keep only valid data, indicated in the boolean mask:
     TimedeltaList = np.where(timedeltas_mask, TimedeltaList, np.nan)
     # LAST CHECKERS - Only to confirm
@@ -1258,7 +1258,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
   
     #Convert the array to the desired unit by dividing it by the proper factor:
     
-    if ((extracted_info == 'year') | (extracted_info == 'y')):
+    if ((returned_timedelta_unit == 'year') | (returned_timedelta_unit == 'y')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1283,7 +1283,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in years. Considered 1 year = 365 days + 6 h.\n")
     
     
-    elif ((extracted_info == 'month') | (extracted_info == 'm')):
+    elif ((returned_timedelta_unit == 'month') | (returned_timedelta_unit == 'm')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1307,7 +1307,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in months. Considered 1 month = 30 days.\n")
         
     
-    elif ((extracted_info == 'day') | (extracted_info == 'd')):
+    elif ((returned_timedelta_unit == 'day') | (returned_timedelta_unit == 'd')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1327,7 +1327,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in days.\n")
         
     
-    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
+    elif ((returned_timedelta_unit == 'hour') | (returned_timedelta_unit == 'h')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1344,7 +1344,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in hours [h].\n")
     
 
-    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+    elif ((returned_timedelta_unit == 'minute') | (returned_timedelta_unit == 'min')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1358,7 +1358,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in minutes [min].\n")
         
         
-    elif ((extracted_info == 'second') | (extracted_info == 's')):
+    elif ((returned_timedelta_unit == 'second') | (returned_timedelta_unit == 's')):
         
         #1. Convert the list to seconds (1 s = 10**9 ns, where 10**9 represents
         #the potentiation operation in Python, i.e., 10^9. e.g. 10**2 = 100):
@@ -1369,7 +1369,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in seconds [s].\n")
     
 
-    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+    elif ((returned_timedelta_unit == 'millisecond') | (returned_timedelta_unit == 'ms')):
         
         #1. Convert the list to milliseconds (1 ms = 10**6 ns, where 10**6 represents
         #the potentiation operation in Python, i.e., 10^6. e.g. 10**2 = 100):
@@ -1380,7 +1380,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
         print("Returned timedelta in milliseconds [ms].\n")
          
         
-    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+    elif ((returned_timedelta_unit == 'microsecond') | (returned_timedelta_unit == 'us')):
         
         #1. Convert the list to microseconds (1 us = 10**3 ns, where 10**3 represents
         #the potentiation operation in Python, i.e., 10^3. e.g. 10**2 = 100):
@@ -1509,32 +1509,32 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     # 'd', "D" or "day" for day, for instance. So, we avoid having to check the whole
     # documentation by creating a simpler common encoding for the functions in this notebook.
     
-    if ((extracted_info == 'day') | (extracted_info == 'd')):
+    if ((timedelta_unit == 'day') | (timedelta_unit == 'd')):
         
         timedelta_unit = 'd'
         print("Returned timedelta in days.\n")
 
-    elif ((extracted_info == 'hour') | (extracted_info == 'h')):
+    elif ((timedelta_unit == 'hour') | (timedelta_unit == 'h')):
         
         timedelta_unit = 'h'
         print("Returned timedelta in hours [h].\n")
     
-    elif ((extracted_info == 'minute') | (extracted_info == 'min')):
+    elif ((timedelta_unit == 'minute') | (timedelta_unit == 'min')):
         
         timedelta_unit = 'min'
         print("Returned timedelta in minutes [min].\n")
             
-    elif ((extracted_info == 'second') | (extracted_info == 's')):
+    elif ((timedelta_unit == 'second') | (timedelta_unit == 's')):
         
         timedelta_unit = 's'
         print("Returned timedelta in seconds [s].\n")
          
-    elif ((extracted_info == 'millisecond') | (extracted_info == 'ms')):
+    elif ((timedelta_unit == 'millisecond') | (timedelta_unit == 'ms')):
         
         timedelta_unit = 'ms'
         print("Returned timedelta in milliseconds [ms].\n")
          
-    elif ((extracted_info == 'microsecond') | (extracted_info == 'us')):
+    elif ((timedelta_unit == 'microsecond') | (timedelta_unit == 'us')):
         
         timedelta_unit = 'us'
         print("Returned timedelta in microseconds [us].\n")
