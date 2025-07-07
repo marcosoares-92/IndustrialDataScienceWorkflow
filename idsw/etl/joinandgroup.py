@@ -691,37 +691,47 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
     
     # Get the list of columns:
     cols_list = list(DATASET.columns)
-    
+
+
     if (subset_of_columns_to_aggregate is not None):
         
         # cols_list will be the subset list:
-        cols_list = subset_of_columns_to_aggregate
+        cols_list = variables_to_group_by + subset_of_columns_to_aggregate
+        # In this case, the dataframe must contain only the variables to group by and the subset to aggregate:
+        DATASET = DATASET[cols_list]
     
     # Start a list of numerical columns, and a list of categorical columns, containing only the
     # columns for aggregation as elements:
-    numeric_list = variables_to_group_by
-    categorical_list = variables_to_group_by
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
-    
+    numeric_list = [var for var in variables_to_group_by]
+    categorical_list = [var for var in variables_to_group_by]
+    # Do not simply copy the list into the other (like numeric_list = variables_to_group_by) for avoiding
+    # Python to point both lists to the same memory location, making them equal 
+    total_vars_to_group = len(variables_to_group_by)
+
+    if (total_vars_to_group < 1):
+        raise InvalidInputsError("At least one grouping variable is needed.")
+
+
     # Loop through all valid columns (cols_list)
     for column in cols_list:
         
         # Check if the column is neither in numeric_list nor in
         # categorical_list yet:
         if ((column not in numeric_list) & (column not in categorical_list)):
+                 
+            # Check if the column is numeric:
+            # https://pandas.pydata.org/docs/reference/api/pandas.api.types.is_numeric_dtype.html
             
-            column_data_type = DATASET[column].dtype
-            
-            if (column_data_type not in numeric_dtypes):
-                
-                # Append to categorical columns list:
-                categorical_list.append(column)
+            if (pd.api.types.is_numeric_dtype(dataset[column])):
+                # Boolean returned True
+                # Append to numerical columns list:
+                numeric_list.append(column)
             
             else:
                 # Append to numerical columns list:
-                numeric_list.append(column)
-    
+                # Append to categorical columns list:
+                categorical_list.append(column)
+
     # Create variables to map if both are present.
     is_categorical = 0
     is_numeric = 0
@@ -738,18 +748,12 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
     # of as a category. It will prevents this to happen:
     for variable_to_group_by in variables_to_group_by:
         DATASET[variable_to_group_by] = DATASET[variable_to_group_by].astype("category")
-    
-    """
-        ATTENTION: Code for harmonizing with previous IDSW version (<= 1.3.1)
-        Before, function allowed grouping by single variable called variable_to_group_by.
-        Thus, the conversion variable_to_group_by = variables_to_group_by is performed in order for not modifying the whole complex function.
-    """
-    variable_to_group_by = variables_to_group_by
+
     
     # Create two subsets:
-    if (len(categorical_list) > 1):
+    if (len(categorical_list) > total_vars_to_group):
         
-        # Has at least one column plus the variable_to_group_by:
+        # Has at least one column plus the variables_to_group_by:
         df_categorical = DATASET.copy(deep = True)
         df_categorical = df_categorical[categorical_list]
         # It is possible that a timestamp column was passed as string. To avoid conversion errors, convert each categorical column to str:
@@ -758,7 +762,7 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
             
         is_categorical = 1
     
-    if (len(numeric_list) > 1):
+    if (len(numeric_list) > total_vars_to_group):
         
         df_numeric = DATASET.copy(deep = True)
         df_numeric = df_numeric[numeric_list]
@@ -766,8 +770,9 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
         
     if (return_summary_dataframe):
         summary_agg_df = DATASET.copy(deep = True)
-        summary_agg_df = summary_agg_df.groupby(by = variable_to_group_by, as_index = False, sort = True).describe()
-            
+        summary_agg_df = summary_agg_df.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).describe()
+    
+
     # Notice that the variables is_numeric and is_categorical have value 1 only when the subsets
     # are present.
     is_cat_num = is_categorical + is_numeric
@@ -819,111 +824,111 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
     
         if (numeric_aggregate == 'median'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg('median')
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg('median')
 
         elif (numeric_aggregate == 'mean'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).mean()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).mean()
         
         elif (numeric_aggregate == 'sum'):
         
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).sum()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).sum()
     
         elif (numeric_aggregate == 'min'):
         
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).min()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).min()
 
         elif (numeric_aggregate == 'max'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).max()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).max()
 
         elif (numeric_aggregate == 'variance'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).var()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).var()
 
         elif (numeric_aggregate == 'standard_deviation'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).std()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).std()
 
         elif (numeric_aggregate == 'cum_sum'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cumsum()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).cumsum()
 
         elif (numeric_aggregate == 'cum_prod'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cumprod()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).cumprod()
 
         elif (numeric_aggregate == 'cum_max'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cummax()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).cummax()
 
         elif (numeric_aggregate == 'cum_min'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).cummin()
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).cummin()
 
         elif (numeric_aggregate == '10_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.10)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.10)
 
         elif (numeric_aggregate == '20_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.20)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.20)
 
         elif (numeric_aggregate == '25_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.25)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.25)
 
         elif (numeric_aggregate == '30_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.30)
 
         elif (numeric_aggregate == '40_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.40)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.40)
 
         elif (numeric_aggregate == '50_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.50)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.50)
 
         elif (numeric_aggregate == '60_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.60)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.60)
 
         elif (numeric_aggregate == '70_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.30)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.30)
 
         elif (numeric_aggregate == '75_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.75)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.75)
 
         elif (numeric_aggregate == '80_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.80)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.80)
 
         elif (numeric_aggregate == '90_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.90)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.90)
 
         elif (numeric_aggregate == '95_percent_quantile'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).quantile(0.95)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).quantile(0.95)
 
         elif (numeric_aggregate == 'kurtosis'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.kurtosis)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.kurtosis)
 
         elif (numeric_aggregate == 'skew'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.skew)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.skew)
 
         elif (numeric_aggregate == 'interquartile_range'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.iqr)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.iqr)
 
         elif (numeric_aggregate == 'mean_standard_error'):
 
-            df_numeric = df_numeric.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.sem)
+            df_numeric = df_numeric.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.sem)
         
         
         if (add_suffix_to_aggregated_col == True):
@@ -935,30 +940,30 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
             
             else:
                 numeric_suffix = suffix
-            
+
             # New columns names:
-            new_num_names = [(str(name) + numeric_suffix) for name in numeric_list]
+            new_num_names = [(str(name) + numeric_suffix) for name in numeric_list if name not in variables_to_group_by]
             # The str attribute guarantees that the name was read as string
             # Pick only the values from the second and concatenate the correct name 
             # for the aggregation column (eliminate the first element from the list):
-            new_num_names = variable_to_group_by + new_num_names[1:]
+            new_num_names = variables_to_group_by + new_num_names
             # Set new_num_names as the new columns names:
             df_numeric.columns = new_num_names
+
     
     if (is_categorical == 1):
         # Let's aggregate the categorical subset
         # stats.mode now only works for numerically encoded variables (the previous ordinal
         # encoding is required)
         # Encode to calculate the mode:
-        enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = categorical_list)
+        enc_dec_obj = EncodeDecode(df_categorical = df_categorical, categorical_list = [name for name in categorical_list if name not in variables_to_group_by])
         enc_dec_obj = enc_dec_obj.encode()
         df_categorical, new_encoded_cols, ordinal_encoding_list = enc_dec_obj.df_categorical, enc_dec_obj.new_encoded_cols, enc_dec_obj.ordinal_encoding_list
 
-        variable_to_group_by = [var + "_OrdinalEnc" if var in categorical_list else var for var in variable_to_group_by]
 
         if (categorical_aggregate == 'mode'):
             
-            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.mode)
             
             # Loop through each categorical variable:
             for cat_var in new_encoded_cols:
@@ -967,11 +972,11 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
 
         elif (categorical_aggregate == 'count'):
 
-            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).count()
+            df_categorical = df_categorical.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).count()
 
         elif (categorical_aggregate == 'entropy'):
 
-            df_categorical = df_categorical.groupby(by = variable_to_group_by, as_index = False, sort = True).agg(stats.entropy)
+            df_categorical = df_categorical.groupby(by = variables_to_group_by, as_index = False, sort = True, observed = True).agg(stats.entropy)
         
         # Now, reverse encoding:
         enc_dec_obj = enc_dec_obj.decode(new_df = df_categorical)
@@ -988,17 +993,17 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
                 categorical_suffix = suffix
             
             # New columns names:
-            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list]
+            new_cat_names = [(str(name) + categorical_suffix) for name in categorical_list if name not in variables_to_group_by]
             # The str attribute guarantees that the name was read as string
             # Pick only the values from the second and concatenate the correct name 
             # for the aggregation column (eliminate the first element from the list):
-            new_cat_names = variable_to_group_by + new_cat_names[1:]
+            new_cat_names = variables_to_group_by + new_cat_names
             # Set new_num_names as the new columns names:
             df_categorical.columns = new_cat_names
     
     if (is_cat_num == 2):
         # Both subsets are present. Remove the column from df_categorical:
-        df_categorical.drop(columns = variable_to_group_by, inplace = True)
+        df_categorical.drop(columns = variables_to_group_by, inplace = True)
         
         # Concatenate the dataframes in the columns axis (append columns):
         DATASET = pd.concat([df_numeric, df_categorical], axis = 1, join = "inner")
