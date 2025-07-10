@@ -346,8 +346,6 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
     # column for aggregation as the first element:
     numeric_list = ['timestamp_obj']
     categorical_list = ['timestamp_obj']
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
     # Loop through all valid columns (cols_list)
     for column in cols_list:
@@ -355,17 +353,20 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         # Check if the column is neither in numeric_list nor in
         # categorical_list yet:
         if ((column not in numeric_list) & (column not in categorical_list) & (column != timestamp_tag_column)):
-            # Notice that, since we already selected the 'timestamp_obj', we remove the original timestamps.
-            column_data_type = df_copy[column].dtype
             
-            if (column_data_type not in numeric_dtypes):
                 
-                # Append to categorical columns list:
-                categorical_list.append(column)
+            # Check if the column is numeric:
+            # https://pandas.pydata.org/docs/reference/api/pandas.api.types.is_numeric_dtype.html
+            
+            if (pd.api.types.is_numeric_dtype(df_copy[column])):
+                # Boolean returned True
+                # Append to numerical columns list:
+                numeric_list.append(column)
             
             else:
                 # Append to numerical columns list:
-                numeric_list.append(column)
+                # Append to categorical columns list:
+                categorical_list.append(column)
     
     # Create variables to map if both are present.
     is_categorical = 0
@@ -403,16 +404,16 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
         
         if (start_time is not None):
 
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True, observed = True).agg(aggregate_function)
 
         elif (offset_time is not None):
 
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True, observed = True).agg(aggregate_function)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True).agg(aggregate_function)
+            df_numeric = df_numeric.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True, observed = True).agg(aggregate_function)
             
         print (f"Numerical variables of the dataframe grouped in terms of {aggregate_function} by every {number_of_periods_to_group} {frq_unit}.\n")
         
@@ -499,16 +500,16 @@ def group_variables_by_timestamp (df, timestamp_tag_column, subset_of_columns_to
 
         if (start_time is not None):
 
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, origin = start_time), as_index = True, sort = True, observed = True).agg(stats.mode)
 
         elif (offset_time is not None):
 
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ, offset = offset_time), as_index = True, sort = True, observed = True).agg(stats.mode)
 
         else:
 
             #Standard situation, when both start_time and offset_time are None
-            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True).agg(stats.mode)
+            df_categorical = df_categorical.groupby(pd.Grouper(key = 'timestamp_obj' , freq = FREQ), as_index = True, sort = True, observed = True).agg(stats.mode)
         
         print (f"Categorical variables of the dataframe grouped in terms of \'mode\' by every {number_of_periods_to_group} {frq_unit}.\n")
         print(f"The mode is the most common value observed (maximum of the statistical distribution) for the categorical variable when we group data in terms of {number_of_periods_to_group} {frq_unit}.\n")

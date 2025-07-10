@@ -686,8 +686,6 @@ class SPCPlot:
         self.df = self.dictionary['df']
         # Start the attribute number of labels with value 2 (correspondent to moving range)
         self.number_of_labels = 2
-        # List the possible numeric data types for a Pandas dataframe column:
-        self.numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
         # Start a dictionary of constants
         self.dict_of_constants = {}
         self.column_with_variable_to_be_analyzed = column_with_variable_to_be_analyzed
@@ -951,7 +949,6 @@ class SPCPlot:
         df = self.df
         column_with_variable_to_be_analyzed = self.column_with_variable_to_be_analyzed
         column_with_labels_or_subgroups = self.column_with_labels_or_subgroups
-        numeric_dtypes = self.numeric_dtypes
            
         # We need to group each dataframe in terms of the subgroups stored in the variable
         # column_with_labels_or_subgroups.
@@ -970,19 +967,18 @@ class SPCPlot:
         # 2. Loop through each column from the list of columns of the dataframe:
         for column in list(df.columns):
             
-            # check the type of column:
-            column_data_type = df[column].dtype
+            # Check if the column is numeric:
+            # https://pandas.pydata.org/docs/reference/api/pandas.api.types.is_numeric_dtype.html
             
-            if (column_data_type not in numeric_dtypes):
-                
-                # If the Pandas series was defined as an object, it means it is categorical
-                # (string, date, etc). Also, this if captures the variables converted to datetime64
-                # Append the column to the list of categorical columns:
-                categorical_cols.append(column)
-                
-            else:
-                # append the column to the list of numeric columns:
+            if (pd.api.types.is_numeric_dtype(df[column])):
+                # Boolean returned True
+                # Append to numerical columns list:
                 numeric_cols.append(column)
+            
+            else:
+                # Append to numerical columns list:
+                # Append to categorical columns list:
+                categorical_cols.append(column)
                 
         # 3. Check if column_with_labels_or_subgroups is in both lists. 
         # If it is missing, append it. We need that this column in all subsets for grouping.
@@ -1023,7 +1019,7 @@ class SPCPlot:
             if column_with_labels_or_subgroups in categorical_cols:
                 column_with_labels_or_subgroups = column_with_labels_or_subgroups + "_OrdinalEnc"
 
-            df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).agg(stats.mode)
+            df_agg_mode = df_agg_mode.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True, observed = True).agg(stats.mode)
             
             # 6. df_agg_mode processing:
             # Loop through each column from this dataframe:
@@ -1050,10 +1046,10 @@ class SPCPlot:
             df_agg_std = df_agg_std[numeric_cols]
             df_agg_count = df_agg_count[numeric_cols]
             
-            df_agg_mean = df_agg_mean.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).mean()
-            df_agg_sum = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).sum()
-            df_agg_std = df_agg_std.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).std()
-            df_agg_count = df_agg_count.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True).count()
+            df_agg_mean = df_agg_mean.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True, observed = True).mean()
+            df_agg_sum = df_agg_sum.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True, observed = True).sum()
+            df_agg_std = df_agg_std.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True, observed = True).std()
+            df_agg_count = df_agg_count.groupby(by = column_with_labels_or_subgroups, as_index = False, sort = True, observed = True).count()
             # argument as_index = False: prevents the grouper variable to be set as index of the new dataframe.
             # (default: as_index = True).
             
@@ -1371,7 +1367,6 @@ class SPCPlot:
         rare_event_indication = self.rare_event_indication
         rare_event_timedelta_unit = self.rare_event_timedelta_unit
         timestamp_tag_column = self.timestamp_tag_column
-        numeric_dtypes = self.numeric_dtypes
         chart_to_use = self.chart_to_use
         
         # Filter df to the rare events:
@@ -1389,9 +1384,9 @@ class SPCPlot:
         timedelta_between_rares = [np.nan]
         
         # Check if the times are datetimes or not:
-        column_data_type = df[timestamp_tag_column].dtype
         
-        if (column_data_type not in numeric_dtypes):            
+        if (~pd.api.types.is_numeric_dtype(df[timestamp_tag_column])):            
+        
             # It is a datetime. Let's loop between successive indices:
             if (len(rare_events_indices) > 1):
                 

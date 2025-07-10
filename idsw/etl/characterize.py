@@ -140,15 +140,12 @@ def df_general_characterization (df):
     return df_shape, df_columns_array, df_dtypes, df_general_statistics, df_missing_values
 
 
-def characterize_categorical_variables (df, timestamp_tag_column = None):
+def characterize_categorical_variables (df):
     """
-    characterize_categorical_variables (df, timestamp_tag_column = None):
+    characterize_categorical_variables (df):
     
     : param: df: dataframe that will be analyzed
     
-    : param: timestamp_tag_colum: name (header) of the column containing the
-      timestamps. Keep timestamp_tag_column = None if the dataframe do not contain
-      timestamps.
     """
 
     from pandas import json_normalize
@@ -163,35 +160,26 @@ def characterize_categorical_variables (df, timestamp_tag_column = None):
     # Set a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
-    # Get the list of columns:
-    cols_list = list(DATASET.columns)
-    
+   
     # Start a list of categorical columns:
     categorical_list = []
-    is_categorical = 0 # start the variable
-    
     # Start a timestamp list that will be empty if there is no timestamp_tag_column
     timestamp_list = []
-    if (timestamp_tag_column is not None):
-        timestamp_list.append(timestamp_tag_column)
-    
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    is_categorical = 0 # start the variable
     
     # Loop through all valid columns (cols_list)
-    for column in cols_list:
-        
-        # Check if the column is neither in timestamp_list nor in
-        # categorical_list yet:
-        
-        if ((column not in categorical_list) & (column not in timestamp_list)):
-            # Notice that, since we already selected the 'timestamp_obj', we remove the original timestamps.
-            column_data_type = DATASET[column].dtype
-            
-            if (column_data_type not in numeric_dtypes):
-                
-                # Append to categorical columns list:
+    for column in df.columns:
+        # Check if it is a timestamp
+        try:
+            # Try to convert to timestamp
+            timestamp = df[column].astype('datetime64[ns]')
+            # The conversion was successful, so the column is a timestamp
+            timestamp_list.append(column)
+        except:
+            # Check if it is not numeric
+            if (~pd.api.types.is_numeric_dtype(DATASET[column])):
                 categorical_list.append(column)
+        
     
     # Subset the dataframe:
     if (len(categorical_list) >= 1):
@@ -654,8 +642,6 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
     # create a copy of the DataFrame to fill in dummy values first. Let's now use this function to 
     # create our scatterplot.
     
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
     # define a subfunction for filling the dummy values.
     # In your function definition, set the default value of scaling_factor to be 0.075:
@@ -698,7 +684,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
             
             # Check if the column is a text or timestamp. In this case, the type
             # of column will be 'object'
-            if (col.dtype not in numeric_dtypes):
+            if (~pd.api.types.is_numeric_dtype(col)):
                 
                 # Try converting it to a datetime64 object:
                 
@@ -1229,26 +1215,24 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                 # 2. start a list for the numeric and a list for the text (categorical) columns:
                 numeric_list = []
                 categorical_list = []
-                # List the possible numeric data types for a Pandas dataframe column:
-                numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
                 
                 # 3. Loop through each column on df_cols, to put it in the correspondent type of column:
                 for column in df_cols:
                     
                     # Check if the column is neither in numeric_list nor in
                     # categorical_list yet:
-                    if ((column not in numeric_list) & (column not in categorical_list)):
+                    # Check if the column is numeric:
+                    # https://pandas.pydata.org/docs/reference/api/pandas.api.types.is_numeric_dtype.html
                         
-                        column_data_type = cleaned_df[column].dtype
-
-                        if (column_data_type not in numeric_dtypes):
-
-                            # Append to categorical columns list:
-                            categorical_list.append(column)
-
-                        else:
-                            # Append to numerical columns list:
-                            numeric_list.append(column)
+                    if (pd.api.types.is_numeric_dtype(cleaned_df[column])):
+                        # Boolean returned True
+                        # Append to numerical columns list:
+                        numeric_list.append(column)
+                        
+                    else:
+                        # Append to numerical columns list:
+                        # Append to categorical columns list:
+                        categorical_list.append(column)
                 
                 
                 # Create variables to map if both are present.
@@ -1308,7 +1292,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
                             # ModeResult(mode=3, count=5) ac, axis = None, cess mode attribute       
                             # which will return a string like 'a':
-                            fill_dict_mode = {column: stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False).mode for column in new_encoded_cols}
+                            fill_dict_mode = {column: mode_retrieval(df_categorical[column]) for column in new_encoded_cols}
                             
                         except:
                             try:
@@ -1318,7 +1302,7 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
                                 for column in new_encoded_cols:
                                     try:
                                         if ((stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) != np.nan) & (stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False) is not None)):
-                                            fill_dict_mode[column] = stats.mode(np.array(df_categorical[column]), axis = None, keepdims = False)
+                                            fill_dict_mode[column] = mode_retrieval(df_categorical[column])
                                         else:
                                             fill_dict_mode[column] = np.nan
                                     except:
@@ -1592,7 +1576,7 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
         # make x the ts_array itself:
         x = ts_array
     
-    column_data_type = cleaned_df[column_to_fill].dtype
+    column_data_type_bool_check = pd.api.types.is_numeric_dtype(cleaned_df[column])
     
     # Pre-process the column if it is categorical
     if ((column_data_type == 'O') | (column_data_type == 'object')):
@@ -1835,10 +1819,8 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     # Finally, let's reverse the ordinal encoding used in the beginning of the code to process object
     # columns:
     
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
-    if (column_data_type not in numeric_dtypes):
+    if (~column_data_type_bool_check):
         
         # Firstly, converts the values obtained to closest integer (since we
         # encoded the categorical values as integers, we cannot reconvert
@@ -1917,18 +1899,15 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
     print("Categorical columns will be automatically ignored.\n")
 
     # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     numeric_cols = []
     # Loop through all valid columns (cols_list)
     for column in DATASET.columns:
         
-        # Check if the column is neither in timestamp_list nor in
-        # categorical_list yet:
-        column_data_type = DATASET[column].dtype
-            
-        if (column_data_type in numeric_dtypes):
-            # Append to categorical columns list:
+        if (pd.api.types.is_numeric_dtype(DATASET[column])):
+            # Boolean returned True
+            # Append to numerical columns list:
             numeric_cols.append(column)
+            
     
     # Filter the dataset to include only numeric variables:
     DATASET = DATASET[numeric_cols]
@@ -2106,17 +2085,11 @@ def covariance_matrix_plot (df, show_masked_plot = True, responses_to_return_cov
     print("ATTENTION! The analysis will be performed only for the numeric variables.")
     print("Categorical columns will be automatically ignored.\n")
 
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     numeric_cols = []
     # Loop through all valid columns (cols_list)
     for column in DATASET.columns:
-        
-        # Check if the column is neither in timestamp_list nor in
-        # categorical_list yet:
-        column_data_type = DATASET[column].dtype
             
-        if (column_data_type in numeric_dtypes):
+        if (pd.api.types.is_numeric_dtype(DATASET[column])):
             # Append to categorical columns list:
             numeric_cols.append(column)
     
@@ -2324,17 +2297,11 @@ def calculate_vif (df):
     print("ATTENTION! The analysis will be performed only for the numeric variables.")
     print("Categorical columns will be automatically ignored.\n")
 
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     numeric_cols = []
     # Loop through all valid columns (cols_list)
     for column in X.columns:
-        
-        # Check if the column is neither in timestamp_list nor in
-        # categorical_list yet:
-        column_data_type = X[column].dtype
             
-        if (column_data_type in numeric_dtypes):
+        if (pd.api.types.is_numeric_dtype(X[column])):
             # Append to categorical columns list:
             numeric_cols.append(column)
     
@@ -2511,15 +2478,11 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         aggregate_function = 'sum'
         print("Invalid or no aggregation function input, so using the default \'sum\'.\n")
     
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
     
     # Check if a numeric aggregate was selected:
     if (aggregate_function in list_of_numeric_aggregates):
         
-        column_data_type = DATASET[response_var_name].dtype
-        
-        if (column_data_type not in numeric_dtypes):
+        if (~pd.api.types.is_numeric_dtype(DATASET[response_var_name])):
             
                 # If the Pandas series was defined as an object, it means it is categorical
                 # (string, date, etc).
@@ -2530,9 +2493,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     
     else: # categorical aggregate function
         
-        column_data_type = DATASET[response_var_name].dtype
-        
-        if ((column_data_type in numeric_dtypes) & (aggregate_function != 'count')):
+        if ((pd.api.types.is_numeric_dtype(DATASET[response_var_name])) & (aggregate_function != 'count')):
                 # count is the only aggregate for categorical that can be used for numerical variables as well.
                 
                 print("Categorical aggregate selected, but numeric variable indicated as response variable.")
@@ -2573,11 +2534,11 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     
     if (aggregate_function == 'median'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg('median')
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg('median')
 
     elif (aggregate_function == 'mean'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].mean()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].mean()
     
     elif (aggregate_function == 'mode'):
         
@@ -2589,7 +2550,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         response_var_name = response_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.mode)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.mode)
         
         # Use the helper function to retrieve mode:
         DATASET[response_var_name] = mode_retrieval(DATASET[response_var_name])
@@ -2599,75 +2560,75 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
 
     elif (aggregate_function == 'sum'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].sum()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].sum()
     
     elif (aggregate_function == 'count'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].count()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].count()
 
     elif (aggregate_function == 'min'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].min()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].min()
     
     elif (aggregate_function == 'max'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].max()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].max()
     
     elif (aggregate_function == 'variance'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].var()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].var()
 
     elif (aggregate_function == 'standard_deviation'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].std()
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].std()
     
     elif (aggregate_function == '10_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.10)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.10)
     
     elif (aggregate_function == '20_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.20)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.20)
     
     elif (aggregate_function == '25_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.25)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.25)
     
     elif (aggregate_function == '30_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.30)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.30)
     
     elif (aggregate_function == '40_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.40)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.40)
     
     elif (aggregate_function == '50_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.50)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.50)
 
     elif (aggregate_function == '60_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.60)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.60)
     
     elif (aggregate_function == '70_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.30)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.30)
 
     elif (aggregate_function == '75_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.75)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.75)
 
     elif (aggregate_function == '80_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.80)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.80)
     
     elif (aggregate_function == '90_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.90)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.90)
     
     elif (aggregate_function == '95_percent_quantile'):
         
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].quantile(0.95)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].quantile(0.95)
 
     # The functions from scipy.stats module require the ordinal encoding of the categorical variables,
     # even for numeric aggregates. It is the same procedure used for the mode evaluation.
@@ -2683,7 +2644,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET[response_var_name] = response
 
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.kurtosis)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.kurtosis)
         
         enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
         DATASET = enc_dec_obj.cleaned_df
@@ -2700,7 +2661,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET[response_var_name] = response
 
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.skew)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.skew)
         
         enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
         DATASET = enc_dec_obj.cleaned_df
@@ -2717,7 +2678,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET[response_var_name] = response
 
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.iqr)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.iqr)
         
         enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
         DATASET = enc_dec_obj.cleaned_df
@@ -2734,7 +2695,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         DATASET[response_var_name] = response
 
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.sem)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.sem)
         
         enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
         DATASET = enc_dec_obj.cleaned_df
@@ -2747,7 +2708,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         
         categorical_var_name = categorical_var_name + "_OrdinalEnc"
         response_var_name = response_var_name + "_OrdinalEnc"
-        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True)[response_var_name].agg(stats.entropy)
+        DATASET = DATASET.groupby(by = categorical_var_name, as_index = False, sort = True, observed = True)[response_var_name].agg(stats.entropy)
 
         enc_dec_obj = enc_dec_obj.decode(new_df = DATASET)
         DATASET = enc_dec_obj.cleaned_df
@@ -3269,9 +3230,6 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
     import matplotlib.colors as mcolors
     from scipy import stats
     
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
-    
     if (data_in_same_column == True):
         
         print("Data to be plotted in a same column.\n")
@@ -3391,12 +3349,13 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # check if at least x and y are not None:
             if ((x is not None) & (y is not None)):
                 
+                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if (x.dtype not in numeric_dtypes):
+                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
-                        x = (x).astype('datetime64[ns]')
+                        temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
                         print(f"Variable X from {i}-th dictionary successfully converted to datetime64[ns].\n")
 
                     except:
@@ -3412,7 +3371,6 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 # completely independent dataframe that may be manipulated and sorted, without worrying
                 # that it may modify its origin:
                 
-                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # sort this dataframe by 'x' and 'y':
                 temp_df = temp_df.sort_values(by = ['x', 'y'], ascending = [True, True])
                 # restart index:
@@ -3872,10 +3830,6 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
     from numpy.polynomial.polynomial import Polynomial
     import matplotlib.colors as mcolors
     
-
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
-    
     if (data_in_same_column == True):
         
         if (df is None):
@@ -3919,7 +3873,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
+            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -3992,13 +3946,14 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             # check if at least x and y are not None:
             if ((x is not None) & (y is not None)):
                 
+                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
                 
-                if (x.dtype not in numeric_dtypes):
+                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
-                        x = (x).astype('datetime64[ns]')
+                        temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
                         x_is_datetime = True
                         print(f"Variable X from {i}-th dictionary successfully converted to datetime64[ns].\n")
 
@@ -4015,7 +3970,6 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                 # completely independent dataframe that may be manipulated and sorted, without worrying
                 # that it may modify its origin:
                 
-                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # sort this dataframe by 'x' and 'y':
                 temp_df = temp_df.sort_values(by = ['x', 'y'], ascending = [True, True])
                 # restart index:
@@ -4523,8 +4477,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
     import matplotlib.colors as mcolors
     
     """This function is only called to plot, so ControlVars cannot interfere here."""
-    # List the possible numeric data types for a Pandas dataframe column:
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
+    
     
     if (data_in_same_column == True):
         
@@ -4571,7 +4524,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
+            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -4644,12 +4597,13 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             # check if at least x and y are not None:
             if ((x is not None) & (y is not None)):
                 
+                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if (x.dtype not in numeric_dtypes):
+                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
-                        x = (x).astype('datetime64[ns]')
+                        temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
                         print(f"Variable X from {i}-th dictionary successfully converted to datetime64[ns].\n")
 
                     except:
@@ -4665,7 +4619,6 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
                 # completely independent dataframe that may be manipulated and sorted, without worrying
                 # that it may modify its origin:
                 
-                temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # sort this dataframe by 'x' and 'y':
                 temp_df = temp_df.sort_values(by = ['x', 'y'], ascending = [True, True])
                 # restart index:

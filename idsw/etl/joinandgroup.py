@@ -722,7 +722,7 @@ def group_dataframe_by_variable (df, variables_to_group_by, return_summary_dataf
             # Check if the column is numeric:
             # https://pandas.pydata.org/docs/reference/api/pandas.api.types.is_numeric_dtype.html
             
-            if (pd.api.types.is_numeric_dtype(dataset[column])):
+            if (pd.api.types.is_numeric_dtype(DATASET[column])):
                 # Boolean returned True
                 # Append to numerical columns list:
                 numeric_list.append(column)
