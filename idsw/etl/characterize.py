@@ -163,8 +163,6 @@ def characterize_categorical_variables (df):
    
     # Start a list of categorical columns:
     categorical_list = []
-    # Start a timestamp list that will be empty if there is no timestamp_tag_column
-    timestamp_list = []
     is_categorical = 0 # start the variable
     
     # Loop through all valid columns (cols_list)
@@ -173,8 +171,8 @@ def characterize_categorical_variables (df):
         try:
             # Try to convert to timestamp
             timestamp = df[column].astype('datetime64[ns]')
-            # The conversion was successful, so the column is a timestamp
-            timestamp_list.append(column)
+            # The conversion was successful, so the column is a timestamp. You may pass
+            pass
         except:
             # Check if it is not numeric
             if (~pd.api.types.is_numeric_dtype(DATASET[column])):
