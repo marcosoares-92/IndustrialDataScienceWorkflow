@@ -3263,6 +3263,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 column_with_labels = 'whole_series_' + column_with_response_var_y
                 DATASET[column_with_labels] = column_with_labels
             
+            DATASET[column_with_labels] = DATASET[column_with_labels].astype(str)
             # sort DATASET; by column_with_predict_var_x; by column column_with_labels
             # and by column_with_response_var_y, all in Ascending order
             # Since we sort by label (group), it is easier to separate the groups.
@@ -3861,6 +3862,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                 column_with_labels = 'whole_series_' + column_with_response_var_y
                 DATASET[column_with_labels] = column_with_labels
             
+            DATASET[column_with_labels] = DATASET[column_with_labels].astype(str)
             # sort DATASET; by column_with_predict_var_x; by column column_with_labels
             # and by column_with_response_var_y, all in Ascending order
             # Since we sort by label (group), it is easier to separate the groups.
@@ -4512,6 +4514,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
                 column_with_labels = 'whole_series_' + column_with_response_var_y
                 DATASET[column_with_labels] = column_with_labels
             
+            DATASET[column_with_labels] = DATASET[column_with_labels].astype(str)
             # sort DATASET; by column_with_predict_var_x; by column column_with_labels
             # and by column_with_response_var_y, all in Ascending order
             # Since we sort by label (group), it is easier to separate the groups.
@@ -5100,7 +5103,10 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
     list_of_dicts = []
     
     if not (column_with_labels_to_test_subgroups is None):
-        
+
+        # Convert the labels to strings:
+        DATASET[column_with_labels_to_test_subgroups] = DATASET[column_with_labels_to_test_subgroups].astype(str)
+
         # 1. Get the unique values from column_with_labels_to_test_subgroups
         # and save it as the list labels_list:
         labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
@@ -5420,6 +5426,9 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
     list_of_dicts = []
     
     if not (column_with_labels_to_test_subgroups is None):
+
+        # Convert the labels to strings:
+        DATASET[column_with_labels_to_test_subgroups] = DATASET[column_with_labels_to_test_subgroups].astype(str)
         
         # 1. Get the unique values from column_with_labels_to_test_subgroups
         # and save it as the list labels_list:

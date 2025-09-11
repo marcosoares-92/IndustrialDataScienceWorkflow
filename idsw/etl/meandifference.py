@@ -431,7 +431,12 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
             + np.sqrt((p1 * q1) + (p2 * q2 / k)) * stats.norm.ppf(1 - beta)
         ) / np.square(delta)
 
-        return math.ceil(n)
+        try:
+            return math.ceil(n)
+        
+        except ValueError: # cannot convert float NaN to integer
+            raise ValueError("Trying to convert a missing value to integer. The amount of data being tested is not sufficient.")
+
 
     def sample_size_diff_means(mu1, mu2, sigma, alpha = 0.05, beta = 0.20, two_sided = True):
 
@@ -457,7 +462,18 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
             * np.square(stats.norm.ppf(1 - alpha) + stats.norm.ppf(1 - beta))
         ) / np.square(delta)
 
-        return math.ceil(n)
+        try:
+            return math.ceil(n)
+        
+        except ValueError: # cannot convert float NaN to integer
+            raise ValueError("Trying to convert a missing value to integer. The amount of data being tested is not sufficient.")
+
+
+    if ((df is not None) & (variable_to_analyze is not None)):
+
+        # Select only the data to analyze and drop all missing values in order not to crash other subfunctions:
+        X = df[variable_to_analyze]
+        X = X.dropna()
 
     # check if a manual input was not provided:
     if (current_mean_or_proportion is None):
@@ -465,12 +481,13 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
         # Check if there is a column and a dataframe:
         
         if ((df is not None) & (variable_to_analyze is not None)):
+
             # Save the column as a NumPy array to manipulate it independently from the dataframe
             if (what_to_test == 'mean'):
-                current_mean_or_proportion = np.mean(np.array(df[variable_to_analyze]))
+                current_mean_or_proportion = np.mean(np.array(X))
             
             elif (what_to_test == 'proportion'):
-                current_mean_or_proportion = np.sum(np.array(df[variable_to_analyze]))/len(np.array(df[variable_to_analyze]))
+                current_mean_or_proportion = np.sum(np.array(X))/len(np.array(X))
 
         else:
             raise InvalidInputsError ("Manually input a mean or proportion or add a dataframe with a column name as string to perform the analysis.")
@@ -485,7 +502,7 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
         
             if ((df is not None) & (variable_to_analyze is not None)):
                 # Save the column as a NumPy array to manipulate it independently from the dataframe
-                current_standard_deviation = np.std(np.array(df[variable_to_analyze]))
+                current_standard_deviation = np.std(np.array(X))
                 # Standard deviation will only be effectly used when the mean is tested.
             
             else:
@@ -599,10 +616,6 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
       https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html
     """
 
-    print ("If an error message is shown, update statsmodels to a version >= 0.13.2. To update to this version, declare and run a cell as the following command; or run it on command line without magic character '!':")
-    print ("!pip install statsmodels==0.13.2 --upgrade")
-    print ("Also, update matplotlib to a version >= 3.5.2 by running:")
-    print ("!pip install matplotlib==3.5.2 --upgrade\n")
     import random
     from statsmodels.stats.oneway import anova_oneway
         
@@ -638,6 +651,9 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
                 column_with_labels_or_groups = 'whole_series_' + variable_to_analyze
                 DATASET[column_with_labels_or_groups] = column_with_labels_or_groups
             
+            # Convert the labels to strings:
+            DATASET[column_with_labels_or_groups] = DATASET[column_with_labels_or_groups].astype(str)
+
             # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
             # all in Ascending order
             # Since we sort by label (group), it is easier to separate the groups.
@@ -1343,6 +1359,8 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             
                 raise InvalidInputsError("Please, input a valid column name as column_with_labels_or_groups.\n")
             
+            # Convert the labels to strings:
+            DATASET[column_with_labels_or_groups] = DATASET[column_with_labels_or_groups].astype(str)
             # sort DATASET; by column_with_labels_or_groups; and by variable_to_analyze,
             # all in Ascending order
             # Since we sort by label (group), it is easier to separate the groups.
@@ -1466,7 +1484,7 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
     
     if (total_of_series != 2):
         
-        print("There are not 2 series to compare. Please, provide valid arguments.\n")
+        print("There are not 2 series to compare. Please, provide valid arguments. Notice that this function compares exactly two series against each other.\n")
     
     else:
                 
@@ -1475,8 +1493,13 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
         To accomplish this you can set the parameter ddof=1 within the np.std function. 
         This ensures that the denominator of the expression for the standard deviation is N-1 rather than N.
         """
+        series1 = list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze']
+        series1 = series1.dropna()
 
-        y1, y2 = np.array(list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze']), np.array(list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze'])
+        series2 = list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze']
+        series2 = series2.dropna()
+
+        y1, y2 = np.array(series1), np.array(series2)
         lab1, lab2 = list_of_dictionaries_with_series_to_analyze[0]['label'], list_of_dictionaries_with_series_to_analyze[1]['label']
         
         summary_dict = {'alpha': alpha}

@@ -431,6 +431,8 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # We can sort the dataframe according to the columns present:
         
     if ((column_with_labels_or_subgroups is not None) & (column_with_event_frame_indication is not None)):
+        # Convert the labels to strings:
+        DATASET[column_with_labels_or_subgroups] = DATASET[column_with_labels_or_subgroups].astype(str)
         # There are time windows to consider and labels.
         # Update the list of unique labels:
         unique_labels = list(DATASET[column_with_labels_or_subgroups].unique())
@@ -449,6 +451,8 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
         DATASET = DATASET.sort_values(by = [timestamp_tag_column, column_with_event_frame_indication, column_with_variable_to_be_analyzed], ascending = [True, True, True])
         
     elif (column_with_labels_or_subgroups is not None):
+        # Convert the labels to strings:
+        DATASET[column_with_labels_or_subgroups] = DATASET[column_with_labels_or_subgroups].astype(str)
         # We already tested the simultaneous presence of both. So, to reach this condition, 
         # there is no column_with_event_frame_indication, but there is column_with_labels_or_subgroups
         # Update the list of unique labels:
