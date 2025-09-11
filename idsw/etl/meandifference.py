@@ -245,8 +245,6 @@ def label_dataframe_subsets (df, list_of_labels = [{'filter': None, 'value_to_ap
     # Set a local copy of the dataframe to manipulate:
     DATASET = df.copy(deep = True)
     
-    numeric_dtypes = [np.int16, np.int32, np.int64, np.float16, np.float32, np.float64]
-    
     # List of new columns:
     new_cols_list = []
     
@@ -286,8 +284,8 @@ def label_dataframe_subsets (df, list_of_labels = [{'filter': None, 'value_to_ap
     # It is important for the box and violin plots:
     
     for new_column in new_cols_list:
-        
-        if (DATASET[new_column].dtypes in numeric_dtypes):
+
+        if (pd.api.types.is_numeric_dtype(DATASET[new_column])):
             try:
                 DATASET[new_column] = (DATASET[new_column]).astype(str)
                 
