@@ -1493,10 +1493,11 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
         To accomplish this you can set the parameter ddof=1 within the np.std function. 
         This ensures that the denominator of the expression for the standard deviation is N-1 rather than N.
         """
-        series1 = list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze']
+        # Convert to series to eliminate missing values
+        series1 = pd.Series(list_of_dictionaries_with_series_to_analyze[0]['values_to_analyze'])
         series1 = series1.dropna()
 
-        series2 = list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze']
+        series2 = pd.Series(list_of_dictionaries_with_series_to_analyze[1]['values_to_analyze'])
         series2 = series2.dropna()
 
         y1, y2 = np.array(series1), np.array(series2)
