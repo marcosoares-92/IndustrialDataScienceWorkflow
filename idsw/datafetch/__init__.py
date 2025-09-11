@@ -9,3 +9,4 @@ objects like lists and dictionaries.
 
 from .core import *
 from .pipes import *
+from .texts import *
