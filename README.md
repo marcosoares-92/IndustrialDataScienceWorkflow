@@ -8,16 +8,20 @@
 	- User interface available in: 
 	
 	https://colab.research.google.com/github/marcosoares-92/steelindustrysimulator/blob/main/steelindustry_digitaltwin.ipynb
+- Check our `Model Project using Industrial Data Science Workflow in Crop Science` on: https://github.com/marcosoares-92/crop_model_proj_case_soybean_uci
 
 
 Authors:
-- Marco Cesar Prado Soares, Data Scientist Specialist at Bayer (Crop Science)
+- Marco Cesar Prado Soares, Data Scientist and Data Engineer Specialist; Data Coordinator
   - marcosoares.feq@gmail.com
 
 - Gabriel Fernandes Luz, Senior Data Scientist
   - gfluz94@gmail.com
 
-- Sergio Guilherme Neto, Data Analyst
+- Ivan Alexander Yapita Vargas, Senior Data Analyst
+  - ivan.alexander.y.vargas@gmail.com
+
+- Sergio Guilherme Neto, Senior Data Analyst
   - sguilhermeneto@gmail.com
 
 - If you cannot install the last version from idsw package directly from PyPI using `pip install idsw`:
