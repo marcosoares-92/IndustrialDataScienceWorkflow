@@ -14,9 +14,9 @@ with open('HISTORY.md') as history_file:
 setup(
     name="idsw",
     url="""https://github.com/marcosoares-92/IndustrialDataScienceWorkflow""",
-    version="1.3.1",
+    version="1.4",
     license='MIT',
-    author="Marco Cesar Prado Soares; Gabriel Fernandes Luz; Sergio Guilherme Neto",
+    author="Marco Cesar Prado Soares; Gabriel Fernandes Luz; Ivan Alexander Yapita Vargas; Sergio Guilherme Neto",
     author_email="marcosoares.feq@gmail.com",
     description=idsw_description,
     packages=find_packages(include=['idsw', 'idsw.*']),
