@@ -3271,15 +3271,17 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             
             # Reset indices:
             DATASET = DATASET.reset_index(drop = True)
-            
+
+            x_is_datetime = False            
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-    
-            if ((DATASET[column_with_predict_var_x]).dtype not in numeric_dtypes):
+            # Check if it is not numeric:
+            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
                     print("Variable X successfully converted to datetime64[ns].\n")
+                    x_is_datetime = True
                     
                 except:
                     # Simply ignore it
@@ -3315,7 +3317,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 y = np.array(ds_copy[column_with_response_var_y])
             
                 # Then, create the dictionary:
-                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                dict_of_values = {'x': x, 'y': y, 'lab': lab, 'x_is_datetime': x_is_datetime}
                 
                 # Now, append dict_of_values to list_of_dictionaries_with_series_to_analyze:
                 list_of_dictionaries_with_series_to_analyze.append(dict_of_values)
@@ -3349,6 +3351,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             if ((x is not None) & (y is not None)):
                 
                 temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
+                x_is_datetime = False
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
                 if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
@@ -3356,6 +3359,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                     try:
                         temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
                         print(f"Variable X from {i}-th dictionary successfully converted to datetime64[ns].\n")
+                        x_is_datetime = True
 
                     except:
                         # Simply ignore it
@@ -3388,7 +3392,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                     lab = "X" + str(i) + "_x_" + "Y" + str(i)
                     
                 # Then, create the dictionary:
-                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                dict_of_values = {'x': x, 'y': y, 'lab': lab, 'x_is_datetime': x_is_datetime}
                 
                 # Now, append dict_of_values to support list:
                 support_list.append(dict_of_values)
@@ -3427,19 +3431,10 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
         # Loop through each dictionary (element) on the list list_of_dictionaries_with_series_to_analyze:
         for dictionary in list_of_dictionaries_with_series_to_analyze:
             
-            x_is_datetime = False
-            # boolean that will map if x is a datetime or not. Only change to True when it is.
-            
             # Access keys 'x' and 'y' to retrieve the arrays.
             x = dictionary['x']
             y = dictionary['y']
-            
-            # Check if the elements from array x are np.datetime64 objects. Pick the first
-            # element to check:
-            
-            if (type(np.array(x)[0]) == np.datetime64):
-                
-                x_is_datetime = True
+            x_is_datetime = dictionary['x_is_datetime']
                 
             if (x_is_datetime):
                 # In this case, performing the linear regression directly in X will
@@ -3487,17 +3482,20 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 
             # Retrieve the equation as a string.
             # Access the attributes intercept and slope from the lin_reg object:
-            lin_reg_equation = "y = %.2f*x + %.2f" %((lin_reg).slope, (lin_reg).intercept)
+            lin_reg_equation = "y = %.4f*x + %.4f" %((lin_reg).slope, (lin_reg).intercept)
             # .2f: float with only two decimals
-                
+            
+            # Retrieve R:
+            r = "R = %.4f" %(((lin_reg).rvalue))
             # Retrieve R2 (coefficient of correlation) also as a string
-            r2_lin_reg = "R²_lin_reg = %.4f" %(((lin_reg).rvalue) ** 2)
+            r2 = "R² = %.4f" %(((lin_reg).rvalue) ** 2)
             # .4f: 4 decimals. ((lin_reg).rvalue) is the coefficient R. We
             # raise it to the second power by doing **2, where ** is the potentiation.
                 
             # Add these two strings to the dictionary
             dictionary['lin_reg_equation'] = lin_reg_equation
-            dictionary['r2_lin_reg'] = r2_lin_reg
+            dictionary['r'] = r
+            dictionary['r2'] = r2
                 
             # Now, as final step, let's apply the values x to the linear regression
             # equation to obtain the predicted series used to plot the straight line.
@@ -3740,13 +3738,17 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                     
                     print(f"Linear regression summary for {dictionary['lab']}:\n")
                     
+                    dictionary['lin_reg_equation'] = lin_reg_equation
+
                     try:
                         display(dictionary['lin_reg_equation'])
-                        display(dictionary['r2_lin_reg'])
+                        display(dictionary['r'])
+                        display(dictionary['r2'])
 
                     except: # regular mode                  
                         print(dictionary['lin_reg_equation'])
-                        print(dictionary['r2_lin_reg'])
+                        print(dictionary['r'])
+                        print(dictionary['r2'])
                     
                     print("\n")
         
