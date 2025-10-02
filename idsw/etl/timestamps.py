@@ -897,7 +897,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
     # in the last row it will be subtracted from itself, resulting in zero.
     # This is the expected, since we do not have a delay yet
     timedeltas = pd.Series(following_timestamp - timestamps)
-    timedeltas_mask = ~timedeltas.isna() # values that are not null
+    timedeltas_mask = not timedeltas.isna() # values that are not null
     
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
@@ -1125,7 +1125,7 @@ def calculate_delay (df, timestamp_tag_column, new_timedelta_column_name  = None
         
         # To calculate the mean, we firstly need to remove the null entries:
         # Filter the numpy array to the opposite of the null entries (~)
-        TimedeltaList = TimedeltaList[~np.isnan(TimedeltaList)]
+        TimedeltaList = TimedeltaList[not np.isnan(TimedeltaList)]
 
         # Now we calculate the average value:
         avg_delay = np.average(TimedeltaList)
@@ -1220,7 +1220,7 @@ def calculate_timedelta (df, timestamp_tag_column1, timestamp_tag_column2, timed
     # can be submitted to direct operations.
     
     timedeltas = pd.Series(np.array(DATASET[timestamp_tag_column1], dtype = 'datetime64[ns]') - np.array(DATASET[timestamp_tag_column2], dtype = 'datetime64[ns]'))
-    timedeltas_mask = ~timedeltas.isna() # values that are not null
+    timedeltas_mask = not timedeltas.isna() # values that are not null
     #This timedelta_obj is a series of timedelta64 objects. The Pandas Timedelta function
     # can process only one element of the series in each call. Then, we must loop through
     # the series to obtain the float values in nanoseconds. Even though this loop may 
@@ -1507,7 +1507,7 @@ def add_timedelta (df, timestamp_tag_column, timedelta, new_timestamp_col  = Non
     
     # The Pandas Timestamp can be directly added to a Pandas Timedelta.
     # Check the valid values:
-    timedeltas_mask = ~DATASET[timestamp_tag_column].isna() # values that are not null
+    timedeltas_mask = not DATASET[timestamp_tag_column].isna() # values that are not null
 
     #Dictionary for converting the timedelta_unit to Pandas encoding for the
     # Timedelta method. to access the element of a dictionary d = {"key": element},

@@ -1385,7 +1385,7 @@ class SPCPlot:
         
         # Check if the times are datetimes or not:
         
-        if (~pd.api.types.is_numeric_dtype(df[timestamp_tag_column])):            
+        if (not pd.api.types.is_numeric_dtype(df[timestamp_tag_column])):            
         
             # It is a datetime. Let's loop between successive indices:
             if (len(rare_events_indices) > 1):

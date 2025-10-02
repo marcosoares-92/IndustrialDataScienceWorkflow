@@ -444,7 +444,7 @@ def record_linkage (df_left, df_right, columns_to_block_as_basis_for_comparison 
     # You can choose to examine them further for similarity with their duplicates in DF_LEFT, 
     # but if you're sure of your analysis, you can go ahead and find the non duplicates with 
     # the exact same line of code, except by adding a tilde at the beginning of your subset. 
-    non_dup = DF_RIGHT[~DF_RIGHT.index.isin(matching_indices)]
+    non_dup = DF_RIGHT[not DF_RIGHT.index.isin(matching_indices)]
     # ~ is the not (invert) operator: 
     # https://stackoverflow.com/questions/21415661/logical-operators-for-boolean-indexing-in-pandas
     

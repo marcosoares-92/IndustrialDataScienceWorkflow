@@ -175,7 +175,7 @@ def characterize_categorical_variables (df):
             pass
         except:
             # Check if it is not numeric
-            if (~pd.api.types.is_numeric_dtype(DATASET[column])):
+            if (not pd.api.types.is_numeric_dtype(DATASET[column])):
                 categorical_list.append(column)
         
     
@@ -682,7 +682,7 @@ def visualizing_and_comparing_missingness_across_numeric_vars (df, column_to_ana
             
             # Check if the column is a text or timestamp. In this case, the type
             # of column will be 'object'
-            if (~pd.api.types.is_numeric_dtype(col)):
+            if (not pd.api.types.is_numeric_dtype(col)):
                 
                 # Try converting it to a datetime64 object:
                 
@@ -1818,7 +1818,7 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     # columns:
     
     
-    if (~column_data_type_bool_check):
+    if (not column_data_type_bool_check):
         
         # Firstly, converts the values obtained to closest integer (since we
         # encoded the categorical values as integers, we cannot reconvert
@@ -2480,7 +2480,7 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
     # Check if a numeric aggregate was selected:
     if (aggregate_function in list_of_numeric_aggregates):
         
-        if (~pd.api.types.is_numeric_dtype(DATASET[response_var_name])):
+        if (not pd.api.types.is_numeric_dtype(DATASET[response_var_name])):
             
                 # If the Pandas series was defined as an object, it means it is categorical
                 # (string, date, etc).
@@ -3276,7 +3276,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
             # Check if it is not numeric:
-            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
+            if (not pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -3354,7 +3354,7 @@ def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_pr
                 x_is_datetime = False
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
+                if (not pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
                         temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
@@ -3873,13 +3873,15 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             # Reset indices:
             DATASET = DATASET.reset_index(drop = True)
             
+            x_is_datetime = False
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
+            if (not pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
                     print("Variable X successfully converted to datetime64[ns].\n")
+                    x_is_datetime = True
                     
                 except:
                     # Simply ignore it
@@ -3915,7 +3917,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                 y = np.array(ds_copy[column_with_response_var_y])
             
                 # Then, create the dictionary:
-                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                dict_of_values = {'x': x, 'y': y, 'lab': lab, 'x_is_datetime': x_is_datetime}
                 
                 # Now, append dict_of_values to list_of_dictionaries_with_series_to_analyze:
                 list_of_dictionaries_with_series_to_analyze.append(dict_of_values)
@@ -3949,10 +3951,11 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
             if ((x is not None) & (y is not None)):
                 
                 temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
+                x_is_datetime = False
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
                 
-                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
+                if (not pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
                         temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
@@ -3990,7 +3993,7 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
                     lab = "X" + str(i) + "_x_" + "Y" + str(i)
                     
                 # Then, create the dictionary:
-                dict_of_values = {'x': x, 'y': y, 'lab': lab}
+                dict_of_values = {'x': x, 'y': y, 'lab': lab, 'x_is_datetime': x_is_datetime}
                 
                 # Now, append dict_of_values to support list:
                 support_list.append(dict_of_values)
@@ -4029,20 +4032,16 @@ def polynomial_fit (data_in_same_column = False, df = None, column_with_predict_
         # Loop through each dictionary (element) on the list list_of_dictionaries_with_series_to_analyze:
         for dictionary in list_of_dictionaries_with_series_to_analyze:
             
-            x_is_datetime = False
             # boolean that will map if x is a datetime or not. Only change to True when it is.
             
             # Access keys 'x' and 'y' to retrieve the arrays.
             x = dictionary['x']
             y = dictionary['y']
             lab = dictionary['lab']
+            x_is_datetime = dictionary['x_is_datetime']
             
             # Check if the elements from array x are np.datetime64 objects. Pick the first
             # element to check:
-            
-            if (type(np.array(x)[0]) == np.datetime64):
-                
-                x_is_datetime = True
             
             if (x_is_datetime):
                 # In this case, performing the linear regression directly in X will
@@ -4497,8 +4496,9 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
         
         elif (column_with_predict_var_x is None):
             
-            print("Please, input a valid column name as column_with_predict_var_x.\n")
-            list_of_dictionaries_with_series_to_analyze = []
+            #Create an index column and use it:
+            column_with_predict_var_x = 'index'
+            DATASET[column_with_predict_var_x] = np.array(DATASET.index)
         
         elif (column_with_response_var_y is None):
             
@@ -4527,7 +4527,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             
             # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
             # So, let's try to convert it to datetime:
-            if (~pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
+            if (not pd.api.types.is_numeric_dtype(DATASET[column_with_predict_var_x])):
                 
                 try:
                     DATASET[column_with_predict_var_x] = (DATASET[column_with_predict_var_x]).astype('datetime64[ns]')
@@ -4597,13 +4597,19 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
             # the astype function:
             # https://www.askpython.com/python/built-in-methods/python-astype?msclkid=8f3de8afd0d411ec86a9c1a1e290f37c
             
-            # check if at least x and y are not None:
-            if ((x is not None) & (y is not None)):
+            # check if at least y is not None:
+            # If x is none, create an index column and use it:
+            
+            if (y is not None):
+
+                if (x is None):
+                    # Create an array of indices:
+                    x = np.array(range(0, len(y)))
                 
                 temp_df = pd.DataFrame(data = {'x': list(x), 'y': list(y)})
                 # If column_with_predict_var_x is an object, the user may be trying to pass a date as x. 
                 # So, let's try to convert it to datetime:
-                if (~pd.api.types.is_numeric_dtype(temp_df['x'])):
+                if (not pd.api.types.is_numeric_dtype(temp_df['x'])):
 
                     try:
                         temp_df['x'] = temp_df['x'].astype('datetime64[ns]')
