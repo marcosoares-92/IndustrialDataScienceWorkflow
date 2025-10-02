@@ -85,3 +85,8 @@
 
 * Module datafetch.texts added: functions based on LangChain for extracting texts from PDFs, DOCX, CSV, HTML and TXT and creating a text database.
 * Several bugs fixed, specially in functions based on Pandas and NumPy deprecated structures.
+
+## 1.4.1
+
+* Bug fixed in linear regression function.
+* Bug fixed: Python ~ operator deprecated, and replaced by "not".
