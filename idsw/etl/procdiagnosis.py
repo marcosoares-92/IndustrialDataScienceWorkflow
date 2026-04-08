@@ -806,12 +806,14 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     lower_cl = df['lower_cl']
     upper_cl = df['upper_cl']
 
-    print(f"checando variável {column_with_variable_to_be_analyzed}")
-    print(list(upper_cl))
-    
     # Now modify only points which are out of the control ranges:
     df.loc[(df[column_with_variable_to_be_analyzed] < lower_cl), 'control_limits_check'] = 'below_lower_control_limit'
     df.loc[(df[column_with_variable_to_be_analyzed] > upper_cl), 'control_limits_check'] = 'above_upper_control_limit'
+
+    print(f"checando variável {column_with_variable_to_be_analyzed}")
+    print(df[column_with_variable_to_be_analyzed])
+    print(upper_cl)
+    print(df['control_limits_check'])
                 
     # Let's also create the 'red_df' containing only the values outside of the control limits.
     # This dataframe will be used to highlight the values outside the control limits
