@@ -813,10 +813,10 @@ class SPCPlot:
         df['moving_range'] = moving_range
         
         # Save x_bar_list as the column to be analyzed:
-        df[column_with_variable_to_be_analyzed] = x_bar_list
+        df['xbar'] = x_bar_list
         
         # Get the mean values from x_bar:
-        x_bar_bar = df[column_with_variable_to_be_analyzed].mean()
+        x_bar_bar = df['xbar'].mean()
         
         # Calculate the mean value of the column moving_range, and save it as r_bar.
         r_bar = df['moving_range'].mean()

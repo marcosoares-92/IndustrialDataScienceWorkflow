@@ -801,14 +801,18 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # (syntax: dataset.loc[dataset['column_filtered'] <= 0.87, 'labelled_column'] = 1)
     # Start the new column as 'in_control_lim' (default case):
     df['control_limits_check'] = 'in_control_limits'
+    checker_column = np.array(df['control_limits_check'])
     
     # Get the control limits:
-    lower_cl = df['lower_cl']
-    upper_cl = df['upper_cl']
+    lower_cl = np.array(df['lower_cl'])
+    upper_cl = np.array(df['upper_cl'])
+    col_to_check = np.array(df[column_with_variable_to_be_analyzed])
 
+    checker_column = np.where((col_to_check < lower_cl), 'below_lower_control_limit',
+                              np.where((col_to_check > upper_cl), 'above_upper_control_limit', checker_column))
+    
     # Now modify only points which are out of the control ranges:
-    df.loc[(df[column_with_variable_to_be_analyzed] < lower_cl), 'control_limits_check'] = 'below_lower_control_limit'
-    df.loc[(df[column_with_variable_to_be_analyzed] > upper_cl), 'control_limits_check'] = 'above_upper_control_limit'
+    df['control_limits_check'] = checker_column
                 
     # Let's also create the 'red_df' containing only the values outside of the control limits.
     # This dataframe will be used to highlight the values outside the control limits
@@ -816,7 +820,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     # copy the dataframe:
     red_df = df.copy(deep = True)
     # Filter red_df to contain only the values outside the control limits:
-    boolean_filter = ((red_df[column_with_variable_to_be_analyzed] < lower_cl) | (red_df[column_with_variable_to_be_analyzed] > upper_cl))
+    boolean_filter = (red_df['control_limits_check'] != 'in_control_limits')
     red_df = red_df[boolean_filter]
     # Reset the index of this dataframe:
     red_df = red_df.reset_index(drop = True)
@@ -853,8 +857,10 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
 
         # Start the new column as 'in_spec_lim' (default case):
         df['spec_limits_check'] = 'in_spec_lim'
+        spec_limits_check = np.array(df['spec_limits_check'])
         # Now modify only points which are below the specification limit:
-        df.loc[(df[column_with_variable_to_be_analyzed] < lower_spec_lim), 'spec_limits_check'] = 'below_lower_spec_lim'
+        spec_limits_check = np.where((col_to_check < lower_spec_lim), 'below_lower_spec_lim', spec_limits_check)
+        df['spec_limits_check'] = spec_limits_check
     
         if (len(df[(df[column_with_variable_to_be_analyzed] < lower_spec_lim)]) > 0):
             
@@ -867,23 +873,26 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
             upper_spec_lim = specification_limits['upper_spec_lim']
 
             # Now modify only points which are above the specification limit:
-            df.loc[(df[column_with_variable_to_be_analyzed] > upper_spec_lim), 'spec_limits_check'] = 'above_upper_spec_lim'
+            spec_limits_check = np.where((col_to_check > upper_spec_lim), 'above_upper_spec_lim', spec_limits_check)
+            df['spec_limits_check'] = spec_limits_check
 
             if (len(df[(df[column_with_variable_to_be_analyzed] > upper_spec_lim)]) > 0):
 
                 print("Attention! Point above upper specification limit.")
                 print("Check the returned dataframe df to obtain more details.\n")
     
-    # Check the case where there is no lower, but there is a specification limit:
+    # Check the case where there is no lower, but there is an upper specification limit:
     elif (specification_limits['upper_spec_lim'] is not None):
         
         upper_spec_lim = specification_limits['upper_spec_lim']
         
         # Start the new column as 'in_spec_lim' (default case):
         df['spec_limits_check'] = 'in_spec_lim'
+        spec_limits_check = np.array(df['spec_limits_check'])
         
         # Now modify only points which are above the specification limit:
-        df.loc[(df[column_with_variable_to_be_analyzed] > upper_spec_lim), 'spec_limits_check'] = 'above_upper_spec_lim'
+        spec_limits_check = np.where((col_to_check > upper_spec_lim), 'above_upper_spec_lim', spec_limits_check)
+        df['spec_limits_check'] = spec_limits_check
 
         if (len(df[(df[column_with_variable_to_be_analyzed] > upper_spec_lim)]) > 0):
 
