@@ -1,7 +1,8 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats
 
 from idsw import (InvalidInputsError, ControlVars)
 
@@ -523,9 +524,9 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
     return required_sample_size
 
 
-def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, non_parametric = False):
     """
-    anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, non_parametric = False):
       
     : param: plot_type = 'box' to plot a boxplot.
       plot_type = 'violin' to plot a violinplot.
@@ -844,23 +845,29 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
             list_of_arrays = support_list
             # Now all lists are padded and are represented by padded arrays.
             
-            #Now, we can pass the arrays as arguments for the one-way Anova:
-            anova_one_way_summary = anova_oneway(list_of_arrays)
-            # https://www.statsmodels.org/stable/generated/statsmodels.stats.oneway.anova_oneway.html
-
-            # The information is stored in a tuple (f_statistic, p-value)
-            # f_statistic: Test statistic for k-sample mean comparison which is approximately 
-            # F-distributed.
-            # p-value: If use_var="bf", then the p-value is based on corrected degrees of freedom following Mehrotra 1997.
-            f_statistic = anova_one_way_summary[0]
-            p_value = anova_one_way_summary[1]
-            
-            anova_summary_dict = {'groups_length':min_length, 'F_statistic': f_statistic, 'p_value': p_value}
-            
-            if ControlVars.show_results:
-                print(f"Total of samples in each group used for ANOVA (after padding): {min_length}\n")
-                print(f"Probability that the means of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
-                print(f"Calculated F-statistic for the variances = {f_statistic:e}\n")
+            #Now, we can pass the arrays as arguments for the one-way Anova or Kruskal-Wallis:
+            if non_parametric:
+                kruskal_summary = stats.kruskal(*list_of_arrays)
+                f_statistic = float(kruskal_summary.statistic)
+                p_value = float(kruskal_summary.pvalue)
+                test_name = "Kruskal-Wallis H-test"
+                anova_summary_dict = {'groups_length': min_length, 'test_used': test_name, 'non_parametric': True, 'H_statistic': f_statistic, 'statistic': f_statistic, 'p_value': p_value}
+                if ControlVars.show_results:
+                    print(f"Non-parametric test used: {test_name}\n")
+                    print(f"Total of samples in each group used (after padding): {min_length}\n")
+                    print(f"Probability that the distributions/medians of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
+                    print(f"Calculated H-statistic = {f_statistic:e}\n")
+            else:
+                anova_one_way_summary = anova_oneway(list_of_arrays)
+                f_statistic = float(anova_one_way_summary[0])
+                p_value = float(anova_one_way_summary[1])
+                test_name = "One-Way ANOVA (F-test)"
+                anova_summary_dict = {'groups_length': min_length, 'test_used': test_name, 'non_parametric': False, 'F_statistic': f_statistic, 'statistic': f_statistic, 'p_value': p_value}
+                if ControlVars.show_results:
+                    print(f"Parametric test used: {test_name}\n")
+                    print(f"Total of samples in each group used for ANOVA (after padding): {min_length}\n")
+                    print(f"Probability that the means of the groups are the same = {100*p_value:.2f}% (p-value = {p_value:e})\n")
+                    print(f"Calculated F-statistic for the variances = {f_statistic:e}\n")
                 
             # start a statistics list:
             statistics_list = []
@@ -1261,10 +1268,10 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
         return anova_summary_dict, plot_returned_dict
 
 
-def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
+def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, non_parametric = False, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
 
     """
-    AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
+    AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, non_parametric = False, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}]):
 
     - Compare if different groups present significant difference of means or proportions using t-test.
     - For comparison of proportions of success on binary (categorical) results, the compared column must have been 
@@ -1552,41 +1559,33 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             """
             # NULL HYPOTHESIS: the means are the same. So, mu1 - mu2 = 0
 
-            t_statistic = (xbar1 - xbar2)/np.sqrt(np.square(s1)/n1 + np.square(s2)/n2)
-
-            summary_dict['t_statistic'] = t_statistic
-
-            """
-            With the ability to calculate the t-statistic now you need a way to determine if you should reject (or not) the null hypothesis. 
-            This function should return whether to reject (or not) the null hypothesis by using the p-value method given the value of the 
-            t-statistic, the degrees of freedom and a level of significance. 
-            
-            **This should be a two-sided test.**
-
-            In this case the p-value represents the probability of obtaining a value of the t-statistic as extreme (or more extreme) 
-            as the observed value under the null hypothesis. You can use the fact that the `CDF` of a distribution provides the probability 
-            of getting a value as extreme or less extreme than the one provided, so the p-value can be computed as `1 - CDF(current_value)`. 
-            If you are conducting a two-sided test, you must use the absolute value of the current value since the "extreme" condition can 
-            be attained by either side. In this case you must also multiply said probability by 2 so you can compare against $\alpha$ rather 
-            than against $\frac{\alpha}{2}$.
-
-            - You can use the `cdf` method from the [stats.t](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.t.html) class 
-            to compute the p-value given the degrees of freedom. Don't forget to multiply your result by 2 since this is a two-sided test.
-            
-            - When passing the value of the t-statistic to the `cdf` function, you should provide the absolute value. 
-            You can achieve this by using Python's built-in `abs` function.
-
-            - If the p-value is lower to `alpha` then you should reject the null hypothesis.
-            """
-
-            reject = False
-            p_value = 2*(1 - stats.t.cdf(abs(t_statistic), dof))
-            
-            if (p_value < alpha):
-                reject = True
-
-            summary_dict['p_value'] = p_value
-            summary_dict['reject_H0'] = reject
+            if non_parametric:
+                u_res = stats.mannwhitneyu(y1, y2, alternative = 'two-sided')
+                u_statistic = float(u_res.statistic)
+                p_value = float(u_res.pvalue)
+                test_name = "Mann-Whitney U Test"
+                reject = bool(p_value < alpha)
+                summary_dict['test_used'] = test_name
+                summary_dict['non_parametric'] = True
+                summary_dict['u_statistic'] = u_statistic
+                summary_dict['statistic'] = u_statistic
+                summary_dict['p_value'] = p_value
+                summary_dict['reject_H0'] = reject
+                if ControlVars.show_results:
+                    print(f"Non-parametric test used: {test_name}")
+                    print(f"Mann-Whitney U statistic = {u_statistic:.4f}, p-value = {p_value:.4e}\n")
+            else:
+                t_statistic = (xbar1 - xbar2)/np.sqrt(np.square(s1)/n1 + np.square(s2)/n2)
+                summary_dict['t_statistic'] = t_statistic
+                summary_dict['statistic'] = t_statistic
+                reject = False
+                p_value = 2*(1 - stats.t.cdf(abs(t_statistic), dof))
+                if (p_value < alpha):
+                    reject = True
+                summary_dict['test_used'] = "Two-Sample Independent t-Test"
+                summary_dict['non_parametric'] = False
+                summary_dict['p_value'] = p_value
+                summary_dict['reject_H0'] = reject
 
             # Calculate confidence intervals for each group
             """
@@ -1672,29 +1671,32 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             where $\hat{p}$ is the pooled proportion: $\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}$
             """
 
-            z_statistic = (p1 - p2)/np.sqrt(pp*(1 - pp)*(1/n1 + 1/n2))
-
-            summary_dict['z_statistic'] = z_statistic
-
-            """
-            Decide whether to reject (or not) the null hypothesis by using the p-value method given the value of the z-statistic and 
-            a level of significance. This should be a two-sided test.
-
-            You can use the cdf method from the stats.norm class to compute the p-value. Don't forget to multiply your result by 
-            2 since this is a two-sided test.
-            When passing the value of the z-statistic to the cdf function, you should provide the absolute value. 
-            You can achieve this by using Python's built-in abs function.
-            If the p-value is lower to alpha then you should reject the null hypothesis.
-            """
-
-            reject = False
-            p_value = 2*(1 - stats.norm.cdf(abs(z_statistic)))
-            
-            if (p_value < alpha):
-                reject = True
-            
-            summary_dict['p_value'] = p_value
-            summary_dict['reject_H0'] = reject
+            if non_parametric:
+                table = [[int(x1), int(n1 - x1)], [int(x2), int(n2 - x2)]]
+                odds_ratio, p_value = stats.fisher_exact(table, alternative = 'two-sided')
+                test_name = "Fisher's Exact Test"
+                reject = bool(p_value < alpha)
+                summary_dict['test_used'] = test_name
+                summary_dict['non_parametric'] = True
+                summary_dict['odds_ratio'] = float(odds_ratio)
+                summary_dict['statistic'] = float(odds_ratio)
+                summary_dict['p_value'] = float(p_value)
+                summary_dict['reject_H0'] = reject
+                if ControlVars.show_results:
+                    print(f"Non-parametric test used: {test_name}")
+                    print(f"Fisher's Exact Test odds ratio = {odds_ratio:.4f}, p-value = {p_value:.4e}\n")
+            else:
+                z_statistic = (p1 - p2)/np.sqrt(pp*(1 - pp)*(1/n1 + 1/n2))
+                summary_dict['z_statistic'] = z_statistic
+                summary_dict['statistic'] = z_statistic
+                reject = False
+                p_value = 2*(1 - stats.norm.cdf(abs(z_statistic)))
+                if (p_value < alpha):
+                    reject = True
+                summary_dict['test_used'] = "Two-Proportion z-Test"
+                summary_dict['non_parametric'] = False
+                summary_dict['p_value'] = p_value
+                summary_dict['reject_H0'] = reject
 
             # Calculate confidence intervals for each group
             """
@@ -1738,5 +1740,893 @@ def AB_testing (what_to_compare = 'mean', confidence_level_pct = 95, data_in_sam
             else:
                 print(f"For the set significance level (alpha = {alpha:.2f}), there is no sufficient evidence to reject H0.")
                 print("Recommendation: ACCEPT the null hypothesis H0.")
-            
-        return summary_dict
+
+    return summary_dict
+
+
+def test_proportion_diffs (df = None, column_with_labels_or_groups = None, variable_to_analyze = None, success_label = 1, list_of_dictionaries_with_series_to_analyze = None, confidence_level_pct = 95, non_parametric = False, alternative = 'two-sided', show_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    test_proportion_diffs (df = None, column_with_labels_or_groups = None, variable_to_analyze = None, success_label = 1, list_of_dictionaries_with_series_to_analyze = None, confidence_level_pct = 95, non_parametric = False, alternative = 'two-sided', show_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Tests for statistically significant differences in proportions (rates of success) between two or more groups.
+    Supports both parametric (Two-Proportion z-Test for 2 groups, Pearson Chi-Square for >2 groups)
+    and non-parametric methods (Fisher's Exact Test for 2 groups, Permutation / Randomization Chi-Square for >2 groups).
+    
+    : param: df: pandas DataFrame containing the dataset (optional if list_of_dictionaries_with_series_to_analyze is provided).
+    : param: column_with_labels_or_groups: string, column name indicating the group/treatment label.
+    : param: variable_to_analyze: string, column containing binary outcomes (e.g., 0/1, True/False, or categorical).
+    : param: success_label: value considered a 'success' in variable_to_analyze (default 1).
+    : param: list_of_dictionaries_with_series_to_analyze: alternative input format: list of dicts [{'values_to_analyze': series, 'label': name}, ...].
+    : param: confidence_level_pct: confidence level percentage (default 95).
+    : param: non_parametric: boolean (default False), whether to execute non-parametric exact/permutation tests.
+    : param: alternative: string, alternative hypothesis: 'two-sided', 'larger', 'smaller' (default 'two-sided').
+    : param: show_plot: boolean (default True), whether to display the proportion comparison bar plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid lines on the plot.
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (summary_dict, results_df).
+    """
+
+    from scipy import stats
+
+    alpha = 1.0 - (confidence_level_pct / 100.0)
+
+    # Extract group series
+    groups = {}
+    if df is not None and column_with_labels_or_groups is not None and variable_to_analyze is not None:
+        if column_with_labels_or_groups not in df.columns or variable_to_analyze not in df.columns:
+            raise InvalidInputsError("Specified column names not found in DataFrame.")
+        DATASET = df.copy(deep = True)
+        DATASET = DATASET.dropna(subset = [column_with_labels_or_groups, variable_to_analyze])
+        for grp, sub_df in DATASET.groupby(column_with_labels_or_groups):
+            groups[str(grp)] = (sub_df[variable_to_analyze] == success_label).astype(int).values
+    elif list_of_dictionaries_with_series_to_analyze is not None:
+        for item in list_of_dictionaries_with_series_to_analyze:
+            if item.get('values_to_analyze') is not None:
+                lbl = str(item.get('label', f"Group_{len(groups)+1}"))
+                vals = pd.Series(item['values_to_analyze']).dropna()
+                groups[lbl] = (vals == success_label).astype(int).values
+    else:
+        raise InvalidInputsError("Please provide either (df, column_with_labels_or_groups, variable_to_analyze) or list_of_dictionaries_with_series_to_analyze.")
+
+    if len(groups) < 2:
+        raise InvalidInputsError(f"At least 2 groups are required for proportion difference testing. Found {len(groups)}.")
+
+    group_names = list(groups.keys())
+    counts_success = [int(np.sum(groups[g])) for g in group_names]
+    totals = [int(len(groups[g])) for g in group_names]
+    proportions = [counts_success[i] / totals[i] if totals[i] > 0 else 0.0 for i in range(len(group_names))]
+
+    # Build summary rows
+    summary_rows = []
+    z_crit = stats.norm.ppf(1.0 - alpha / 2.0)
+    for i, g in enumerate(group_names):
+        p_hat = proportions[i]
+        n_i = totals[i]
+        # Wilson score interval for proportions:
+        denom = 1.0 + (z_crit ** 2) / n_i
+        centre = (p_hat + (z_crit ** 2) / (2.0 * n_i)) / denom
+        margin = (z_crit * np.sqrt((p_hat * (1.0 - p_hat) / n_i) + ((z_crit ** 2) / (4.0 * (n_i ** 2))))) / denom
+        ci_lower = max(0.0, float(centre - margin))
+        ci_upper = min(1.0, float(centre + margin))
+        summary_rows.append({
+            'Group': g,
+            'Successes': counts_success[i],
+            'Total': totals[i],
+            'Proportion': p_hat,
+            'CI_Lower': ci_lower,
+            'CI_Upper': ci_upper
+        })
+    results_df = pd.DataFrame(summary_rows)
+
+    summary_dict = {
+        'alpha': alpha,
+        'confidence_level_pct': confidence_level_pct,
+        'groups': group_names,
+        'proportions': proportions,
+        'non_parametric': non_parametric
+    }
+
+    if len(group_names) == 2:
+        # 2 groups comparison
+        n1, n2 = totals[0], totals[1]
+        x1, x2 = counts_success[0], counts_success[1]
+        p1, p2 = proportions[0], proportions[1]
+        diff = p1 - p2
+        summary_dict['proportion_difference'] = float(diff)
+
+        if non_parametric:
+            test_name = "Fisher's Exact Test"
+            table = [[x1, n1 - x1], [x2, n2 - x2]]
+            odds_ratio, p_val = stats.fisher_exact(table, alternative = alternative)
+            summary_dict['test_used'] = test_name
+            summary_dict['odds_ratio'] = float(odds_ratio)
+            summary_dict['statistic'] = float(odds_ratio)
+            summary_dict['p_value'] = float(p_val)
+            summary_dict['reject_H0'] = bool(p_val < alpha)
+        else:
+            test_name = "Two-Proportion z-Test"
+            p_pooled = (x1 + x2) / (n1 + n2)
+            se_pooled = np.sqrt(p_pooled * (1.0 - p_pooled) * (1.0 / n1 + 1.0 / n2))
+            z_stat = diff / se_pooled if se_pooled > 0 else 0.0
+            if alternative == 'two-sided':
+                p_val = 2.0 * (1.0 - stats.norm.cdf(abs(z_stat)))
+            elif alternative == 'larger':
+                p_val = 1.0 - stats.norm.cdf(z_stat)
+            else:
+                p_val = stats.norm.cdf(z_stat)
+            summary_dict['test_used'] = test_name
+            summary_dict['z_statistic'] = float(z_stat)
+            summary_dict['statistic'] = float(z_stat)
+            summary_dict['p_value'] = float(p_val)
+            summary_dict['reject_H0'] = bool(p_val < alpha)
+    else:
+        # Multi-group comparison (>2 groups)
+        contingency_table = []
+        for i in range(len(group_names)):
+            contingency_table.append([counts_success[i], totals[i] - counts_success[i]])
+        contingency_table = np.array(contingency_table)
+
+        chi2_stat, p_val, dof, _ = stats.chi2_contingency(contingency_table)
+        test_name = "Pearson Chi-Square Test of Homogeneity" if not non_parametric else "Chi-Square Permutation Test"
+        if non_parametric:
+            # Permutation approximation
+            n_perms = 2000
+            pooled_outcomes = np.concatenate([groups[g] for g in group_names])
+            perm_stats = []
+            for _ in range(n_perms):
+                perm_y = np.random.permutation(pooled_outcomes)
+                idx = 0
+                sim_table = []
+                for n_g in totals:
+                    g_slice = perm_y[idx : idx + n_g]
+                    sim_table.append([int(np.sum(g_slice)), int(n_g - np.sum(g_slice))])
+                    idx += n_g
+                sim_stat, _, _, _ = stats.chi2_contingency(sim_table)
+                perm_stats.append(sim_stat)
+            p_val = float(np.mean(np.array(perm_stats) >= chi2_stat))
+
+        summary_dict['test_used'] = test_name
+        summary_dict['chi2_statistic'] = float(chi2_stat)
+        summary_dict['statistic'] = float(chi2_stat)
+        summary_dict['degrees_of_freedom'] = int(dof)
+        summary_dict['p_value'] = float(p_val)
+        summary_dict['reject_H0'] = bool(p_val < alpha)
+
+    if show_plot and ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (10, 6))
+        x_pos = np.arange(len(group_names))
+        err_lower = [proportions[i] - results_df['CI_Lower'].iloc[i] for i in range(len(group_names))]
+        err_upper = [results_df['CI_Upper'].iloc[i] - proportions[i] for i in range(len(group_names))]
+        yerr = [err_lower, err_upper]
+
+        bars = ax.bar(x_pos, proportions, yerr = yerr, capsize = 5, color = 'steelblue', alpha = 0.85, edgecolor = 'black')
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(group_names)
+        ax.set_ylabel("Proportion of Success")
+        ax.set_title(f"Comparison of Proportions across Groups ({summary_dict['test_used']})")
+        ax.set_ylim(0, min(1.0, max(results_df['CI_Upper']) * 1.15 if len(results_df) > 0 else 1.0))
+        ax.grid(grid, axis = 'y', linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        # Label proportions on top of bars
+        for bar, p in zip(bars, proportions):
+            height = bar.get_height()
+            ax.annotate(f'{p:.2%}',
+                        xy = (bar.get_x() + bar.get_width() / 2, height),
+                        xytext = (0, 8),
+                        textcoords = "offset points",
+                        ha = 'center', va = 'bottom', fontweight = 'bold')
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = "proportion_difference_test"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"Proportion Difference Test: {summary_dict['test_used']}")
+        print(f"Significance level: alpha = {alpha:.3f} ({confidence_level_pct}% confidence).")
+        print(f"Test statistic: {summary_dict['statistic']:.4f}, p-value: {summary_dict['p_value']:.4e}")
+        if summary_dict['reject_H0']:
+            print("Conclusion: REJECT the null hypothesis H0. There is a statistically significant difference in proportions between groups.\n")
+        else:
+            print("Conclusion: ACCEPT the null hypothesis H0. There is no sufficient evidence of a difference in proportions between groups.\n")
+        print("Group Breakdown:")
+        try:
+            from IPython.display import display
+            display(results_df)
+        except Exception:
+            print(results_df)
+
+    return summary_dict, results_df
+
+
+def monte_carlo_simulation (simulation_function_or_equation, input_distributions, n_iterations = 10000, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 50, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    monte_carlo_simulation (simulation_function_or_equation, input_distributions, n_iterations = 10000, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 50, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Conducts a general Monte Carlo simulation on an engineering, physical, or financial model/equation
+    under parameter uncertainty. Supports either a callable Python function or a mathematical formula string,
+    with independent stochastic input distributions. Computes key risk metrics (Value at Risk, Conditional VaR /
+    Expected Shortfall), confidence intervals, percentiles, and returns simulated realizations.
+    
+    : param: simulation_function_or_equation: callable function accepting a dictionary/keyword arguments,
+      or a mathematical formula string (e.g., "revenue - fixed_costs - variable_costs", "pressure * volume / temperature").
+    : param: input_distributions: dictionary mapping parameter names to distribution tuples or scipy rv objects, e.g.:
+      {'revenue': ('normal', 100000, 15000), 'fixed_costs': ('uniform', 20000, 30000), 'rate': ('beta', 2, 5)}
+    : param: n_iterations: integer, number of Monte Carlo iterations (default 10000).
+    : param: confidence_level_pct: confidence level percentage for interval and VaR estimation (default 95).
+    : param: random_state: integer seed for reproducible random sampling (default 42).
+    : param: show_plot: boolean (default True), whether to display the distribution histogram and KDE.
+    : param: bins: integer, number of histogram bins (default 50).
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid lines on the plot.
+    : param: export_png: boolean, whether to save figure as PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (simulated_df, summary_dict).
+    """
+
+    from scipy import stats
+
+    np.random.seed(random_state)
+    alpha = 1.0 - (confidence_level_pct / 100.0)
+
+    # Sample input variables
+    sampled_inputs = {}
+    for var_name, dist_spec in input_distributions.items():
+        if callable(getattr(dist_spec, 'rvs', None)):
+            sampled_inputs[var_name] = dist_spec.rvs(size = n_iterations)
+        elif isinstance(dist_spec, (tuple, list)):
+            dist_type = str(dist_spec[0]).lower()
+            args = dist_spec[1:]
+            if dist_type in ['norm', 'normal']:
+                loc = args[0] if len(args) > 0 else 0.0
+                scale = args[1] if len(args) > 1 else 1.0
+                sampled_inputs[var_name] = np.random.normal(loc, scale, size = n_iterations)
+            elif dist_type in ['uniform']:
+                low = args[0] if len(args) > 0 else 0.0
+                high = args[1] if len(args) > 1 else 1.0
+                sampled_inputs[var_name] = np.random.uniform(low, high, size = n_iterations)
+            elif dist_type in ['lognormal', 'lognorm']:
+                mean = args[0] if len(args) > 0 else 0.0
+                sigma = args[1] if len(args) > 1 else 1.0
+                sampled_inputs[var_name] = np.random.lognormal(mean, sigma, size = n_iterations)
+            elif dist_type in ['exponential', 'expon']:
+                scale = args[0] if len(args) > 0 else 1.0
+                sampled_inputs[var_name] = np.random.exponential(scale, size = n_iterations)
+            elif dist_type in ['triangular', 'triang']:
+                left, mode, right = args[0], args[1], args[2]
+                sampled_inputs[var_name] = np.random.triangular(left, mode, right, size = n_iterations)
+            elif dist_type in ['poisson']:
+                lam = args[0] if len(args) > 0 else 1.0
+                sampled_inputs[var_name] = np.random.poisson(lam, size = n_iterations)
+            elif dist_type in ['beta']:
+                a, b = args[0], args[1]
+                sampled_inputs[var_name] = np.random.beta(a, b, size = n_iterations)
+            elif dist_type in ['gamma']:
+                shape, scale = args[0], args[1] if len(args) > 1 else 1.0
+                sampled_inputs[var_name] = np.random.gamma(shape, scale, size = n_iterations)
+            else:
+                raise InvalidInputsError(f"Unsupported distribution type '{dist_type}' for variable '{var_name}'.")
+        else:
+            raise InvalidInputsError(f"Invalid distribution specification for variable '{var_name}'.")
+
+    simulated_df = pd.DataFrame(sampled_inputs)
+
+    # Evaluate equation or callable function
+    if callable(simulation_function_or_equation):
+        try:
+            outputs = [simulation_function_or_equation({k: simulated_df[k].iloc[i] for k in simulated_df.columns}) for i in range(n_iterations)]
+            simulated_df['simulation_output'] = np.array(outputs)
+        except Exception:
+            # Try passing DataFrame directly
+            simulated_df['simulation_output'] = simulation_function_or_equation(simulated_df)
+    elif isinstance(simulation_function_or_equation, str):
+        try:
+            simulated_df['simulation_output'] = simulated_df.eval(simulation_function_or_equation)
+        except Exception as e:
+            raise InvalidInputsError(f"Could not evaluate mathematical expression '{simulation_function_or_equation}': {e}")
+    else:
+        raise InvalidInputsError("simulation_function_or_equation must be either a callable Python function or a string expression.")
+
+    y = simulated_df['simulation_output'].values
+    mean_val = float(np.mean(y))
+    std_val = float(np.std(y, ddof = 1))
+    median_val = float(np.median(y))
+    skew_val = float(stats.skew(y))
+    kurt_val = float(stats.kurtosis(y, fisher = True))
+
+    ci_lower = float(np.percentile(y, 100.0 * (alpha / 2.0)))
+    ci_upper = float(np.percentile(y, 100.0 * (1.0 - alpha / 2.0)))
+
+    # Risk metrics: Value at Risk (VaR) and Conditional Value at Risk (CVaR)
+    var_95 = float(np.percentile(y, 5.0))
+    cvar_95 = float(np.mean(y[y <= var_95])) if np.any(y <= var_95) else var_95
+    var_99 = float(np.percentile(y, 1.0))
+    cvar_99 = float(np.mean(y[y <= var_99])) if np.any(y <= var_99) else var_99
+
+    summary_dict = {
+        'n_iterations': n_iterations,
+        'mean': mean_val,
+        'standard_deviation': std_val,
+        'median': median_val,
+        'minimum': float(np.min(y)),
+        'maximum': float(np.max(y)),
+        'skewness': skew_val,
+        'kurtosis': kurt_val,
+        'confidence_level_pct': confidence_level_pct,
+        'confidence_interval': (ci_lower, ci_upper),
+        'percentiles': {
+            '1%': var_99,
+            '5%': var_95,
+            '25%': float(np.percentile(y, 25.0)),
+            '50%': median_val,
+            '75%': float(np.percentile(y, 75.0)),
+            '95%': float(np.percentile(y, 95.0)),
+            '99%': float(np.percentile(y, 99.0))
+        },
+        'VaR_95': var_95,
+        'CVaR_95': cvar_95,
+        'VaR_99': var_99,
+        'CVaR_99': cvar_99
+    }
+
+    if show_plot and ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (12, 7))
+        sns.histplot(y, bins = bins, kde = True, color = 'steelblue', stat = 'density', alpha = 0.6, ax = ax)
+        ax.axvline(mean_val, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Mean ({mean_val:.2f})')
+        ax.axvline(median_val, color = 'forestgreen', linestyle = ':', linewidth = 2, label = f'Median ({median_val:.2f})')
+        ax.axvline(ci_lower, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.2f})')
+        ax.axvline(ci_upper, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.2f})')
+        ax.axvline(var_95, color = 'darkorange', linestyle = '-', linewidth = 2, label = f'VaR 95% ({var_95:.2f})')
+
+        ax.set_title(f"Monte Carlo Simulation Distribution ({n_iterations:,} Iterations)")
+        ax.set_xlabel("Simulated Outcome")
+        ax.set_ylabel("Probability Density")
+        ax.legend(loc = 'best')
+        ax.grid(grid, linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = "monte_carlo_simulation"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"Monte Carlo Simulation Completed ({n_iterations:,} Iterations):\n")
+        print(f"Mean Outcome: {mean_val:.4f} | Std Dev: {std_val:.4f} | Median: {median_val:.4f}")
+        print(f"{confidence_level_pct}% Empirical Confidence Interval: [{ci_lower:.4f}, {ci_upper:.4f}]")
+        print(f"Value at Risk (VaR 95%): {var_95:.4f} | Conditional VaR (CVaR 95%): {cvar_95:.4f}")
+        print(f"Skewness: {skew_val:.4f} | Kurtosis: {kurt_val:.4f}\n")
+
+    return simulated_df, summary_dict
+
+
+def generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', quantile_p = 0.5, sample_size = None, n_replications = 2000, sampling_method = 'bootstrap', strata_column = None, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', quantile_p = 0.5, sample_size = None, n_replications = 2000, sampling_method = 'bootstrap', strata_column = None, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Generates sampling and bootstrap distributions to analyze statistical estimation properties,
+    demonstrate the Central Limit Theorem (CLT), quantify sampling variability, compute empirical standard errors,
+    and construct bootstrap confidence intervals.
+    
+    : param: df: pandas DataFrame containing the population or sample data.
+    : param: column_to_analyze: string, column name to analyze.
+    : param: statistic: string, statistic to estimate: 'mean', 'median', 'std', 'var', 'quantile' (default 'mean').
+    : param: quantile_p: float between 0 and 1 (default 0.5), used when statistic == 'quantile'.
+    : param: sample_size: integer, size of each sampled subgroup (defaults to len(df) for bootstrap).
+    : param: n_replications: integer, number of resamples to draw (default 2000).
+    : param: sampling_method: string, 'bootstrap' (with replacement), 'simple_random' (without replacement), or 'stratified'.
+    : param: strata_column: string (optional), column used for stratification when sampling_method == 'stratified'.
+    : param: confidence_level_pct: confidence level percentage (default 95).
+    : param: random_state: integer seed for random generator (default 42).
+    : param: show_plot: boolean, whether to display the sampling distribution plot.
+    : param: bins: integer, number of histogram bins (default 40).
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid on the plot.
+    : param: export_png: boolean, whether to save figure as PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (sampling_distribution_series, summary_dict).
+    """
+
+    from scipy import stats
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_to_analyze not in df.columns:
+        raise InvalidInputsError(f"column_to_analyze '{column_to_analyze}' was not found in DataFrame.")
+
+    np.random.seed(random_state)
+    alpha = 1.0 - (confidence_level_pct / 100.0)
+    data = df[column_to_analyze].dropna()
+    N = len(data)
+
+    if sample_size is None:
+        sample_size = N if sampling_method == 'bootstrap' else max(10, int(0.5 * N))
+
+    if sampling_method == 'simple_random' and sample_size > N:
+        raise InvalidInputsError("sample_size cannot exceed population size for sampling without replacement.")
+
+    # Helper function to compute statistic
+    def compute_stat(vals):
+        if statistic == 'mean':
+            return float(np.mean(vals))
+        elif statistic == 'median':
+            return float(np.median(vals))
+        elif statistic == 'std':
+            return float(np.std(vals, ddof = 1))
+        elif statistic == 'var':
+            return float(np.var(vals, ddof = 1))
+        elif statistic == 'quantile':
+            return float(np.percentile(vals, 100.0 * quantile_p))
+        else:
+            raise InvalidInputsError(f"Unsupported statistic '{statistic}'. Choose from 'mean', 'median', 'std', 'var', 'quantile'.")
+
+    observed_stat = compute_stat(data.values)
+    replicated_stats = []
+
+    if sampling_method == 'bootstrap':
+        for _ in range(n_replications):
+            resample = np.random.choice(data.values, size = sample_size, replace = True)
+            replicated_stats.append(compute_stat(resample))
+    elif sampling_method == 'simple_random':
+        for _ in range(n_replications):
+            resample = np.random.choice(data.values, size = sample_size, replace = False)
+            replicated_stats.append(compute_stat(resample))
+    elif sampling_method == 'stratified':
+        if strata_column is None or strata_column not in df.columns:
+            raise InvalidInputsError("strata_column must be provided and present in df for stratified sampling.")
+        clean_df = df.dropna(subset = [column_to_analyze, strata_column])
+        strata_weights = clean_df[strata_column].value_counts(normalize = True)
+        for _ in range(n_replications):
+            sampled_parts = []
+            for stratum, weight in strata_weights.items():
+                stratum_data = clean_df[clean_df[strata_column] == stratum][column_to_analyze].values
+                n_stratum = max(1, int(round(sample_size * weight)))
+                sampled_parts.extend(np.random.choice(stratum_data, size = n_stratum, replace = True))
+            replicated_stats.append(compute_stat(sampled_parts[:sample_size]))
+    else:
+        raise InvalidInputsError("sampling_method must be one of 'bootstrap', 'simple_random', or 'stratified'.")
+
+    replicated_stats = np.array(replicated_stats)
+    mean_stat = float(np.mean(replicated_stats))
+    se_empirical = float(np.std(replicated_stats, ddof = 1))
+
+    # Analytical SE for mean (Central Limit Theorem)
+    se_analytical = float(np.std(data.values, ddof = 1) / np.sqrt(sample_size)) if statistic == 'mean' else None
+
+    # Percentile confidence interval
+    ci_lower = float(np.percentile(replicated_stats, 100.0 * (alpha / 2.0)))
+    ci_upper = float(np.percentile(replicated_stats, 100.0 * (1.0 - alpha / 2.0)))
+
+    summary_dict = {
+        'statistic': statistic,
+        'observed_statistic': observed_stat,
+        'sampling_mean': mean_stat,
+        'standard_error_empirical': se_empirical,
+        'standard_error_analytical': se_analytical,
+        'sampling_method': sampling_method,
+        'sample_size': sample_size,
+        'n_replications': n_replications,
+        'confidence_level_pct': confidence_level_pct,
+        'confidence_interval': (ci_lower, ci_upper)
+    }
+
+    if show_plot and ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (11, 6))
+        sns.histplot(replicated_stats, bins = bins, kde = True, color = 'darkcyan', stat = 'density', alpha = 0.6, ax = ax)
+        ax.axvline(observed_stat, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Observed ({observed_stat:.3f})')
+        ax.axvline(ci_lower, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.3f})')
+        ax.axvline(ci_upper, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.3f})')
+        ax.set_title(f"Sampling Distribution of {statistic.title()} ({sampling_method.title()}, n={sample_size}, reps={n_replications:,})")
+        ax.set_xlabel(f"Sample {statistic.title()}")
+        ax.set_ylabel("Density")
+        ax.legend(loc = 'best')
+        ax.grid(grid, linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"sampling_distribution_{column_to_analyze}_{statistic}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"Sampling Distribution Analysis ({sampling_method.title()}, {n_replications:,} replications):")
+        print(f"Observed {statistic}: {observed_stat:.4f} | Mean of Sampling Distribution: {mean_stat:.4f}")
+        print(f"Empirical Standard Error (SE): {se_empirical:.4f}")
+        if se_analytical is not None:
+            print(f"Analytical Standard Error (CLT: s / sqrt(n)): {se_analytical:.4f}")
+        print(f"{confidence_level_pct}% Bootstrap Confidence Interval: [{ci_lower:.4f}, {ci_upper:.4f}]\n")
+
+    return pd.Series(replicated_stats, name = f'{statistic}_sampling_distribution'), summary_dict
+
+
+def bayesian_inference_analysis (model_type = 'beta_binomial', prior_alpha = 1.0, prior_beta = 1.0, prior_mean = 0.0, prior_variance = 1.0, data = None, successes = None, trials = None, likelihood_variance = None, confidence_level_pct = 95, show_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    bayesian_inference_analysis (model_type = 'beta_binomial', prior_alpha = 1.0, prior_beta = 1.0, prior_mean = 0.0, prior_variance = 1.0, data = None, successes = None, trials = None, likelihood_variance = None, confidence_level_pct = 95, show_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Performs Bayesian inference and evidence updating using exact conjugate families:
+    1. Beta-Binomial Conjugate Model: for conversion rates, failure rates, and proportions.
+    2. Normal-Normal Conjugate Model: for continuous mean values under known or sample variance.
+    Computes prior, likelihood, and posterior distributions, posterior point estimates (mean, mode, variance),
+    and exact credible intervals.
+    
+    : param: model_type: string, 'beta_binomial' (for proportions/rates) or 'normal_normal' (for continuous means).
+    : param: prior_alpha: float (default 1.0), alpha shape parameter for Beta prior (default uniform prior Beta(1,1)).
+    : param: prior_beta: float (default 1.0), beta shape parameter for Beta prior.
+    : param: prior_mean: float (default 0.0), prior mean for Normal prior.
+    : param: prior_variance: float (default 1.0), prior variance for Normal prior.
+    : param: data: array-like (optional), observed sample data.
+    : param: successes: integer (optional), number of observed successes (for Beta-Binomial).
+    : param: trials: integer (optional), total number of trials (for Beta-Binomial).
+    : param: likelihood_variance: float (optional), known variance of data for Normal-Normal model (defaults to sample variance).
+    : param: confidence_level_pct: credible interval percentage (default 95).
+    : param: show_plot: boolean, whether to display the Prior vs Likelihood vs Posterior plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid on the plot.
+    : param: export_png: boolean, whether to save figure as PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (posterior_summary_dict, plot_data_df).
+    """
+
+    from scipy import stats
+
+    alpha_level = 1.0 - (confidence_level_pct / 100.0)
+
+    if model_type == 'beta_binomial':
+        # Derive successes and trials
+        if data is not None:
+            clean_data = pd.Series(data).dropna().values
+            k = int(np.sum(clean_data == 1))
+            n = int(len(clean_data))
+        elif successes is not None and trials is not None:
+            k = int(successes)
+            n = int(trials)
+        else:
+            raise InvalidInputsError("For beta_binomial model, provide either data (binary array) or successes and trials.")
+
+        post_alpha = prior_alpha + k
+        post_beta = prior_beta + (n - k)
+
+        post_mean = post_alpha / (post_alpha + post_beta)
+        if post_alpha > 1 and post_beta > 1:
+            post_mode = (post_alpha - 1.0) / (post_alpha + post_beta - 2.0)
+        else:
+            post_mode = post_mean
+        post_var = (post_alpha * post_beta) / (((post_alpha + post_beta) ** 2) * (post_alpha + post_beta + 1.0))
+        post_std = np.sqrt(post_var)
+
+        ci_lower = float(stats.beta.ppf(alpha_level / 2.0, post_alpha, post_beta))
+        ci_upper = float(stats.beta.ppf(1.0 - alpha_level / 2.0, post_alpha, post_beta))
+
+        theta = np.linspace(0.001, 0.999, 500)
+        prior_pdf = stats.beta.pdf(theta, prior_alpha, prior_beta)
+        post_pdf = stats.beta.pdf(theta, post_alpha, post_beta)
+        # Likelihood scaled to match density scale:
+        lik_pdf = stats.binom.pmf(k, n, theta)
+        lik_scaled = lik_pdf * (np.max(post_pdf) / (np.max(lik_pdf) if np.max(lik_pdf) > 0 else 1.0))
+
+        plot_df = pd.DataFrame({
+            'theta': theta,
+            'Prior_PDF': prior_pdf,
+            'Likelihood_Normalized': lik_scaled,
+            'Posterior_PDF': post_pdf
+        })
+
+        summary_dict = {
+            'model_type': 'beta_binomial',
+            'prior_parameters': {'alpha': prior_alpha, 'beta': prior_beta},
+            'observed_evidence': {'successes': k, 'trials': n, 'sample_rate': k / n if n > 0 else 0.0},
+            'posterior_parameters': {'alpha': post_alpha, 'beta': post_beta},
+            'posterior_mean': float(post_mean),
+            'posterior_mode': float(post_mode),
+            'posterior_variance': float(post_var),
+            'posterior_std': float(post_std),
+            'credible_interval_pct': confidence_level_pct,
+            'credible_interval': (ci_lower, ci_upper)
+        }
+
+        xlabel_title = "Proportion / Success Probability (theta)"
+        plot_title_str = f"Beta-Binomial Bayesian Updating (Successes={k}, Trials={n})"
+
+    elif model_type == 'normal_normal':
+        if data is None:
+            raise InvalidInputsError("For normal_normal model, please provide observed data.")
+        clean_data = pd.Series(data).dropna().values.astype(float)
+        n = len(clean_data)
+        if n == 0:
+            raise InvalidInputsError("data contains no valid observations.")
+
+        x_bar = float(np.mean(clean_data))
+        sigma2 = float(likelihood_variance) if likelihood_variance is not None else float(np.var(clean_data, ddof = 1)) if n > 1 else 1.0
+
+        # Normal-Normal conjugate update:
+        # Precision tau = 1 / variance
+        tau_0 = 1.0 / prior_variance
+        tau_data = n / sigma2
+        tau_post = tau_0 + tau_data
+
+        post_var = 1.0 / tau_post
+        post_std = np.sqrt(post_var)
+        post_mean = (tau_0 * prior_mean + tau_data * x_bar) / tau_post
+        post_mode = post_mean
+
+        ci_lower = float(stats.norm.ppf(alpha_level / 2.0, loc = post_mean, scale = post_std))
+        ci_upper = float(stats.norm.ppf(1.0 - alpha_level / 2.0, loc = post_mean, scale = post_std))
+
+        spread = max(3.0 * np.sqrt(prior_variance), 3.0 * post_std, 3.0 * np.sqrt(sigma2 / n))
+        x_grid = np.linspace(min(prior_mean, post_mean, x_bar) - spread, max(prior_mean, post_mean, x_bar) + spread, 500)
+        prior_pdf = stats.norm.pdf(x_grid, loc = prior_mean, scale = np.sqrt(prior_variance))
+        post_pdf = stats.norm.pdf(x_grid, loc = post_mean, scale = post_std)
+        lik_pdf = stats.norm.pdf(x_grid, loc = x_bar, scale = np.sqrt(sigma2 / n))
+
+        plot_df = pd.DataFrame({
+            'mu': x_grid,
+            'Prior_PDF': prior_pdf,
+            'Likelihood_Normalized': lik_pdf,
+            'Posterior_PDF': post_pdf
+        })
+
+        summary_dict = {
+            'model_type': 'normal_normal',
+            'prior_parameters': {'mean': prior_mean, 'variance': prior_variance},
+            'observed_evidence': {'n_samples': n, 'sample_mean': x_bar, 'sample_variance': sigma2},
+            'posterior_parameters': {'mean': float(post_mean), 'variance': float(post_var), 'std': float(post_std)},
+            'posterior_mean': float(post_mean),
+            'posterior_mode': float(post_mode),
+            'posterior_variance': float(post_var),
+            'posterior_std': float(post_std),
+            'credible_interval_pct': confidence_level_pct,
+            'credible_interval': (ci_lower, ci_upper)
+        }
+
+        xlabel_title = "Parameter Mean (mu)"
+        plot_title_str = f"Normal-Normal Bayesian Updating (n={n}, Sample Mean={x_bar:.2f})"
+
+    else:
+        raise InvalidInputsError("model_type must be either 'beta_binomial' or 'normal_normal'.")
+
+    if show_plot and ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (11, 6))
+        x_col = plot_df.columns[0]
+        ax.plot(plot_df[x_col], plot_df['Prior_PDF'], 'k--', linewidth = 1.8, label = 'Prior Distribution')
+        ax.plot(plot_df[x_col], plot_df['Likelihood_Normalized'], 'g:', linewidth = 2.0, label = 'Likelihood (Normalized)')
+        ax.plot(plot_df[x_col], plot_df['Posterior_PDF'], 'b-', linewidth = 2.5, label = 'Posterior Distribution')
+
+        ax.axvline(post_mean, color = 'darkred', linestyle = '-.', label = f'Posterior Mean ({post_mean:.3f})')
+        ax.fill_between(plot_df[x_col], 0, plot_df['Posterior_PDF'],
+                        where = (plot_df[x_col] >= ci_lower) & (plot_df[x_col] <= ci_upper),
+                        color = 'blue', alpha = 0.2, label = f'{confidence_level_pct}% Credible Interval')
+
+        ax.set_title(plot_title_str)
+        ax.set_xlabel(xlabel_title)
+        ax.set_ylabel("Probability Density")
+        ax.legend(loc = 'best')
+        ax.grid(grid, linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"bayesian_inference_{model_type}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"Bayesian Analysis Completed ({model_type}):")
+        print(f"Posterior Mean: {post_mean:.4f} | Posterior Std: {post_std:.4f} | Posterior Mode: {post_mode:.4f}")
+        print(f"{confidence_level_pct}% Credible Interval: [{ci_lower:.4f}, {ci_upper:.4f}]\n")
+
+    return summary_dict, plot_df
+
+
+def generate_and_fit_distribution (distribution_name = 'normal', distribution_params = None, sample_size = 1000, fit_distribution = True, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    generate_and_fit_distribution (distribution_name = 'normal', distribution_params = None, sample_size = 1000, fit_distribution = True, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Generates synthetic industrial / sensor data following a specified theoretical probability distribution,
+    fits distribution parameters back to the generated sample, evaluates goodness of fit, and compares the
+    empirical Kernel Density Estimation (KDE) directly against the theoretical Probability Density Function (PDF).
+    
+    : param: distribution_name: string, distribution to simulate and fit: 'normal', 'lognormal', 'exponential',
+      'gamma', 'weibull', 'uniform', 'poisson', 'beta' (default 'normal').
+    : param: distribution_params: dict or tuple of parameters for the distribution (e.g., {'loc': 50, 'scale': 5}).
+    : param: sample_size: integer, number of samples to generate (default 1000).
+    : param: fit_distribution: boolean, whether to fit the distribution back to the generated data.
+    : param: random_state: integer seed for random generator (default 42).
+    : param: show_plot: boolean, whether to show comparison plot between KDE and theoretical PDF.
+    : param: bins: integer, number of histogram bins (default 40).
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid on the plot.
+    : param: export_png: boolean, whether to save figure as PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (generated_df, fit_summary_dict).
+    """
+
+    from scipy import stats
+
+    np.random.seed(random_state)
+    dist_clean = str(distribution_name).strip().lower()
+
+    if distribution_params is None:
+        distribution_params = {}
+
+    # Sample generation
+    if dist_clean in ['normal', 'norm']:
+        loc = distribution_params.get('loc', 0.0)
+        scale = distribution_params.get('scale', 1.0)
+        data = np.random.normal(loc, scale, size = sample_size)
+        dist_obj = stats.norm
+    elif dist_clean in ['lognormal', 'lognorm']:
+        s = distribution_params.get('s', distribution_params.get('sigma', 0.5))
+        scale = distribution_params.get('scale', np.exp(distribution_params.get('mean', 1.0)))
+        loc = distribution_params.get('loc', 0.0)
+        data = stats.lognorm.rvs(s, loc = loc, scale = scale, size = sample_size, random_state = random_state)
+        dist_obj = stats.lognorm
+    elif dist_clean in ['exponential', 'expon']:
+        scale = distribution_params.get('scale', 1.0)
+        loc = distribution_params.get('loc', 0.0)
+        data = np.random.exponential(scale, size = sample_size) + loc
+        dist_obj = stats.expon
+    elif dist_clean in ['gamma']:
+        a = distribution_params.get('a', distribution_params.get('shape', 2.0))
+        scale = distribution_params.get('scale', 1.0)
+        loc = distribution_params.get('loc', 0.0)
+        data = stats.gamma.rvs(a, loc = loc, scale = scale, size = sample_size, random_state = random_state)
+        dist_obj = stats.gamma
+    elif dist_clean in ['weibull', 'weibull_min']:
+        c = distribution_params.get('c', distribution_params.get('shape', 1.5))
+        scale = distribution_params.get('scale', 1.0)
+        loc = distribution_params.get('loc', 0.0)
+        data = stats.weibull_min.rvs(c, loc = loc, scale = scale, size = sample_size, random_state = random_state)
+        dist_obj = stats.weibull_min
+    elif dist_clean in ['uniform']:
+        low = distribution_params.get('low', 0.0)
+        high = distribution_params.get('high', 10.0)
+        data = np.random.uniform(low, high, size = sample_size)
+        dist_obj = stats.uniform
+    elif dist_clean in ['poisson']:
+        lam = distribution_params.get('lam', distribution_params.get('mu', 5.0))
+        data = np.random.poisson(lam, size = sample_size)
+        dist_obj = stats.poisson
+    elif dist_clean in ['beta']:
+        a = distribution_params.get('a', 2.0)
+        b = distribution_params.get('b', 5.0)
+        data = stats.beta.rvs(a, b, size = sample_size, random_state = random_state)
+        dist_obj = stats.beta
+    else:
+        raise InvalidInputsError(f"Unsupported distribution_name '{distribution_name}'. Choose from 'normal', 'lognormal', 'exponential', 'gamma', 'weibull', 'uniform', 'poisson', 'beta'.")
+
+    generated_df = pd.DataFrame({'generated_values': data})
+
+    fit_summary_dict = {
+        'distribution': distribution_name,
+        'sample_size': sample_size,
+        'sample_mean': float(np.mean(data)),
+        'sample_std': float(np.std(data, ddof = 1)),
+        'sample_median': float(np.median(data)),
+        'sample_skewness': float(stats.skew(data)),
+        'sample_kurtosis': float(stats.kurtosis(data, fisher = True))
+    }
+
+    fitted_params = None
+    ks_stat, ks_pval = None, None
+    if fit_distribution:
+        if dist_clean == 'poisson':
+            fit_mu = float(np.mean(data))
+            fitted_params = (fit_mu,)
+            fit_summary_dict['fitted_parameters'] = fitted_params
+        else:
+            fitted_params = dist_obj.fit(data)
+            fit_summary_dict['fitted_parameters'] = fitted_params
+            try:
+                ks_res = stats.kstest(data, dist_obj.cdf, args = fitted_params)
+                ks_stat = float(ks_res.statistic)
+                ks_pval = float(ks_res.pvalue)
+                fit_summary_dict['KS_statistic'] = ks_stat
+                fit_summary_dict['KS_p_value'] = ks_pval
+            except Exception:
+                pass
+
+    if show_plot and ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (11, 6))
+        sns.histplot(data, bins = bins, stat = 'density', color = 'lightsteelblue', edgecolor = 'black', alpha = 0.5, label = 'Histogram', ax = ax)
+        sns.kdeplot(data, color = 'darkblue', linewidth = 2.5, label = 'Empirical KDE', ax = ax)
+
+        if fitted_params is not None and dist_clean != 'poisson':
+            x_range = np.linspace(min(data), max(data), 400)
+            pdf_theoretical = dist_obj.pdf(x_range, *fitted_params)
+            ax.plot(x_range, pdf_theoretical, color = 'crimson', linestyle = '--', linewidth = 2, label = f'Theoretical Fit ({distribution_name})')
+
+        ax.set_title(f"Empirical KDE vs Theoretical PDF for {distribution_name.title()} (n={sample_size:,})")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Density")
+        ax.legend(loc = 'best')
+        ax.grid(grid, linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"distribution_fit_kde_{distribution_name}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"Generated {sample_size:,} samples following '{distribution_name}' distribution.")
+        print(f"Sample Mean: {fit_summary_dict['sample_mean']:.4f} | Std: {fit_summary_dict['sample_std']:.4f} | Median: {fit_summary_dict['sample_median']:.4f}")
+        if fitted_params is not None:
+            print(f"Fitted distribution parameters: {fitted_params}")
+            if ks_pval is not None:
+                print(f"Kolmogorov-Smirnov goodness of fit: stat = {ks_stat:.4f}, p-value = {ks_pval:.4f}\n")
+
+    return generated_df, fit_summary_dict
+

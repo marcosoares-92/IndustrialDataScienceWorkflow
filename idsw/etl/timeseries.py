@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -9,609 +9,394 @@ from .joinandgroup import union_dataframes
 from .timestamps import calculate_delay
 
 
+
 def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
- 
-    : param: df: the whole dataframe to be processed.
+
+    Computes and plots Autocorrelation (ACF) and Partial Autocorrelation (PACF) functions for a time series.
+    Identifies statistically significant lags outside the 95% Bartlett confidence interval and returns
+    suggested (p, q) candidate lists for ARIMA modelling.
     
-    : param: column_to_analyze: string (inside quotes), 
-      containing the name of the column that will be analyzed. 
-      e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
-    
-    : param:number_of_lags: integer value. e.g. number_of_lags = 50
-      represents how much lags will be tested, and the length of the horizontal axis.
+    : param: df: pandas DataFrame containing the time series data.
+    : param: column_to_analyze: string, column name of the series to analyze.
+    : param: number_of_lags: integer (default 40), maximum lag order to evaluate and plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to display grid lines on the plot.
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (suggested_p_vals, suggested_q_vals, diagnosis_dict).
     """
 
     import statsmodels.api as sm
-   
-    # Set a copy of the dataframe to manipulate:
+    from statsmodels.tsa.stattools import acf, pacf
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_to_analyze not in df.columns:
+        raise InvalidInputsError(f"column_to_analyze '{column_to_analyze}' was not found in DataFrame.")
+
     DATASET = df.copy(deep = True)
-    
-    #Define the series to be analyzed:
-    y = DATASET[column_to_analyze]
-    
-    """This function only creates plots, so it is not blocked by the context"""
+    y = DATASET[column_to_analyze].dropna()
+    N = len(y)
 
-    #Create the figure:
-    fig = plt.figure(figsize = (12, 8)) 
-    ax1 = fig.add_subplot(211)
-    #ax1.set_xlabel("Lags")
-    ax1.set_ylabel("Autocorrelation_Function_ACF")
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    ax1.grid(grid)
-    
-    fig = sm.graphics.tsa.plot_acf(y.values.squeeze(), lags = number_of_lags, ax = ax1, color = 'darkblue')
-    ax2 = fig.add_subplot(212)
-    fig = sm.graphics.tsa.plot_pacf(y, lags = number_of_lags, ax = ax2, color = 'darkblue', method = 'ywm')
-    ax2.set_xlabel("Lags")
-    ax2.set_ylabel("Partial_Autocorrelation_Function_PACF")
-        
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    ax2.grid(grid)
-        
-    if (export_png == True):
-        # Image will be exported
-        import os
+    if N < 10:
+        raise InvalidInputsError("Series must contain at least 10 non-null observations for lag diagnosis.")
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+    max_lags = min(number_of_lags, N // 2 - 1)
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "lag_diagnosis"
+    # Compute ACF and PACF values and confidence intervals
+    acf_vals, acf_confint = acf(y.values, nlags = max_lags, alpha = 0.05)
+    pacf_vals, pacf_confint = pacf(y.values, nlags = max_lags, alpha = 0.05, method = 'ywm')
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+    # Detect significant lags outside confidence bands (excluding lag 0)
+    # Significant PACF lags suggest AR order (p)
+    suggested_p_vals = []
+    for lag in range(1, len(pacf_vals)):
+        lower, upper = pacf_confint[lag][0], pacf_confint[lag][1]
+        if (lower > 0 and upper > 0) or (lower < 0 and upper < 0):
+            suggested_p_vals.append(lag)
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #fig.tight_layout()
+    # Significant ACF lags suggest MA order (q)
+    suggested_q_vals = []
+    for lag in range(1, len(acf_vals)):
+        lower, upper = acf_confint[lag][0], acf_confint[lag][1]
+        if (lower > 0 and upper > 0) or (lower < 0 and upper < 0):
+            suggested_q_vals.append(lag)
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-    
+    if len(suggested_p_vals) == 0:
+        suggested_p_vals = [1]
+    if len(suggested_q_vals) == 0:
+        suggested_q_vals = [1]
+
+    diagnosis_dict = {
+        'column_analyzed': column_to_analyze,
+        'number_of_observations': N,
+        'max_lags_tested': max_lags,
+        'suggested_p_values': suggested_p_vals,
+        'suggested_q_values': suggested_q_vals,
+        'acf_values': acf_vals.tolist(),
+        'pacf_values': pacf_vals.tolist()
+    }
+
+    if ControlVars.show_plots:
+        fig = plt.figure(figsize = (12, 8))
+        ax1 = fig.add_subplot(211)
+        ax1.set_ylabel("Autocorrelation (ACF)")
+        sm.graphics.tsa.plot_acf(y.values.squeeze(), lags = max_lags, ax = ax1, color = 'darkblue')
+        ax1.grid(grid)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        ax2 = fig.add_subplot(212)
+        ax2.set_xlabel("Lags")
+        ax2.set_ylabel("Partial Autocorrelation (PACF)")
+        sm.graphics.tsa.plot_pacf(y.values, lags = max_lags, ax = ax2, color = 'darkblue', method = 'ywm')
+        ax2.grid(grid)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"lag_diagnosis_{column_to_analyze}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
     if ControlVars.show_results:
-        #Print background and interpretation of the graphic:
-        print("\n") #line break
-        print("Use this plot to define the parameters (p, q) for testing ARIMA and ARMA models.\n")
-        print("p defines the order of the autoregressive part (AR) of the time series.")
-        print("p = lags correspondent to the spikes of PACF plot (2nd plot) that are outside the error (blue region).\n")
-        print("For instance, if there are spikes in both lag = 1 and lag = 2, then p = 2, or p = 1\n")
-        print("q defines the order of the moving average part (MA) of the time series.")
-        print("q = lags correspondent to the spikes of ACF plot that are outside blue region.\n")
-        print("For instance, if all spikes until lag = 6 are outside the blue region, then q = 1, 2, 3, 4, 5, 6.\n")
-        print("WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.")
-        print("For lag = 0, the correlation and partial correlation coefficients are always equal to 1, because the data is always perfectly correlated to itself.") 
-        print("Therefore, ignore the first spikes (lag = 0) from ACF and PACF plots.")
+        print("\nLag Diagnosis Summary:")
+        print(f"Suggested AR order candidates p (from significant PACF spikes): {suggested_p_vals}")
+        print(f"Suggested MA order candidates q (from significant ACF spikes): {suggested_q_vals}\n")
+        print("Interpretation:")
+        print("- p defines the order of the autoregressive (AR) part of the model.")
+        print("- q defines the order of the moving average (MA) part of the model.")
+        print("- Ignore lag = 0, as correlation of data with itself is always 1.0.\n")
+
+    return suggested_p_vals, suggested_q_vals, diagnosis_dict
 
 
 def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
     test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    : param: df: the whole dataframe to be processed.
+    Tests integration/differencing parameter d (d = 0, 1, ..., max_tested_d) using Augmented Dickey-Fuller (ADF)
+    stationarity tests. Plots the series and its corresponding ACF at each differencing order without off-by-one errors,
+    and returns a list of optimal d values where the series is verified to be stationary.
     
-    : param: column_to_analyze: string (inside quotes), 
-      containing the name of the column that will be analyzed. 
-      e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
-    
-    : param: max_tested_d: differential order (integer value)
-      change the integer if you want to test other cases. By default, max_tested_d = 2, meaning
-      that the values d = 0, 1, and 2 will be tested.
-      If max_tested_d = 1, d = 0 and 1 will be tested.
-      If max_tested_d = 3, d = 0, 1, 2, and 3 will be tested, and so on.
-    
-    : param: CONFIDENCE_LEVEL = 0.95 = 95% confidence
-      Set CONFIDENCE_LEVEL = 0.90 to get 0.90 = 90% confidence in the analysis.
-      Notice that, when less trust is needed, we can reduce CONFIDENCE_LEVEL 
-      to get less restrictive results.
-    
-    : param: number_of_lags: integer value. e.g. number_of_lags = 50
-      represents how much lags will be tested, and the length of the horizontal axis.
+    : param: df: pandas DataFrame containing the time series data.
+    : param: column_to_analyze: string, column name of the series to analyze.
+    : param: number_of_lags: integer (default 40), maximum lags for ACF plot.
+    : param: max_tested_d: integer (default 2), maximum differencing order to evaluate.
+    : param: confidence_level: float (default 0.95), confidence level for ADF stationarity hypothesis test.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to display grid lines on the plot.
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (optimal_d_list, adf_results_dict).
     """
 
     import statsmodels.api as sm
     from statsmodels.tsa.stattools import adfuller
-    
-    
-    # Set a copy of the dataframe to manipulate:
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_to_analyze not in df.columns:
+        raise InvalidInputsError(f"column_to_analyze '{column_to_analyze}' was not found in DataFrame.")
+
     DATASET = df.copy(deep = True)
-    
-    """This function only creates plots, so it is not blocked by the context"""
+    original_series = DATASET[column_to_analyze].dropna()
+    alpha = 1.0 - confidence_level
 
-    #Define the series to be analyzed:
-    time_series = DATASET[column_to_analyze]
-    
-    # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-    # so that the bars do not completely block other views.
-    OPACITY = 0.95
-    
-    #Create the figure:
-    # Original Series
-    fig, axes = plt.subplots((max_tested_d + 1), 2, sharex = True, figsize = (12, 8)) 
-    # sharex = share axis X
-    # number of subplots equals to the total of orders tested (in this case, 2)
-    # If max_tested_d = 2, we must have a subplot for d = 0, d = 1 and d = 2, i.e.,
-    # wer need 3 subplots = max_tested_d + 1
-    axes[0, 0].plot(time_series, color = 'darkblue', alpha = OPACITY); axes[0, 0].set_title('Original Series')
-    sm.graphics.tsa.plot_acf(time_series, lags = number_of_lags, ax = axes[0, 1], color = 'darkblue', alpha = 0.30)
-    
-    #ROTATE X AXIS IN XX DEGREES
-    plt.xticks(rotation = x_axis_rotation)
-    # XX = 0 DEGREES x_axis (Default)
-    #ROTATE Y AXIS IN XX DEGREES:
-    plt.yticks(rotation = y_axis_rotation)
-    # XX = 0 DEGREES y_axis (Default)
-    
-    axes[0, 0].grid(grid)
-    
-    # Create a subplot for each possible 'd'.
-    # Notice that d = 0 was already tested.
-    for i in range(1, (max_tested_d + 1)):
-        # This loop goes from i = 1 to i = (max_tested_d + 1) - 1 = max_tested_d.
-        # If max_tested_d = 2, this loop goes from i = 1 to i = 2.
-        # If only one value was declared in range(X), then the loop would start from 0.
-        
-        # Difference the time series:
-        time_series = time_series.diff()
-        
-        #the indexing of the list d goes from zero to len(d) - 1
-        # 1st Differencing
-        axes[i, 0].plot(time_series, color = 'darkblue', alpha = OPACITY); axes[i, 0].set_title('%d Order Differencing' %(i))
-        sm.graphics.tsa.plot_acf(time_series.diff().dropna(), lags = number_of_lags, ax = axes[i, 1], color = 'darkblue', alpha = 0.30)
-                
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
+    optimal_d_list = []
+    adf_results_dict = {}
+    differenced_series_list = []
 
-        axes[i, 0].grid(grid)
+    # Prepare differenced series for d = 0, 1, ..., max_tested_d
+    curr_series = original_series.copy()
+    for d_val in range(max_tested_d + 1):
+        if d_val > 0:
+            curr_series = curr_series.diff().dropna()
+        differenced_series_list.append(curr_series.copy())
 
-        if ControlVars.show_results:
-            print('ADF Statistic for %d Order Differencing' %(i))
-            result = adfuller(time_series.dropna())
-            print('ADF Statistic: %f' % result[0])
-            print('p-value: %f' % result[1])
-            print("Interpretation:")
-            print("p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.")
-            print("H0: the process is non-stationary.")
+        # Perform ADF test
+        adf_res = adfuller(curr_series.dropna())
+        adf_stat = float(adf_res[0])
+        p_val = float(adf_res[1])
+        is_stationary = bool(p_val < alpha)
+        if is_stationary:
+            optimal_d_list.append(d_val)
 
-            if (result[1] < (1-confidence_level)):
-                print("For a %.2f confidence level, the %d Order Difference is stationary." %(confidence_level, i))
-                print("You may select d = %d\n" %(i))
+        adf_results_dict[d_val] = {
+            'd': d_val,
+            'adf_statistic': adf_stat,
+            'p_value': p_val,
+            'is_stationary': is_stationary,
+            'critical_values': adf_res[4]
+        }
 
-            else:
-                print("For a %.2f confidence level, the %d Order Difference is non-stationary.\n" %(confidence_level, i))
-        
-    if (export_png == True):
-        # Image will be exported
-        import os
+    # Plot differenced series and their corresponding ACF
+    if ControlVars.show_plots:
+        OPACITY = 0.95
+        fig, axes = plt.subplots(max_tested_d + 1, 2, sharex = False, figsize = (12, 3.5 * (max_tested_d + 1)))
 
-        #check if the user defined a directory path. If not, set as the default root path:
-        if (directory_to_save is None):
-            #set as the default
-            directory_to_save = ""
+        for i in range(max_tested_d + 1):
+            s_i = differenced_series_list[i]
+            title_text = "Original Series (d=0)" if i == 0 else f"{i}-Order Differencing (d={i})"
+            axes[i, 0].plot(s_i, color = 'darkblue', alpha = OPACITY)
+            axes[i, 0].set_title(title_text)
+            axes[i, 0].grid(grid)
 
-        #check if the user defined a file name. If not, set as the default name for this
-        # function.
-        if (file_name is None):
-            #set as the default
-            file_name = "test_d_parameters"
+            # Fix: plot ACF directly on s_i, not s_i.diff()!
+            sm.graphics.tsa.plot_acf(s_i.dropna(), lags = min(number_of_lags, len(s_i) // 2 - 1), ax = axes[i, 1], color = 'darkblue', alpha = 0.30)
+            axes[i, 1].set_title(f"ACF of {title_text}")
+            axes[i, 1].grid(grid)
 
-        #check if the user defined an image resolution. If not, set as the default 110 dpi
-        # resolution.
-        if (png_resolution_dpi is None):
-            #set as 330 dpi
-            png_resolution_dpi = 330
+        plt.tight_layout()
 
-        #Get the new_file_path
-        new_file_path = os.path.join(directory_to_save, file_name)
-        new_file_path = new_file_path + ".png"
-        # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-        #Export the file to this new path:
-        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-        print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-    
-    #fig.tight_layout()
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"test_d_parameters_{column_to_analyze}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
 
-    ## Show an image read from an image file:
-    ## import matplotlib.image as pltimg
-    ## img=pltimg.imread('mydecisiontree.png')
-    ## imgplot = plt.imshow(img)
-    ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-    ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-    ##  '03_05_END.ipynb'
-    plt.show()
-    
+        plt.show()
+
     if ControlVars.show_results:
-        print("\n")
-        print("d = differentiation order for making the process stationary.\n")
-        print("If d = N, then we have to make N successive differentiations.")
-        print("A differentiation consists on substracting a signal Si from its previous signal Si-1.\n")
-        print("Example: 1st-order differentiating consists on taking the differences on the original time series.")
-        print("The 2nd-order, in turns, consists in differentiating the 1st-order differentiation series.")
+        print("\nStationarity (ADF Test) Results per Differencing Order d:")
+        for d_val, res in adf_results_dict.items():
+            status = "STATIONARY (H0 rejected)" if res['is_stationary'] else "NON-STATIONARY (H0 not rejected)"
+            print(f"Order d = {d_val}: ADF Stat = {res['adf_statistic']:.4f}, p-value = {res['p_value']:.4e} -> {status}")
+        print(f"\nRecommended optimal d values achieving stationarity: {optimal_d_list}\n")
+
+    return optimal_d_list, adf_results_dict
 
 
-def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, criterion = 'aic', confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
-    best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, criterion = 'aic', confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Selects and fits the optimal ARIMA(p, d, q) model by evaluating candidate parameter combinations
+    against standard model selection criteria (AIC, BIC, or MAE), preventing flatline convergence failures.
+    Generates in-sample predictions, confidence bands, diagnostic summaries, and returns the fitted results.
     
-    https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMAResults.html#statsmodels.tsa.arima.model.ARIMAResults
-    https://www.statsmodels.org/stable/examples/notebooks/generated/tsa_arma_1.html?highlight=statsmodels%20graphics%20tsaplots%20plot_predict
-    
-    param: df: the whole dataframe to be processed.
-    
-    param: column_to_analyze: string (inside quotes), 
-      containing the name of the column that will be analyzed. 
-      e.g. column_to_analyze = "column1" will analyze the column named as 'column1'.
-    
-    param: timestamp_tag_column = None - keep it as None if you do not want to inform the timestamps
-      Alternatively, declare a string (inside quotes), 
-      containing the name of the column containing the time information. 
-      e.g. timestamp_tag_column = "DATE" will take the timestamps from column 'DATE'.
-      If no column is provided, the index in the dataframe will be used.
-    
-    param: p_vals: list of integers correspondent to the lags (spikes) in the PACF plot.
-      From function lag_diagnosis
-    param: q_vals: list of integers correspondent to the lags (spikes) in ACF plot
-      From function lag_diagnosis
-    param: d = difference for making the process stationary
-      From function test_d_parameters
-    
-    order = (p, d, q) - these are the parameters of the autoregression (p = 2), 
-     integration (d = parameter selected in previous analysis), and
-     moving average (q = 1, 2, 3, 4, 5, etc)
-    d = 0 corresponds to the ARMA model
-    
-    WARNING: do not test the ARIMA/ARMA model for p = 0, or q = 0.
-     For lag = 0, the correlation and partial correlation coefficients 
-     are always equal to 1, because the data is perfectly correlated to itself. 
-     Therefore, ignore the first spikes (lag = 0) of ACF and PACF plots.
-    
-    ALPHA = 1 - confidence_level
-    param: CONFIDENCE_LEVEL = 0.95 = 95% confidence
-      Set CONFIDENCE_LEVEL = 0.90 to get 0.90 = 90% confidence in the analysis.
-      Notice that, when less trust is needed, we can reduce CONFIDENCE_LEVEL 
-      to get less restrictive results.
+    : param: df: pandas DataFrame containing the time series data.
+    : param: column_to_analyze: string, column name of the series to model.
+    : param: p_vals: list or int, candidate autoregressive lag orders p.
+    : param: d: int, differencing order.
+    : param: q_vals: list or int, candidate moving average lag orders q.
+    : param: timestamp_tag_column: string (optional), timestamp column for chronological alignment.
+    : param: criterion: string (default 'aic'), selection metric: 'aic', 'bic', 'mae', 'rmse'.
+    : param: confidence_level: float (default 0.95), confidence level for forecast prediction intervals.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 70).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to display grid lines on the plot.
+    : param: horizontal_axis_title: custom title for the X-axis (optional).
+    : param: vertical_axis_title: custom title for the Y-axis (optional).
+    : param: plot_title: custom title for the plot (optional).
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (returned_ARIMA_Results, arima_summ_dict, arima_df).
     """
 
     import statsmodels.api as sm
+    from statsmodels.tsa.arima.model import ARIMA
     from statsmodels.graphics.tsaplots import plot_predict
-    #this model is present only in the most recent versions of statsmodels
 
-    from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
-    
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
 
-    ALPHA = 1 - confidence_level
-    
-    # Set a copy of the dataframe to manipulate:
+    if column_to_analyze not in df.columns:
+        raise InvalidInputsError(f"column_to_analyze '{column_to_analyze}' was not found in DataFrame.")
+
     DATASET = df.copy(deep = True)
-    
-    #x: timestamp or index series, if no timestamp is provided:
-    if (timestamp_tag_column is None):
-        #Use the indices of the dataframe
-        x = DATASET.index
-    
-    else:
-        #Use the timestamp properly converted to datetime (as in the graphics functions):
-        x = (DATASET[timestamp_tag_column]).astype('datetime64[ns]')
-        DATASET[timestamp_tag_column] = x
-        # To pass the date to ARIMA model, we must specify it as the index, and also pass the
-        # start and end dates
+    ALPHA = 1.0 - confidence_level
+
+    # Normalize candidate parameter lists
+    p_candidates = [p_vals] if isinstance(p_vals, int) else list(p_vals)
+    q_candidates = [q_vals] if isinstance(q_vals, int) else list(q_vals)
+    d_order = int(d)
+
+    if timestamp_tag_column is not None and timestamp_tag_column in DATASET.columns:
+        DATASET[timestamp_tag_column] = pd.to_datetime(DATASET[timestamp_tag_column])
+        DATASET = DATASET.sort_values(by = timestamp_tag_column).reset_index(drop = True)
         DATASET = DATASET.set_index(timestamp_tag_column)
-    
-    #y: tested variable series
-    y = DATASET[column_to_analyze]
-    
-    # date to start the plot (the second element from series x - we will ignore the first one):
-    start_date = x[1]
-    # last date to plot (last element from the series)
-    end_date = x[(len(x) - 1)]
-    print(f"ARIMA model from date (or measurement) = {start_date}; to date (or measurement) = {end_date}.\n")
-    
-    #calculate the first aic and bic
-    #first argument = time series y
-    
-    returned_p = p_vals[0]
-    returned_q = q_vals[0]
-    returned_d = d
-    #use the d-value selected in the non-stationary analysis.
-    #set the integration in 
-    #at this moment, the function simply returns the first elements.
-    
-    ARIMA_model = ARIMA(y, order = (returned_p, returned_d, returned_q))
+        x = DATASET.index
+    else:
+        x = DATASET.index
 
-    #order = (p, d, q) - these are the parameters of the autoregression (p = 2), 
-    #integration (d = parameter selected in previous analysis), and
-    #moving average (q = 1, 2, 3, 4, 5, etc)
+    y = DATASET[column_to_analyze].dropna()
 
-    ARIMA_Results = ARIMA_model.fit()
-    aic_val = ARIMA_Results.aic
-    #AIC value for the first combination.
-    bic_val = ARIMA_Results.bic
-    #BIC value for the first combination, to start the loops.
-    
-    # Mean absolute error:
-    mae = ARIMA_Results.mae
-    # log likelihood calculated:
-    loglikelihood = ARIMA_Results.llf
-    
-    returned_ARIMA_Results = ARIMA_Results
-    #returned object
-    
-    for p in p_vals:
-        #test each possible value for p (each d, p combination)
-        #each p in p_vals list is used.
-        for q in q_vals:
-            #test each possible value for q (each p, d, q combination)
-            #each q in q_vals list is used.
-                
-            ARIMA_model = ARIMA(y, order = (p, returned_d, q))
-            ARIMA_Results = ARIMA_model.fit()
-            aic_tested = ARIMA_Results.aic
-            bic_tested = ARIMA_Results.bic
-            mae_tested = ARIMA_Results.mae
-            loglikelihood_tested = ARIMA_Results.llf
-            
-            if ((mae_tested < mae) & (abs(loglikelihood_tested) > abs(loglikelihood))):
-                
-                # Check if the absolute error was reduced and the likelihood was increased
-                
-                #if better parameters were found, they should be used
-                #update AIC, BIC; the p, d, q returned values;
-                #and the ARIMA_Results from the ARIMA:
-                aic_val = aic_tested
-                bic_val = bic_tested
-                mae = mae_tested
-                loglikelihood = loglikelihood_tested
-                returned_p = p
+    best_score = float('inf')
+    best_p, best_q = p_candidates[0], q_candidates[0]
+    best_results = None
 
-                returned_q = q
-                #return the Statsmodels object:
-                returned_ARIMA_Results = ARIMA_Results
-    
-    #Create a dictionary containing the best parameters and the metrics AIC and BIC
-    arima_summ_dict = {"p": returned_p, "d": returned_d, "q": returned_q,
-                "AIC": returned_ARIMA_Results.aic, "BIC": returned_ARIMA_Results.bic,
-                    "MAE": returned_ARIMA_Results.mae, "log_likelihood": returned_ARIMA_Results.llf}
-    
+    # Grid search over (p, d, q) combinations with safe error handling
+    for p in p_candidates:
+        for q in q_candidates:
+            try:
+                model = ARIMA(y, order = (p, d_order, q))
+                results = model.fit()
+
+                if criterion == 'aic':
+                    score = float(results.aic)
+                elif criterion == 'bic':
+                    score = float(results.bic)
+                elif criterion == 'mae':
+                    score = float(results.mae)
+                elif criterion == 'rmse':
+                    score = float(np.sqrt(results.mse))
+                else:
+                    score = float(results.aic)
+
+                if score < best_score:
+                    best_score = score
+                    best_p = p
+                    best_q = q
+                    best_results = results
+            except Exception:
+                continue
+
+    if best_results is None:
+        # Fallback to simplest (1, d, 0)
+        fallback_model = ARIMA(y, order = (1, d_order, 0))
+        best_results = fallback_model.fit()
+        best_p, best_q = 1, 0
+        best_score = float(best_results.aic)
+
+    returned_ARIMA_Results = best_results
+    returned_p, returned_d, returned_q = best_p, d_order, best_q
+
+    arima_summ_dict = {
+        "p": returned_p,
+        "d": returned_d,
+        "q": returned_q,
+        "AIC": float(returned_ARIMA_Results.aic),
+        "BIC": float(returned_ARIMA_Results.bic),
+        "MAE": float(returned_ARIMA_Results.mae),
+        "RMSE": float(np.sqrt(returned_ARIMA_Results.mse)),
+        "log_likelihood": float(returned_ARIMA_Results.llf),
+        "criterion_used": criterion
+    }
+
     if ControlVars.show_results:
-    #Show ARIMA results:
         print(returned_ARIMA_Results.summary())
-        print("\n")
-        #Break the line and show the combination
-        print("Best combination found: (p, d, q) = (%d, %d, %d)\n" %(returned_p, returned_d, returned_q))
-        #Break the line and print the next indication:
-        print(f"Time series, values predicted by the model, and the correspondent {confidence_level * 100}% Confidence interval for the predictions:\n")
-        #Break the line and print the ARIMA graphic:
-    
-    if ControlVars.show_plots:
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
-        OPACITY = 0.95
-        
-        #Start the figure:
-        fig, ax = plt.subplots(figsize = (12, 8))
-        # Add line of the actual values:
-        ax.plot(x, y, linestyle = '-', marker = '', color = 'darkblue', label = column_to_analyze)
-        # Use the name of the analyzed column as the label
-        fig = plot_predict(returned_ARIMA_Results, start = start_date, end = end_date,  ax = ax, alpha = ALPHA)
-        ## https://www.statsmodels.org/v0.12.2/generated/statsmodels.tsa.arima_model.ARIMAResults.plot_predict.html
-        # ax = ax to plot the arima on the original plot of the time series
-        # start = x[1]: starts the ARIMA graphic from the second point of the series x
-        # if x is the index, then it will be from the second x; if x is a time series, then
-        # x[1] will be the second timestamp
-        #We defined the start in x[1], instead of index = 0, because the Confidence Interval for the 
-        #first point is very larger than the others (there is perfect autocorrelation for lag = 0). 
-        #Therefore, it would have resulted in the need for using a very broader y-scale, what
-        #would compromise the visualization.
-        # We could set another index or even a timestamp to start:
-        # start=pd.to_datetime('1998-01-01')
-        
-        ax.set_alpha(OPACITY)
-        
-        if not (plot_title is None):
-            #graphic's title
-            ax.set_title(plot_title)
-        
-        else:
-            #set a default title:
-            ax.set_title("ARIMA_model")
-        
-        if not (horizontal_axis_title is None):
-            #X-axis title
-            ax.set_xlabel(horizontal_axis_title)
-        
-        else:
-            #set a default title:
-            ax.set_xlabel("Time")
-        
-        if not (vertical_axis_title is None):
-            #Y-axis title
-            ax.set_ylabel(vertical_axis_title)
-        
-        else:
-            #set a default title:
-            ax.set_ylabel(column_to_analyze)
-        
-        #ROTATE X AXIS IN XX DEGREES
-        plt.xticks(rotation = x_axis_rotation)
-        # XX = 70 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
-        plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
-        
-        ax.grid(grid)
-        ax.legend(loc = "upper left")
-        
-        if (export_png == True):
-            # Image will be exported
-            import os
+        print(f"\nBest ARIMA model selected ({criterion.upper()} = {best_score:.4f}): order = ({returned_p}, {returned_d}, {returned_q})\n")
 
-            #check if the user defined a directory path. If not, set as the default root path:
-            if (directory_to_save is None):
-                #set as the default
-                directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
-            if (file_name is None):
-                #set as the default
-                file_name = "arima_model"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
-            if (png_resolution_dpi is None):
-                #set as 330 dpi
-                png_resolution_dpi = 330
-
-            #Get the new_file_path
-            new_file_path = os.path.join(directory_to_save, file_name)
-            new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-            print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-        
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
-        plt.show()
-    
-    # Get dataframe with the predictions and confidence intervals
-    arima_predictions = returned_ARIMA_Results.get_prediction(start = x[0], end = None, dynamic = False, full_results = True, alpha = ALPHA)
-    # Here, we started in start = x[0] to obtain a correspondent full dataset, and did not set an end.
-    # The start can be an integer representing the index of the data in the dataframe,
-    # or a timestamp. Check:
-    # https://www.statsmodels.org/devel/generated/statsmodels.tsa.arima.model.ARIMAResults.get_prediction.html#statsmodels.tsa.arima.model.ARIMAResults.get_prediction
-    # Again, no matter if x is an index or a time series, x[0] starts from the first element
-    # You could set another index or a oparticular timestamp to start, like:
-    # start=pd.to_datetime('1998-01-01')
-    # The dynamic = False argument ensures that we produce one-step ahead forecasts, 
-    # meaning that forecasts at each point are generated using the full history up 
-    # to that point.
+    # In-sample predictions and confidence intervals
+    arima_predictions = returned_ARIMA_Results.get_prediction(start = 0, end = len(y) - 1, dynamic = False)
     predicted_mean_vals = arima_predictions.predicted_mean
-    predicted_conf_intervals = arima_predictions.conf_int(alpha = ALPHA)
-    # predicted_conf_intervals has two columns: first one is the inferior confidence limit
-    # second one is the superior confidence limit
-    # each column from this dataframe gets a name derived from the name of the original series.
-    # So, let's rename them:
-    predicted_conf_intervals.columns = ['lower_cl', 'upper_cl']
-    
-    # let's create a copy of the dataframe to be returned with the new information:
-    # This will avoid manipulating the df:
+    conf_int = arima_predictions.conf_int(alpha = ALPHA)
+
     arima_df = DATASET.copy(deep = True)
-    # This DATASET already contains the timestamp column as the index, so it is adequate for
-    # obtaining predictions associated to the correct time values.
-    
-    #create a column for the predictions:
-    arima_df['arima_predictions'] = predicted_mean_vals
-    
-    #create a column for the inferior (lower) confidence interval.
-    # Copy all the rows from the column 0 of predicted_conf_intervals
-    arima_df['lower_cl'] = predicted_conf_intervals['lower_cl']
-    
-    #create a column for the superior (upper) confidence interval.
-    # Copy all the rows from the column 1 of predicted_conf_intervals
-    arima_df['upper_cl'] = predicted_conf_intervals['upper_cl']
-    
-    # Let's turn again the timestamps into a column, restart the indices and re-order the columns,
-    # so that the last column will be the response, followed by ARIMA predictions
-    
-    ordered_columns_list = []
-    
-    if (timestamp_tag_column is not None):
-        #Use the indices of the dataframe
-        ordered_columns_list.append(timestamp_tag_column)
-        # Create a timestamp_tag_column in the dataframe containing the values in the index:
-        arima_df[timestamp_tag_column] = np.array(arima_df.index)
-        # Reset the indices from the dataframe:
-        arima_df = arima_df.reset_index(drop = True)
-    
-    # create a list of columns with fixed position:
-    fixed_columns_list = [column_to_analyze, 'arima_predictions', 'lower_cl', 'upper_cl']
-    
-    # Now, loop through all the columns:
-    for column in list(arima_df.columns):
-        
-        # If the column is not one from fixed_columns_list, and it is not on ordered_columns_list
-        # yet, add it to ordered_columns_list (timestamp_tag_column may be on the list):
-        if ((column not in fixed_columns_list) & (column not in ordered_columns_list)):
-            ordered_columns_list.append(column)
-    
-    # Now, concatenate ordered_columns_list to fixed_columns_list. 
-    # If a = ['a', 'b'] and b = ['c', 'd'], a + b = ['a', 'b', 'c', 'd'] and b + a = [ 'c', 'd', 'a', 'b']
-    ordered_columns_list = ordered_columns_list + fixed_columns_list
-    
-    # Finally, select the columns from arima_df passing this list as argument:
-    arima_df = arima_df[ordered_columns_list]
-    
+    arima_df['arima_predictions'] = predicted_mean_vals.values
+    arima_df['lower_cl'] = conf_int.iloc[:, 0].values
+    arima_df['upper_cl'] = conf_int.iloc[:, 1].values
+
+    if timestamp_tag_column is not None:
+        arima_df = arima_df.reset_index()
+
+    if ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (12, 7))
+        ax.plot(x, y, color = 'darkblue', label = f'Actual: {column_to_analyze}')
+        ax.plot(x, arima_df['arima_predictions'], color = 'crimson', linestyle = '--', label = f'ARIMA({returned_p},{returned_d},{returned_q}) Fit')
+        ax.fill_between(x, arima_df['lower_cl'], arima_df['upper_cl'], color = 'crimson', alpha = 0.2, label = f'{confidence_level * 100:.0f}% Confidence Interval')
+
+        ax.set_title(plot_title if plot_title is not None else f"ARIMA({returned_p},{returned_d},{returned_q}) Model Fit")
+        ax.set_xlabel(horizontal_axis_title if horizontal_axis_title is not None else "Time")
+        ax.set_ylabel(vertical_axis_title if vertical_axis_title is not None else column_to_analyze)
+        ax.grid(grid)
+        ax.legend(loc = 'upper left')
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"best_arima_{column_to_analyze}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
     if ControlVars.show_results:
-        print("\n")
-        print("Check the dataframe containing the ARIMA predictions:\n")
-        
+        print("Check first 10 rows of DataFrame with ARIMA predictions:")
         try:
-            # only works in Jupyter Notebook:
             from IPython.display import display
-            display(arima_df)
-                
-        except: # regular mode
-            print(arima_df)
-        
-        print("\n") #line break
-        print("Notice that the presence of data outside the confidence interval limits of the ARIMA forecast is a strong indicative of outliers or of untrust time series.\n")
-        print("For instance: if you observe a very sharp and sudden deviation from the predictive time series, it can be an indicative of incomplete information or outliers presence.\n")
-        print("A famous case is the pandemic data: due to lags or latencies on the time needed for consolidating the information in some places, the data could be incomplete in a given day, leading to a sharp decrease that did not actually occurred.")
-        
-        print("\n")
-        print("REMEMBER: q represents the moving average (MA) part of the time series.")
-        print(f"Then, it is interesting to group the time series {column_to_analyze} by each q = {returned_q} periods when modelling or analyzing it.")
-        print("For that, you can use moving window or rolling functions.\n")
-        
+            display(arima_df.head(10))
+        except Exception:
+            print(arima_df.head(10))
+
     return returned_ARIMA_Results, arima_summ_dict, arima_df
 
 

@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -955,898 +955,286 @@ def export_pd_dataframe_as_excel (file_name_without_extension, exported_tables =
         print("Warning: if there was a sheet with the same name as the exported ones, it was replaced by the exported dataframe.")
 
 
-def load_anomaly_detector (saved_file):
+def load_anomaly_detector(saved_file, distribution = None):
     """
-    load_anomaly_detector (saved_file)
+    load_anomaly_detector (saved_file, distribution = None)
 
-    Function for loading an anomaly detection model object.
-    : param: saved_file - string containing the path for an anomaly detection model 
-      saved as a pickle (binary) file
+    Function for loading an anomaly detection model object from a saved file.
+    Supports configuring expected statistical distribution (Gaussian, Poisson, Exponential, Uniform).
+
+    : param: saved_file: string containing the path for an anomaly detection model saved as binary/pickle file.
+    : param: distribution: optional string overriding expected distribution ('gaussian', 'poisson', 'exponential', 'uniform').
+    : return: AnomalyDetector object with restored parameters.
     """
-
     import pickle
+    import os
+
+    if not os.path.exists(saved_file):
+        raise InvalidInputsError(f"Saved file '{saved_file}' does not exist.")
+
     with open(saved_file, 'rb') as opened_file:
-            
         attributes = pickle.load(opened_file)
-    
-    # Instantiate the AnomalyDetector object:
+
     anomaly_detection_model = AnomalyDetector()
-    # With vars function, it is possible to access the attributes from an object as the keys of a dictionary.
-    # Fill each attribute of the anomaly_detection_model:
     for attribute, value in attributes.items():
         vars(anomaly_detection_model)[attribute] = value
-    
+
+    if distribution is not None:
+        anomaly_detection_model.distribution = distribution
+    elif not hasattr(anomaly_detection_model, 'distribution'):
+        anomaly_detection_model.distribution = 'gaussian'
+
+    if ControlVars.show_results:
+        print(f"Anomaly detector loaded from '{saved_file}'. Expected distribution: {anomaly_detection_model.distribution}.")
+
     return anomaly_detection_model
 
 
-def import_export_model_list_dict (action = 'import', objects_manipulated = 'model_only', model_file_name = None, dictionary_or_list_file_name = None, directory_path = '', model_type = 'keras', dict_or_list_to_export = None, model_to_export = None, use_colab_memory = False):
+def import_export_model_list_dict(
+    action = 'import',
+    objects_manipulated = 'model_only',
+    model_file_name = None,
+    dictionary_or_list_file_name = None,
+    directory_path = '',
+    model_type = 'auto',
+    dict_or_list_to_export = None,
+    model_to_export = None,
+    use_colab_memory = False
+):
     """
-    import_export_model_list_dict (action = 'import', objects_manipulated = 'model_only', model_file_name = None, dictionary_or_list_file_name = None, directory_path = '', model_type = 'keras', dict_or_list_to_export = None, model_to_export = None, use_colab_memory = False):
-    
-     https://docs.python.org/3/library/tarfile.html#tar-examples
-     https://docs.python.org/3/library/zipfile.html#zipfile-objects
-     pickle and dill save the file in binary (bits) serialized mode. So, we must use
-     open 'rb' or 'wb' when calling the context manager. The 'b' stands for 'binary',
-     informing the context manager (with statement) that a bit-file will be processed
-    
-    : param: action = 'import' for importing a model and/or a dictionary;
-      action = 'export' for exporting a model and/or a dictionary.
-    
-    : param: objects_manipulated = 'model_only' if only a model will be manipulated.
-      objects_manipulated = 'dict_or_list_only' if only a dictionary or list will be manipulated.
-      objects_manipulated = 'model_and_dict' if both a model and a dictionary will be
-      manipulated.
-    
-    : param: model_file_name: string with the name of the file containing the model (for 'import');
-      or of the name that the exported file will have (for 'export')
-      e.g. model_file_name = 'model'
-      WARNING: Do not add the file extension.
-      Keep it in quotes. Keep model_file_name = None if no model will be manipulated.
-    
-    : param: dictionary_or_list_file_name: string with the name of the file containing the dictionary 
-      (for 'import');
-      or of the name that the exported file will have (for 'export')
-      e.g. dictionary_or_list_file_name = 'history_dict'
-      WARNING: Do not add the file extension.
-      Keep it in quotes. Keep dictionary_or_list_file_name = None if no 
-      dictionary or list will be manipulated.
-    
-    : param: DIRECTORY_PATH: path of the directory where the model will be saved,
-      or from which the model will be retrieved. If no value is provided,
-      the DIRECTORY_PATH will be the root: "/"
-      Notice that the model and the dictionary must be stored in the same path.
-      If a model and a dictionary will be exported, they will be stored in the same
-      DIRECTORY_PATH.
-    
-    : param: model_type: This parameter has effect only when a model will be manipulated.
-      model_type = 'keras' for deep learning keras/ tensorflow models with extension .h5
-      model_type = 'tensorflow_general' for generic deep learning tensorflow models containing 
-      custom layers, losses and architectures. Such models are compressed as tar.gz, tar, or zip.
-      model_type = 'sklearn' for models from scikit-learn (non-deep learning)
-      model_type = 'xgb_regressor' for XGBoost regression models (non-deep learning)
-      model_type = 'xgb_classifier' for XGBoost classification models (non-deep learning)
-      model_type = 'arima' for ARIMA model (Statsmodels)
-      model_type = 'prophet' for Facebook Prophet model
-      model_type = 'anomaly_detector' for the Anomaly Detection model
-    
-    : param: dict_or_list_to_export and model_to_export: 
-      These two parameters have effect only when ACTION == 'export'. In this case, they
-      must be declared. If ACTION == 'export', keep:
-      dict_or_list_to_export = None, 
-     model_to_export = None
-      If one of these objects will be exported, substitute None by the name of the object
-      e.g. if your model is stored in the global memory as 'keras_model' declare:
-      model_to_export = keras_model. Notice that it must be declared without quotes, since
-      it is not a string, but an object.
-      For exporting a dictionary named as 'dict':
-      dict_or_list_to_export = dict
-    
-    : param: use_colab_memory: this parameter has only effect when using Google Colab (or it will
-      raise an error). Set as use_colab_memory = True if you want to use the instant memory
-      from Google Colaboratory: you will update or download the file and it will be available
-      only during the time when the kernel is running. It will be excluded when the kernel
-      dies, for instance, when you close the notebook.
-    
-      If action == 'export' and use_colab_memory == True, then the file will be downloaded
-      to your computer (running the cell will start the download).
-    """
+    import_export_model_list_dict (action = 'import', objects_manipulated = 'model_only', ...):
 
+    Modular and standardized model serialization and deserialization for all IDSW models:
+    - TensorFlow / Keras deep learning and Siamese neural networks (.keras, .h5, or SavedModel directory).
+    - PySpark ALS models (native PySpark MLlib persistence).
+    - Statsmodels GLM / ARIMA / OLS models (native statsmodels pickle).
+    - Scikit-learn and XGBoost regression/classification models (joblib/pickle).
+    - IDSW AnomalyDetector and custom model objects.
+    - Metadata dictionaries and lists (.json or .pickle).
+
+    : param: action: 'import' or 'export'.
+    : param: objects_manipulated: 'model_only', 'dict_or_list_only', or 'both'.
+    : param: model_file_name: file name for model (with or without extension).
+    : param: dictionary_or_list_file_name: file name for dictionary/list.
+    : param: directory_path: target folder directory path.
+    : param: model_type: 'auto', 'keras', 'sklearn', 'xgboost', 'pyspark', 'statsmodels', 'anomaly_detector', etc.
+    : param: dict_or_list_to_export: dictionary or list object to serialize.
+    : param: model_to_export: model object to serialize.
+    : param: use_colab_memory: boolean, compatibility flag for Google Colab runtime.
+    : return: imported model, imported dict/list, or None upon export.
+    """
     import os
+    import json
     import pickle
-    # import dill
-    import tarfile
-    from zipfile import ZipFile
-    
-    # Check the directory path
-    if (directory_path is None):
-        # set as the root (empty string):
-        directory_path = ""
-        
-        
-    bool_check1 = (objects_manipulated != 'model_only')
-    # bool_check1 == True if a dictionary will be manipulated
-    
-    bool_check2 = (objects_manipulated != 'dict_or_list_only')
-    # bool_check1 == True if a dictionary will be manipulated
-    
-    if (bool_check1 == True):
-        #manipulate a dictionary
-        from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler, MinMaxScaler
-        
-        if (dictionary_or_list_file_name is None):
-            raise InvalidInputsError("Please, enter a name for the dictionary or list.")
-        
-        else:
-            # Create the file path for the dictionary:
-            dict_path = os.path.join(directory_path, dictionary_or_list_file_name)
-            # Extract the file extension
-            dict_extension = 'pkl'
-            #concatenate:
-            dict_path = dict_path + "." + dict_extension
-            
-    
-    if (bool_check2 == True):
-        #manipulate a model
-        
-        if (model_file_name is None):
-            raise InvalidInputsError ("Please, enter a name for the model.")
-        
-        else:
-            # Create the file path for the dictionary:
-            model_path = os.path.join(directory_path, model_file_name)
-            # Extract the file extension
-            
-            #check model_type:
-            if (model_type == 'keras'):
+    import joblib
+
+    action_clean = str(action).strip().lower()
+    manip_clean = str(objects_manipulated).strip().lower()
+
+    if action_clean not in ['import', 'export']:
+        raise InvalidInputsError("action must be either 'import' or 'export'.")
+
+    # Helper to resolve full path
+    def _get_path(file_name, default_ext):
+        if file_name is None:
+            return None
+        base = os.path.join(directory_path, file_name)
+        if not os.path.splitext(base)[1]:
+            base = base + default_ext
+        return base
+
+    # Helper to detect model framework
+    def _detect_framework(model, m_type_str):
+        m_str = str(m_type_str).strip().lower()
+        if m_str != 'auto':
+            return m_str
+
+        # Unpack tuple if user passed (model, metrics, ...)
+        m_obj = model[0] if isinstance(model, tuple) else model
+
+        # TensorFlow / Keras
+        try:
+            import tensorflow as tf
+            if isinstance(m_obj, tf.keras.Model):
+                return 'keras'
+        except Exception:
+            pass
+
+        # PySpark MLlib
+        if 'pyspark' in str(type(m_obj)).lower():
+            return 'pyspark'
+
+        # Statsmodels
+        if 'statsmodels' in str(type(m_obj)).lower():
+            return 'statsmodels'
+
+        # IDSW AnomalyDetector
+        if 'AnomalyDetector' in str(type(m_obj)):
+            return 'anomaly_detector'
+
+        # Default to scikit-learn / joblib
+        return 'sklearn'
+
+    # ----------------------------------------------------
+    # EXPORT ACTION
+    # ----------------------------------------------------
+    if action_clean == 'export':
+        # Export Model
+        if manip_clean in ['model_only', 'both']:
+            if model_to_export is None:
+                raise InvalidInputsError("model_to_export must be provided when exporting a model.")
+            if model_file_name is None:
+                raise InvalidInputsError("model_file_name must be provided when exporting a model.")
+
+            actual_model = model_to_export[0] if isinstance(model_to_export, tuple) else model_to_export
+            framework = _detect_framework(actual_model, model_type)
+
+            if framework in ['keras', 'deep', 'tensorflow']:
                 import tensorflow as tf
-                model_extension = 'keras'
-            
-            elif (model_type == 'sklearn'):
-                from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
-                from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-                from sklearn.neural_network import MLPRegressor, MLPClassifier
-                model_extension = 'pkl'
-                #it could be 'dill', though
-            
-            elif (model_type == 'anomaly_detector'):
-                model_extension = 'pkl'
-            
-            elif (model_type == 'xgb_regressor'):
-                from xgboost import XGBRegressor
-                model_extension = 'json'
-                #it could be 'ubj', though
-            
-            elif (model_type == 'xgb_classifier'):
-                from xgboost import XGBClassifier
-                model_extension = 'json'
-                #it could be 'ubj', though
-            
-            elif (model_type == 'arima'):       
-                from statsmodels.tsa.arima.model import ARIMA, ARIMAResults
-                model_extension = 'pkl'
-            
-            elif (model_type == 'prophet'):
-                from prophet.serialize import model_to_json, model_from_json
-                # https://facebook.github.io/prophet/docs/additional_topics.html
-                model_extension = 'json'
-            
-            # Finally, check if it is not the only one which can have several extensions:
-            elif (model_type != 'tensorflow_general'):
-                raise InvalidInputsError ("Enter a valid model_type: keras, tensorflow_general, sklearn, xgb_regressor, xgb_classifier, arima, or prophet.")
-            
-        # If there is an extension, add it:
-        if (model_type != 'tensorflow_general'):
-            #concatenate:
-            model_path = model_path +  "." + model_extension
-            
-    # Now we have the full paths for the dictionary and for the model.
-    
-    if (action == 'import'):
-        
-        if (use_colab_memory == True):
-             
-            from google.colab import files
-            # google.colab library must be imported only in case 
-            # it is going to be used, for avoiding 
-            # AWS compatibility issues.
-            
-            print("Click on the button for file selection and select the files from your machine that will be uploaded in the Colab environment.")
-            print("Warning: the files will be removed from Colab memory after the Kernel dies or after the notebook is closed.")
-            # this functionality requires the previous declaration:
-            ## from google.colab import files
-            colab_files_dict = files.upload()
-            # The files are stored into a dictionary called colab_files_dict where the keys
-            # are the names of the files and the values are the files themselves.
-            ## e.g. if you upload a single file named "dictionary.pkl", the dictionary will be
-            ## colab_files_dict = {'dictionary.pkl': file}, where file is actually a big string
-            ## representing the contents of the file. The length of this value is the size of the
-            ## uploaded file, in bytes.
-            ## To access the file is like accessing a value from a dictionary: 
-            ## d = {'key1': 'val1'}, d['key1'] == 'val1'
-            ## we simply declare the key inside brackets and quotes, the same way we would do for
-            ## accessing the column of a dataframe.
-            ## In this example, colab_files_dict['dictionary.pkl'] access the content of the 
-            ## .pkl file, and len(colab_files_dict['dictionary.pkl']) is the size of the .pkl
-            ## file in bytes.
-            ## To check the dictionary keys, apply the method .keys() to the dictionary (with empty
-            ## parentheses): colab_files_dict.keys()
-            
-            for key in colab_files_dict.keys():
-                #loop through each element of the list of keys of the dictionary
-                # (list colab_files_dict.keys()). Each element is named 'key'
-                if ControlVars.show_results: 
-                    print(f"User uploaded file {key} with length {len(colab_files_dict[key])} bytes.")
-                # The key is the name of the file, and the length of the value
-                ## correspondent to the key is the file's size in bytes.
-                ## Notice that the content of the uploaded object must be passed 
-                ## as argument for a proper function to be interpreted. 
-                ## For instance, the content of a xlsx file should be passed as
-                ## argument for Pandas .read_excel function; the pkl file must be passed as
-                ## argument for pickle.
-                ## e.g., if you uploaded 'table.xlsx' and stored it into colab_files_dict you should
-                ## declare df = pd.read_excel(colab_files_dict['table.xlsx']) to obtain a dataframe
-                ## df from the uploaded table. Notice that is the value, not the key, that is the
-                ## argument.
-        
-        if (bool_check1 == True):
-            #manipulate a dictionary
-            if (use_colab_memory == True):
-                key = dictionary_file_name + "." + dict_extension
-                #Use the key to access the file content, and pass the file content
-                # to pickle:
-                with open(colab_files_dict[key], 'rb') as opened_file:
-            
-                    imported_dict = pickle.load(opened_file)
-                    # The structure imported_dict = pkl.load(open(colab_files_dict[key], 'rb')) relies 
-                    # on the GC to close the file. That's not a good idea: If someone doesn't use 
-                    # CPython the garbage collector might not be using refcounting (which collects 
-                    # unreferenced objects immediately) but e.g. collect garbage only after some time.
-                    # Since file handles are closed when the associated object is garbage collected or 
-                    # closed explicitly (.close() or .__exit__() from a context manager) the file 
-                    # will remain open until the GC kicks in.
-                    # Using 'with' ensures the file is closed as soon as the block is left - even if 
-                    # an exception happens inside that block, so it should always be preferred for any 
-                    # real application.
-                    # source: https://stackoverflow.com/questions/39447362/equivalent-ways-to-json-load-a-file-in-python
-
-                if ControlVars.show_results: 
-                    print(f"Dictionary or list {key} successfully imported to Colab environment.")
-            
-            else:
-                #standard method
-                with open(dict_path, 'rb') as opened_file:
-            
-                    imported_dict = pickle.load(opened_file)
-                
-                # 'rb' stands for read binary (read mode). For writing mode, 'wb', 'write binary'
-                if ControlVars.show_results: 
-                    print(f"Dictionary or list successfully imported from {dict_path}.")
-                
-        if (bool_check2 == True):
-            #manipulate a model
-            # select the proper model
-        
-            if (model_type == 'keras'):
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    model = tf.keras.models.load_model(colab_files_dict[key])
-                    if ControlVars.show_results: 
-                        print(f"Keras/TensorFlow model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    # We previously declared:
-                    # from keras.models import load_model
-                    model = tf.keras.models.load_model(model_path)
-                    if ControlVars.show_results: 
-                        print(f"Keras/TensorFlow model successfully imported from {model_path}.")
-            
-            elif (model_type == 'tensorflow_general'):
-                import tensorflow as tf
-                """The Legacy saved_model format had several modifications on Keras 3, and was deprecated.
-                From Keras 3, both the model and the layer should be saved as a TFSMLayer artifact.
-                Thus, the procedure from loading a model like this is longer - like the one for transfer
-                learning from a trained model.
-                """
-                
-                import re
-
-                def read_tensor_info():
-                    """Read the tensor information by preloading it with function tf.saved_model.load()"""
-                    model_0 = tf.saved_model.load("saved_model")
-                    return str(model_0.serve.concrete_functions[0])
-
-                def find_tensor_spec(string):
-                    """
-                    Function designed with support of Google Gemini 1.5 Flash with prompts with context for creating specific regular expressions.
-                    Finds the expression "TensorSpec(shape=(None, ...))" with any number of dimensions in a string.
-
-                    Args:
-                        string: The input string to search.
-
-                    Returns:
-                        A list like [' 5, 1', ' 2, 1'] where each element correspond to an input or output shape
-
-                    To find a spec like "TensorSpec(shape=(None, *, *)" the Regex would be: r"TensorSpec\(shape=\(None, (\d+), (\d+)\)"
-                    To find a specific spec like "TensorSpec(shape=(None, 5, 1)" the regex would be: r"TensorSpec\(shape=\(None, 5, 1\)"
-                    """
-                    pattern = r"TensorSpec\(shape=\(None,((?:\s*\d+\s*,?\s*)*)\)" 
-                    return re.findall(pattern, string)
-
-                def return_input_shape (string):
-                    """
-                    Finds the expression the shape of the input tensors 
-                    The tensor information is obtained from a string like "TensorSpec(shape=(None, ...))" 
-                    with any number of dimensions in a string.
-
-                    Args:
-                        string: The input string to search.
-
-                    Returns:
-                        A boolean indicating whether the expression was found.
-                    
-                    """
-                    # Get a list of the shapes:
-                    shapes = find_tensor_spec(string)
-                    """string is like:
-                        ConcreteFunction Input Parameters:
-                        args_0 (POSITIONAL_OR_KEYWORD): TensorSpec(shape=(None, 5, 1), dtype=tf.float32, name='input_layer')
-                        Output Type:
-                        TensorSpec(shape=(None, 2, 1), dtype=tf.float32, name='unknown')
-                        Captures:
-                        None
-                    -----------------------
-                    Thus, shapes is like [' 5, 1', ' 2, 1']
-                    Strip each element to remove blank spaces:
-                    """
-                    shapes = [strings.strip() for strings in shapes]
-                    # Each string in shapes can be split in comma to create a list of values.
-                    # Thus, by converting these new lists into tuples, we create a list of tuples containing the shapes
-                    shapes = [tuple([int(strings) for strings in strings.split(",")]) for strings in shapes]
-                    return shapes
-
-                def get_tensor_input_shape ():
-                    """Retrieve tensor input shape"""
-                    tensor_info = read_tensor_info()
-                    input_shape = return_input_shape(tensor_info)[0]
-                    return input_shape
-
-                def create_input_layer ():
-                    """Create an input layer for the imported model, with the correct input shape"""
-                    input_shape = get_tensor_input_shape()
-                    return tf.keras.layers.Input(shape = input_shape)
-
-                def read_TFSMLayer(saved_directory = 'saved_model'):
-                    """
-                    Read the tensorflow saved model or layer saved as an artifact using TFSM Layer
-
-                    https://keras.io/api/layers/backend_specific_layers/tfsm_layer/
-                    https://www.tensorflow.org/api_docs/python/tf/saved_model/load
-                    https://www.tensorflow.org/api_docs/python/tf/keras/layers/TFSMLayer
-
-                    TF no longer supports the previous format saved_model to read directly from the saved_model folder (like on tensorflow 2.12)
-                    """
-                    return tf.keras.layers.TFSMLayer(saved_directory, call_endpoint = 'serve')
-
-                def compiled_model(saved_directory = 'saved_model'):
-                    """
-                    Compile the tensorflow saved model or layer saved as an artifact using TFSM Layer
-                    """
-                    TFSMLayer = read_TFSMLayer(saved_directory)
-                    input_layer = create_input_layer()
-                    x = TFSMLayer(input_layer)
-                    model = tf.keras.models.Model(inputs = input_layer, outputs = x)
-                    return model
-
-                print("Warning, save the model in a directory called 'saved_model' (before compressing.)\n")
-                # Create a temporary folder in case it does not exist:
-                # https://www.geeksforgeeks.org/python-os-makedirs-method/
-                # Set exist_ok = True
-                os.makedirs("tmp/", exist_ok = True)
-                
-                if (use_colab_memory == True):
-                    
-                    key = model_file_name
-                     
-                    try:
-                        model = compiled_model(saved_directory = 'saved_model')
-                        if ControlVars.show_results: 
-                            print(f"TensorFlow model successfully imported to environment.")
-                    
-
-                    except:
-                            
-                        try:
-                            model = compiled_model(saved_directory = "tmp/saved_model")
-                            if ControlVars.show_results: 
-                                print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
-
-                        except:
-
-                            try:
-                                # Case where the user has a keras file and accidentaly input as tensorflow_general
-                                model = tf.keras.models.load_model(f"{model_file_name}.keras")
-                                if ControlVars.show_results: 
-                                    print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
-
-                            except:
-
-                                # It is compressed
-                                try:
-                                    # try tar.gz extension
-                                    model_extension = ".tar.gz"
-                                    key = key + model_extension
-                                    model_path = colab_files_dict[key]
-
-                                    # Open the context manager
-                                    with tarfile.open (model_path, 'r:gz') as compressed_model:
-                                        #extract all to the tmp directory:
-                                        compressed_model.extractall("tmp/")
-
-                                except:
-
-                                    try:
-                                        model_extension = ".tar"
-                                        key = key + model_extension
-                                        model_path = colab_files_dict[key]
-
-                                        # Open the context manager
-                                        with tarfile.open (model_path, 'r:') as compressed_model:
-                                            #extract all to the tmp directory:
-                                            compressed_model.extractall("tmp/")
-
-                                        # if you were not using the context manager, it would be necessary to apply
-                                        # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
-                                    except:
-                                        
-                                        # try .zip extension
-                                        try:
-                                            model_extension = ".zip"
-                                            key = key + model_extension
-                                            model_path = colab_files_dict[key]
-
-                                            # Open the context manager
-                                            with ZipFile (model_path, 'r') as compressed_model:
-                                                #extract all to the tmp directory:
-                                                compressed_model.extractall("tmp/")
-
-                                        except:
-                                            raise InvalidInputsError("Failed to load the model. Compress it as zip, tar or tar.gz file.\n")
-
-
-                                # Compress the directory using tar
-                                # https://www.gnu.org/software/tar/manual/tar.html
-                                #    ! tar --extract --file=model_path --verbose --verbose tmp/
-
-                                try:
-                                    model = compiled_model(saved_directory = "tmp/saved_model")
-                                    if ControlVars.show_results: 
-                                        print(f"TensorFlow model: {model_path} successfully imported to Colab environment.")
-
-                                except:
-                                    raise InvalidInputsError("Failed to load the model. Save it in a directory named 'saved_model' before compressing.\n")
-
-                else:
-                    #standard method
-                    # Try simply accessing the directory:
-                    
-                    try:
-                        model = compiled_model(saved_directory = "saved_model")
-                        if ControlVars.show_results: 
-                            print(f"TensorFlow model: successfully imported to environment.")
-                    
-                    except:
-
-                        try:
-                            model = compiled_model(saved_directory = "tmp/saved_model")
-                            if ControlVars.show_results: 
-                                print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
-
-                        except:
-
-                            try:
-                                # Case where the user has a keras file and accidentaly input as tensorflow_general
-                                model = tf.keras.models.load_model(f"{model_file_name}.keras")
-                                if ControlVars.show_results: 
-                                    print(f"TensorFlow model: {model_file_nameh} successfully imported to environment.")
-
-                            except:
-
-                                # It is compressed
-                                try:
-                                    model_extension = ".tar"
-                                    
-                                    # Open the context manager
-                                    with tarfile.open ((model_file_name + model_extension), 'r:') as compressed_model:
-                                        #extract all to the tmp directory:
-                                        compressed_model.extractall("tmp/")
-                                        
-                                    # if you were not using the context manager, it would be necessary to apply
-                                    # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
-                                
-                                except:
-                                    
-                                    try:
-                                        # try tar.gz extension
-                                        model_extension = ".tar.gz"
-                                    
-                                        # Open the context manager
-                                        with tarfile.open ((model_file_name + model_extension), 'r:gz') as compressed_model:
-                                            #extract all to the tmp directory:
-                                            compressed_model.extractall("tmp/")
-
-                                    except:
-                                        # try .zip extension
-                                        try:
-                                            model_extension = ".zip"
-
-                                            # Open the context manager
-                                            with ZipFile ((model_file_name + model_extension), 'r') as compressed_model:
-                                                #extract all to the tmp directory:
-                                                compressed_model.extractall("tmp/")
-
-                                        except:
-                                            raise InvalidInputsError("Failed to load the model. Compress it as zip, tar or tar.gz file.\n")
-
-
-                            try:
-                                model = compiled_model(saved_directory = "tmp/saved_model")
-                                if ControlVars.show_results: 
-                                    print(f"TensorFlow model: {model_file_name} successfully imported to environment.")
-
-                            except:
-                                raise InvalidInputsError("Failed to load the model. Save it in a directory named 'saved_model' before compressing.\n")
-  
-            elif (model_type == 'sklearn'):
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    
-                    with open(colab_files_dict[key], 'rb') as opened_file:
-            
-                        model = pickle.load(opened_file)
-                    
-                    if ControlVars.show_results: 
-                        print(f"Scikit-learn model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    with open(model_path, 'rb') as opened_file:
-            
-                        model = pickle.load(opened_file)
-                
-                    if ControlVars.show_results: 
-                        print(f"Scikit-learn model successfully imported from {model_path}.")
-                    # For loading a pickle model:
-                    ## model = pkl.load(open(model_path, 'rb'))
-                    # 'rb' stands for read binary (read mode). For writing mode, 'wb', 'write binary'
-
-            elif (model_type == 'anomaly_detector'):
-
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    model = load_anomaly_detector (saved_file = colab_files_dict[key])
-                    if ControlVars.show_results: 
-                        print(f"Anomaly detection model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    model = load_anomaly_detector (saved_file = model_path)
-                    if ControlVars.show_results: 
-                        print(f"Anomaly detection model successfully imported from {model_path}.")
-
-            elif (model_type == 'xgb_regressor'):
-                
-                # Create an instance (object) from the class XGBRegressor:
-                
-                model = XGBRegressor()
-                # Now we can apply the load_model method from this class:
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    model = model.load_model(colab_files_dict[key])
-                    if ControlVars.show_results: 
-                        print(f"XGBoost regression model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    model = model.load_model(model_path)
-                    if ControlVars.show_results: 
-                        print(f"XGBoost regression model successfully imported from {model_path}.")
-                    # model.load_model("model.json") or model.load_model("model.ubj")
-                    # .load_model is a method from xgboost object
-            
-            elif (model_type == 'xgb_classifier'):
-
-                # Create an instance (object) from the class XGBClassifier:
-
-                model = XGBClassifier()
-                # Now we can apply the load_model method from this class:
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    model = model.load_model(colab_files_dict[key])
-                    if ControlVars.show_results: 
-                        print(f"XGBoost classification model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    model = model.load_model(model_path)
-                    if ControlVars.show_results: 
-                        print(f"XGBoost classification model successfully imported from {model_path}.")
-                    # model.load_model("model.json") or model.load_model("model.ubj")
-                    # .load_model is a method from xgboost object
-
-            elif (model_type == 'arima'):
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    model = ARIMAResults.load(colab_files_dict[key])
-                    if ControlVars.show_results: 
-                        print(f"ARIMA model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    # We previously declared:
-                    # from statsmodels.tsa.arima.model import ARIMAResults
-                    model = ARIMAResults.load(model_path)
-                    if ControlVars.show_results: 
-                        print(f"ARIMA model successfully imported from {model_path}.")
-            
-            elif (model_type == 'prophet'):
-                
-                if (use_colab_memory == True):
-                    key = model_file_name + "." + model_extension
-                    
-                    with open(colab_files_dict[key], 'r') as opened_file:
-                        model = model_from_json(opened_file.read())  # Load model
-                    
-                    if ControlVars.show_results: 
-                        print(f"Prophet model: {key} successfully imported to Colab environment.")
-            
-                else:
-                    #standard method
-                    with open(model_path, 'r') as fin:
-                        model = model_from_json(fin.read())  # Load model
-                    
-                    if ControlVars.show_results: 
-                        print(f"Prophet model successfully imported from {model_path}.")
-            
-
-            if (objects_manipulated == 'model_only'):
-                # only the model should be returned
-                return model
-            
-            elif (objects_manipulated == 'dict_only'):
-                # only the dictionary should be returned:
-                return imported_dict
-            
-            else:
-                # Both objects are returned:
-                return model, imported_dict
-
-    
-    elif (action == 'export'):
-        
-        #Let's export the models or dictionary:
-        if (use_colab_memory == True):
-            
-            from google.colab import files
-            # google.colab library must be imported only in case 
-            # it is going to be used, for avoiding 
-            # AWS compatibility issues.
-            
-            print("The files will be downloaded to your computer.")
-        
-        if (bool_check1 == True):
-            #manipulate a dictionary
-            if (use_colab_memory == True):
-                ## Download the dictionary
-                key = dictionary_or_list_file_name + "." + dict_extension
-                
-                with open(key, 'wb') as opened_file:
-            
-                    pickle.dump(dict_or_list_to_export, opened_file)
-                
-                # this functionality requires the previous declaration:
-                ## from google.colab import files
-                files.download(key)
-                
-                if ControlVars.show_results: 
-                    print(f"Dictionary or list {key} successfully downloaded from Colab environment.")
-            
-            else:
-                #standard method 
-                with open(dict_path, 'wb') as opened_file:
-            
-                    pickle.dump(dict_or_list_to_export, opened_file)
-                
-                if ControlVars.show_results: 
-                #to save the file, the mode must be set as 'wb' (write binary)
-                    print(f"Dictionary or list successfully exported as {dict_path}.")
-                
-        if (bool_check2 == True):
-            #manipulate a model
-            # select the proper model
-        
-            if (model_type == 'keras'):
-                
-                if (use_colab_memory == True):
-                    ## Download the model
-                    key = model_file_name + "." + model_extension
-                    model_to_export.save(key)
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"Keras/TensorFlow model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    model_to_export.save(model_path)
-                    if ControlVars.show_results: 
-                        print(f"Keras/TensorFlow model successfully exported as {model_path}.")
-            
-            elif (model_type == 'tensorflow_general'):
-
-                import tensorflow as tf
-                
-                # Save your model in the SavedModel format
-                # Save as a directory named 'saved_model'
-                """From Keras 3, the save method should not be used for exporting the full model as a folder.
-                The save method can be used only for .keras exported files. Instead, use the export method to
-                export the model or layer as a TFSMLayer artifact.
-                https://www.tensorflow.org/guide/keras/serialization_and_saving
-                https://www.tensorflow.org/api_docs/python/tf/keras/layers/TFSMLayer
-                
-                """
-                model_to_export.export('saved_model')
-                model_path = 'saved_model'
-            
+                # Modern Keras 3 / TF standard prefers .keras format
+                m_path = _get_path(model_file_name, '.keras')
                 try:
-                    model_path = model_path + ".tar.gz"
-                    
-                    # Open the context manager
-                    with tarfile.open (model_path, 'w:gz') as compressed_model:
-                        #Add the folder:
-                        compressed_model.add('saved_model/')    
-                        # if you were not using the context manager, it would be necessary to apply
-                        # close method: tar = tarfile.open(fname, "r:gz"); tar.extractall(); tar.close()
-                
-                except:
-                    # try compressing as tar:
-                    try:
-                        model_path = model_path + ".tar"
-                        # Open the context manager
-                        with tarfile.open (model_path, 'w:') as compressed_model:
-                            #Add the folder:
-                            compressed_model.add('saved_model/') 
-                    
-                    except:
-                        # compress as zip:
-                        model_path = model_path + ".zip"
-                        with ZipFile (model_path, 'w') as compressed_model:
-                            compressed_model.write('saved_model/')
-                
-                if (use_colab_memory == True):
-                    
-                    key = model_path
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"TensorFlow model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    if ControlVars.show_results: 
-                        print(f"TensorFlow model successfully exported as {model_path}.")
+                    actual_model.save(m_path)
+                except Exception:
+                    # Fallback to SavedModel or h5
+                    m_path_h5 = _get_path(model_file_name, '.h5')
+                    actual_model.save(m_path_h5)
+                    m_path = m_path_h5
+                if ControlVars.show_results:
+                    print(f"TensorFlow / Keras model successfully exported to: '{m_path}'.")
 
-            elif (model_type == 'sklearn'):
-                
-                if (use_colab_memory == True):
-                    ## Download the model
-                    key = model_file_name + "." + model_extension
-                    
-                    with open(key, 'wb') as opened_file:
+            elif framework == 'pyspark':
+                m_path = os.path.join(directory_path, model_file_name)
+                if hasattr(actual_model, 'write'):
+                    actual_model.write().overwrite().save(m_path)
+                elif hasattr(actual_model, 'save'):
+                    actual_model.save(m_path)
+                if ControlVars.show_results:
+                    print(f"PySpark model successfully exported to: '{m_path}'.")
 
-                        pickle.dump(model_to_export, opened_file)
-                    
-                    #to save the file, the mode must be set as 'wb' (write binary)
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"Scikit-learn model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    with open(model_path, 'wb') as opened_file:
+            elif framework == 'statsmodels':
+                m_path = _get_path(model_file_name, '.pickle')
+                actual_model.save(m_path)
+                if ControlVars.show_results:
+                    print(f"Statsmodels model successfully exported to: '{m_path}'.")
 
-                        pickle.dump(model_to_export, opened_file)
-                    
-                    if ControlVars.show_results: 
-                        print(f"Scikit-learn model successfully exported as {model_path}.")
-                    # For exporting a pickle model:
-                    ## pkl.dump(model_to_export, open(model_path, 'wb'))
-            
-            elif (model_type == 'anomaly_detector'):
-                
-                if (use_colab_memory == True):
-                    ## Download the model
-                    key = model_file_name + "." + model_extension
-                    model_to_export.save(path_to_save = key)
-                    #to save the file, the mode must be set as 'wb' (write binary)
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"Anomaly detection model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    model_to_export.save(path_to_save = model_path)
-                    if ControlVars.show_results: 
-                        print(f"Anomaly detection model successfully exported as {model_path}.")
-            
-            elif ((model_type == 'xgb_regressor')|(model_type == 'xgb_classifier')):
-                # In both cases, the XGBoost object is already loaded in global
-                # context memory. So there is already the object for using the
-                # save_model method, available for both classes (XGBRegressor and
-                # XGBClassifier).
-                # We can simply check if it is one type OR the other, since the
-                # method is the same:
-                
-                if (use_colab_memory == True):
-                    ## Download the model
-                    key = model_file_name + "." + model_extension
-                    model_to_export.save_model(key)
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"XGBoost model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    model_to_export.save_model(model_path)
-                    if ControlVars.show_results: 
-                        print(f"XGBoost model successfully exported as {model_path}.")
-                    # For exporting a pickle model:
-                    ## pkl.dump(model_to_export, open(model_path, 'wb'))
-            
-            elif (model_type == 'arima'):
-                
-                if (use_colab_memory == True):
-                    ## Download the model
-                    key = model_file_name + "." + model_extension
-                    model_to_export.save(key)
-                    files.download(key)
-                    if ControlVars.show_results: 
-                        print(f"ARIMA model: {key} successfully downloaded from Colab environment.")
-            
-                else:
-                    #standard method
-                    model_to_export.save(model_path)
-                    if ControlVars.show_results: 
-                        print(f"ARIMA model successfully exported as {model_path}.")
-        
-            elif (model_type == 'prophet'):
-                    
-                    if (use_colab_memory == True):
-                        ## Download the model
-                        key = model_file_name + "." + model_extension
-                        with open(key, 'w') as opened_file:
-                            opened_file.write(model_to_json(model_to_export))  # Save model
-                        
-                        files.download(key)
-                        if ControlVars.show_results: 
-                            print(f"Prophet model: {key} successfully downloaded from Colab environment.")
-                
-                    else:
-                        #standard method
-                        with open(model_path, 'w') as opened_file:
-                            opened_file.write(model_to_json(model_to_export))  # Save model
+            elif framework == 'anomaly_detector':
+                m_path = _get_path(model_file_name, '.pickle')
+                with open(m_path, 'wb') as f:
+                    pickle.dump(vars(actual_model), f)
+                if ControlVars.show_results:
+                    print(f"AnomalyDetector model attributes exported to: '{m_path}'.")
 
-                        if ControlVars.show_results: 
-                            print(f"Prophet model successfully exported as {model_path}.")
-        
-        if ControlVars.show_results: 
-            print("Export of files completed.")
-    
-    else:
-        raise InvalidInputsError("Enter a valid action, import or export.")
+            else:
+                # Sklearn / XGBoost / NumPy ALS / general python
+                m_path = _get_path(model_file_name, '.joblib')
+                joblib.dump(actual_model, m_path)
+                if ControlVars.show_results:
+                    print(f"Model successfully serialized with joblib to: '{m_path}'.")
+
+        # Export Dictionary or List
+        if manip_clean in ['dict_or_list_only', 'both']:
+            if dict_or_list_to_export is None:
+                raise InvalidInputsError("dict_or_list_to_export must be provided.")
+            if dictionary_or_list_file_name is None:
+                raise InvalidInputsError("dictionary_or_list_file_name must be provided.")
+
+            d_path = _get_path(dictionary_or_list_file_name, '.json')
+            try:
+                with open(d_path, 'w', encoding = 'utf-8') as f:
+                    json.dump(dict_or_list_to_export, f, indent = 4, default = str)
+                if ControlVars.show_results:
+                    print(f"Dictionary/list exported as JSON to: '{d_path}'.")
+            except Exception:
+                # Fallback to pickle if object is not JSON serializable
+                d_path_pkl = _get_path(dictionary_or_list_file_name, '.pickle')
+                with open(d_path_pkl, 'wb') as f:
+                    pickle.dump(dict_or_list_to_export, f)
+                if ControlVars.show_results:
+                    print(f"Dictionary/list exported as pickle to: '{d_path_pkl}'.")
+
+        return None
+
+    # ----------------------------------------------------
+    # IMPORT ACTION
+    # ----------------------------------------------------
+    imported_model = None
+    imported_dict_or_list = None
+
+    if action_clean == 'import':
+        # Import Model
+        if manip_clean in ['model_only', 'both']:
+            if model_file_name is None:
+                raise InvalidInputsError("model_file_name must be provided to import a model.")
+
+            framework = str(model_type).strip().lower()
+
+            # Attempt automatic file resolution if exact file does not exist
+            candidate_path = os.path.join(directory_path, model_file_name)
+            if not os.path.exists(candidate_path):
+                for ext in ['.keras', '.h5', '.joblib', '.pickle', '.pkl', '']:
+                    if os.path.exists(candidate_path + ext):
+                        candidate_path = candidate_path + ext
+                        break
+
+            if not os.path.exists(candidate_path):
+                raise InvalidInputsError(f"Model file '{candidate_path}' was not found.")
+
+            # Load according to extension or framework
+            if candidate_path.endswith('.keras') or candidate_path.endswith('.h5') or framework in ['keras', 'deep', 'tensorflow']:
+                import tensorflow as tf
+                imported_model = tf.keras.models.load_model(candidate_path)
+            elif framework == 'pyspark':
+                from pyspark.ml.recommendation import ALSModel
+                imported_model = ALSModel.load(candidate_path)
+            elif framework == 'anomaly_detector':
+                imported_model = load_anomaly_detector(candidate_path)
+            elif framework == 'statsmodels':
+                import statsmodels.api as sm
+                imported_model = sm.load(candidate_path)
+            else:
+                # Try joblib then pickle
+                try:
+                    imported_model = joblib.load(candidate_path)
+                except Exception:
+                    with open(candidate_path, 'rb') as f:
+                        imported_model = pickle.load(f)
+
+            if ControlVars.show_results:
+                print(f"Model successfully imported from '{candidate_path}'.")
+
+        # Import Dictionary or List
+        if manip_clean in ['dict_or_list_only', 'both']:
+            if dictionary_or_list_file_name is None:
+                raise InvalidInputsError("dictionary_or_list_file_name must be provided.")
+
+            candidate_dpath = os.path.join(directory_path, dictionary_or_list_file_name)
+            if not os.path.exists(candidate_dpath):
+                for ext in ['.json', '.pickle', '.pkl']:
+                    if os.path.exists(candidate_dpath + ext):
+                        candidate_dpath = candidate_dpath + ext
+                        break
+
+            if not os.path.exists(candidate_dpath):
+                raise InvalidInputsError(f"Dictionary/list file '{candidate_dpath}' was not found.")
+
+            if candidate_dpath.endswith('.json'):
+                with open(candidate_dpath, 'r', encoding = 'utf-8') as f:
+                    imported_dict_or_list = json.load(f)
+            else:
+                with open(candidate_dpath, 'rb') as f:
+                    imported_dict_or_list = pickle.load(f)
+
+            if ControlVars.show_results:
+                print(f"Dictionary/list successfully imported from '{candidate_dpath}'.")
+
+        if manip_clean == 'model_only':
+            return imported_model
+        elif manip_clean == 'dict_or_list_only':
+            return imported_dict_or_list
+        else:
+            return imported_model, imported_dict_or_list
+
 
 
 def generateSensitivityAnalysis_datasets (df, simulated_variables, total_bins):

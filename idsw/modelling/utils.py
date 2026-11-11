@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -65,12 +65,38 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
     """
     
     # Create functions for specific reshaping
+    def _reshape_cnn_lstm(x):
+        arr = np.array(x)
+        if arr.ndim == 4:
+            return arr
+        elif arr.ndim == 3:
+            n_samples, n_timesteps, n_features = arr.shape
+            n_subseq = int(n_timesteps // 2)
+            return arr.reshape(n_samples, n_subseq, 2, n_features)
+        elif arr.ndim == 2:
+            n_samples, n_cols = arr.shape
+            n_subseq = int(n_cols // 2)
+            return arr.reshape(n_samples, n_subseq, 2, 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1, 1)
+        return arr
+
+    def _reshape_3d(x):
+        arr = np.array(x)
+        if arr.ndim >= 3:
+            return arr
+        elif arr.ndim == 2:
+            return arr.reshape(arr.shape[0], arr.shape[1], 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1)
+        return arr
+
     def reshaper(architecture):
         # Use the str function in case user input None or a number as architecture
         if (str(architecture) == 'cnn_lstm'):
-            return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            return _reshape_cnn_lstm
         elif ((str(architecture) == 'cnn')|(str(architecture) == 'lstm')|(str(architecture) == 'encoder_decoder')):
-            return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            return _reshape_3d
         else: # includes architecture is None
             # return the array itself:
             return (lambda x: np.array(x))
@@ -119,8 +145,19 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
     if ControlVars.show_results:
         print(f"Predicting {total_of_responses} responses for a total of {total_data} entries.\n")
     
-    # prediction for a subset
-    y_pred = np.array(model_object.predict(X))
+    if isinstance(model_object, tuple):
+        model_object = model_object[0]
+
+    # prediction for a subset (handling statsmodels and standard estimators)
+    if hasattr(model_object, 'params') and hasattr(getattr(model_object, 'params', None), 'index'):
+        if 'const' in model_object.params.index:
+            import statsmodels.api as sm
+            X_design = sm.add_constant(X, has_constant = 'add')
+            y_pred = np.array(model_object.predict(X_design))
+        else:
+            y_pred = np.array(model_object.predict(X))
+    else:
+        y_pred = np.array(model_object.predict(X))
     if ControlVars.show_results:
         print("Attention: for classification with Keras/TensorFlow and other deep learning frameworks, this output will not be a class, but an array of probabilities correspondent to the probability that the entry belongs to each class. In this case, it is better to use the function calculate_class_probability below, setting model_type == \'deep_learning\'. This function will result into dataframes containing the classes as columns and the probabilities in the respective row.\n")
         print("The output class from the deep learning model is the class with higher probability indicated by the predict method. Again, the order of classes is the order they appear in the training dataset. For instance, when using the ImageDataGenerator, the 1st class is the name of the 1st read directory, the 2nd class is the 2nd directory, and so on.\n")
@@ -290,6 +327,8 @@ def make_model_predictions (model_object, X, dataframe_for_concatenating_predict
 
 
 def calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None, architecture = None):
+    if isinstance(model_object, tuple):
+        model_object = model_object[0]
     """
     calculate_class_probability (model_object, X, list_of_classes, type_of_model = 'other', dataframe_for_concatenating_predictions = None, architecture = None):
 
@@ -371,8 +410,15 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
     
     if (architecture == 'cnn_lstm'):
         # Get the hybrid cnn-lstm time series model from class TfModels:
-        X = (lambda x: tf.constant(((x.numpy()).reshape(x.numpy().shape[0], 2, 2, 1))))(X)
-    
+        arr_X = X.numpy() if hasattr(X, 'numpy') else np.array(X)
+        if arr_X.ndim == 2:
+            n_subseq = int(arr_X.shape[1] // 2)
+            X = tf.constant(arr_X.reshape(arr_X.shape[0], n_subseq, 2, 1))
+        elif arr_X.ndim == 3:
+            n_subseq = int(arr_X.shape[1] // 2)
+            X = tf.constant(arr_X.reshape(arr_X.shape[0], n_subseq, 2, arr_X.shape[2]))
+        elif arr_X.ndim == 4:
+            X = tf.constant(arr_X)
         
     # Check if it is a keras or other deep learning framework; or if it is a sklearn or xgb model:
     boolean_check = (type_of_model == 'deep_learning')
@@ -579,134 +625,156 @@ def calculate_class_probability (model_object, X, list_of_classes, type_of_model
             return probabilities_df
 
 
-def shap_feature_analysis (model_object, X_train, model_type = 'linear', total_of_shap_points = 40):
+def shap_feature_analysis(model_object, X_train, model_type = 'linear', total_of_shap_points = 40):
     """
     shap_feature_analysis (model_object, X_train, model_type = 'linear', total_of_shap_points = 40):
-   
-    An introduction to explainable AI with Shapley values:
-      https://shap.readthedocs.io/en/latest/example_notebooks/overviews/An%20introduction%20to%20explainable%20AI%20with%20Shapley%20values.html
-    
-    : param: model_object: object containing the model that will be analyzed. e.g.
-      model_object = elastic_net_linear_reg_model
-    : param: X_train = subset of predictive variables (dataframe).
-    
-    : param: total_of_shap_points (integer): number of points from the 
-      subset X_train that will be randomly selected for the SHAP 
-      analysis. If the kernel is taking too long, reduce this value.
-    
-    : param: MODEL_TYPE = 'general' for the general case, including artificial neural networks.
-      MODEL_TYPE = 'linear' for Sklearn linear models (OLS, Ridge, Lasso, ElasticNet,
-      Logistic Regression).
-      MODEL_TYPE = 'tree' for tree-based models (Random Forest and XGBoost).
-      MODEL_TYPE = 'deep' for Deep Learning TensorFlow model.
-      Actually, any string different from 'linear', 'tree', or 'deep' (including blank string)
-      will apply the general case.
-    
-      If clustering is used, it is possible to plot the dendogram with
-      the bar chart: shap.plots.bar(shap_values, clustering=clustering, clustering_cutoff=1.8)
-      Also, SHAP can be used for text analysis (in the next example, it
-      is used to analyze the first sentence - index 0):
-      shap.plots.text(shap_values[0])
-    
-    : param: MAX_NUMBER_OF_FEATURES_SHOWN = 10: (integer) limiting the number
-      of features shown in the plot.
+
+    Calculates and visualizes SHAP (SHapley Additive exPlanations) values to explain individual
+    feature contributions and global importance for machine learning and deep learning models.
+
+    : param: model_object: fitted model object or tuple returned by an IDSW training function.
+    : param: X_train: pandas DataFrame or array containing training features.
+    : param: total_of_shap_points: integer (default 40), number of background/evaluation samples
+              to draw from X_train for computing Shapley values.
+    : param: model_type: string ('linear', 'tree', 'deep', or 'general').
+    : return: dictionary with SHAP explainer, calculated SHAP values, and status.
     """
+    if isinstance(model_object, tuple):
+        model_object = model_object[0]
 
-    import shap
-
-    # Convert tensor to NumPy array:
-    X_train = np.array(X_train)
-
-    # Start SHAP:
-    shap.initjs()
-    
-    if ControlVars.show_results:
-        print(f"Randomly sampling {total_of_shap_points} points from the dataset to perform SHAP analysis.")
-        print("If the kernel takes too long, cancel the application and reduce the integer value input as \'total_of_shap_points\'. On the other hand, if it is possible, increase the value to obtain higher precision on the analysis.")
-        
-    # sample the number of points passed as total_of_shap_points
-    # from the dataset X_train, and store these points as X_shap:
-    X_shap = shap.sample(X_train, total_of_shap_points)
-    
-    if (model_type == 'linear'):
-        
-        print("Analyzing Scikit-learn linear model.")
-        
-        # Create an object from the Linear explainer class:
-        shap_explainer = shap.LinearExplainer(model_object, np.array(X_shap))
-        # Documentation:
-        # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.LinearExplainer.html
-        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Math%20behind%20LinearExplainer%20with%20correlation%20feature%20perturbation.html
-        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/linear_models/Sentiment%20Analysis%20with%20Logistic%20Regression.html
-        
-        # Apply .shap_values method to obtain the shap values:
-        shap_vals = shap_explainer.shap_values(X_shap)
-        # shap_vals is a list or array of calculated values.
-        
-    elif (model_type == 'tree'):
-        
-        print("Analyzing tree-based Scikit-learn or XGBoost model.")
-    
-        # Create an object from the Tree explainer class:
-        shap_explainer = shap.TreeExplainer(model_object, np.array(X_shap))
-        # 
-        # Documentation:
-        # https://shap.readthedocs.io/en/latest/generated/shap.explainers.Tree.html#shap.explainers.Tree
-        # Apply .shap_values method to obtain the shap values:
-        shap_vals = shap_explainer.shap_values(X_shap)
-        # shap_vals is a list or array of calculated values.
- 
-    elif (model_type == 'deep'):
-        
-        print("Analyzing Deep Learning TensorFlow model with Deep Explainer.")
-    
-        # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.DeepExplainer.html#shap.DeepExplainer
-        shap_explainer = shap.DeepExplainer(model_object, np.array(X_shap))
-        shap_vals = shap_explainer.shap_values(X_shap)
-
-        
-        """
-        For some deep computer vision models you may use the Gradient Explainer structure as in:
-        https://shap-lrjball.readthedocs.io/en/latest/example_notebooks/gradient_explainer/Explain%20an%20Intermediate%20Layer%20of%20VGG16%20on%20ImageNet.html
-        elif (model_type == 'gradient_tf'):
-            
-            print("Analyzing TensorFlow model with Gradient Explainer (using expected gradients, an extension of integrated gradients).")
-
-            # https://shap-lrjball.readthedocs.io/en/latest/generated/shap.GradientExplainer.html
-            shap_explainer = shap.GradientExplainer(model_object, pd.DataFrame(np.array(X_shap)))
-
-            - After obtaining the explainer with this code, follow the examples. This class requires a pd.DataFrame as second
-            argument, since it access some attributes from this particular class.
-        """
-
+    feature_names = None
+    if isinstance(X_train, pd.DataFrame):
+        feature_names = list(X_train.columns)
+        X_mat = np.array(X_train.copy(deep = True))
     else:
-        # In any other case, use the KernelExplainer
-        # Create an object from KernelExplainer class:
-        shap_explainer = shap.KernelExplainer(model_object.predict, np.array(X_shap))
-        # https://shap.readthedocs.io/en/latest/example_notebooks/tabular_examples/neural_networks/Census%20income%20classification%20with%20Keras.html
-        # Alternatively: model_object.predict(X)
-        # Apply .shap_values method to obtain the shap values:
-        shap_vals = shap_explainer.shap_values(X_shap)
-        # shap_vals is a list or array of calculated values.
-    
-    if ControlVars.show_plots:
-        shap.summary_plot(shap_vals, X_shap)
-    
-    # Create a dictionary with the explainer and the shap_vals:
-    shap_dict = {
-        'SHAP_kernel_explainer': shap_explainer,
-        'SHAP_values': shap_vals
-    }
-    
+        X_mat = np.array(X_train)
+
+    # Sample background points
+    n_samples = min(total_of_shap_points, len(X_mat))
+    np.random.seed(42)
+    sample_indices = np.random.choice(len(X_mat), size = n_samples, replace = False)
+    X_shap = X_mat[sample_indices]
+
     if ControlVars.show_results:
-        print("\n") # line break
-        print("Dictionary with SHAP explainer and SHAP values returned as \'shap_dict\'.")
-        
-        print("\n") # line break
-        print("SHAP Interpretation:")
-        print("SHAP returns us a SHAP value that represents the relative importance.")
-        print("The features are displayed in order of importance, from the most important (top of the plot) to the less important (bottom of the plot).")
-        print("A feature which is shown on the right side of the plot results in positive impact on the model, whereas a feature on the left results into a negative impact in the response.")
-        print("The relative impact is shown by the color scale: a tone closer to red indicates a higher impact, whereas the proximity to blue indicates low relative impact.")
-            
-    return shap_dict
+        print("=" * 80)
+        print("SHAP (SHAPLEY ADDITIVE EXPLANATIONS) FEATURE IMPORTANCE ANALYSIS")
+        print("=" * 80)
+        print(f"Sampled {n_samples} background evaluation points from dataset.")
+
+    try:
+        import shap
+    except ImportError:
+        print("[!] Warning: Package 'shap' is not installed in the environment. Please run: pip install shap")
+        return {"SHAP_status": "failed", "error_message": "shap package not installed"}
+
+    shap_explainer = None
+    shap_vals = None
+    m_type = str(model_type).strip().lower()
+
+    try:
+        shap.initjs()
+
+        if m_type == 'linear':
+            try:
+                shap_explainer = shap.LinearExplainer(model_object, X_shap)
+                shap_vals = shap_explainer.shap_values(X_shap)
+            except Exception as e_lin:
+                if ControlVars.show_results:
+                    print(f"[*] LinearExplainer fallback: {e_lin}. Attempting general shap.Explainer...")
+                shap_explainer = shap.Explainer(model_object, X_shap)
+                shap_vals = shap_explainer(X_shap)
+
+        elif m_type == 'tree':
+            try:
+                shap_explainer = shap.TreeExplainer(model_object, X_shap)
+                shap_vals = shap_explainer.shap_values(X_shap)
+            except Exception as e_tree:
+                if ControlVars.show_results:
+                    print(f"[*] TreeExplainer fallback: {e_tree}. Attempting general shap.Explainer...")
+                shap_explainer = shap.Explainer(model_object, X_shap)
+                shap_vals = shap_explainer(X_shap)
+
+        elif m_type == 'deep':
+            # Modern TF 2.x DeepExplainer fallback handling
+            try:
+                shap_explainer = shap.DeepExplainer(model_object, X_shap)
+                shap_vals = shap_explainer.shap_values(X_shap)
+            except Exception as e_deep:
+                if ControlVars.show_results:
+                    print(f"[*] DeepExplainer encountered graph/eager compatibility issue: {e_deep}")
+                    print("    Switching to model-agnostic KernelExplainer for deep neural network...")
+                predict_fn = model_object.predict if hasattr(model_object, 'predict') else model_object
+                shap_explainer = shap.KernelExplainer(predict_fn, X_shap)
+                shap_vals = shap_explainer.shap_values(X_shap, nsamples = min(50, n_samples))
+
+        else:
+            # General / model-agnostic KernelExplainer
+            predict_fn = model_object.predict if hasattr(model_object, 'predict') else model_object
+            shap_explainer = shap.KernelExplainer(predict_fn, X_shap)
+            shap_vals = shap_explainer.shap_values(X_shap, nsamples = min(50, n_samples))
+
+        # Render summary plot if plots are enabled
+        if ControlVars.show_plots and shap_vals is not None:
+            plt.figure(figsize = (10, 6))
+            try:
+                # If shap_vals is an Explanation object (shap >= 0.40)
+                if hasattr(shap_vals, 'values'):
+                    shap.summary_plot(shap_vals, X_shap, feature_names = feature_names, show = False)
+                else:
+                    shap.summary_plot(shap_vals, X_shap, feature_names = feature_names, show = False)
+                plt.tight_layout()
+                plt.show()
+            except Exception as plot_err:
+                if ControlVars.show_results:
+                    print(f"[*] Summary plot display note: {plot_err}")
+
+        shap_dict = {
+            "SHAP_status": "success",
+            "SHAP_explainer": shap_explainer,
+            "SHAP_values": shap_vals,
+            "feature_names": feature_names
+        }
+
+        if ControlVars.show_results:
+            print("\n" + "=" * 80)
+            print("SHAP SUMMARY PLOT INTERPRETATION GUIDE")
+            print("=" * 80)
+            print("1. Feature Importance (Vertical Axis):")
+            print("   Features are ordered from top to bottom based on global predictive impact.")
+            print("   The feature at the very top is the most influential across all evaluated predictions.")
+            print("\n2. Impact on Model Output (Horizontal X-Axis / SHAP Value):")
+            print("   - SHAP Value > 0 (Right Side): This feature value pushes the model prediction higher.")
+            print("   - SHAP Value < 0 (Left Side):  This feature value pushes the model prediction lower.")
+            print("   - SHAP Value = 0 (Center Line): No impact on the prediction.")
+            print("\n3. Feature Value (Color Spectrum):")
+            print("   - RED indicates a HIGH value of that specific feature.")
+            print("   - BLUE indicates a LOW value of that specific feature.")
+            print("\n4. Directional Effect Examples:")
+            print("   - Red dots on the right & blue dots on the left: POSITIVE correlation.")
+            print("     (Higher feature values increase the predicted outcome).")
+            print("   - Red dots on the left & blue dots on the right: INVERSE / NEGATIVE correlation.")
+            print("     (Higher feature values decrease the predicted outcome).")
+            print("=" * 80 + "\n")
+
+        return shap_dict
+
+    except Exception as e_all:
+        error_msg = str(e_all)
+        if ControlVars.show_results:
+            print("\n" + "=" * 80)
+            print(f"[!] SHAP Analysis Error: {error_msg}")
+            print("=" * 80)
+            print("Why did this occur?")
+            print("Certain model architectures (such as complex recurrent/encoder-decoder networks, custom symbolic")
+            print("layers, or non-differentiable pipelines) cannot be decomposed by gradient-based SHAP explainers.")
+            print("RECOMMENDED ALTERNATIVES:")
+            print("1. Use IDSW ModelChecking: model_check.feature_importance_ranking(model_class='linear' / 'tree').")
+            print("2. Use Scikit-Learn Permutation Importance: sklearn.inspection.permutation_importance.")
+            print("=" * 80 + "\n")
+
+        return {
+            "SHAP_status": "failed",
+            "error_message": error_msg,
+            "SHAP_explainer": None,
+            "SHAP_values": None
+        }

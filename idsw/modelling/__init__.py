@@ -1,4 +1,4 @@
-__doc__ = """
+﻿__doc__ = """
 idsw.modelling
 ===============
 Workflow for obtaining machine learning supervised and non-supervised 
@@ -47,3 +47,6 @@ from .mlp import *
 from .deep import *
 from .nonsupervised import *
 from .svm import *
+from .tuning import *
+from .bayes import *
+from .recommendation_engines import *

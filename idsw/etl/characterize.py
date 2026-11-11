@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -1422,447 +1422,252 @@ def handle_missing_values (df, subset_columns_list = None, drop_missing_val = Tr
     return cleaned_df
 
 
-def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True):
+def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
-    adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True):
+    adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = None, test_value_to_fill = None, show_imputation_comparison_plots = True, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Advanced missing value imputation for numerical and categorical columns. Evaluates multiple imputation
+    strategies using cross-validation holdout on observed ground-truth values to select the optimal technique
+    minimizing reconstruction Root Mean Squared Error (RMSE) or classification error.
     
-    Check DataCamp course Dealing with Missing Data in Python
-     https://app.datacamp.com/learn/courses/dealing-with-missing-data-in-python
+    Candidate imputation strategies tested:
+    - Statistical: mean, median, mode, constant
+    - Time-series interpolation: linear, quadratic polynomial, cubic polynomial, nearest neighbor, backward fill (bfill), forward fill (ffill)
+    - Machine Learning multivariate: K-Nearest Neighbors (KNN), Multiple Imputation by Chained Equations (MICE / IterativeImputer)
     
-    This function handles only one column by call, whereas handle_missing_values can process the whole
-     dataframe at once.
-    The strategies used for handling missing values is different here. You can use the function to
-     process data that does not come from time series, but only plot the graphs for time series data.
-    
-    This function is more indicated for dealing with missing values on time series data than handle_missing_values.
-    This function will search for the best imputer for a given column.
-    It can process both numerical and categorical columns.
-    
-    : param: column_to_fill: string (in quotes) indicating the column with missing values to fill.
-      e.g. if column_to_fill = 'col1', imputations will be performed on column 'col1'.
-    
-    : param: timestamp_tag_column = None. string containing the name of the column with the timestamp. 
-      If timestamp_tag_column is None, the index will be used for testing different imputations.
-      be the time series reference. declare as a string under quotes. This is the column from 
-      which we will extract the timestamps or values with temporal information. e.g.
-      timestamp_tag_column = 'timestamp' will consider the column 'timestamp' a time column.
-    
-    : param: test_value_to_fill: the function will test the imputation of a constant. Specify this constant here
-      or the tested constant will be zero. e.g. test_value_to_fill = None will test the imputation of 0.
-      test_value_to_fill = 10 will test the imputation of value zero.
-    
-    : param: show_imputation_comparison_plots = True. Keep it True to plot the scatter plot comparison
-      between imputed and original values, as well as the Kernel density estimate (KDE) plot.
-      Alternatively, set show_imputation_comparison_plots = False to omit the plots.
-    
-      The following imputation techniques will be tested, and the best one will be automatically
-      selected: mean_imputer, median_imputer, mode_imputer, constant_imputer, linear_interpolation,
-      quadratic_interpolation, cubic_interpolation, nearest_interpolation, bfill_imputation,
-      ffill_imputation, knn_imputer, mice_imputer (MICE = Multiple Imputations by Chained Equations).
-    
-      MICE: Performs multiple regressions over random samples of the data; 
-      Takes the average of multiple regression values; and imputes the missing feature value for the 
-      data point.
-      KNN (K-Nearest Neighbor): Selects K nearest or similar data points using all the 
-      non-missing features. It takes the average of the selected data points to fill in the missing 
-      feature.
-      These are Machine Learning techniques to impute missing values.
-      KNN finds most similar points for imputing.
-      MICE performs multiple regression for imputing. MICE is a very robust model for imputation.
+    : param: df: pandas DataFrame to process.
+    : param: column_to_fill: string, column containing missing values to impute.
+    : param: timestamp_tag_column: string (optional), timestamp column for chronological ordering.
+    : param: test_value_to_fill: numeric or scalar (optional), constant value tested by the constant imputer (default 0).
+    : param: show_imputation_comparison_plots: boolean (default True), whether to display KDE and original vs imputed comparison plots.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 70).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid on the plots.
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: pandas DataFrame with missing values in `column_to_fill` filled using the best-performing strategy.
     """
-    
-    error_msg = """If ModuleNotFoundError is raised, run the following command to install fancyimpute package, which is not required for running IDSW
-                
-                                            ! pip install fancyimpute
 
-            """
-    print(error_msg)
-
-    from scipy.stats import linregress
-    from sklearn.impute import SimpleImputer
-    from sklearn.preprocessing import OrdinalEncoder
-    from fancyimpute import KNN, IterativeImputer
-    
-    # Set a local copy of df to manipulate.
-    # The methods used in this function can modify the original object itself. So,
-    # here we apply the copy method setting deep = True
-    cleaned_df = df.copy(deep = True)
-    
-    subset_columns_list = [column_to_fill] # only the column indicated.
-    total_columns = 1 # keep the homogeneity with the previous function
-    
-    # Get the list of columns of the dataframe:
-    df_cols = list(cleaned_df.columns)
-    # Get the index j of the column_to_fill:
-    j = df_cols.index(column_to_fill)
-    print(f"Filling missing values on column {column_to_fill}. This is the column with index {j} in the original dataframe.\n")
-
-    # Firstly, let's process the timestamp column and save it as x. 
-    # That is because datetime objects cannot be directly applied to linear regressions and
-    # numeric procedure. We must firstly convert it to an integer scale capable of preserving
-    # the distance relationships.
-
-    # Check if there is a timestamp_tag_column. If not, make the index the timestamp:
-    if (timestamp_tag_column is None):
-        
-        timestamp_tag_column = column_to_fill + "_index"
-        
-        # Create the x array
-        x = np.array(cleaned_df.index)
-        
-    else:
-        # Run only if there was a timestamp column originally.
-        # sort this dataframe by timestamp_tag_column and column_to_fill:
-        cleaned_df = cleaned_df.sort_values(by = [timestamp_tag_column, column_to_fill], ascending = [True, True])
-        # restart index:
-        cleaned_df = cleaned_df.reset_index(drop = True)
-        
-        # If timestamp_tag_column is an object, the user may be trying to pass a date as x. 
-        # So, let's try to convert it to datetime:
-        if ((cleaned_df[timestamp_tag_column].dtype == 'O') | (cleaned_df[timestamp_tag_column].dtype == 'object')):
-
-            try:
-                cleaned_df[timestamp_tag_column] = (cleaned_df[timestamp_tag_column]).astype('datetime64[ns]')
-                        
-            except:
-                # Simply ignore it
-                pass
-        
-        ts_array = np.array(cleaned_df[timestamp_tag_column])
-        
-        # Check if the elements from array x are np.datetime64 objects. Pick the first
-        # element to check:
-        if (type(ts_array[0]) == np.datetime64):
-            # In this case, performing the linear regression directly in X will
-            # return an error. We must associate a sequential number to each time.
-            # to keep the distance between these integers the same as in the original sequence
-            # let's define a difference of 1 ns as 1. The 1st timestamp will be zero, and the
-            # addition of 1 ns will be an addition of 1 unit. So a timestamp recorded 10 ns
-            # after the time zero will have value 10. At the end, we divide every element by
-            # 10**9, to obtain the correspondent distance in seconds.
-                
-            # start a list for the associated integer timescale. Put the number zero,
-            # associated to the first timestamp:
-            int_timescale = [0]
-            # calculate the timedelta between x[i] and x[i-1]:
-            # The delta method from the Timedelta class converts the timedelta to
-            # nanoseconds, guaranteeing the internal compatibility:
-            # The .delta attribute was replaced by .value attribute. 
-            # Both return the number of nanoseconds as an integer.
-            # https://pandas.pydata.org/docs/reference/api/pandas.Timedelta.html
-            timedeltas = [pd.Timedelta(ts_array[i] - ts_array[(i-1)]).value for i in range(1, len(ts_array))]
-                
-            # loop through each element of the array x, starting from index 1:
-            for timedelta in timedeltas:
-                # Concatenate the int_timescale with a list formed by the sum of the last element
-                # with the new timedelta. Example: 0 is summed with the first timedelta, this new value
-                # becomes the second and is summed to the next timedelta.
-                int_timescale = int_timescale + [int_timescale[-1] + timedelta]
-                
-            # Now convert the new scale (that preserves the distance between timestamps)
-            # to NumPy array:
-            int_timescale = np.array(int_timescale)
-            
-            # Divide by 10**9 to obtain the distances in seconds, reducing the order of
-            # magnitude of the integer numbers (the division is allowed for arrays).
-            # make it the timestamp array ts_array itself:
-            ts_array = int_timescale / (10**9)
-            # Now, reduce again the order of magnitude through division by (60*60)
-            # It will obtain the ts_array in hour:
-            ts_array = int_timescale / (60*60)
-            
-        # make x the ts_array itself:
-        x = ts_array
-    
-    column_data_type_bool_check = pd.api.types.is_numeric_dtype(cleaned_df[column])
-    
-    # Pre-process the column if it is categorical
-    if ((column_data_type == 'O') | (column_data_type == 'object')):
-        
-        # Ordinal encoding: let's associate integer sequential numbers to the categorical column
-        # to apply the advanced encoding techniques. Even though the one-hot encoding could perform
-        # the same task and would, in fact, better, since there may be no ordering relation, the
-        # ordinal encoding is simpler and more suitable for this particular task:
-        
-        # Create Ordinal encoder
-        ord_enc = OrdinalEncoder()
-        
-        # Select non-null values of the column in the dataframe:
-        series_on_df = cleaned_df[column_to_fill]
-        
-        # Reshape series_on_df to shape (-1, 1)
-        reshaped_vals = series_on_df.values.reshape(-1, 1)
-        
-        # Fit the ordinal encoder to the reshaped column_to_fill values:
-        encoded_vals = ord_enc.fit_transform(reshaped_vals)
-        
-        # Finally, store the values to non-null values of the column in dataframe
-        cleaned_df.iloc[:,j] = encoded_vals
-
-        # Max and minimum of the encoded range
-        max_encoded = max(encoded_vals)
-        min_encoded = min(encoded_vals)
-
-
-    # Start a list of imputations:
-    list_of_imputations = []
-    
-    subset_from_cleaned_df = cleaned_df.copy(deep = True)
-    subset_from_cleaned_df = subset_from_cleaned_df[subset_columns_list]
-
-    mean_imputer = SimpleImputer(strategy = 'mean')
-    list_of_imputations.append('mean_imputer')
-    
-    # Now, apply the fit_transform method from the imputer to fit it to the indicated column:
-    mean_imputer.fit(subset_from_cleaned_df)
-    # If you wanted to obtain constants for all columns, you should not specify a subset:
-    # imputer.fit_transform(cleaned_df)
-        
-    # create a column on the dataframe as 'mean_imputer':
-    cleaned_df['mean_imputer'] = mean_imputer.transform(subset_from_cleaned_df)
-        
-    # Create the median imputer:
-    median_imputer = SimpleImputer(strategy = 'median')
-    list_of_imputations.append('median_imputer')
-    median_imputer.fit(subset_from_cleaned_df)
-    cleaned_df['median_imputer'] = median_imputer.transform(subset_from_cleaned_df)
-    
-    # Create the mode imputer:
-    mode_imputer = SimpleImputer(strategy = 'most_frequent')
-    list_of_imputations.append('mode_imputer')
-    mode_imputer.fit(subset_from_cleaned_df)
-    cleaned_df['mode_imputer'] = mode_imputer.transform(subset_from_cleaned_df)
-    
-    # Create the constant value imputer:
-    if (test_value_to_fill is None):
-        test_value_to_fill = 0
-    
-    constant_imputer = SimpleImputer(strategy = 'constant', fill_value = test_value_to_fill)
-    list_of_imputations.append('constant_imputer')
-    constant_imputer.fit(subset_from_cleaned_df)
-    cleaned_df['constant_imputer'] = constant_imputer.transform(subset_from_cleaned_df)
-    
-    # Make the linear interpolation imputation:
-    linear_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
-    linear_interpolation_df = linear_interpolation_df.interpolate(method = 'linear')
-    cleaned_df['linear_interpolation'] = linear_interpolation_df[column_to_fill]
-    list_of_imputations.append('linear_interpolation')
-        
-    # Interpolate 2-nd degree polynomial:
-    quadratic_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
-    quadratic_interpolation_df = quadratic_interpolation_df.interpolate(method = 'polynomial', order = 2)
-    cleaned_df['quadratic_interpolation'] = quadratic_interpolation_df[column_to_fill]
-    list_of_imputations.append('quadratic_interpolation')
-        
-    # Interpolate 3-rd degree polynomial:
-    cubic_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
-    cubic_interpolation_df = cubic_interpolation_df.interpolate(method = 'polynomial', order = 3)
-    cleaned_df['cubic_interpolation'] = cubic_interpolation_df[column_to_fill]
-    list_of_imputations.append('cubic_interpolation')
-    
-    # Nearest interpolation
-    # Similar to bfill and ffill, but uses the nearest
-    nearest_interpolation_df = cleaned_df[subset_columns_list].copy(deep = True)
-    nearest_interpolation_df = nearest_interpolation_df.interpolate(method = 'nearest')
-    cleaned_df['nearest_interpolation'] = nearest_interpolation_df[column_to_fill]
-    list_of_imputations.append('nearest_interpolation')
-    
-    # bfill and ffill:
-    bfill_df = cleaned_df[subset_columns_list].copy(deep = True)
-    ffill_df = cleaned_df[subset_columns_list].copy(deep = True)
-    
-    bfill_df = bfill_df.fillna(method = 'bfill')
-    cleaned_df['bfill_imputation'] = bfill_df[column_to_fill]
-    list_of_imputations.append('bfill_imputation')
-    
-    ffill_df = ffill_df.fillna(method = 'ffill')
-    cleaned_df['ffill_imputation'] = ffill_df[column_to_fill]
-    list_of_imputations.append('ffill_imputation')
-    
-    
-    # Now, we can go to the advanced machine learning techniques:
-    
-    # KNN Imputer:
-    # Initialize KNN
-    knn_imputer = KNN()
-    list_of_imputations.append('knn_imputer')
-    cleaned_df['knn_imputer'] = knn_imputer.fit_transform(subset_from_cleaned_df)
-    
-    # Initialize IterativeImputer
-    mice_imputer = IterativeImputer()
-    list_of_imputations.append('mice_imputer')
-    cleaned_df['mice_imputer'] = mice_imputer.fit_transform(subset_from_cleaned_df)
-    
-    # Now, let's create linear regressions for compare the performance of different
-    # imputation strategies.
-    # Firstly, start a dictionary to store
-    
-    imputation_performance_dict = {}
-
-    # Now, loop through each imputation and calculate the adjusted R²:
-    for imputation in list_of_imputations:
-        
-        y = cleaned_df[imputation]
-        
-        # fit the linear regression
-        slope, intercept, r, p, se = linregress(x, y)
-        
-        # Get the adjusted R² and add it as the key imputation of the dictionary:
-        imputation_performance_dict[imputation] = r**2
-    
-    # Select best R-squared
-    best_imputation = max(imputation_performance_dict, key = imputation_performance_dict.get)
-    
-    if ControlVars.show_results:
-        print(f"The best imputation strategy for the column {column_to_fill} is {best_imputation}.\n")
-    
-    if ControlVars.show_plots:
-        if (show_imputation_comparison_plots & ((column_data_type != 'O') & (column_data_type != 'object'))):
-            # If user forgot this parameter but changed ControlVars, ControlVars block the plotting
-            
-            # Firstly, converts the values obtained to closest integer (since we
-            # encoded the categorical values as integers, we cannot reconvert
-            # decimals):)): # run if it is True
-        
-            print("Check the Kernel density estimate (KDE) plot for the different imputations.\n")
-            labels_list = ['baseline\ncomplete_case']
-            y = cleaned_df[column_to_fill]
-            X = cleaned_df[timestamp_tag_column] # not the converted scale
-
-            fig = plt.figure(figsize = (12, 8))
-            ax = fig.add_subplot()
-            
-            # Plot graphs of imputed DataFrames and the complete case
-            y.plot(kind = 'kde', c = 'red', linewidth = 3)
-
-            for imputation in list_of_imputations:
-                
-                labels_list.append(imputation)
-                y = cleaned_df[imputation]
-                y.plot(kind = 'kde')
-            
-            #ROTATE X AXIS IN XX DEGREES
-            plt.xticks(rotation = 0)
-            # XX = 0 DEGREES x_axis (Default)
-            #ROTATE Y AXIS IN XX DEGREES:
-            plt.yticks(rotation = 0)
-            # XX = 0 DEGREES y_axis (Default)
-
-            ax.set_title("Kernel_density_estimate_plot_for_each_imputation")
-            ax.set_xlabel(column_to_fill)
-            ax.set_ylabel("density")
-
-            ax.grid(True) # show grid or not
-            ax.legend(loc = 'upper left')
-            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-            # https://www.statology.org/matplotlib-legend-position/
-            plt.show()
-            
-            print("\n")
-            print(f"Now, check the original time series compared with the values obtained through {best_imputation}:\n")
-            
-            fig = plt.figure(figsize = (12, 8))
-            ax = fig.add_subplot()
-            
-            # Plot the imputed DataFrame in red dotted style
-            selected_imputation = cleaned_df[best_imputation]
-            ax.plot(X, selected_imputation, color = 'red', marker = 'o', linestyle = 'dotted', label = best_imputation)
-            
-            # Plot the original DataFrame with title
-            # Put a degree of transparency (35%) to highlight the imputation.
-            ax.plot(X, y, color = 'darkblue', alpha = 0.65, linestyle = '-', marker = '', label = (column_to_fill + "_original"))
-            
-            plt.xticks(rotation = 70)
-            plt.yticks(rotation = 0)
-            ax.set_title(column_to_fill + "_original_vs_imputations")
-            ax.set_xlabel(timestamp_tag_column)
-            ax.set_ylabel(column_to_fill)
-
-            ax.grid(True) # show grid or not
-            ax.legend(loc = 'upper left')
-            # position options: 'upper right'; 'upper left'; 'lower left'; 'lower right';
-            # 'right', 'center left'; 'center right'; 'lower center'; 'upper center', 'center'
-            # https://www.statology.org/matplotlib-legend-position/
-            plt.show()
-            print("\n")
-    
-    if ControlVars.show_results:  
-        print(f"Returning a dataframe where {best_imputation} strategy was used for filling missing values in {column_to_fill} column.\n")
-        
-        if (best_imputation == 'mice_imputer'):
-            print("MICE = Multiple Imputations by Chained Equations")
-            print("MICE: Performs multiple regressions over random samples of the data.")
-            print("It takes the average of multiple regression values and imputes the missing feature value for the data point.")
-            print("It is a Machine Learning technique to impute missing values.")
-            print("MICE performs multiple regression for imputing and is a very robust model for imputation.\n")
-        
-        elif (best_imputation == 'knn_imputer'):
-            print("KNN = K-Nearest Neighbor")
-            print("KNN selects K nearest or similar data points using all the non-missing features.")
-            print("It takes the average of the selected data points to fill in the missing feature.")
-            print("It is a Machine Learning technique to impute missing values.")
-            print("KNN finds most similar points for imputing.\n")
-    
-    # Make all rows from the column j equals to the selected imputer:
-    cleaned_df.iloc[:, j] = cleaned_df[best_imputation]
-    # If you wanted to make all rows from all columns equal to the imputer, you should declare:
-    # cleaned_df.iloc[:, :] = imputer
-    
-    # Drop all the columns created for storing different imputers:
-    # These columns were saved in the list list_of_imputations.
-    # Notice that the selected imputations were saved in the original column.
-    cleaned_df = cleaned_df.drop(columns = list_of_imputations)
-    
-    # Finally, let's reverse the ordinal encoding used in the beginning of the code to process object
-    # columns:
-    
-    
-    if (not column_data_type_bool_check):
-        
-        # Firstly, converts the values obtained to closest integer (since we
-        # encoded the categorical values as integers, we cannot reconvert
-        # decimals):
-        
-        cleaned_df[column_to_fill] = (np.rint(cleaned_df[column_to_fill]))
-        
-        # If a value is above the max_encoded, make it equals to the maximum.
-        # If it is below the minimum, make it equals to the minimum:
-        for k in range(0, len(cleaned_df)):
-
-            if (cleaned_df.iloc[k,j] > max_encoded):
-                cleaned_df.iloc[k,j] = max_encoded
-                
-            elif (cleaned_df.iloc[k,j] < min_encoded):
-                cleaned_df.iloc[k,j] = min_encoded
-
-        new_series = cleaned_df[column_to_fill]
-        # We must use the int function to guarantee that the column_to_fill will store an
-        # integer number (we cannot have a fraction of an encoding).
-        # The int function guarantees that the variable will be stored as an integer.
-        # The numpy.rint(a) function rounds elements of the array to the nearest integer.
-        # https://numpy.org/doc/stable/reference/generated/numpy.rint.html
-        # For values exactly halfway between rounded decimal values, 
-        # NumPy rounds to the nearest even value. 
-        # Thus 1.5 and 2.5 round to 2.0; -0.5 and 0.5 round to 0.0; etc.
-        
-        # Reshape series_not_null to shape (-1, 1)
-        reshaped_vals = new_series.values.reshape(-1, 1)
-        
-        # Perform inverse transform of the ordinally encoded columns
-        cleaned_df[column_to_fill] = ord_enc.inverse_transform(reshaped_vals)
-
-    if ControlVars.show_results:
-        print("Check the 10 first rows from the cleaned dataframe:\n")
+    from sklearn.impute import SimpleImputer, KNNImputer
+    try:
+        from sklearn.experimental import enable_iterative_imputer
+        from sklearn.impute import IterativeImputer
+    except Exception:
         try:
-            # only works in Jupyter Notebook:
+            from fancyimpute import IterativeImputer
+        except Exception:
+            IterativeImputer = None
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_to_fill not in df.columns:
+        raise InvalidInputsError(f"column_to_fill '{column_to_fill}' was not found in DataFrame.")
+
+    cleaned_df = df.copy(deep = True)
+    j = list(cleaned_df.columns).index(column_to_fill)
+
+    # Sort by timestamp if available:
+    if timestamp_tag_column is not None and timestamp_tag_column in cleaned_df.columns:
+        if cleaned_df[timestamp_tag_column].dtype in ['O', 'object']:
+            try:
+                cleaned_df[timestamp_tag_column] = pd.to_datetime(cleaned_df[timestamp_tag_column])
+            except Exception:
+                pass
+        cleaned_df = cleaned_df.sort_values(by = timestamp_tag_column).reset_index(drop = True)
+        time_x = cleaned_df[timestamp_tag_column]
+    else:
+        timestamp_tag_column = column_to_fill + "_index"
+        time_x = cleaned_df.index
+
+    is_numeric = pd.api.types.is_numeric_dtype(cleaned_df[column_to_fill])
+    if test_value_to_fill is None:
+        test_value_to_fill = 0 if is_numeric else "missing"
+
+    valid_mask = cleaned_df[column_to_fill].notna()
+    valid_indices = cleaned_df[valid_mask].index.values
+
+    if len(valid_indices) == 0:
+        raise InvalidInputsError(f"Column '{column_to_fill}' contains only missing values. Cannot determine imputation strategy.")
+
+    # Validation holdout set (20% of observed data, min 2, max 150)
+    n_val = max(2, min(150, int(0.20 * len(valid_indices))))
+    np.random.seed(42)
+    val_indices = np.random.choice(valid_indices, size = n_val, replace = False)
+    val_indices = np.sort(val_indices)
+    ground_truth = cleaned_df.loc[val_indices, column_to_fill].values
+
+    # Helper function to generate an imputed series given a dataset and column
+    def apply_imputer(source_df, col_name, method):
+        s = source_df[col_name].copy()
+        if method == 'mean_imputer':
+            val = s.mean() if is_numeric else s.mode().iloc[0]
+            return s.fillna(val)
+        elif method == 'median_imputer':
+            val = s.median() if is_numeric else s.mode().iloc[0]
+            return s.fillna(val)
+        elif method == 'mode_imputer':
+            val = s.mode().iloc[0] if len(s.mode()) > 0 else (0 if is_numeric else 'missing')
+            return s.fillna(val)
+        elif method == 'constant_imputer':
+            return s.fillna(test_value_to_fill)
+        elif method == 'linear_interpolation':
+            if is_numeric:
+                return s.interpolate(method = 'linear').bfill().ffill()
+            return s.bfill().ffill()
+        elif method == 'quadratic_interpolation':
+            if is_numeric and len(s.dropna()) >= 3:
+                try:
+                    return s.interpolate(method = 'polynomial', order = 2).bfill().ffill()
+                except Exception:
+                    return s.interpolate(method = 'linear').bfill().ffill()
+            return s.bfill().ffill()
+        elif method == 'cubic_interpolation':
+            if is_numeric and len(s.dropna()) >= 4:
+                try:
+                    return s.interpolate(method = 'polynomial', order = 3).bfill().ffill()
+                except Exception:
+                    return s.interpolate(method = 'linear').bfill().ffill()
+            return s.bfill().ffill()
+        elif method == 'nearest_interpolation':
+            if is_numeric:
+                try:
+                    return s.interpolate(method = 'nearest').bfill().ffill()
+                except Exception:
+                    return s.bfill().ffill()
+            return s.bfill().ffill()
+        elif method == 'bfill_imputation':
+            return s.bfill().ffill()
+        elif method == 'ffill_imputation':
+            return s.ffill().bfill()
+        elif method == 'knn_imputer':
+            if is_numeric:
+                num_df = source_df.select_dtypes(include = [np.number]).copy()
+                if num_df.shape[1] > 1:
+                    imputer = KNNImputer(n_neighbors = min(5, len(s.dropna())))
+                    imputed_arr = imputer.fit_transform(num_df)
+                    col_idx = list(num_df.columns).index(col_name)
+                    return pd.Series(imputed_arr[:, col_idx], index = source_df.index)
+            return s.fillna(s.median() if is_numeric else s.mode().iloc[0])
+        elif method == 'mice_imputer':
+            if is_numeric and IterativeImputer is not None:
+                num_df = source_df.select_dtypes(include = [np.number]).copy()
+                if num_df.shape[1] > 1:
+                    imputer = IterativeImputer(max_iter = 10, random_state = 42)
+                    imputed_arr = imputer.fit_transform(num_df)
+                    col_idx = list(num_df.columns).index(col_name)
+                    return pd.Series(imputed_arr[:, col_idx], index = source_df.index)
+            return s.fillna(s.median() if is_numeric else s.mode().iloc[0])
+        return s.bfill().ffill()
+
+    # Determine list of strategies to test
+    if is_numeric:
+        candidate_methods = [
+            'mean_imputer', 'median_imputer', 'mode_imputer', 'constant_imputer',
+            'linear_interpolation', 'quadratic_interpolation', 'cubic_interpolation',
+            'nearest_interpolation', 'bfill_imputation', 'ffill_imputation'
+        ]
+        num_cols = cleaned_df.select_dtypes(include = [np.number]).shape[1]
+        if num_cols > 1:
+            candidate_methods.append('knn_imputer')
+            if IterativeImputer is not None:
+                candidate_methods.append('mice_imputer')
+    else:
+        candidate_methods = ['mode_imputer', 'constant_imputer', 'bfill_imputation', 'ffill_imputation']
+
+    # Cross-validation holdout evaluation on observed values
+    masked_df = cleaned_df.copy(deep = True)
+    masked_df.loc[val_indices, column_to_fill] = np.nan
+
+    evaluation_scores = {}
+    for method in candidate_methods:
+        try:
+            pred_series = apply_imputer(masked_df, column_to_fill, method)
+            pred_vals = pred_series.loc[val_indices].values
+            if is_numeric:
+                rmse = float(np.sqrt(np.mean((pred_vals.astype(float) - ground_truth.astype(float)) ** 2)))
+                evaluation_scores[method] = rmse
+            else:
+                error_rate = float(np.mean(pred_vals != ground_truth))
+                evaluation_scores[method] = error_rate
+        except Exception:
+            pass
+
+    if len(evaluation_scores) == 0:
+        best_imputation = 'mode_imputer'
+    else:
+        best_imputation = min(evaluation_scores, key = evaluation_scores.get)
+
+    if ControlVars.show_results:
+        print(f"Evaluated imputation strategies for column '{column_to_fill}' via ground-truth cross-validation holdout:")
+        metric_name = "RMSE" if is_numeric else "Error Rate"
+        score_df = pd.DataFrame(list(evaluation_scores.items()), columns = ['Imputation_Strategy', f'Validation_{metric_name}']).sort_values(by = f'Validation_{metric_name}')
+        try:
+            from IPython.display import display
+            display(score_df)
+        except Exception:
+            print(score_df)
+        print(f"\nBest-performing strategy selected: '{best_imputation}' (lowest validation {metric_name} = {evaluation_scores.get(best_imputation, 0):.4f}).\n")
+
+    # Apply the best imputer to the real missing data in cleaned_df:
+    final_imputed_series = apply_imputer(cleaned_df, column_to_fill, best_imputation)
+
+    if ControlVars.show_plots and show_imputation_comparison_plots and is_numeric:
+        # Comparison KDE Plot
+        fig, ax = plt.subplots(figsize = (12, 8))
+        cleaned_df[column_to_fill].plot(kind = 'kde', color = 'navy', linewidth = 3, label = 'Original (Observed)', ax = ax)
+        final_imputed_series.plot(kind = 'kde', color = 'crimson', linewidth = 2, linestyle = '--', label = f'Imputed ({best_imputation})', ax = ax)
+        ax.set_title(f"Kernel Density Estimate (KDE): Original vs Imputed ({best_imputation}) for '{column_to_fill}'")
+        ax.set_xlabel(column_to_fill)
+        ax.set_ylabel("Density")
+        ax.grid(grid)
+        ax.legend(loc = 'upper right')
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+        plt.show()
+
+        # Time series comparison plot
+        fig, ax = plt.subplots(figsize = (12, 8))
+        ax.plot(time_x, final_imputed_series, color = 'red', marker = 'o', linestyle = 'dotted', alpha = 0.8, label = f"Imputed ({best_imputation})")
+        ax.plot(time_x, cleaned_df[column_to_fill], color = 'navy', alpha = 0.7, linestyle = '-', marker = '', label = f"Original ({column_to_fill})")
+        ax.set_title(f"Original vs Imputed Comparison ({best_imputation}) on '{column_to_fill}'")
+        ax.set_xlabel(str(timestamp_tag_column))
+        ax.set_ylabel(column_to_fill)
+        ax.grid(grid)
+        ax.legend(loc = 'upper left')
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"adv_imputation_{column_to_fill}_{best_imputation}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    # Commit imputed series to cleaned_df
+    cleaned_df[column_to_fill] = final_imputed_series
+
+    if ControlVars.show_results:
+        print(f"Missing values successfully imputed in column '{column_to_fill}' using '{best_imputation}'.")
+        print("Check first 10 rows of the cleaned DataFrame:\n")
+        try:
             from IPython.display import display
             display(cleaned_df.head(10))
-                
-        except: # regular mode
+        except Exception:
             print(cleaned_df.head(10))
-        
-        return cleaned_df
+
+    return cleaned_df
 
 
 def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
@@ -3154,7 +2959,110 @@ def calculate_cumulative_stats (df, column_to_analyze, cumulative_statistic = 's
             except: # regular mode
                 print(DATASET.head(10))
             
-            return DATASET
+        return DATASET
+
+
+def partition_and_rank_df (df, column_for_partition, column_to_rank, ascending = True, rank_method = 'average', new_rank_col_name = 'rank', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    partition_and_rank_df (df, column_for_partition, column_to_rank, ascending = True, rank_method = 'average', new_rank_col_name = 'rank', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Partitions a DataFrame according to `column_for_partition`, computes ranks over `column_to_rank`
+    within each partition, adds a new column named `new_rank_col_name` (default 'rank'), displays/prints
+    a summary of the results, and optionally generates and exports a plot of the ranked distribution.
+    
+    : param: df: pandas DataFrame to be processed.
+    : param: column_for_partition: string (inside quotes), column name indicating the grouping / partition key.
+    : param: column_to_rank: string (inside quotes), numeric or comparable column whose values will be ranked within each partition.
+    : param: ascending: boolean (default True), whether to rank in ascending order (lowest value gets rank 1) or descending order.
+    : param: rank_method: string (default 'average'), method used to assign ranks to tied values: 'average', 'min', 'max', 'first', 'dense'.
+    : param: new_rank_col_name: string (default 'rank'), name for the newly created rank column.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 70).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to display grid lines on the plot.
+    : param: horizontal_axis_title: custom title for the X-axis (optional).
+    : param: vertical_axis_title: custom title for the Y-axis (optional).
+    : param: plot_title: custom title for the plot (optional).
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: pandas DataFrame containing the original columns plus the new rank column.
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_for_partition not in df.columns:
+        raise InvalidInputsError(f"column_for_partition '{column_for_partition}' was not found in the DataFrame columns.")
+
+    if column_to_rank not in df.columns:
+        raise InvalidInputsError(f"column_to_rank '{column_to_rank}' was not found in the DataFrame columns.")
+
+    valid_rank_methods = ['average', 'min', 'max', 'first', 'dense']
+    if rank_method not in valid_rank_methods:
+        raise InvalidInputsError(f"rank_method '{rank_method}' is invalid. Choose one of: {valid_rank_methods}.")
+
+    DATASET = df.copy(deep = True)
+    
+    # Calculate rank within each partition
+    DATASET[new_rank_col_name] = DATASET.groupby(column_for_partition)[column_to_rank].rank(ascending = ascending, method = rank_method)
+
+    if ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (12, 8))
+        n_partitions = DATASET[column_for_partition].nunique()
+        
+        if n_partitions <= 15:
+            sns.boxplot(data = DATASET, x = column_for_partition, y = new_rank_col_name, ax = ax)
+            sns.stripplot(data = DATASET, x = column_for_partition, y = new_rank_col_name, color = 'black', alpha = 0.5, jitter = 0.2, ax = ax)
+        else:
+            sns.scatterplot(data = DATASET, x = column_to_rank, y = new_rank_col_name, hue = column_for_partition, alpha = 0.7, ax = ax, legend = False)
+        
+        if plot_title is None:
+            plot_title = f"Rank Distribution of '{column_to_rank}' Partitioned by '{column_for_partition}'"
+        ax.set_title(plot_title)
+        
+        if horizontal_axis_title is not None:
+            ax.set_xlabel(horizontal_axis_title)
+        elif n_partitions <= 15:
+            ax.set_xlabel(column_for_partition)
+        else:
+            ax.set_xlabel(column_to_rank)
+
+        if vertical_axis_title is not None:
+            ax.set_ylabel(vertical_axis_title)
+        else:
+            ax.set_ylabel(new_rank_col_name)
+
+        ax.grid(grid)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"partition_and_rank_{column_for_partition}_{column_to_rank}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print(f"The dataframe was successfully partitioned by '{column_for_partition}' and ranked over '{column_to_rank}'.")
+        print(f"Ranks were stored in new column '{new_rank_col_name}'.\n")
+        print("Check the new dataframe's 10 first rows:\n")
+        try:
+            from IPython.display import display
+            display(DATASET.head(10))
+        except:
+            print(DATASET.head(10))
+
+    return DATASET
 
 
 def scatter_plot_lin_reg (data_in_same_column = False, df = None, column_with_predict_var_x = None, column_with_response_var_y = None, column_with_labels = None, list_of_dictionaries_with_series_to_analyze = [{'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}, {'x': None, 'y': None, 'lab': None}], x_axis_rotation = 70, y_axis_rotation = 0, show_linear_reg = True, grid = True, add_splines_lines = False, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330): 
@@ -5072,748 +4980,554 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
     """
     test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
-    Check https://docs.scipy.org/doc/scipy/tutorial/stats.html
-    Check https://docs.scipy.org/doc/scipy-1.8.0/html-scipyorg/reference/generated/scipy.stats.normaltest.html
+    Tests data normality using multiple statistical tests (D'Agostino-Pearson, Shapiro-Wilk, Lilliefors,
+    and Anderson-Darling via CapabilityAnalysis) and generates a normal probability plot.
     
-    WARNING: The statistical tests require at least 20 samples
+    WARNING: The statistical tests require at least 20 samples.
     
+    : param: df: pandas DataFrame containing the dataset.
     : param: column_to_analyze: column (variable) of the dataset that will be tested. Declare as a string,
-      in quotes.
-      e.g. column_to_analyze = 'col1' will analyze a column named 'col1'.
-    
+      in quotes. e.g. column_to_analyze = 'col1' will analyze a column named 'col1'.
     : param: column_with_labels_to_test_subgroups: if there is a column with labels or
       subgroup indication, and the normality should be tested separately for each label, indicate
       it here as a string (in quotes). e.g. column_with_labels_to_test_subgroups = 'col2' 
       will retrieve the labels from 'col2'.
       Keep column_with_labels_to_test_subgroups = None if a single series (the whole column)
       will be tested.
-    
-    : param: alpha. Confidence level = 1 - ALPHA. For ALPHA = 0.10, we get a 0.90 = 90% confidence
-      Set ALPHA = 0.05 to get 0.95 = 95% confidence in the analysis.
-      Notice that, when less trust is needed, we can increase ALPHA to get less restrictive
-      results.
+    : param: alpha: Significance level for the hypothesis tests (default 0.10, corresponding to 90% confidence).
+    : param: show_probability_plot: boolean (True/False) to display the probability plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid lines on the plot.
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: list_of_dicts containing tested series, normality results, and general statistics.
     """
 
     from statsmodels.stats import diagnostic
     from scipy import stats
+
+    if ControlVars.show_results:
+        print("WARNING: The statistical tests require at least 20 samples.\n")
+        print("Interpretation:")
+        print("p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.")
+        print("H0: that data is described by the normal distribution.")
+        print("Criterion: the series is not described by normal if p < alpha = %.3f.\n" % (alpha))
     
-    print("WARNING: The statistical tests require at least 20 samples.\n")
-    print("Interpretation:")
-    print("p-value: probability of verifying the tested event, given that the null hypothesis H0 is correct.")
-    print("H0: that data is described by the normal distribution.")
-    print("Criterion: the series is not described by normal if p < alpha = %.3f." %(alpha))
-    
-    # Set a local copy of the dataframe to manipulate:
+    # Defensive copy:
     DATASET = df.copy(deep = True)
     
     # Start a list to store the different Pandas series to test:
     list_of_dicts = []
     
-    if not (column_with_labels_to_test_subgroups is None):
-
-        # Convert the labels to strings:
+    if column_with_labels_to_test_subgroups is not None:
         DATASET[column_with_labels_to_test_subgroups] = DATASET[column_with_labels_to_test_subgroups].astype(str)
-
-        # 1. Get the unique values from column_with_labels_to_test_subgroups
-        # and save it as the list labels_list:
         labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
-        
-        # 2. Loop through each element from labels_list:
         for label in labels_list:
-            
-            # 3. Create a copy of the DATASET, filtering for entries where 
-            # column_with_labels_to_test_subgroups == label:
             filtered_df = (DATASET[DATASET[column_with_labels_to_test_subgroups] == label]).copy(deep = True)
-            # 4. Reset index of the copied dataframe:
             filtered_df = filtered_df.reset_index(drop = True)
-            # 5. Create a dictionary, with an identification of the series, and the series
-            # that will be tested:
-            series_dict = {'series_id': (column_to_analyze + "_" + label), 
-                        'series': filtered_df[column_to_analyze],
-                        'total_elements_to_test': len(filtered_df[column_to_analyze])}
-            
-            # 6. Append this dictionary to the list of series:
+            series_dict = {
+                'series_id': (column_to_analyze + "_" + label), 
+                'series': filtered_df[column_to_analyze],
+                'total_elements_to_test': int(filtered_df[column_to_analyze].count())
+            }
             list_of_dicts.append(series_dict)
-        
     else:
-        # In this case, the only series is the column itself. So, let's create a dictionary with
-        # same structure:
-        series_dict = {'series_id': column_to_analyze, 'series': DATASET[column_to_analyze],
-                    'total_elements_to_test': len(DATASET[column_to_analyze])}
-        
-        # Append this dictionary to the list of series:
+        series_dict = {
+            'series_id': column_to_analyze,
+            'series': DATASET[column_to_analyze],
+            'total_elements_to_test': int(DATASET[column_to_analyze].count())
+        }
         list_of_dicts.append(series_dict)
     
-    
-    # Now, loop through each element from the list of series:
-    
-    for series_dict in list_of_dicts:
-        
-        # start a support list:
-        support_list = []
-        
-        # Check if there are at least 20 samples to test:
-        series_id = series_dict['series_id']
-        total_elements_to_test = series_dict['total_elements_to_test']
-        
-        # Create an instance (object) from class capability_analysis:
-        capability_obj = CapabilityAnalysis(df = DATASET, column_with_variable_to_be_analyzed = series_id, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, alpha = alpha)
-        
-        # Check data normality:
-        capability_obj = capability_obj.check_data_normality()
-        # Attribute .normality_dict: dictionary with results from normality tests
-        
-        # Retrieve the normality dictionary:
-        normality_dict = capability_obj.normality_dict
-        # Nest it in series_dict:
-        series_dict['normality_dict'] = normality_dict
-        
-        # Finally, append the series dictionary to the support list:
-        support_list.append(series_dict)
-        
-        if ControlVars.show_plots:
-            if ((total_elements_to_test >= 20) & (show_probability_plot == True)):
-                
-                y = series_dict['series']
-            
-                print("\n")
-                #Obtain the probability plot  
-                fig, ax = plt.subplots(figsize = (12, 8))
-
-                ax.set_title(f"probability_plot_of_{series_id}_for_normal_distribution")
-                
-                plot_results = stats.probplot(y, dist = 'norm', fit = True, plot = ax)
-                #This function resturns a tuple, so we must store it into res
-                
-                ax.grid(grid)
-                #ROTATE X AXIS IN XX DEGREES
-                plt.xticks(rotation = x_axis_rotation)
-                # XX = 70 DEGREES x_axis (Default)
-                #ROTATE Y AXIS IN XX DEGREES:
-                plt.yticks(rotation = y_axis_rotation)
-                # XX = 0 DEGREES y_axis (Default)   
-                
-                # Other distributions to check, see scipy Stats documentation. 
-                # you could test dist=stats.loggamma, where stats was imported from scipy
-                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
-
-                if (export_png == True):
-                    # Image will be exported
-                    import os
-
-                    #check if the user defined a directory path. If not, set as the default root path:
-                    if (directory_to_save is None):
-                        #set as the default
-                        directory_to_save = ""
-
-                    #check if the user defined a file name. If not, set as the default name for this
-                    # function.
-                    if (file_name is None):
-                        #set as the default
-                        file_name = "probability_plot_normal"
-
-                    #check if the user defined an image resolution. If not, set as the default 110 dpi
-                    # resolution.
-                    if (png_resolution_dpi is None):
-                        #set as 330 dpi
-                        png_resolution_dpi = 330
-
-                    #Get the new_file_path
-                    new_file_path = os.path.join(directory_to_save, file_name)
-                    new_file_path = new_file_path + ".png"
-                    # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-                    #Export the file to this new path:
-                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-                    # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
-                    print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
-                
-                #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-                #plt.figure(figsize = (12, 8))
-                #fig.tight_layout()
-                ## Show an image read from an image file:
-                ## import matplotlib.image as pltimg
-                ## img=pltimg.imread('mydecisiontree.png')
-                ## imgplot = plt.imshow(img)
-                ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-                ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-                ##  '03_05_END.ipynb'
-                plt.show()
-                    
-                print("\n")
-            
-    # Now we left the for loop, make the list of dicts support list itself:
-    list_of_dicts = support_list
-    
-    if ControlVars.show_results:
-        print("\n")
-        print("Finished normality tests. Returning a list of dictionaries, where each dictionary contains the series analyzed and the p-values obtained.\n")
-        print("Now, check general statistics of the data distribution:\n")
-        
-    # Now, let's obtain general statistics for all of the series, even those without the normality
-    # test results.
-    
-    # start a support list:
+    # Support list initialized outside loop:
     support_list = []
     
     for series_dict in list_of_dicts:
+        series_id = series_dict['series_id']
+        total_elements_to_test = series_dict['total_elements_to_test']
+        y = series_dict['series'].dropna()
         
-        y = series_dict['series']
-        # Guarantee it is still a pandas series:
-        y = pd.Series(y)
-        # Calculate data skewness and kurtosis
-    
-        # Skewness
-        data_skew = stats.skew(y)
-        # skewness = 0 : normally distributed.
-        # skewness > 0 : more weight in the left tail of the distribution.
-        # skewness < 0 : more weight in the right tail of the distribution.
-        # https://www.geeksforgeeks.org/scipy-stats-skew-python/
-
-        # Kurtosis
-        data_kurtosis = stats.kurtosis(y, fisher = True)
-        # scipy.stats.kurtosis(array, axis=0, fisher=True, bias=True) function 
-        # calculates the kurtosis (Fisher or Pearson) of a data set. It is the the fourth 
-        # central moment divided by the square of the variance. 
-        # It is a measure of the “tailedness” i.e. descriptor of shape of probability 
-        # distribution of a real-valued random variable. 
-        # In simple terms, one can say it is a measure of how heavy tail is compared 
-        # to a normal distribution.
-        # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
-        # else Pearson’s definition is used (normal 3.0) if set to False.
-        # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
+        if total_elements_to_test < 20:
+            if ControlVars.show_results:
+                print(f"Unable to run full normality tests on series '{series_id}': requires at least 20 samples, found {total_elements_to_test}.\n")
+            series_dict['WARNING'] = f"Series without the minimum number of elements (20) required to test normality: found {total_elements_to_test}."
+            series_dict['normality_dict'] = None
+        else:
+            sub_df = pd.DataFrame({series_id: y.values})
+            capability_obj = CapabilityAnalysis(
+                df = sub_df, 
+                column_with_variable_to_be_analyzed = series_id, 
+                specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, 
+                alpha = alpha
+            )
+            capability_obj = capability_obj.check_data_normality()
+            normality_dict = capability_obj.normality_dict
+            series_dict['normality_dict'] = normality_dict
+        
+        if ControlVars.show_plots and (total_elements_to_test >= 20) and show_probability_plot:
+            if ControlVars.show_results:
+                print("\n")
+            fig, ax = plt.subplots(figsize = (12, 8))
+            ax.set_title(f"Probability Plot of {series_id} for Normal Distribution")
+            stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+            ax.grid(grid)
+            plt.xticks(rotation = x_axis_rotation)
+            plt.yticks(rotation = y_axis_rotation)
+            
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    export_name = f"probability_plot_normal_{series_id}"
+                else:
+                    export_name = file_name
+                if png_resolution_dpi is None:
+                    png_resolution_dpi = 330
+                new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                if ControlVars.show_results:
+                    print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+            
+            plt.show()
+            if ControlVars.show_results:
+                print("\n")
+        
+        data_skew = float(stats.skew(y)) if len(y) > 0 else 0.0
+        data_kurtosis = float(stats.kurtosis(y, fisher = True)) if len(y) > 0 else 0.0
         
         if ControlVars.show_results:
             print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
             print("For the data analyzed:\n")
             print(f"skewness = {data_skew}")
             print(f"kurtosis = {data_kurtosis}\n")
-
             if (data_skew < 0):
-
                 print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
-
             elif (data_skew > 0):
-
                 print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
-
             else:
-
                 print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
-                    
-
             if (data_kurtosis == 0):
-
                 print("Data kurtosis = 0. No long-tail effects detected.\n")
-
             else:
-
-                print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
-
-        #Calculate the mode of the distribution:
-        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
-        # ModeResult(mode=3, count=5) access mode attribute
+                print("The kurtosis different from zero indicates long-tail effects on the distribution.\n")
+        
         try:
             data_mode = stats.mode(y, axis = None, keepdims = False).mode
         except:
             try:
                 data_mode = stats.mode(y, axis = None, keepdims = False)[0]
             except:
-                try:
-                    if ((stats.mode(y, axis = None, keepdims = False) != np.nan) & (stats.mode(y, axis = None, keepdims = False) is not None)):
-                        data_mode = stats.mode(y, axis = None, keepdims = False)
-                    else:
-                        data_mode = np.nan
-                except:
-                    data_mode = np.nan
+                data_mode = np.nan
         
-        #Create general statistics dictionary:
         general_statistics_dict = {
-
-            "series_mean": y.mean(),
-            "series_variance": y.var(),
-            "series_standard_deviation": y.std(),
+            "series_mean": float(y.mean()) if len(y) > 0 else np.nan,
+            "series_variance": float(y.var()) if len(y) > 0 else np.nan,
+            "series_standard_deviation": float(y.std()) if len(y) > 0 else np.nan,
             "series_skewness": data_skew,
             "series_kurtosis": data_kurtosis,
             "series_mode": data_mode
-
         }
-        
-        # Add this dictionary to the series dictionary:
         series_dict['general_statistics'] = general_statistics_dict
-        
-        # Append the dictionary to support list:
         support_list.append(series_dict)
     
-    # Now, make the list of dictionaries support_list itself:
     list_of_dicts = support_list
-
+    
+    if ControlVars.show_results:
+        print("\n")
+        print("Finished normality tests. Returning a list of dictionaries, where each dictionary contains the series analyzed and the p-values obtained.\n")
+    
     return list_of_dicts
 
 
-def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal'):
+def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal', alpha = 0.05, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
-    test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal'):
+    test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal', alpha = 0.05, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
-    Check https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html#scipy.stats.probplot
-    Check https://docs.scipy.org/doc/scipy/tutorial/stats.html
-    Check https://docs.scipy.org/doc/scipy-1.8.0/html-scipyorg/reference/generated/scipy.stats.normaltest.html
+    Tests goodness-of-fit for continuous or discrete statistical distributions, including Poisson, Negative Binomial,
+    Lognormal, Normal, Exponential, Gamma, Weibull, Beta, Uniform, and all SciPy statistical distributions.
+    Computes distribution parameter estimates, goodness-of-fit statistics (Kolmogorov-Smirnov or Chi-Square, and Anderson-Darling
+    when applicable), summary statistics (mean, variance, skewness, kurtosis, mode), and displays a probability plot.
     
-    : param: column_to_analyze: column (variable) of the dataset that will be tested. Declare as a string,
-      in quotes.
-      e.g. column_to_analyze = 'col1' will analyze a column named 'col1'.
-    
-    : param: column_with_labels_to_test_subgroups: if there is a column with labels or
-      subgroup indication, and the normality should be tested separately for each label, indicate
-      it here as a string (in quotes). e.g. column_with_labels_to_test_subgroups = 'col2' 
-      will retrieve the labels from 'col2'.
-      Keep column_with_labels_to_test_subgroups = None if a single series (the whole column)
-      will be tested.
-    
-      Attention: if you want to test a normal distribution, use the function 
-      test_data_normality. Function test_data_normality tests normality through 4 methods 
-      and compare them: D’Agostino and Pearson’s; Shapiro-Wilk; Lilliefors; 
-      and Anderson-Darling tests.
-      The calculus of the p-value from the Anderson-Darling statistic is available only 
-      for some distributions. The function specific for the normality calculates these 
-      probabilities of following the normal.
-      Here, the function is destined to test a variety of distributions, and so only the 
-      Anderson-Darling test is performed.
-        
-    : param: statistical_distribution: string (inside quotes) containing the tested statistical 
-      distribution.
-      Notice: if data Y follow a 'lognormal', log(Y) follow a normal
-      Poisson is a special case from 'gamma' distribution.
-      There are 91 accepted statistical distributions:
-      'alpha', 'anglit', 'arcsine', 'beta', 'beta_prime', 'bradford', 'burr', 'burr12', 
-      'cauchy', 'chi', 'chi-squared', 'cosine', 'double_gamma', 
-      'double_weibull', 'erlang', 'exponential', 'exponentiated_weibull', 'exponential_power',
-      'fatigue_life_birnbaum-saunders', 'fisk_log_logistic', 'folded_cauchy', 'folded_normal',
-      'F', 'gamma', 'generalized_logistic', 'generalized_pareto', 'generalized_exponential', 
-      'generalized_extreme_value', 'generalized_gamma', 'generalized_half-logistic', 
-      'generalized_inverse_gaussian', 'generalized_normal', 
-      'gilbrat', 'gompertz_truncated_gumbel', 'gumbel', 'gumbel_left-skewed', 'half-cauchy', 
-      'half-normal', 'half-logistic', 'hyperbolic_secant', 'gauss_hypergeometric', 
-      'inverted_gamma', 'inverse_normal', 'inverted_weibull', 'johnson_SB', 'johnson_SU', 
-      'KSone', 'KStwobign', 'laplace', 'left-skewed_levy', 
-      'levy', 'logistic', 'log_laplace', 'log_gamma', 'lognormal', 'log-uniform', 'maxwell', 
-      'mielke_Beta-Kappa', 'nakagami', 'noncentral_chi-squared', 'noncentral_F', 
-      'noncentral_t', 'normal', 'normal_inverse_gaussian', 'pareto', 'lomax', 
-      'power_lognormal', 'power_normal', 'power-function', 'R', 'rayleigh', 'rice', 
-      'reciprocal_inverse_gaussian', 'semicircular', 't-student', 
-      'triangular', 'truncated_exponential', 'truncated_normal', 'tukey-lambda',
-      'uniform', 'von_mises', 'wald', 'weibull_maximum_extreme_value', 
-      'weibull_minimum_extreme_value', 'wrapped_cauchy'
+    : param: df: pandas DataFrame containing the dataset.
+    : param: column_to_analyze: column (variable) of the dataset that will be tested. Declare as a string, in quotes.
+    : param: column_with_labels_to_test_subgroups: if provided, tests the distribution separately for each subgroup label.
+    : param: statistical_distribution_to_test: string identifying the distribution to test. Supported options include:
+      - Discrete: 'poisson', 'negative_binomial' ('nbinom'), 'binomial', 'geometric'
+      - Continuous: 'lognormal' ('lognorm'), 'normal' ('norm'), 'exponential' ('expon'), 'gamma', 'weibull' ('weibull_min', 'weibull_max'),
+        'beta', 'uniform', 'logistic', 'cauchy', 'laplace', 'rayleigh', 'pareto', 't-student', 'f', 'chi-squared',
+        and any distribution name from scipy.stats.
+    : param: alpha: Significance level for hypothesis testing (default 0.05).
+    : param: show_probability_plot: boolean, whether to display the probability / Q-Q plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to show grid on the plot.
+    : param: export_png: boolean, whether to save figure as PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: list_of_dicts containing results for each tested series or subgroup.
     """
 
     from statsmodels.stats import diagnostic
     from scipy import stats
+
+    if ControlVars.show_results:
+        print("WARNING: The statistical tests require at least 20 samples.\n")
+        print(f"Testing statistical distribution: '{statistical_distribution_to_test}' (alpha = {alpha:.3f}).\n")
     
-    
-    print("WARNING: The statistical tests require at least 20 samples.\n")
-    print("Attention: if you want to test a normal distribution, use the function test_data_normality.")
-    print("Function test_data_normality tests normality through 4 methods and compare them: D’Agostino and Pearson’s; Shapiro-Wilk; Lilliefors; and Anderson-Darling tests.")
-    print("The calculus of the p-value from the Anderson-Darling statistic is available only for some distributions.")
-    print("The function which specifically tests the normality calculates these probabilities that data follows the normal.")
-    print("Here, the function is destined to test a variety of distributions, and so only the Anderson-Darling test is performed.\n")
-    
-    print("If a compilation error is shown below, please update your Scipy version. Declare and run the following code into a separate cell:")
-    print("! pip install scipy --upgrade\n")
-    
-    # Lets define the statistic distributions:
-    # This are the callable Scipy objects which can be tested through Anderson-Darling test:
-    # They are listed and explained in: 
-    # https://docs.scipy.org/doc/scipy/tutorial/stats/continuous.html
-    
-    # There are 91 possible statistical distributions
-    
-    # Set a local copy of the dataframe to manipulate:
+    # Defensive copy:
     DATASET = df.copy(deep = True)
     
-    # Start a list to store the different Pandas series to test:
-    list_of_dicts = []
+    # Standardize distribution name:
+    dist_clean = str(statistical_distribution_to_test).strip().lower().replace(" ", "_")
     
-    if not (column_with_labels_to_test_subgroups is None):
+    # Dictionary mapping distribution aliases to scipy.stats objects:
+    CONTINUOUS_DIST_MAP = {
+        'normal': stats.norm, 'norm': stats.norm,
+        'lognormal': stats.lognorm, 'lognorm': stats.lognorm,
+        'exponential': stats.expon, 'expon': stats.expon,
+        'gamma': stats.gamma,
+        'beta': stats.beta, 'beta_prime': stats.betaprime,
+        'weibull': stats.weibull_min, 'weibull_min': stats.weibull_min,
+        'weibull_minimum_extreme_value': stats.weibull_min,
+        'weibull_max': stats.weibull_max, 'weibull_maximum_extreme_value': stats.weibull_max,
+        'uniform': stats.uniform, 'logistic': stats.logistic,
+        'cauchy': stats.cauchy,
+        'chi2': stats.chi2, 'chi-squared': stats.chi2, 'chi_squared': stats.chi2, 'chi': stats.chi,
+        't': stats.t, 't-student': stats.t, 'student_t': stats.t,
+        'f': stats.f, 'laplace': stats.laplace, 'rayleigh': stats.rayleigh,
+        'pareto': stats.pareto, 'lomax': stats.lomax,
+        'gumbel': stats.gumbel_r, 'gumbel_r': stats.gumbel_r,
+        'gumbel_left-skewed': stats.gumbel_l, 'gumbel_l': stats.gumbel_l,
+        'triangular': stats.triang, 'wald': stats.wald,
+        'burr': stats.burr, 'burr12': stats.burr12,
+        'erlang': stats.erlang, 'nakagami': stats.nakagami, 'rice': stats.rice,
+        'johnson_sb': stats.johnson_sb, 'johnson_su': stats.johnson_su,
+        'half_normal': stats.halfnorm, 'half-normal': stats.halfnorm,
+        'half_cauchy': stats.halfcauchy, 'half-cauchy': stats.halfcauchy,
+        'half_logistic': stats.halflogistic, 'half-logistic': stats.halflogistic,
+        'folded_normal': stats.foldnorm, 'folded_cauchy': stats.foldcauchy,
+        'power_normal': stats.powernorm, 'power_lognormal': stats.powerlognorm,
+        'power_function': stats.powerlaw, 'power-function': stats.powerlaw,
+        'von_mises': stats.vonmises, 'wrapped_cauchy': stats.wrapcauchy,
+        'double_gamma': stats.dgamma, 'double_weibull': stats.dweibull,
+        'generalized_logistic': stats.genlogistic, 'generalized_pareto': stats.genpareto,
+        'generalized_exponential': stats.genexpon, 'generalized_extreme_value': stats.genextreme,
+        'generalized_gamma': stats.gengamma, 'generalized_half-logistic': stats.genhalflogistic,
+        'generalized_normal': stats.gennorm,
+        'invgamma': stats.invgamma, 'inverted_gamma': stats.invgamma,
+        'invweibull': stats.invweibull, 'inverted_weibull': stats.invweibull,
+        'invgauss': stats.invgauss, 'inverse_normal': stats.invgauss,
+        'reciprocal_inverse_gaussian': stats.recipinvgauss,
+        'log_gamma': stats.loggamma, 'log_laplace': stats.loglaplace,
+        'log_uniform': stats.loguniform, 'log-uniform': stats.loguniform,
+        'alpha': stats.alpha, 'anglit': stats.anglit, 'arcsine': stats.arcsine,
+        'bradford': stats.bradford, 'cosine': stats.cosine,
+        'fisk_log_logistic': stats.fisk, 'gilbrat': stats.gilbrat,
+        'gompertz_truncated_gumbel': stats.gompertz, 'hyperbolic_secant': stats.hypsecant,
+        'gauss_hypergeometric': stats.gausshyper, 'levy': stats.levy,
+        'left-skewed_levy': stats.levy_l, 'maxwell': stats.maxwell,
+        'mielke_beta-kappa': stats.mielke, 'mielke_beta_kappa': stats.mielke,
+        'noncentral_chi-squared': stats.ncx2, 'noncentral_f': stats.ncf, 'noncentral_t': stats.nct,
+        'semicircular': stats.semicircular, 'truncated_exponential': stats.truncexpon,
+        'truncated_normal': stats.truncnorm, 'tukey-lambda': stats.tukeylambda
+    }
 
-        # Convert the labels to strings:
-        DATASET[column_with_labels_to_test_subgroups] = DATASET[column_with_labels_to_test_subgroups].astype(str)
-        
-        # 1. Get the unique values from column_with_labels_to_test_subgroups
-        # and save it as the list labels_list:
-        labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
-        
-        # 2. Loop through each element from labels_list:
-        for label in labels_list:
-            
-            # 3. Create a copy of the DATASET, filtering for entries where 
-            # column_with_labels_to_test_subgroups == label:
-            filtered_df = (DATASET[DATASET[column_with_labels_to_test_subgroups] == label]).copy(deep = True)
-            # 4. Reset index of the copied dataframe:
-            filtered_df = filtered_df.reset_index(drop = True)
-            # 5. Create a dictionary, with an identification of the series, and the series
-            # that will be tested:
-            series_dict = {'series_id': (column_to_analyze + "_" + label), 
-                        'series': filtered_df[column_to_analyze],
-                        'total_elements_to_test': filtered_df[column_to_analyze].count()}
-            
-            # 6. Append this dictionary to the list of series:
-            list_of_dicts.append(series_dict)
-        
+    DISCRETE_DIST_MAP = {
+        'poisson': stats.poisson,
+        'negative_binomial': stats.nbinom,
+        'negative-binomial': stats.nbinom,
+        'nbinom': stats.nbinom,
+        'binomial': stats.binom,
+        'binom': stats.binom,
+        'geometric': stats.geom,
+        'geom': stats.geom,
+        'discrete_uniform': stats.randint,
+        'randint': stats.randint
+    }
+
+    is_discrete = False
+    dist_obj = None
+
+    if dist_clean in DISCRETE_DIST_MAP:
+        is_discrete = True
+        dist_obj = DISCRETE_DIST_MAP[dist_clean]
+    elif dist_clean in CONTINUOUS_DIST_MAP:
+        is_discrete = False
+        dist_obj = CONTINUOUS_DIST_MAP[dist_clean]
+    elif hasattr(stats, dist_clean):
+        candidate = getattr(stats, dist_clean)
+        if isinstance(candidate, stats.rv_discrete):
+            is_discrete = True
+            dist_obj = candidate
+        elif isinstance(candidate, stats.rv_continuous):
+            is_discrete = False
+            dist_obj = candidate
+        else:
+            raise InvalidInputsError(f"Unsupported distribution '{statistical_distribution_to_test}'. Please choose a valid scipy statistical distribution.")
     else:
-        # In this case, the only series is the column itself. So, let's create a dictionary with
-        # same structure:
-        series_dict = {'series_id': column_to_analyze, 'series': DATASET[column_to_analyze],
-                    'total_elements_to_test': DATASET[column_to_analyze].count()}
-        
-        # Append this dictionary to the list of series:
+        raise InvalidInputsError(f"Unsupported distribution '{statistical_distribution_to_test}'. Valid choices include 'poisson', 'negative_binomial', 'lognormal', 'normal', 'gamma', 'weibull', 'exponential', etc.")
+    
+    # Subgroups split:
+    list_of_dicts = []
+    if column_with_labels_to_test_subgroups is not None:
+        DATASET[column_with_labels_to_test_subgroups] = DATASET[column_with_labels_to_test_subgroups].astype(str)
+        labels_list = list(DATASET[column_with_labels_to_test_subgroups].unique())
+        for label in labels_list:
+            filtered_df = (DATASET[DATASET[column_with_labels_to_test_subgroups] == label]).copy(deep = True)
+            filtered_df = filtered_df.reset_index(drop = True)
+            series_dict = {
+                'series_id': (column_to_analyze + "_" + label), 
+                'series': filtered_df[column_to_analyze],
+                'total_elements_to_test': int(filtered_df[column_to_analyze].count())
+            }
+            list_of_dicts.append(series_dict)
+    else:
+        series_dict = {
+            'series_id': column_to_analyze,
+            'series': DATASET[column_to_analyze],
+            'total_elements_to_test': int(DATASET[column_to_analyze].count())
+        }
         list_of_dicts.append(series_dict)
     
-    
-    # Now, loop through each element from the list of series:
+    support_list = []
     
     for series_dict in list_of_dicts:
-        
-        # start a support list:
-        support_list = []
-        
-        # Check if there are at least 20 samples to test:
         series_id = series_dict['series_id']
         total_elements_to_test = series_dict['total_elements_to_test']
+        y = series_dict['series'].dropna()
         
-        if (total_elements_to_test < 20):
-            
-            print(f"Unable to test series {series_id}: at least 20 samples are needed, but found only {total_elements_to_test} entries for this series.\n")
-            # Add a warning to the dictionary:
-            series_dict['WARNING'] = "Series without the minimum number of elements (20) required to test the normality."
-            # Append it to the support list:
-            support_list.append(series_dict)
-            
-        else:
-            # Let's test the series.
-            y = series_dict['series']
-            
-            # Calculate data skewness and kurtosis
-            # Skewness
-            data_skew = stats.skew(y)
-            # skewness = 0 : normally distributed.
-            # skewness > 0 : more weight in the left tail of the distribution.
-            # skewness < 0 : more weight in the right tail of the distribution.
-            # https://www.geeksforgeeks.org/scipy-stats-skew-python/
-
-            # Kurtosis
-            data_kurtosis = stats.kurtosis(y, fisher = True)
-            # scipy.stats.kurtosis(array, axis=0, fisher=True, bias=True) function 
-            # calculates the kurtosis (Fisher or Pearson) of a data set. It is the the fourth 
-            # central moment divided by the square of the variance. 
-            # It is a measure of the “tailedness” i.e. descriptor of shape of probability 
-            # distribution of a real-valued random variable. 
-            # In simple terms, one can say it is a measure of how heavy tail is compared 
-            # to a normal distribution.
-            # fisher parameter: fisher : Bool; Fisher’s definition is used (normal 0.0) if True; 
-            # else Pearson’s definition is used (normal 3.0) if set to False.
-            # https://www.geeksforgeeks.org/scipy-stats-kurtosis-function-python/
-            
+        if total_elements_to_test < 20:
             if ControlVars.show_results:
-                print("A normal distribution should present no skewness (distribution distortion); and no kurtosis (long-tail).\n")
-                print("For the data analyzed:\n")
-                print(f"skewness = {data_skew}")
-                print(f"kurtosis = {data_kurtosis}\n")
-
-                if (data_skew < 0):
-
-                    print(f"Skewness = {data_skew} < 0: more weight in the left tail of the distribution.")
-
-                elif (data_skew > 0):
-
-                    print(f"Skewness = {data_skew} > 0: more weight in the right tail of the distribution.")
-
-                else:
-
-                    print(f"Skewness = {data_skew} = 0: no distortion of the distribution.")
-                    
-
-                if (data_kurtosis == 0):
-
-                    print("Data kurtosis = 0. No long-tail effects detected.\n")
-
-                else:
-
-                    print(f"The kurtosis different from zero indicates long-tail effects on the distribution.\n")
-
-            #Calculate the mode of the distribution:
-            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mode.html
-            # ModeResult(mode=3, count=5) access mode attribute
+                print(f"Unable to test series '{series_id}': at least 20 samples are needed, found only {total_elements_to_test}.\n")
+            series_dict['WARNING'] = f"Series without the minimum number of elements (20) required: found {total_elements_to_test}."
+            support_list.append(series_dict)
+            continue
+        
+        data_skew = float(stats.skew(y)) if len(y) > 0 else 0.0
+        data_kurtosis = float(stats.kurtosis(y, fisher = True)) if len(y) > 0 else 0.0
+        
+        try:
+            data_mode = stats.mode(y, axis = None, keepdims = False).mode
+        except:
             try:
-                data_mode = stats.mode(y, axis = None, keepdims = False).mode
+                data_mode = stats.mode(y, axis = None, keepdims = False)[0]
             except:
-                try:
-                    data_mode = stats.mode(y, axis = None, keepdims = False)[0]
-                except:
-                    try:
-                        if ((stats.mode(y, axis = None, keepdims = False) != np.nan) & (stats.mode(y, axis = None, keepdims = False) is not None)):
-                            data_mode = stats.mode(y, axis = None, keepdims = False)
-                        else:
-                            data_mode = np.nan
-                    except:
-                        data_mode = np.nan
-            
-            # Access the object correspondent to the distribution provided. To do so,
-            # simply access dict['key1'], where 'key1' is a key from a dictionary dict ={"key1": 'val1'}
-            # Access just as accessing a column from a dataframe.
-
-            anderson_darling_statistic = diagnostic.anderson_statistic(y, dist = (callable_statistical_distributions_dict[statistical_distribution_to_test]), fit = True)
-            
-            if ControlVars.show_results:
-                print(f"Anderson-Darling statistic for the distribution {statistical_distribution_to_test} = {anderson_darling_statistic}\n")
-                print("The Anderson–Darling test assesses whether a sample comes from a specified distribution.")
-                print("It makes use of the fact that, when given a hypothesized underlying distribution and assuming the data does arise from this distribution, the cumulative distribution function (CDF) of the data can be assumed to follow a uniform distribution.")
-                print("Then, data can be tested for uniformity using an appropriate distance test (Shapiro 1980).\n")
-                # source: https://en.wikipedia.org/wiki/Anderson%E2%80%93Darling_test
-
-                # Fit the distribution and get its parameters
-                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_continuous.fit.html
-
-            if(statistical_distribution_to_test == 'alpha'):
-                distribution_parameters = stats.alpha.fit(y)
-            elif(statistical_distribution_to_test == 'anglit'):
-                distribution_parameters = stats.anglit.fit(y)
-            elif(statistical_distribution_to_test == 'arcsine'):
-                distribution_parameters = stats.arcsine.fit(y)
-            elif(statistical_distribution_to_test == 'beta'):
-                distribution_parameters = stats.beta.fit(y)
-            elif(statistical_distribution_to_test == 'beta_prime'):
-                distribution_parameters = stats.betaprime.fit(y)
-            elif(statistical_distribution_to_test == 'bradford'):
-                distribution_parameters = stats.bradford.fit(y)
-            elif(statistical_distribution_to_test == 'burr'):
-                distribution_parameters = stats.burr.fit(y)
-            elif(statistical_distribution_to_test == 'burr12'):
-                distribution_parameters = stats.burr12.fit(y)
-            elif(statistical_distribution_to_test == 'cauchy'):
-                distribution_parameters = stats.cauchy.fit(y)
-            elif(statistical_distribution_to_test == 'chi'):
-                distribution_parameters = stats.chi.fit(y)
-            elif(statistical_distribution_to_test == 'chi-squared'):
-                distribution_parameters = stats.chi2.fit(y)
-            elif(statistical_distribution_to_test == 'cosine'):
-                distribution_parameters = stats.cosine.fit(y)
-            elif(statistical_distribution_to_test == 'double_gamma'):
-                distribution_parameters = stats.dgamma.fit(y)
-            elif(statistical_distribution_to_test == 'double_weibull'):
-                distribution_parameters = stats.dweibull.fit(y)
-            elif(statistical_distribution_to_test == 'erlang'):
-                distribution_parameters = stats.erlang.fit(y)
-            elif(statistical_distribution_to_test == 'exponential'):
-                distribution_parameters = stats.expon.fit(y)
-            elif(statistical_distribution_to_test == 'exponentiated_weibull'):
-                distribution_parameters = stats.exponweib.fit(y)
-            elif(statistical_distribution_to_test == 'exponential_power'):
-                distribution_parameters = stats.exponpow.fit(y)
-            elif(statistical_distribution_to_test == 'fatigue_life_birnbaum-saunders'):
-                distribution_parameters = stats.fatiguelife.fit(y)
-            elif(statistical_distribution_to_test == 'fisk_log_logistic'):
-                distribution_parameters = stats.fisk.fit(y)
-            elif(statistical_distribution_to_test == 'folded_cauchy'):
-                distribution_parameters = stats.foldcauchy.fit(y)
-            elif(statistical_distribution_to_test == 'folded_normal'):
-                distribution_parameters = stats.foldnorm.fit(y)
-            elif(statistical_distribution_to_test == 'F'):
-                distribution_parameters = stats.f.fit(y)
-            elif(statistical_distribution_to_test == 'gamma'):
-                distribution_parameters = stats.gamma.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_logistic'):
-                distribution_parameters = stats.genlogistic.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_pareto'):
-                distribution_parameters = stats.genpareto.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_exponential'):
-                distribution_parameters = stats.genexpon.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_extreme_value'):
-                distribution_parameters = stats.genextreme.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_gamma'):
-                distribution_parameters = stats.gengamma.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_half-logistic'):
-                distribution_parameters = stats.genhalflogistic.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_inverse_gaussian'):
-                distribution_parameters = stats.geninvgauss.fit(y)
-            elif(statistical_distribution_to_test == 'generalized_normal'):
-                distribution_parameters = stats.gennorm.fit(y)
-            elif(statistical_distribution_to_test == 'gilbrat'):
-                distribution_parameters = stats.gilbrat.fit(y)
-            elif(statistical_distribution_to_test == 'gompertz_truncated_gumbel'):
-                distribution_parameters = stats.gompertz.fit(y)
-            elif(statistical_distribution_to_test == 'gumbel'):
-                distribution_parameters = stats.gumbel_r.fit(y)
-            elif(statistical_distribution_to_test == 'gumbel_left-skewed'):
-                distribution_parameters = stats.gumbel_l.fit(y)
-            elif(statistical_distribution_to_test == 'half-cauchy'):
-                distribution_parameters = stats.halfcauchy.fit(y)
-            elif(statistical_distribution_to_test == 'half-normal'):
-                distribution_parameters = stats.halfnorm.fit(y)
-            elif(statistical_distribution_to_test == 'half-logistic'):
-                distribution_parameters = stats.halflogistic.fit(y)
-            elif(statistical_distribution_to_test == 'hyperbolic_secant'):
-                distribution_parameters = stats.hypsecant.fit(y)
-            elif(statistical_distribution_to_test == 'gauss_hypergeometric'):
-                distribution_parameters = stats.gausshyper.fit(y)
-            elif(statistical_distribution_to_test == 'inverted_gamma'):
-                distribution_parameters = stats.invgamma.fit(y)
-            elif(statistical_distribution_to_test == 'inverse_normal'):
-                distribution_parameters = stats.invgauss.fit(y)
-            elif(statistical_distribution_to_test == 'inverted_weibull'):
-                distribution_parameters = stats.invweibull.fit(y)
-            elif(statistical_distribution_to_test == 'johnson_SB'):
-                distribution_parameters = stats.johnsonsb.fit(y)
-            elif(statistical_distribution_to_test == 'johnson_SU'):
-                distribution_parameters = stats.johnsonsu.fit(y)
-            elif(statistical_distribution_to_test == 'KSone'):
-                distribution_parameters = stats.ksone.fit(y)
-            elif(statistical_distribution_to_test == 'KStwobign'):
-                distribution_parameters = stats.kstwobign.fit(y)
-            elif(statistical_distribution_to_test == 'laplace'):
-                distribution_parameters = stats.laplace.fit(y)
-            elif(statistical_distribution_to_test == 'left-skewed_levy'):
-                distribution_parameters = stats.levy_l.fit(y)
-            elif(statistical_distribution_to_test == 'levy'):
-                distribution_parameters = stats.levy.fit(y)
-            elif(statistical_distribution_to_test == 'logistic'):
-                distribution_parameters = stats.logistic.fit(y)
-            elif(statistical_distribution_to_test == 'log_laplace'):
-                distribution_parameters = stats.loglaplace.fit(y)
-            elif(statistical_distribution_to_test == 'log_gamma'):
-                distribution_parameters = stats.loggamma.fit(y)
-            elif(statistical_distribution_to_test == 'lognormal'):
-                distribution_parameters = stats.lognorm.fit(y)
-            elif(statistical_distribution_to_test == 'log-uniform'):
-                distribution_parameters = stats.loguniform.fit(y)
-            elif(statistical_distribution_to_test == 'maxwell'):
-                distribution_parameters = stats.maxwell.fit(y)
-            elif(statistical_distribution_to_test == 'mielke_Beta-Kappa'):
-                distribution_parameters = stats.mielke.fit(y)
-            elif(statistical_distribution_to_test == 'nakagami'):
-                distribution_parameters = stats.nakagami.fit(y)
-            elif(statistical_distribution_to_test == 'noncentral_chi-squared'):
-                distribution_parameters = stats.ncx2.fit(y)
-            elif(statistical_distribution_to_test == 'noncentral_F'):
-                distribution_parameters = stats.ncf.fit(y)
-            elif(statistical_distribution_to_test == 'noncentral_t'):
-                distribution_parameters = stats.nct.fit(y)
-            elif(statistical_distribution_to_test == 'normal'):
-                distribution_parameters = stats.norm.fit(y)
-            elif(statistical_distribution_to_test == 'normal_inverse_gaussian'):
-                distribution_parameters = stats.norminvgauss.fit(y)
-            elif(statistical_distribution_to_test == 'pareto'):
-                distribution_parameters = stats.pareto.fit(y)            
-            elif(statistical_distribution_to_test == 'lomax'):
-                distribution_parameters = stats.lomax.fit(y)
-            elif(statistical_distribution_to_test == 'power_lognormal'):
-                distribution_parameters = stats.powerlognorm.fit(y)
-            elif(statistical_distribution_to_test == 'power_normal'):
-                distribution_parameters = stats.powernorm.fit(y)
-            elif(statistical_distribution_to_test == 'power-function'):
-                distribution_parameters = stats.powerlaw.fit(y)
-            elif(statistical_distribution_to_test == 'R'):
-                distribution_parameters = stats.rdist.fit(y)
-            elif(statistical_distribution_to_test == 'rayleigh'):
-                distribution_parameters = stats.rayleigh.fit(y)
-            elif(statistical_distribution_to_test == 'rice'):
-                distribution_parameters = stats.rice.fit(y)
-            elif(statistical_distribution_to_test == 'reciprocal_inverse_gaussian'):
-                distribution_parameters = stats.recipinvgauss.fit(y)
-            elif(statistical_distribution_to_test == 'semicircular'):
-                distribution_parameters = stats.semicircular.fit(y)
-            elif(statistical_distribution_to_test == 't-student'):
-                distribution_parameters = stats.t.fit(y)
-            elif(statistical_distribution_to_test == 'triangular'):
-                distribution_parameters = stats.triang.fit(y)
-            elif(statistical_distribution_to_test == 'truncated_exponential'):
-                distribution_parameters = stats.truncexpon.fit(y)            
-            elif(statistical_distribution_to_test == 'truncated_normal'):
-                distribution_parameters = stats.truncnorm.fit(y)
-            elif(statistical_distribution_to_test == 'tukey-lambda'):
-                distribution_parameters = stats.tukeylambda.fit(y)
-            elif(statistical_distribution_to_test == 'uniform'):
-                distribution_parameters = stats.uniform.fit(y)
-            elif(statistical_distribution_to_test == 'vonmises'):
-                distribution_parameters = stats.vonmises.fit(y)
-            elif(statistical_distribution_to_test == 'wald'):
-                distribution_parameters = stats.wald.fit(y)
-            elif(statistical_distribution_to_test == 'weibull_maximum_extreme_value'):
-                distribution_parameters = stats.weibull_max.fit(y)
-            elif(statistical_distribution_to_test == 'weibull_minimum_extreme_value'):
-                distribution_parameters = stats.weibull_min.fit(y)
-            elif(statistical_distribution_to_test == 'wrapped_cauchy'):
-                distribution_parameters = stats.wrapcauchy.fit(y)
-            else:
-                raise InvalidInputsError (f"Please, select a valid statistical distribution to test: {list_of_dictionary_keys}")
-
-            # With method="MLE" (default), the fit is computed by minimizing the negative 
-            # log-likelihood function. A large, finite penalty (rather than infinite negative 
-            # log-likelihood) is applied for observations beyond the support of the distribution. 
-            # With method="MM", the fit is computed by minimizing the L2 norm of the relative errors 
-            # between the first k raw (about zero) data moments and the corresponding distribution 
-            # moments, where k is the number of non-fixed parameters. 
-
-            # distribution_parameters: Estimates for any shape parameters (if applicable), 
-            # followed by those for location and scale.
-            if ControlVars.show_results:
-                print(f"Distribution shape parameters calculated for {statistical_distribution_to_test} = {distribution_parameters}\n")
-                
-                print("ATTENTION:\n")
-                print("The critical values for the Anderson-Darling test are dependent on the specific distribution that is being tested.")
-                print("Tabulated values and formulas have been published (Stephens, 1974, 1976, 1977, 1979) for a few specific distributions: normal, lognormal, exponential, Weibull, logistic, extreme value type 1.")
-                print("The test consists on an one-sided test of the hypothesis that the distribution is of a specific form.")
-                print("The hypothesis is rejected if the test statistic, A, is greater than the critical value for that particular distribution.")
-                print("Note that, for a given distribution, the Anderson-Darling statistic may be multiplied by a constant which usually depends on the sample size, n).")
-                print("These constants are given in the various papers by Stephens, and may be simply referred as the \'adjusted Anderson-Darling statistic\'.")
-                print("This adjusted statistic is what should be compared against the critical values.")
-                print("Also, be aware that different constants (and therefore critical values) have been published.")
-                print("Therefore, you just need to be aware of what constant was used for a given set of critical values (the needed constant is typically given with the correspondent critical values).")
-                print("To learn more about the Anderson-Darling statistics and the check the full references of Stephens, go to the webpage from the National Institute of Standards and Technology (NIST):\n")
-                print("https://itl.nist.gov/div898/handbook/eda/section3/eda3e.htm")
-                print("\n")
-                
-            #Create general statistics dictionary:
-            general_statistics_dict = {
-
-                "series_mean": y.mean(),
-                "series_variance": y.var(),
-                "series_standard_deviation": y.std(),
-                "series_skewness": data_skew,
-                "series_kurtosis": data_kurtosis,
-                "series_mode": data_mode,
-                "AndersonDarling_statistic_A": anderson_darling_statistic,
-                "distribution_parameters": distribution_parameters
-
-            }
-
-            # Add this dictionary to the series dictionary:
-            series_dict['general_statistics'] = general_statistics_dict
-
-            # Now, append the series dictionary to the support list:
-            support_list.append(series_dict)
+                data_mode = np.nan
         
-    # Now we left the for loop, make the list of dicts support list itself:
+        anderson_stat = None
+        anderson_crit_vals = None
+        anderson_sig_levels = None
+        ks_stat = None
+        ks_pval = None
+        
+        if is_discrete:
+            # Discrete distribution fitting
+            if dist_clean in ['poisson']:
+                mu_fit = float(np.mean(y))
+                distribution_parameters = (mu_fit,)
+                obs_counts = pd.Series(y).value_counts().sort_index()
+                obs_k = obs_counts.index.values.astype(int)
+                obs_freq = obs_counts.values.astype(float)
+                n_total = float(len(y))
+                exp_freq = stats.poisson.pmf(obs_k, mu_fit) * n_total
+                if np.sum(exp_freq) > 0:
+                    exp_freq = exp_freq * (np.sum(obs_freq) / np.sum(exp_freq))
+                chisq_stat, chisq_pval = stats.chisquare(obs_freq, exp_freq)
+                ks_stat = float(chisq_stat)
+                ks_pval = float(chisq_pval)
+            elif dist_clean in ['negative_binomial', 'negative-binomial', 'nbinom']:
+                y_mean = float(np.mean(y))
+                y_var = float(np.var(y, ddof=1)) if len(y) > 1 else 1.0
+                if y_var > y_mean and y_mean > 0:
+                    p_fit = float(y_mean / y_var)
+                    n_fit = float((y_mean ** 2) / (y_var - y_mean))
+                else:
+                    p_fit = 0.99
+                    n_fit = max(1.0, float(y_mean * 99.0))
+                distribution_parameters = (n_fit, p_fit)
+                obs_counts = pd.Series(y).value_counts().sort_index()
+                obs_k = obs_counts.index.values.astype(int)
+                obs_freq = obs_counts.values.astype(float)
+                n_total = float(len(y))
+                exp_freq = stats.nbinom.pmf(obs_k, n_fit, p_fit) * n_total
+                if np.sum(exp_freq) > 0:
+                    exp_freq = exp_freq * (np.sum(obs_freq) / np.sum(exp_freq))
+                chisq_stat, chisq_pval = stats.chisquare(obs_freq, exp_freq)
+                ks_stat = float(chisq_stat)
+                ks_pval = float(chisq_pval)
+            else:
+                distribution_parameters = ()
+                obs_counts = pd.Series(y).value_counts().sort_index()
+                obs_k = obs_counts.index.values
+                obs_freq = obs_counts.values.astype(float)
+                exp_freq = obs_freq
+            
+            if ControlVars.show_plots and show_probability_plot:
+                fig, ax = plt.subplots(figsize = (12, 8))
+                ax.set_title(f"Observed vs Theoretical Frequency Plot of {series_id} for {statistical_distribution_to_test}")
+                ax.plot(obs_k, obs_freq, 'bo-', label='Observed Frequencies', linewidth=2)
+                ax.plot(obs_k, exp_freq, 'r*--', label='Theoretical Frequencies', linewidth=2, markersize=10)
+                ax.set_xlabel("Values / Counts")
+                ax.set_ylabel("Frequency")
+                ax.legend(loc='best')
+                ax.grid(grid)
+                plt.xticks(rotation = x_axis_rotation)
+                plt.yticks(rotation = y_axis_rotation)
+                
+                if export_png:
+                    import os
+                    if directory_to_save is None:
+                        directory_to_save = ""
+                    if file_name is None:
+                        export_name = f"freq_plot_{dist_clean}_{series_id}"
+                    else:
+                        export_name = file_name
+                    if png_resolution_dpi is None:
+                        png_resolution_dpi = 330
+                    new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                    if ControlVars.show_results:
+                        print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+                
+                plt.show()
+                if ControlVars.show_results:
+                    print("\n")
+        else:
+            # Continuous distribution fitting
+            distribution_parameters = dist_obj.fit(y)
+            
+            # Kolmogorov-Smirnov test for continuous goodness-of-fit:
+            try:
+                ks_res = stats.kstest(y, dist_obj.cdf, args = distribution_parameters)
+                ks_stat = float(ks_res.statistic)
+                ks_pval = float(ks_res.pvalue)
+            except Exception:
+                ks_stat = None
+                ks_pval = None
+            
+            # Anderson-Darling test where supported by scipy.stats.anderson:
+            try:
+                if dist_clean in ['normal', 'norm']:
+                    ad_res = stats.anderson(y, dist='norm')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                elif dist_clean in ['exponential', 'expon']:
+                    ad_res = stats.anderson(y, dist='expon')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                elif dist_clean in ['logistic']:
+                    ad_res = stats.anderson(y, dist='logistic')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                elif dist_clean in ['gumbel', 'gumbel_r']:
+                    ad_res = stats.anderson(y, dist='gumbel_r')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                elif dist_clean in ['gumbel_left-skewed', 'gumbel_l']:
+                    ad_res = stats.anderson(y, dist='gumbel_l')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                elif dist_clean in ['weibull', 'weibull_min', 'weibull_minimum_extreme_value']:
+                    ad_res = stats.anderson(y, dist='weibull_min')
+                    anderson_stat = float(ad_res.statistic)
+                    anderson_crit_vals = list(ad_res.critical_values)
+                    anderson_sig_levels = list(ad_res.significance_level)
+                else:
+                    try:
+                        anderson_stat = float(diagnostic.anderson_statistic(y, fit=True))
+                    except:
+                        anderson_stat = None
+            except Exception:
+                anderson_stat = None
+            
+            # Probability plot for continuous:
+            if ControlVars.show_plots and show_probability_plot:
+                fig, ax = plt.subplots(figsize = (12, 8))
+                ax.set_title(f"Probability Plot of {series_id} for {statistical_distribution_to_test} Distribution")
+                sparams = distribution_parameters[:-2] if len(distribution_parameters) > 2 else ()
+                try:
+                    stats.probplot(y, dist = dist_obj, sparams = sparams, fit = True, plot = ax)
+                except Exception:
+                    stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+                ax.grid(grid)
+                plt.xticks(rotation = x_axis_rotation)
+                plt.yticks(rotation = y_axis_rotation)
+                
+                if export_png:
+                    import os
+                    if directory_to_save is None:
+                        directory_to_save = ""
+                    if file_name is None:
+                        export_name = f"probability_plot_{dist_clean}_{series_id}"
+                    else:
+                        export_name = file_name
+                    if png_resolution_dpi is None:
+                        png_resolution_dpi = 330
+                    new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                    if ControlVars.show_results:
+                        print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+                
+                plt.show()
+                if ControlVars.show_results:
+                    print("\n")
+        
+        if ControlVars.show_results:
+            print(f"Distribution parameters calculated for '{statistical_distribution_to_test}': {distribution_parameters}")
+            if ks_stat is not None and ks_pval is not None:
+                test_name = "Chi-Square" if is_discrete else "Kolmogorov-Smirnov"
+                print(f"{test_name} statistic = {ks_stat:.4f}, p-value = {ks_pval:.4f}")
+                if ks_pval < alpha:
+                    print(f"Criterion (p < {alpha:.3f}): Data is NOT well-described by {statistical_distribution_to_test} distribution.\n")
+                else:
+                    print(f"Criterion (p >= {alpha:.3f}): Data does NOT reject the {statistical_distribution_to_test} distribution hypothesis.\n")
+            if anderson_stat is not None:
+                print(f"Anderson-Darling statistic A = {anderson_stat:.4f}")
+                if anderson_crit_vals is not None and anderson_sig_levels is not None:
+                    print(f"Critical values: {anderson_crit_vals} at significance levels {anderson_sig_levels}%\n")
+        
+        general_statistics_dict = {
+            "series_mean": float(y.mean()) if len(y) > 0 else np.nan,
+            "series_variance": float(y.var()) if len(y) > 0 else np.nan,
+            "series_standard_deviation": float(y.std()) if len(y) > 0 else np.nan,
+            "series_skewness": data_skew,
+            "series_kurtosis": data_kurtosis,
+            "series_mode": data_mode,
+            "AndersonDarling_statistic_A": anderson_stat,
+            "AndersonDarling_critical_values": anderson_crit_vals,
+            "AndersonDarling_significance_levels": anderson_sig_levels,
+            "KolmogorovSmirnov_statistic": ks_stat,
+            "KolmogorovSmirnov_p_value": ks_pval,
+            "goodness_of_fit_p_value": ks_pval,
+            "distribution_parameters": distribution_parameters,
+            "distribution_tested": statistical_distribution_to_test,
+            "is_discrete": is_discrete
+        }
+        series_dict['general_statistics'] = general_statistics_dict
+        support_list.append(series_dict)
+    
     list_of_dicts = support_list
     
     if ControlVars.show_results:
-        print("General statistics successfully returned in the list \'list_of_dicts\'.\n")
-        
+        print(f"General statistics successfully returned in the list 'list_of_dicts'.\n")
         try:
-            # only works in Jupyter Notebook:
             from IPython.display import display
             display(list_of_dicts)
-                
-        except: # regular mode
+        except:
             print(list_of_dicts)
-        
         print("\n")
-        
-        print("Note: the obtention of the probability plot specific for each distribution requires shape parameters.")
-        print("Check Scipy documentation for additional information:")
-        print("https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.probplot.html")
-        
+    
     return list_of_dicts
-
 
 def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     """
@@ -5987,6 +5701,8 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
         ##  '03_05_END.ipynb'
         plt.show()
 
+    returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
+
     if ControlVars.show_results:
         print("\n")
         explanaining = f"""The returned frequencies are always in counts per year: 1 count per year corresponds to 1 year; 12 counts: months per year; 365.2524 counts: days per year, etc.
@@ -6013,8 +5729,6 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
                         
         """
         print(explanaining)
-
-        returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
         
         try:
             # only works in Jupyter Notebook:
@@ -6025,7 +5739,177 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
             print(returned_df)
 
         print("\n")
-        # conversion_rule =  zip([(60 * 60 * 24 * 365.2524 * (10**3)), (60 * 60 * 24 * 365.2524 * (10**9))], ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms', '1/ns'])
 
     # Return fft and the dataframe:
     return fft, returned_df
+
+
+def discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, average_frequency_of_data_collection = 'hour', window = 'hann', detrend = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+    """
+    discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, average_frequency_of_data_collection = 'hour', window = 'hann', detrend = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+
+    Performs a robust Discrete Fourier Transform (DFT) / Spectral Analysis on time series data using NumPy/SciPy.
+    Unlike standard FFT, this implementation supports detrending (linear/mean) to remove baseline drift,
+    windowing functions (Hann, Hamming, Blackman, Bartlett) to eliminate spectral leakage, and does not require TensorFlow.
+    
+    : param: df: pandas DataFrame containing the time series data.
+    : param: column_to_analyze: string, column name of the series to analyze.
+    : param: timestamp_col: string (optional), timestamp column for sorting and checking sample spacing.
+    : param: average_frequency_of_data_collection: string, sampling cadence: 'year', 'month', 'day', 'hour', 'minute', 'second', 'ms', 'ns'.
+    : param: window: string or None, windowing function applied to reduce spectral leakage ('hann', 'hamming', 'blackman', 'bartlett', None).
+    : param: detrend: boolean, whether to remove the linear trend before spectral decomposition.
+    : param: x_axis_rotation: rotation angle for X-axis labels in degrees (default 0).
+    : param: y_axis_rotation: rotation angle for Y-axis labels in degrees (default 0).
+    : param: grid: boolean, whether to display grid lines on the plot.
+    : param: horizontal_axis_title: custom title for the X-axis (optional).
+    : param: vertical_axis_title: custom title for the Y-axis (optional).
+    : param: plot_title: custom title for the plot (optional).
+    : param: export_png: boolean, whether to save the figure as a PNG file.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (dft_complex, returned_df), containing the complex frequency coefficients and DataFrame of frequencies and amplitudes.
+    """
+
+    from scipy import signal
+
+    if not isinstance(df, pd.DataFrame):
+        raise InvalidInputsError("df must be a valid pandas DataFrame.")
+
+    if column_to_analyze not in df.columns:
+        raise InvalidInputsError(f"column_to_analyze '{column_to_analyze}' was not found in DataFrame.")
+
+    DATASET = df.copy(deep = True)
+    if timestamp_col is not None and timestamp_col in DATASET.columns:
+        DATASET = DATASET.sort_values(by = timestamp_col).reset_index(drop = True)
+
+    series = DATASET[column_to_analyze].dropna().values.astype(float)
+    n_samples = len(series)
+    if n_samples < 4:
+        raise InvalidInputsError("The series must contain at least 4 non-null observations for Fourier transformation.")
+
+    # Detrend if requested to remove DC offset / linear trend:
+    if detrend:
+        series_clean = signal.detrend(series, type = 'linear')
+    else:
+        series_clean = series - np.mean(series)
+
+    # Apply window function to avoid spectral leakage:
+    if window is not None:
+        win_str = str(window).strip().lower()
+        if win_str in ['hann', 'hanning']:
+            win = np.hanning(n_samples)
+        elif win_str == 'hamming':
+            win = np.hamming(n_samples)
+        elif win_str == 'blackman':
+            win = np.blackman(n_samples)
+        elif win_str == 'bartlett':
+            win = np.bartlett(n_samples)
+        else:
+            win = np.ones(n_samples)
+        series_processed = series_clean * win
+        win_scale = np.sum(win) / n_samples
+    else:
+        series_processed = series_clean
+        win_scale = 1.0
+
+    # Real-valued Discrete Fourier Transform via NumPy:
+    dft_complex = np.fft.rfft(series_processed)
+    abs_dft = (np.abs(dft_complex) / (n_samples * win_scale)) * 2.0
+    abs_dft[0] = abs_dft[0] / 2.0
+
+    # Frequency axis setup matching standard IDSW frequency units:
+    freq_str = str(average_frequency_of_data_collection).lower()
+    if freq_str in ['year', 'y']:
+        count_per_year = 1.0
+        xtick_list = [1.0]
+        labels_list = ['1/year']
+    elif freq_str in ['month', 'm']:
+        count_per_year = 12.0
+        xtick_list = [1.0, count_per_year]
+        labels_list = ['1/year', '1/month']
+    elif freq_str in ['day', 'd']:
+        count_per_year = 365.2524
+        xtick_list = [1.0, count_per_year]
+        labels_list = ['1/year', '1/day']
+    elif freq_str in ['hour', 'h']:
+        count_per_year = 24.0 * 365.2524
+        xtick_list = [1.0, 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h']
+    elif freq_str in ['minute', 'min']:
+        count_per_year = 60.0 * 24.0 * 365.2524
+        xtick_list = [1.0, 365.2524, 24.0 * 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h', '1/min']
+    elif freq_str in ['second', 's']:
+        count_per_year = 60.0 * 60.0 * 24.0 * 365.2524
+        xtick_list = [1.0, 365.2524, 24.0 * 365.2524, 60.0 * 24.0 * 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s']
+    elif freq_str == 'ms':
+        count_per_year = 60.0 * 60.0 * 24.0 * 365.2524 * 1e3
+        xtick_list = [1.0, 365.2524, 24.0 * 365.2524, 60.0 * 24.0 * 365.2524, 60.0 * 60.0 * 24.0 * 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ms']
+    elif freq_str == 'ns':
+        count_per_year = 60.0 * 60.0 * 24.0 * 365.2524 * 1e9
+        xtick_list = [1.0, 365.2524, 24.0 * 365.2524, 60.0 * 24.0 * 365.2524, 60.0 * 60.0 * 24.0 * 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h', '1/min', '1/s', '1/ns']
+    else:
+        count_per_year = 24.0 * 365.2524
+        xtick_list = [1.0, 365.2524, count_per_year]
+        labels_list = ['1/year', '1/day', '1/h']
+
+    raw_freqs = np.fft.rfftfreq(n_samples, d = 1.0)
+    f_per_year = raw_freqs * count_per_year
+
+    returned_df = pd.DataFrame({
+        'freq_in_counts_per_year': f_per_year,
+        'abs_dft_amplitude': abs_dft,
+        'spectral_power': abs_dft ** 2
+    })
+
+    if ControlVars.show_plots:
+        fig, ax = plt.subplots(figsize = (12, 8))
+        ax.step(f_per_year, abs_dft, where = 'mid', color = 'navy', linewidth = 1.5)
+        ax.set_xscale('log')
+        if plot_title is None:
+            plot_title = f"Discrete Fourier Transform Spectrum: '{column_to_analyze}'"
+        ax.set_title(plot_title)
+        
+        if horizontal_axis_title is None:
+            horizontal_axis_title = "Frequency (log scale, counts per year)"
+        ax.set_xlabel(horizontal_axis_title)
+        
+        if vertical_axis_title is None:
+            vertical_axis_title = "Amplitude"
+        ax.set_ylabel(vertical_axis_title)
+        
+        ax.set_xticks(xtick_list)
+        ax.set_xticklabels(labels_list)
+        ax.grid(grid, which = 'both', linestyle = '--', alpha = 0.7)
+        plt.xticks(rotation = x_axis_rotation)
+        plt.yticks(rotation = y_axis_rotation)
+
+        if export_png:
+            import os
+            if directory_to_save is None:
+                directory_to_save = ""
+            if file_name is None:
+                file_name = f"discrete_fourier_transform_{column_to_analyze}"
+            if png_resolution_dpi is None:
+                png_resolution_dpi = 330
+            new_file_path = os.path.join(directory_to_save, file_name + ".png")
+            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if ControlVars.show_results:
+                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+
+        plt.show()
+
+    if ControlVars.show_results:
+        print("\nDiscrete Fourier Transform (DFT) completed successfully.\n")
+        print("Frequencies are presented in counts per year:\n")
+        try:
+            from IPython.display import display
+            display(returned_df.head(15))
+        except:
+            print(returned_df.head(15))
+
+    return dft_complex, returned_df

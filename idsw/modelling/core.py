@@ -1,4 +1,4 @@
-""" FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
+﻿""" FUNCTIONS FROM INDUSTRIAL DATA SCIENCE WORKFLOW (IDSW) PACKAGE
 Modelling and Machine Learning
 
 Prepare features and responses tensors.
@@ -2245,52 +2245,40 @@ class TfModels:
         return self
     
 
+
+
     def tf_cnn_lstm_time_series (self, epochs = 2000, batch_size = 200, verbose = 1):
         
-        # NOT WORKING
-     
         input_layer = self.input_layer
         output_layer = self.output_layer
                 
-        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
-        # Originally: input_shape = (None, 2, 1)
-        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2)
-        flatten_layer = tf.keras.layers.Flatten()
+        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', padding = 'same', name = 'conv1d_inner')
+        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2, padding = 'same', name = 'maxpool1d_inner')
+        flatten_layer = tf.keras.layers.Flatten(name = 'flatten_inner')
         
         # define inputs
         input_1 = input_layer
-        # Creating blocks of Simple dense with the following 
-        # (filters, kernel_size, repetitions) configurations:
-        # tf.keras.layers.Dense(128, activation = 'relu', input_dim = INPUT_DIMENSION)
-        # tf.keras.layers.Dense(1)
       
         # The entire CNN model is wrapped in TimeDistributed wrapper layers so that it can be applied to 
-        # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
+        # each subsequence in the sample. The results are then interpreted by the LSTM layer 
         # before the model outputs a prediction.
         
         # First time-distributed convolution (for compatibility with the LSTM):
-        x  = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(input_1)
+        x = tf.keras.layers.TimeDistributed(convolution_layer, name = 'convolution')(input_1)
         # First time distributed Max Pooling (for compatibility with the LSTM):
         # Max Pooling: enhance select the characteristics highlighted by the convolution:
         x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = 'pooling')(x)
-        # Reduces to half the original size.
-        # The convolutions and pooling reduce the dimensionality of the data.
-        # Under the hood, TensorFlow is testing different combinations of filters until it finds filters 
-        # that actually highlight important characteristics.
-        # On the other hand, apply too much convolutional layers may reduce too much the data, making
-        # it difficult for the last dense layer to perform a good prediction.        
         # Flatten the data for making it adequate for feeding the dense layers:
         # Time distributed Flatten for compatibility with the LSTM:
         x = tf.keras.layers.TimeDistributed(flatten_layer, name = 'flatten')(x)
             
         # Now, feed the LSTM:
-        # The LSTM performs 1 cycle per element of the sequence. Since each sequence now have 2 elements,
-        # the LSTM will perform two iterations:
+        # The LSTM performs 1 cycle per element of the sequence:
         # LSTM with 50 neurons:
         x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = 'lstm')(x)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
         # (i.e., if x <=0, relu(x) = 0; if (x > 0), relu(x) = 0)
-        output_1 = output_layer(x)    
+        output_1 = output_layer(x)
        
         model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_cnn_lstm_time_series')
         # Update model attribute:
@@ -2304,6 +2292,24 @@ class TfModels:
         # return compiled model:
         return self
 
+    def tf_bayesian_dense (self, epochs = 2000, batch_size = 200, verbose = 1, dropout_rate = 0.2):
+        input_layer = self.input_layer
+        output_layer = self.output_layer
+        
+        input_1 = input_layer
+        # Bayesian Dense with Monte Carlo Dropout layers (active at inference for uncertainty estimation)
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = 'dense_bayes_1')(input_1)
+        x = tf.keras.layers.Dropout(rate = dropout_rate, name = 'mc_dropout_1')(x, training = True)
+        x = tf.keras.layers.Dense(units = 64, activation = 'relu', name = 'dense_bayes_2')(x)
+        x = tf.keras.layers.Dropout(rate = dropout_rate, name = 'mc_dropout_2')(x, training = True)
+        
+        output_1 = output_layer(x)
+        
+        model = tf.keras.models.Model(inputs = input_1, outputs = output_1, name = 'tf_bayesian_dense')
+        self.model = model
+        self = self.compile_model()
+        self = self.fit_model(epochs = epochs, batch_size = batch_size, verbose = verbose)
+        return self
 
 class SiameseNetworks:
     """
@@ -2525,37 +2531,29 @@ class SiameseNetworks:
         return x
     
     
+    
+    
     def base_model_cnn_lstm_time_series (self, input_layer, response):
         
-        # NOT WORKING
-
-        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', input_shape = (None, 2, 1))
-        # Originally: input_shape = (None, 2, 1)
-        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2)
-        flatten_layer = tf.keras.layers.Flatten()
+        convolution_layer = tf.keras.layers.Conv1D(filters = 64, kernel_size = 1, activation = 'relu', padding = 'same', name = ('conv1d' + '_' + response))
+        max_pooling_layer = tf.keras.layers.MaxPooling1D(pool_size = 2, padding = 'same', name = ('maxpool1d' + '_' + response))
+        flatten_layer = tf.keras.layers.Flatten(name = ('flatten_inner' + '_' + response))
       
         # The entire CNN model is wrapped in TimeDistributed wrapper layers so that it can be applied to 
-        # each subsequence in the  sample. The results are then interpreted by the LSTM layer 
+        # each subsequence in the sample. The results are then interpreted by the LSTM layer 
         # before the model outputs a prediction.
         
         # First time-distributed convolution (for compatibility with the LSTM):
-        x  = tf.keras.layers.TimeDistributed(convolution_layer,  name = ('convolution' + '_' + response))(input_layer)
+        x = tf.keras.layers.TimeDistributed(convolution_layer, name = ('convolution' + '_' + response))(input_layer)
         # First time distributed Max Pooling (for compatibility with the LSTM):
         # Max Pooling: enhance select the characteristics highlighted by the convolution:
         x = tf.keras.layers.TimeDistributed(max_pooling_layer, name = ('pooling' + '_' + response))(x)
-        # Reduces to half the original size.
-        # The convolutions and pooling reduce the dimensionality of the data.
-        # Under the hood, TensorFlow is testing different combinations of filters until it finds filters 
-        # that actually highlight important characteristics.
-        # On the other hand, apply too much convolutional layers may reduce too much the data, making
-        # it difficult for the last dense layer to perform a good prediction.        
         # Flatten the data for making it adequate for feeding the dense layers:
         # Time distributed Flatten for compatibility with the LSTM:
-        x = tf.keras.layers.TimeDistributed(flatten_layer, name = ('flatten'+ '_' + response))(x)
+        x = tf.keras.layers.TimeDistributed(flatten_layer, name = ('flatten' + '_' + response))(x)
             
         # Now, feed the LSTM:
-        # The LSTM performs 1 cycle per element of the sequence. Since each sequence now have 2 elements,
-        # the LSTM will perform two iterations:
+        # The LSTM performs 1 cycle per element of the sequence:
         # LSTM with 50 neurons:
         x = tf.keras.layers.LSTM(units = 50, activation = 'relu', name = ('lstm' + '_' + response))(x)
         # 'relu' = ReLU, the Rectified Linear Unit function, returns f(x) = max(0, x)
@@ -2563,7 +2561,14 @@ class SiameseNetworks:
         
         return x
     
-    
+
+    def base_model_bayesian_dense (self, input_layer, response, dropout_rate = 0.2):
+        x = tf.keras.layers.Dense(units = 128, activation = 'relu', name = ('dense_bayes_1' + '_' + response))(input_layer)
+        x = tf.keras.layers.Dropout(rate = dropout_rate, name = ('mc_dropout_1' + '_' + response))(x, training = True)
+        x = tf.keras.layers.Dense(units = 64, activation = 'relu', name = ('dense_bayes_2' + '_' + response))(x)
+        x = tf.keras.layers.Dropout(rate = dropout_rate, name = ('mc_dropout_2' + '_' + response))(x, training = True)
+        return x
+
     def network_branch (self, response_variable, type_of_problem = 'regression', number_of_classes = 2, architecture = 'simple_dense'):
         
         # Generate a full branch from the siamese network. We will have one branch per response
@@ -2592,6 +2597,9 @@ class SiameseNetworks:
             
         elif (architecture == 'cnn_lstm'):
             x = self.base_model_cnn_lstm_time_series(input_layer = input_layer, response = response_variable)
+            
+        elif ((architecture == 'bayesian_dense') | (architecture == 'bayesian')):
+            x = self.base_model_bayesian_dense(input_layer = input_layer, response = response_variable)
             
         else:
             x = self.base_model_simple_dense(input_layer = input_layer, response = response_variable)
@@ -2741,250 +2749,149 @@ class SiameseNetworks:
 class AnomalyDetector:
     """
     Class for creating a non-supervised learning algorithm used for anomaly detection.
-    This class uses the same Sklearn API.
+    Supports multiple expected statistical distributions:
+    - 'gaussian' / 'normal': Multivariate Gaussian distribution.
+    - 'exponential': Multivariate independent Exponential distribution for positive continuous features.
+    - 'poisson': Multivariate independent Poisson distribution for count features.
+    - 'uniform': Bounded uniform distribution.
 
-    def __init__ (self, epsilon = 0.00001)
-
-    ### Gaussian distribution
-        To perform anomaly detection, you will first need to fit a model to the data’s distribution.
-
-        * Given a training set $\{x^{(1)}, ..., x^{(m)}\}$ you want to estimate the Gaussian distribution for each
-        of the features $x_i$. 
-
-        * Recall that the Gaussian distribution is given by
-
-        $$ p(x ; \mu,\sigma ^2) = \frac{1}{\sqrt{2 \pi \sigma ^2}}\exp^{ - \frac{(x - \mu)^2}{2 \sigma ^2} }$$
-
-        where $\mu$ is the mean and $\sigma^2$ is the variance.
-        
-        * For each feature $i = 1\ldots n$, you need to find parameters $\mu_i$ and $\sigma_i^2$ that fit the data in the 
-        $i$-th dimension $\{x_i^{(1)}, ..., x_i^{(m)}\}$ (the $i$-th dimension of each example).
-
-        ### Estimating parameters for a Gaussian distribution
-
-        You can estimate the parameters, ($\mu_i$, $\sigma_i^2$), of the $i$-th
-        feature by using the following equations. To estimate the mean, you will
-        use:
-
-        $$\mu_i = \frac{1}{m} \sum_{j=1}^m x_i^{(j)}$$
-
-        and for the variance you will use:
-        $$\sigma_i^2 = \frac{1}{m} \sum_{j=1}^m (x_i^{(j)} - \mu_i)^2$$
+    : param: epsilon: float (default 0.00001), probability threshold below which an observation is deemed anomalous.
+    : param: distribution: string (default 'gaussian'), expected statistical distribution of normal process data.
     """
 
-    # This class uses the same Sklearn API
+    def __init__(self, epsilon = 0.00001, distribution = 'gaussian'):
+        self.epsilon = epsilon
+        self.distribution = str(distribution).strip().lower()
 
-    # Initialize instance attributes.
-    # define the Class constructor, i.e., how are its objects:
-    def __init__ (self, epsilon = 0.00001):
-        
-        self.epsilon = epsilon 
-    
-
-    def fit (self, X):  
+    def fit(self, X):
         """
-        Calculates mean and variance of all features 
-        in the dataset
-        
+        Calculates distribution parameters for all features in the dataset.
+
         Args:
             X (ndarray): (m, n) Data matrix
-        
         Returns:
-            mu (ndarray): (n,) Mean of all features
-            var (ndarray): (n,) Variance of all features
+            self
         """
+        import scipy.stats as stats
 
         X = np.array(X)
-        # Check if it is a single-dimension array
-        if(len(X) == 1):
-            #  Reshape it as a matrix
-            # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
-            X = X.reshape(-1,1)
+        if len(X.shape) == 1:
+            X = X.reshape(-1, 1)
 
         self.X = X
         self.m, self.n = X.shape
-        # m rows and n columns
         n = self.n
-        
-        #start lists to store the arrays
+
         mu = [np.mean(X[:, j]) for j in range(0, n)]
-        var = [np.var(X[:, j]) for j in range (0, n)]
-        # compute for all rows from column j, where j is one of the columns from the dataset
-        # https://numpy.org/doc/stable/reference/generated/numpy.var.html
-        
-        # Convert to numpy:
+        var = [np.var(X[:, j]) for j in range(0, n)]
+
         self.mu = np.array(mu)
         self.var = np.array(var)
 
+        # Additional parameters based on distribution
+        if self.distribution == 'exponential':
+            self.scale = np.maximum(self.mu, 1e-9)
+        elif self.distribution == 'poisson':
+            self.lambda_param = np.maximum(self.mu, 1e-9)
+        elif self.distribution == 'uniform':
+            self.low = np.min(X, axis = 0)
+            self.high = np.max(X, axis = 0)
+
         return self
-        
 
-    def select_threshold (self, y_val, p_val): 
+    def select_threshold(self, y_val, p_val):
         """
-        Finds the best threshold to use for selecting outliers 
-        based on the results from a validation set (p_val) 
-        and the ground truth (y_val)
-        
-        Args:
-            y_val (ndarray): Ground truth on validation set - ytrue
-            p_val (ndarray): Results on validation set
-            
-        Returns:
-            epsilon (float): Threshold chosen 
-            F1 (float):      F1 score by choosing epsilon as threshold
-        
-        
-        Now that you have estimated the Gaussian parameters, you can investigate which examples have a very high probability given 
-        this distribution and which examples have a very low probability.  
-
-        * The low probability examples are more likely to be the anomalies in our dataset. 
-        * One way to determine which examples are anomalies is to select a threshold based on a cross validation set. 
-
-        In this section, you select the threshold $\varepsilon$ using the $F_1$ score on a cross validation set.
-
-        * For this, we will use a cross validation set
-        $\{(x_{\rm cv}^{(1)}, y_{\rm cv}^{(1)}),\ldots, (x_{\rm cv}^{(m_{\rm cv})}, y_{\rm cv}^{(m_{\rm cv})})\}$, 
-        where the label $y=1$ corresponds to an anomalous example, and $y=0$ corresponds to a normal example. 
-        * For each cross validation example, we will compute $p(x_{\rm cv}^{(i)})$. The vector of all of these probabilities 
-        $p(x_{\rm cv}^{(1)}), \ldots, p(x_{\rm cv}^{(m_{\rm cv})})$ is passed to `select_threshold` in the vector `p_val`. 
-        * The corresponding labels $y_{\rm cv}^{(1)}, \ldots, y_{\rm cv}^{(m_{\rm cv})}$ are passed to the same function in the 
-        vector `y_val`.
-        
-        * In the provided code `select_threshold`, there is already a loop that will try many different values of $\varepsilon$ 
-        and select the best $\varepsilon$ based on the $F_1$ score. 
-
-        * You need to calculate the F1 score from choosing `epsilon` as the threshold and place the value in `F1`. 
-
-        * Recall that if an example $x$ has a low probability $p(x) < \varepsilon$, then it is classified as an anomaly. 
-                
-        * Then, you can compute precision and recall by: 
-        $$\begin{aligned}
-        prec&=&\frac{tp}{tp+fp}\\
-        rec&=&\frac{tp}{tp+fn},
-        \end{aligned}$$ where
-            * $tp$ is the number of true positives: the ground truth label says it’s an anomaly and our algorithm correctly classified 
-            it as an anomaly.
-            * $fp$ is the number of false positives: the ground truth label says it’s not an anomaly, but our algorithm incorrectly 
-            classified it as an anomaly.
-            * $fn$ is the number of false negatives: the ground truth label says it’s an anomaly, but our algorithm incorrectly 
-            classified it as not being anomalous.
-
-        * The $F_1$ score is computed using precision ($prec$) and recall ($rec$) as follows:
-            $$F_1 = \frac{2\cdot prec \cdot rec}{prec + rec}$$ 
-
-        **Implementation Note:** 
-        In order to compute $tp$, $fp$ and $fn$, you may be able to use a vectorized implementation rather than loop over 
-        all the examples.      
-        """ 
-        
+        Finds the best threshold to use for selecting outliers
+        based on the results from a validation set (p_val)
+        and the ground truth (y_val).
+        """
         from sklearn.metrics import f1_score
-        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
-        
-        best_epsilon = 0
-        best_F1 = 0
-        F1 = 0
-        
-        # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
-        if(len(y_val.shape) == 1):
-            #  Reshape it as a matrix
-            y_val = y_val.reshape(-1,1)
 
-        step_size = (max(p_val) - min(p_val)) / 1000
-        
-        # Create a vector of epsilons to be tested
-        epsilons_tested = np.arange(min(p_val), max(p_val), step_size)
-        # Create an array of f1_scores
-        
-        for epsilon in epsilons_tested:
-            
-            # Make an array with the boolean when comparing p_val with the selected epsilon
-            y_pred = (p_val < epsilon).astype('int')
-            # It will check every value from array p_val: if p_val > epsilon, we do not have an 
-            # anomaly, so the response is zero (integer). If it is lower, the response is 1 (anomaly).
-            # By setting the type, we guarantee it is an integer.
-            # This array is saved as the predictions array y_pred
-            
-            F1 = f1_score(y_val, y_pred)
-            # Inside the loop, we used a vectorized implementation
-            
-            if F1 > best_F1:
-                best_F1 = F1
-                best_epsilon = epsilon
-        
-       
+        best_epsilon = 0.0
+        best_F1 = 0.0
+
+        p_flat = np.asarray(p_val).ravel()
+        y_flat = np.asarray(y_val).ravel()
+
+        if len(p_flat) == 0:
+            return self
+
+        min_p = float(np.min(p_flat))
+        max_p = float(np.max(p_flat))
+
+        if min_p == max_p:
+            self.epsilon = min_p
+            self.F1 = 1.0
+            return self
+
+        step_size = (max_p - min_p) / 1000.0
+        epsilons_tested = np.arange(min_p, max_p, step_size)
+
+        for eps in epsilons_tested:
+            y_pred = (p_flat < eps).astype('int')
+            f1 = float(f1_score(y_flat, y_pred, zero_division = 0))
+
+            if f1 > best_F1:
+                best_F1 = f1
+                best_epsilon = eps
+
         self.epsilon = best_epsilon
         self.F1 = best_F1
-
         return self
 
-
-    def calculate_probabilities (self, X_tensor):
+    def calculate_probabilities(self, X_tensor):
         """
-        # Calculate probabilities for a tensor X
-        
-        Computes the probability 
-        density function of the examples X under the multivariate gaussian 
-        distribution with parameters mu and var. If var is a matrix, it is
-        treated as the covariance matrix. If var is a vector, it is treated
-        as the var values of the variances in each dimension (a diagonal
-        covariance matrix
+        Computes the probability density / mass of examples under the specified distribution.
         """
+        import scipy.stats as stats
 
         X = np.array(X_tensor)
-        # Check if it is a single-dimension array
-        if(len(X) == 1):
-            #  Reshape it as a matrix
-            # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
-            X = X.reshape(-1,1)
+        if len(X.shape) == 1:
+            X = X.reshape(-1, 1)
 
-        mu = self.mu
-        var = self.var
-        
-        k = len(mu)
-        
-        if var.ndim == 1:
-            var = np.diag(var)
-            
-        X = X - mu
-        p = (2* np.pi)**(-k/2) * np.linalg.det(var)**(-0.5) * \
-            np.exp(-0.5 * np.sum(np.matmul(X, np.linalg.pinv(var)) * X, axis = 1))
-        
+        n_samples, k = X.shape
+
+        if self.distribution == 'exponential':
+            # Exponential PDF: prod_j (1/scale_j * exp(-x_j / scale_j))
+            scale = getattr(self, 'scale', np.maximum(self.mu, 1e-9))
+            p = np.prod(stats.expon.pdf(X, scale = scale), axis = 1)
+
+        elif self.distribution == 'poisson':
+            # Poisson PMF: prod_j (lambda^x * exp(-lambda) / x!)
+            lambdas = getattr(self, 'lambda_param', np.maximum(self.mu, 1e-9))
+            p = np.prod(stats.poisson.pmf(np.round(np.maximum(X, 0)), mu = lambdas), axis = 1)
+
+        elif self.distribution == 'uniform':
+            low = getattr(self, 'low', np.min(self.X, axis = 0))
+            high = getattr(self, 'high', np.max(self.X, axis = 0))
+            diff = np.maximum(high - low, 1e-9)
+            inside = (X >= low) & (X <= high)
+            p = np.where(np.all(inside, axis = 1), np.prod(1.0 / diff), 0.0)
+
+        else:
+            # Gaussian / Normal
+            mu = self.mu
+            var = self.var
+            if var.ndim == 1:
+                # Add small epsilon to diagonal to prevent singular covariance
+                var_diag = np.maximum(var, 1e-9)
+                cov_mat = np.diag(var_diag)
+            else:
+                cov_mat = var + np.eye(k) * 1e-9
+
+            det_cov = np.linalg.det(cov_mat)
+            if det_cov <= 0 or np.isinf(det_cov):
+                det_cov = 1e-9
+
+            X_centered = X - mu
+            inv_cov = np.linalg.pinv(cov_mat)
+            mahalanobis = np.sum(np.matmul(X_centered, inv_cov) * X_centered, axis = 1)
+
+            p = (2.0 * np.pi) ** (-k / 2.0) * (det_cov ** (-0.5)) * np.exp(-0.5 * mahalanobis)
+
         self.estimated_probabilities = p
+        if len(p.shape) == 1:
+            p = p.reshape(-1, 1)
 
-        # Put every array in matrix format [arr1, arr2, ... arr_n], where each array arr_i is a matrix row.
-        if(len(p.shape) == 1):
-            #  Reshape it as a matrix
-            p = p.reshape(-1,1)
-    
         return self
 
-
-    def predict (self, X_tensor):
-
-        epsilon = self.epsilon
-        # Calculate the probabilities associated to X_tensor:
-        self = self.calculate_probabilities(X_tensor = X_tensor)
-        # Retrieve the probabilities:
-        p = self.estimated_probabilities
-
-        # Find the outliers in the training set 
-        outliers = (p < epsilon)
-        # Convert to numpy array
-        outliers = np.array(outliers)
-        # Change type from boolean to integer:
-        outliers = outliers.astype('int64')
-        # Now, True values (p lower than epsilon) are labelled as 1; False (p >= epsilon) are
-        # labelled as 0.
-
-        # Return the predictions:
-        return outliers
-
-
-    def save (self, path_to_save):
-
-        import pickle
-
-        #Save the dictionary of attributes:
-        attributes = vars(self)
-        with open(path_to_save, 'wb') as opened_file:
-            pickle.dump(attributes, opened_file)

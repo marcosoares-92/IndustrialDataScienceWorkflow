@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -649,4 +649,451 @@ def logistic_reg (X_train, y_train, regularization = 'l2', l1_ratio_hyperparamet
     
     else:
         raise InvalidInputsError(f"Unable to perform logistic regression. Found a total of {number_of_classes} in the training tensor: {list_of_classes}\n")
-        
+
+
+def glm_regression(
+    X_train,
+    y_train,
+    distribution = 'poisson',
+    link = None,
+    alpha_dispersion = 1.0,
+    fit_intercept = True,
+    exposure = None,
+    offset = None,
+    X_test = None,
+    y_test = None,
+    X_valid = None,
+    y_valid = None,
+    column_map_dict = None,
+    orientation = 'vertical',
+    horizontal_axis_title = None,
+    vertical_axis_title = None,
+    plot_title = None,
+    x_axis_rotation = 70,
+    y_axis_rotation = 0,
+    grid = True,
+    export_png = False,
+    directory_to_save = None,
+    file_name = None,
+    png_resolution_dpi = 330
+):
+    """
+    glm_regression:
+    Fits a Generalized Linear Model (GLM) using statsmodels supporting count, continuous,
+    and binary data with robust family distributions and link functions.
+
+    Covers key distributions:
+    - Poisson ('poisson'): for count data where variance approx equals mean.
+    - Negative Binomial ('negative_binomial' / 'neg_binomial'): for overdispersed count data.
+    - Gamma ('gamma'): for positive continuous right-skewed responses.
+    - Gaussian ('gaussian' / 'normal'): for standard continuous responses.
+    - Binomial ('binomial'): for binary or proportion responses.
+    - Inverse Gaussian ('inverse_gaussian'): for positive continuous data with heavy right tails.
+    - Lognormal ('lognormal' / 'log_normal'): for strictly positive lognormally distributed targets.
+
+    : param: X_train: pandas DataFrame, Series, or array containing training features.
+    : param: y_train: pandas Series, 1D DataFrame column, or array of training response values.
+    : param: distribution: string (default 'poisson'), the response probability family.
+    : param: link: string or statsmodels family link instance (default None for canonical link).
+    : param: alpha_dispersion: float (default 1.0), dispersion parameter for Negative Binomial family.
+    : param: fit_intercept: boolean (default True), whether to add a constant/intercept term.
+    : param: exposure: array-like or None (default None), log-transformed exposure factor for rates.
+    : param: offset: array-like or None (default None), additive offset term.
+    : param: X_test: pandas DataFrame or array for test evaluation (optional).
+    : param: y_test: pandas Series or array for test evaluation (optional).
+    : param: X_valid: pandas DataFrame or array for validation (optional).
+    : param: y_valid: pandas Series or array for validation (optional).
+    : param: column_map_dict: optional dict mapping column names to human-readable labels.
+    : param: orientation: string ('vertical' or 'horizontal') for feature importance bar chart.
+    : param: horizontal_axis_title: title for horizontal axis.
+    : param: vertical_axis_title: title for vertical axis.
+    : param: plot_title: title for the plot.
+    : param: x_axis_rotation: rotation angle for X-axis labels.
+    : param: y_axis_rotation: rotation angle for Y-axis labels.
+    : param: grid: boolean, whether to display grid lines.
+    : param: export_png: boolean, whether to save feature importance plot.
+    : param: directory_to_save: folder path where the image will be exported.
+    : param: file_name: name of the exported image file.
+    : param: png_resolution_dpi: image resolution in DPI (default 330).
+    : return: tuple (glm_results, metrics_dict, coefficients_df).
+    """
+    import statsmodels.api as sm
+    import statsmodels.genmod.families as families
+    from statsmodels.genmod.families import links
+
+    # Validate inputs
+    if X_train is None or y_train is None:
+        raise InvalidInputsError("X_train and y_train must not be None.")
+
+    # Convert y_train to 1D numpy array
+    y_arr = np.asarray(y_train).ravel()
+    N = len(y_arr)
+    if N < 3:
+        raise InvalidInputsError("y_train must contain at least 3 observations to fit a GLM.")
+
+    # Prepare feature matrix X
+    if isinstance(X_train, pd.DataFrame):
+        feature_names = list(X_train.columns)
+        X_df = X_train.copy(deep = True)
+    elif isinstance(X_train, pd.Series):
+        feature_names = [X_train.name if X_train.name is not None else "feature_0"]
+        X_df = pd.DataFrame(X_train.values, columns = feature_names)
+    else:
+        X_arr = np.asarray(X_train)
+        if X_arr.ndim == 1:
+            X_arr = X_arr.reshape(-1, 1)
+        feature_names = [f"feature_{i}" for i in range(X_arr.shape[1])]
+        X_df = pd.DataFrame(X_arr, columns = feature_names)
+
+    # Apply column_map_dict if provided
+    if column_map_dict is not None and isinstance(column_map_dict, dict):
+        X_df = X_df.rename(columns = column_map_dict)
+        feature_names = list(X_df.columns)
+
+    # Add constant if requested
+    if fit_intercept:
+        X_design = sm.add_constant(X_df, has_constant = 'add')
+        all_feature_names = ['const'] + [c for c in X_design.columns if c != 'const']
+        X_design = X_design[all_feature_names]
+    else:
+        X_design = X_df.copy(deep = True)
+        all_feature_names = list(X_design.columns)
+
+    # Resolve link function if provided as string
+    link_obj = None
+    if isinstance(link, str):
+        link_str = link.strip().lower()
+        if link_str in ['log']:
+            link_obj = links.Log()
+        elif link_str in ['identity', 'linear']:
+            link_obj = links.Identity()
+        elif link_str in ['logit']:
+            link_obj = links.Logit()
+        elif link_str in ['probit']:
+            link_obj = links.Probit()
+        elif link_str in ['cloglog']:
+            link_obj = links.CLogLog()
+        elif link_str in ['inverse_power', 'reciprocal']:
+            link_obj = links.InversePower()
+        elif link_str in ['sqrt']:
+            link_obj = links.Sqrt()
+        elif link_str in ['inverse_squared']:
+            link_obj = links.InverseSquared()
+    elif link is not None:
+        link_obj = link
+
+    # Resolve distribution family
+    dist_clean = str(distribution).strip().lower()
+
+    if dist_clean == 'poisson':
+        if np.any(y_arr < 0):
+            raise InvalidInputsError("Poisson distribution requires non-negative count values (y >= 0).")
+        family_obj = families.Poisson(link = link_obj if link_obj is not None else links.Log())
+
+    elif dist_clean in ['negative_binomial', 'neg_binomial', 'nb']:
+        if np.any(y_arr < 0):
+            raise InvalidInputsError("Negative Binomial distribution requires non-negative count values (y >= 0).")
+        family_obj = families.NegativeBinomial(alpha = alpha_dispersion, link = link_obj if link_obj is not None else links.Log())
+
+    elif dist_clean == 'gamma':
+        if np.any(y_arr <= 0):
+            raise InvalidInputsError("Gamma distribution requires strictly positive values (y > 0).")
+        family_obj = families.Gamma(link = link_obj if link_obj is not None else links.Log())
+
+    elif dist_clean in ['gaussian', 'normal']:
+        family_obj = families.Gaussian(link = link_obj if link_obj is not None else links.Identity())
+
+    elif dist_clean == 'binomial':
+        if np.any((y_arr < 0) | (y_arr > 1)):
+            raise InvalidInputsError("Binomial distribution requires target values in range [0, 1].")
+        family_obj = families.Binomial(link = link_obj if link_obj is not None else links.Logit())
+
+    elif dist_clean == 'inverse_gaussian':
+        if np.any(y_arr <= 0):
+            raise InvalidInputsError("Inverse Gaussian requires strictly positive values (y > 0).")
+        family_obj = families.InverseGaussian(link = link_obj if link_obj is not None else links.InverseSquared())
+
+    elif dist_clean in ['lognormal', 'log_normal']:
+        if np.any(y_arr <= 0):
+            raise InvalidInputsError("Lognormal distribution requires strictly positive values (y > 0).")
+        family_obj = families.Gaussian(link = link_obj if link_obj is not None else links.Log())
+
+    else:
+        raise InvalidInputsError(
+            f"Unsupported distribution '{distribution}'. Choose from: 'poisson', 'negative_binomial', "
+            f"'gamma', 'gaussian', 'binomial', 'inverse_gaussian', 'lognormal'."
+        )
+
+    # Fit statsmodels GLM
+    glm_model = sm.GLM(
+        endog = y_arr,
+        exog = X_design,
+        family = family_obj,
+        exposure = exposure,
+        offset = offset
+    )
+    glm_results = glm_model.fit()
+
+    # Calculate model metrics
+    y_preds_train = glm_results.predict(X_design)
+    train_rmse = float(np.sqrt(np.mean((y_arr - y_preds_train) ** 2)))
+    train_mae = float(np.mean(np.abs(y_arr - y_preds_train)))
+
+    df_resid = float(glm_results.df_resid) if glm_results.df_resid > 0 else 1.0
+    pearson_chi2 = float(glm_results.pearson_chi2)
+    dispersion_ratio = float(pearson_chi2 / df_resid)
+
+    deviance = float(glm_results.deviance)
+    null_deviance = float(glm_results.null_deviance)
+    pseudo_r2 = float(1.0 - (deviance / null_deviance)) if null_deviance != 0 else 0.0
+
+    metrics_dict = {
+        "family": family_obj.__class__.__name__,
+        "link": family_obj.link.__class__.__name__,
+        "AIC": float(glm_results.aic),
+        "BIC": float(glm_results.bic_deviance) if hasattr(glm_results, 'bic_deviance') else float(glm_results.bic),
+        "deviance": deviance,
+        "null_deviance": null_deviance,
+        "pseudo_r2": pseudo_r2,
+        "pearson_chi2": pearson_chi2,
+        "dispersion_ratio": dispersion_ratio,
+        "log_likelihood": float(glm_results.llf),
+        "train_rmse": train_rmse,
+        "train_mae": train_mae
+    }
+
+    # Test set metrics if provided
+    if X_test is not None and y_test is not None:
+        y_test_arr = np.asarray(y_test).ravel()
+        if isinstance(X_test, pd.DataFrame):
+            X_test_df = X_test.copy(deep = True)
+        else:
+            X_test_arr = np.asarray(X_test)
+            if X_test_arr.ndim == 1:
+                X_test_arr = X_test_arr.reshape(-1, 1)
+            X_test_df = pd.DataFrame(X_test_arr, columns = feature_names)
+
+        if fit_intercept:
+            X_test_design = sm.add_constant(X_test_df, has_constant = 'add')
+            X_test_design = X_test_design[all_feature_names]
+        else:
+            X_test_design = X_test_df[all_feature_names]
+
+        y_preds_test = glm_results.predict(X_test_design)
+        metrics_dict["test_rmse"] = float(np.sqrt(np.mean((y_test_arr - y_preds_test) ** 2)))
+        metrics_dict["test_mae"] = float(np.mean(np.abs(y_test_arr - y_preds_test)))
+
+    # Build coefficients DataFrame with exponentiated values
+    params = glm_results.params
+    bse = glm_results.bse
+    tvalues = glm_results.tvalues
+    pvalues = glm_results.pvalues
+    conf = glm_results.conf_int()
+
+    coef_data = []
+    for feat in all_feature_names:
+        idx = feat if feat in params.index else all_feature_names.index(feat)
+        b = float(params[idx])
+        se = float(bse[idx])
+        z = float(tvalues[idx])
+        p = float(pvalues[idx])
+        ci_low = float(conf.loc[idx, 0]) if isinstance(conf, pd.DataFrame) else float(conf[idx][0])
+        ci_high = float(conf.loc[idx, 1]) if isinstance(conf, pd.DataFrame) else float(conf[idx][1])
+
+        # Exponentiated coefficients (multiplicative effect / odds ratio / rate ratio)
+        exp_b = float(np.exp(b)) if abs(b) < 700 else np.nan
+        exp_ci_low = float(np.exp(ci_low)) if abs(ci_low) < 700 else np.nan
+        exp_ci_high = float(np.exp(ci_high)) if abs(ci_high) < 700 else np.nan
+
+        coef_data.append({
+            "feature": feat,
+            "coefficient": b,
+            "std_err": se,
+            "z_value": z,
+            "p_value": p,
+            "ci_lower_95": ci_low,
+            "ci_upper_95": ci_high,
+            "exp_coefficient": exp_b,
+            "exp_ci_lower_95": exp_ci_low,
+            "exp_ci_upper_95": exp_ci_high
+        })
+
+    coefficients_df = pd.DataFrame(coef_data)
+
+    # Attach sklearn-compatible .coef_ and .intercept_ attributes to glm_results for seamless ModelChecking integration
+    try:
+        if fit_intercept and 'const' in all_feature_names:
+            non_const_feats = [f for f in all_feature_names if f != 'const']
+            setattr(glm_results, 'intercept_', float(params['const']))
+            setattr(glm_results, 'coef_', np.array([float(params[f]) for f in non_const_feats]))
+        else:
+            setattr(glm_results, 'intercept_', 0.0)
+            setattr(glm_results, 'coef_', np.array([float(params[f]) for f in all_feature_names]))
+    except Exception:
+        pass
+
+    # Print summary and educational guidance
+    if ControlVars.show_results:
+        print("=" * 80)
+        print(f"GENERALIZED LINEAR MODEL (GLM) - Family: {family_obj.__class__.__name__}, Link: {family_obj.link.__class__.__name__}")
+        print("=" * 80)
+        print(glm_results.summary())
+        print("\n--- Model Evaluation Metrics ---")
+        print(f"AIC: {metrics_dict['AIC']:.4f} | BIC: {metrics_dict['BIC']:.4f}")
+        print(f"Residual Deviance: {deviance:.4f} | Null Deviance: {null_deviance:.4f} | Pseudo R-squared: {pseudo_r2:.4f}")
+        print(f"Pearson Chi-Square: {pearson_chi2:.4f} | Degrees of Freedom: {df_resid:.0f}")
+        print(f"Estimated Dispersion Ratio (Pearson Chi2 / df_resid): {dispersion_ratio:.4f}")
+        print(f"Training RMSE: {train_rmse:.4f} | Training MAE: {train_mae:.4f}")
+        if "test_rmse" in metrics_dict:
+            print(f"Test RMSE: {metrics_dict['test_rmse']:.4f} | Test MAE: {metrics_dict['test_mae']:.4f}")
+
+        # Overdispersion diagnostic
+        print("\n--- Dispersion Diagnostic ---")
+        if dist_clean == 'poisson':
+            if dispersion_ratio > 1.25:
+                print(f"[!] Warning: Evidence of OVERDISPERSION detected (ratio = {dispersion_ratio:.4f} > 1).")
+                print("    In a standard Poisson model, variance is assumed to equal the mean (ratio ~ 1).")
+                print("    Overdispersion leads to underestimated standard errors and falsely significant p-values.")
+                print("    RECOMMENDATION: Use Negative Binomial regression ('negative_binomial') with dispersion parameter alpha.")
+            elif dispersion_ratio < 0.75:
+                print(f"[*] Note: Mild underdispersion observed (ratio = {dispersion_ratio:.4f} < 1).")
+            else:
+                print(f"[OK] Dispersion is well calibrated for Poisson distribution (ratio = {dispersion_ratio:.4f} ~ 1).")
+        elif dist_clean in ['negative_binomial', 'neg_binomial', 'nb']:
+            print(f"[OK] Negative Binomial model accounts for overdispersion with alpha = {alpha_dispersion}.")
+            print(f"    Current dispersion ratio = {dispersion_ratio:.4f}.")
+
+        # Exponentiated coefficients interpretation
+        print("\n--- Coefficients and Multiplicative Effects (exp(beta)) ---")
+        try:
+            from IPython.display import display
+            display(coefficients_df)
+        except Exception:
+            print(coefficients_df.to_string())
+
+        print("\nInterpretation of Multiplicative Effects:")
+        print("1. For log-link models (Poisson, Negative Binomial, Gamma, Log-Normal):")
+        print("   - exp(beta) > 1: each 1-unit increase in X multiplies the expected response by exp(beta) (percentage change: (exp(beta) - 1) * 100%).")
+        print("   - exp(beta) < 1: each 1-unit increase in X multiplies the expected response by exp(beta) (decrease).")
+        print("   - exp(beta) = 1: no effect on the response.")
+        print("2. For logit-link models (Binomial / Logistic):")
+        print("   - exp(beta) represents the Odds Ratio (OR) associated with a 1-unit increase in X.\n")
+
+    # Feature importance plot
+    if ControlVars.show_plots:
+        # Exclude constant from bar chart to emphasize predictors
+        plot_df = coefficients_df[coefficients_df['feature'] != 'const'].copy()
+        if len(plot_df) > 0:
+            plot_df['abs_coef'] = np.abs(plot_df['coefficient'])
+            plot_df = plot_df.sort_values(by = 'abs_coef', ascending = True)
+
+            fig, ax = plt.subplots(figsize = (10, max(5, int(len(plot_df) * 0.4))))
+
+            if orientation == 'horizontal':
+                bars = ax.barh(plot_df['feature'], plot_df['coefficient'], color = 'steelblue', edgecolor = 'black')
+                ax.axvline(0, color = 'black', linestyle = '--', linewidth = 0.8)
+                ax.set_xlabel(horizontal_axis_title if horizontal_axis_title is not None else "Coefficient Value (beta)")
+                ax.set_ylabel(vertical_axis_title if vertical_axis_title is not None else "Feature")
+            else:
+                bars = ax.bar(plot_df['feature'], plot_df['coefficient'], color = 'steelblue', edgecolor = 'black')
+                ax.axhline(0, color = 'black', linestyle = '--', linewidth = 0.8)
+                ax.set_xlabel(horizontal_axis_title if horizontal_axis_title is not None else "Feature")
+                ax.set_ylabel(vertical_axis_title if vertical_axis_title is not None else "Coefficient Value (beta)")
+                plt.xticks(rotation = x_axis_rotation)
+                plt.yticks(rotation = y_axis_rotation)
+
+            ax.set_title(plot_title if plot_title is not None else f"GLM Feature Coefficients ({family_obj.__class__.__name__})")
+            ax.grid(grid)
+
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = f"glm_coefficients_{dist_clean}"
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
+                if ControlVars.show_results:
+                    print(f"Feature importance plot exported to '{new_file_path}'.")
+
+            plt.show()
+
+    return glm_results, metrics_dict, coefficients_df
+
+
+def poisson_regression(X_train, y_train, fit_intercept = True, exposure = None, offset = None, X_test = None, y_test = None, **kwargs):
+    """
+    poisson_regression:
+    Convenience wrapper for GLM Poisson regression with log link.
+    Ideal for count data (e.g. number of defects, accidents, items sold, arrivals).
+    """
+    return glm_regression(
+        X_train = X_train,
+        y_train = y_train,
+        distribution = 'poisson',
+        link = 'log',
+        fit_intercept = fit_intercept,
+        exposure = exposure,
+        offset = offset,
+        X_test = X_test,
+        y_test = y_test,
+        **kwargs
+    )
+
+
+def negative_binomial_regression(X_train, y_train, alpha_dispersion = 1.0, fit_intercept = True, exposure = None, offset = None, X_test = None, y_test = None, **kwargs):
+    """
+    negative_binomial_regression:
+    Convenience wrapper for GLM Negative Binomial regression with log link.
+    Solves overdispersion in count data by introducing dispersion parameter alpha.
+    """
+    return glm_regression(
+        X_train = X_train,
+        y_train = y_train,
+        distribution = 'negative_binomial',
+        link = 'log',
+        alpha_dispersion = alpha_dispersion,
+        fit_intercept = fit_intercept,
+        exposure = exposure,
+        offset = offset,
+        X_test = X_test,
+        y_test = y_test,
+        **kwargs
+    )
+
+
+def gamma_regression(X_train, y_train, link = 'log', fit_intercept = True, X_test = None, y_test = None, **kwargs):
+    """
+    gamma_regression:
+    Convenience wrapper for GLM Gamma regression.
+    Ideal for strictly positive, right-skewed continuous variables (e.g., costs, durations, asset lifetimes).
+    """
+    return glm_regression(
+        X_train = X_train,
+        y_train = y_train,
+        distribution = 'gamma',
+        link = link,
+        fit_intercept = fit_intercept,
+        X_test = X_test,
+        y_test = y_test,
+        **kwargs
+    )
+
+
+def lognormal_glm_regression(X_train, y_train, fit_intercept = True, X_test = None, y_test = None, **kwargs):
+    """
+    lognormal_glm_regression:
+    Convenience wrapper for GLM Log-Normal regression (Gaussian family with Log link).
+    Suitable for continuous positive variables that follow a lognormal distribution.
+    """
+    return glm_regression(
+        X_train = X_train,
+        y_train = y_train,
+        distribution = 'lognormal',
+        link = 'log',
+        fit_intercept = fit_intercept,
+        X_test = X_test,
+        y_test = y_test,
+        **kwargs
+    )
+

@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -83,36 +83,59 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
       or 'mae' (mean absolute error).
     """
 
+    def _reshape_cnn_lstm(x):
+        arr = np.array(x)
+        if arr.ndim == 4:
+            return arr
+        elif arr.ndim == 3:
+            n_samples, n_timesteps, n_features = arr.shape
+            n_subseq = int(n_timesteps // 2)
+            return arr.reshape(n_samples, n_subseq, 2, n_features)
+        elif arr.ndim == 2:
+            n_samples, n_cols = arr.shape
+            n_subseq = int(n_cols // 2)
+            return arr.reshape(n_samples, n_subseq, 2, 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1, 1)
+        return arr
+
+    def _reshape_3d(x):
+        arr = np.array(x)
+        if arr.ndim >= 3:
+            return arr
+        elif arr.ndim == 2:
+            return arr.reshape(arr.shape[0], arr.shape[1], 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1)
+        return arr
+
     # Create functions for specific reshaping
     def reshaper(architecture):
         if (architecture == 'cnn_lstm'):
-            return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            return _reshape_cnn_lstm
         elif ((architecture == 'cnn')|(architecture == 'lstm')|(architecture == 'encoder_decoder')):
-            return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            return _reshape_3d
         else:
             # return the array itself:
             return (lambda x: np.array(x))
     
     if (architecture == 'cnn_lstm'):
         # Get the hybrid cnn-lstm time series model from class TfModels:
-        
         # Here, the sequence length or number of columns must be even: they will be grouped in pairs
-        # Check if the number is even: % - remainder of the integer division
-        if ((X_train.shape[1] % 2) != 0):
-            # There is remainder of the division: the number of columns is not even
+        arr_X_train = np.array(X_train)
+        num_cols = arr_X_train.shape[1] if arr_X_train.ndim >= 2 else 1
+        if ((num_cols % 2) != 0):
             print("This architecture requires the inputs to be reshape as pairs of numbers.")
-            raise InvalidInputsError(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+            raise InvalidInputsError(f"Here, there are {num_cols} columns or sequence elements. Drop one column to use this architecture.\n")
             
-    
     # Put the arrays in the correct shape for the particular architecture
     reshape_function = reshaper(architecture)
     
     try:
         X_train = reshape_function(X_train)
-
-        if ((X_test is not None) & (y_test is not None)):   
+        if ((X_test is not None) & (y_test is not None)):
             X_test = reshape_function(X_test)
-        if ((X_valid is not None) & (y_valid is not None)):   
+        if ((X_valid is not None) & (y_valid is not None)):
             X_valid = reshape_function(X_valid)
     except:
         pass
@@ -140,6 +163,9 @@ def get_deep_learning_tf_model (X_train, y_train, architecture = 'simple_dense',
     elif (architecture == 'cnn_lstm'):
         
         tf_model_obj = tf_model_obj.tf_cnn_lstm_time_series(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
+    
+    elif ((architecture == 'bayesian_dense') | (architecture == 'bayesian')):
+        tf_model_obj = tf_model_obj.tf_bayesian_dense(epochs = number_of_training_epochs, batch_size = size_of_training_batch, verbose = verbose)
     
     else:
         # Get the tf_simple_dense model from class TfModels:
@@ -301,36 +327,59 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
      include the key, set as 1, or set the number of classes used for training.
     """
     
+    def _reshape_cnn_lstm(x):
+        arr = np.array(x)
+        if arr.ndim == 4:
+            return arr
+        elif arr.ndim == 3:
+            n_samples, n_timesteps, n_features = arr.shape
+            n_subseq = int(n_timesteps // 2)
+            return arr.reshape(n_samples, n_subseq, 2, n_features)
+        elif arr.ndim == 2:
+            n_samples, n_cols = arr.shape
+            n_subseq = int(n_cols // 2)
+            return arr.reshape(n_samples, n_subseq, 2, 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1, 1)
+        return arr
+
+    def _reshape_3d(x):
+        arr = np.array(x)
+        if arr.ndim >= 3:
+            return arr
+        elif arr.ndim == 2:
+            return arr.reshape(arr.shape[0], arr.shape[1], 1)
+        elif arr.ndim == 1:
+            return arr.reshape(arr.shape[0], 1, 1)
+        return arr
+
     # Create functions for specific reshaping
     def reshaper(architecture):
         if (architecture == 'cnn_lstm'):
-            return (lambda x: np.array(x).reshape(x.shape[0], 2, 2, 1))
+            return _reshape_cnn_lstm
         elif ((architecture == 'cnn')|(architecture == 'lstm')|(architecture == 'encoder_decoder')):
-            return (lambda x: np.array(x).reshape(x.shape[0], x.shape[1], 1))
+            return _reshape_3d
         else:
             # return the array itself:
             return (lambda x: np.array(x))
 
     if (architecture == 'cnn_lstm'):
         # Get the hybrid cnn-lstm time series model:
-        
         # Here, the sequence length or number of columns must be even: they will be grouped in pairs
-        # Check if the number is even: % - remainder of the integer division
-        if ((X_train.shape[1] % 2) != 0):
-            # There is remainder of the division: the number of columns is not even
+        arr_X_train = np.array(X_train)
+        num_cols = arr_X_train.shape[1] if arr_X_train.ndim >= 2 else 1
+        if ((num_cols % 2) != 0):
             print("This architecture requires the inputs to be reshape as pairs of numbers.")
-            raise InvalidInputsError(f"Here, there are {X_train.shape[1]} columns or sequence elements. Drop one column to use this architecture.\n")
+            raise InvalidInputsError(f"Here, there are {num_cols} columns or sequence elements. Drop one column to use this architecture.\n")
 
-    
     # Put the arrays in the correct shape for the particular architecture
     reshape_function = reshaper(architecture)
     
     try:
         X_train = reshape_function(X_train)
-
-        if ((X_test is not None) & (y_test is not None)):   
+        if ((X_test is not None) & (y_test is not None)):
             X_test = reshape_function(X_test)
-        if ((X_valid is not None) & (y_valid is not None)):   
+        if ((X_valid is not None) & (y_valid is not None)):
             X_valid = reshape_function(X_valid)
     except:
         pass
@@ -457,3 +506,174 @@ def get_siamese_networks_model (X_train, y_train, output_dictionary, architectur
 
     
     return model, metrics_dict, history
+
+
+def predict_with_uncertainty(model, X, mc_samples = 100, confidence_level = 0.95):
+    """
+    predict_with_uncertainty:
+    Performs Monte Carlo Dropout Bayesian inference on an input tensor or DataFrame X.
+    Executes mc_samples stochastic forward passes with dropout active at inference time.
+    Calculates Bayesian predictive mean, epistemic standard deviation (uncertainty), and credible intervals.
+
+    : param: model: trained TensorFlow Keras model containing active Dropout or Bayesian layers.
+    : param: X: features (DataFrame or array).
+    : param: mc_samples: number of Monte Carlo stochastic passes (default 100).
+    : param: confidence_level: float (default 0.95), confidence interval width (e.g. 0.95 for 95% CI).
+    : return: tuple (mean_prediction, std_uncertainty, uncertainty_df).
+    """
+    import scipy.stats as stats
+
+    X_arr = np.asarray(X)
+    predictions_list = []
+
+    # Run stochastic forward passes with training=True
+    for _ in range(mc_samples):
+        # Passing training=True keeps dropout active during inference
+        preds = model(X_arr, training = True)
+        predictions_list.append(np.array(preds))
+
+    # Shape: (mc_samples, N, ...)
+    predictions_arr = np.array(predictions_list)
+
+    mean_prediction = np.mean(predictions_arr, axis = 0)
+    std_uncertainty = np.std(predictions_arr, axis = 0)
+
+    # Calculate z-score for the requested credible interval
+    z_val = float(stats.norm.ppf(1.0 - (1.0 - confidence_level) / 2.0))
+    lower_ci = mean_prediction - z_val * std_uncertainty
+    upper_ci = mean_prediction + z_val * std_uncertainty
+
+    # Build uncertainty DataFrame if 1D or 2D (N, 1)
+    if mean_prediction.ndim == 1 or (mean_prediction.ndim == 2 and mean_prediction.shape[1] == 1):
+        mean_flat = mean_prediction.ravel()
+        std_flat = std_uncertainty.ravel()
+        low_flat = lower_ci.ravel()
+        high_flat = upper_ci.ravel()
+
+        uncertainty_df = pd.DataFrame({
+            "bayesian_mean": mean_flat,
+            "epistemic_std": std_flat,
+            "ci_lower": low_flat,
+            "ci_upper": high_flat
+        })
+    else:
+        uncertainty_df = pd.DataFrame({
+            "bayesian_mean": list(mean_prediction),
+            "epistemic_std": list(std_uncertainty)
+        })
+
+    return mean_prediction, std_uncertainty, uncertainty_df
+
+
+def get_bayesian_tf_model(
+    X_train,
+    y_train,
+    mc_samples = 100,
+    optimizer = None,
+    X_test = None,
+    y_test = None,
+    X_valid = None,
+    y_valid = None,
+    type_of_problem = "regression",
+    size_of_training_batch = 200,
+    number_of_training_epochs = 2000,
+    number_of_output_classes = 2,
+    verbose = 1,
+    column_map_dict = None,
+    **kwargs
+):
+    """
+    get_bayesian_tf_model:
+    Constructs and fits a Bayesian Deep Neural Network using Monte Carlo Dropout
+    in accordance with UEL Deep Learning guidelines (slides 96-103).
+    Captures epistemic model uncertainty and outputs posterior distribution estimates.
+
+    : return: tuple (model, metrics_dict, history, uncertainty_df).
+    """
+    model, metrics_dict, history = get_deep_learning_tf_model(
+        X_train = X_train,
+        y_train = y_train,
+        architecture = 'bayesian_dense',
+        optimizer = optimizer,
+        X_test = X_test,
+        y_test = y_test,
+        X_valid = X_valid,
+        y_valid = y_valid,
+        type_of_problem = type_of_problem,
+        size_of_training_batch = size_of_training_batch,
+        number_of_training_epochs = number_of_training_epochs,
+        number_of_output_classes = number_of_output_classes,
+        verbose = verbose,
+        column_map_dict = column_map_dict,
+        **kwargs
+    )
+
+    # Compute posterior predictions and uncertainty estimates on training set
+    mean_preds, std_preds, uncertainty_df = predict_with_uncertainty(
+        model = model,
+        X = X_train,
+        mc_samples = mc_samples
+    )
+
+    if ControlVars.show_results:
+        print("=" * 80)
+        print(f"BAYESIAN NEURAL NETWORK (BNN) INFERENCE COMPLETE (MC Samples = {mc_samples})")
+        print("=" * 80)
+        print("Predictions contain epistemic uncertainty (posterior variance):")
+        try:
+            from IPython.display import display
+            display(uncertainty_df.head(10))
+        except Exception:
+            print(uncertainty_df.head(10).to_string())
+
+    return model, metrics_dict, history, uncertainty_df
+
+
+def get_siamese_bayesian_model(
+    X_train,
+    y_train,
+    output_dictionary,
+    mc_samples = 100,
+    optimizer = None,
+    X_test = None,
+    y_test = None,
+    X_valid = None,
+    y_valid = None,
+    size_of_training_batch = 200,
+    number_of_training_epochs = 2000,
+    verbose = 1,
+    column_map_dict = None,
+    **kwargs
+):
+    """
+    get_siamese_bayesian_model:
+    Constructs and fits a Siamese Bayesian Neural Network for multi-response modelling
+    with Monte Carlo Dropout uncertainty quantification.
+
+    : return: tuple (model, metrics_dict, history, uncertainty_dict).
+    """
+    model, metrics_dict, history = get_siamese_networks_model(
+        X_train = X_train,
+        y_train = y_train,
+        output_dictionary = output_dictionary,
+        architecture = 'bayesian_dense',
+        optimizer = optimizer,
+        X_test = X_test,
+        y_test = y_test,
+        X_valid = X_valid,
+        y_valid = y_valid,
+        size_of_training_batch = size_of_training_batch,
+        number_of_training_epochs = number_of_training_epochs,
+        verbose = verbose,
+        column_map_dict = column_map_dict,
+        **kwargs
+    )
+
+    mean_preds, std_preds, uncertainty_df = predict_with_uncertainty(
+        model = model,
+        X = X_train,
+        mc_samples = mc_samples
+    )
+
+    return model, metrics_dict, history, uncertainty_df
+
