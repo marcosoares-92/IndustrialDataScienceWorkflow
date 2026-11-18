@@ -2962,7 +2962,7 @@ def calculate_cumulative_stats (df, column_to_analyze, cumulative_statistic = 's
         return DATASET
 
 
-def partition_and_rank_df (df, column_for_partition, column_to_rank, ascending = True, rank_method = 'average', new_rank_col_name = 'rank', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def partition_and_rank_df (df, column_for_partition, column_to_rank, ascending = True, rank_method = 'average', new_rank_col_name = 'rank', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     partition_and_rank_df (df, column_for_partition, column_to_rank, ascending = True, rank_method = 'average', new_rank_col_name = 'rank', x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -3007,9 +3007,25 @@ def partition_and_rank_df (df, column_for_partition, column_to_rank, ascending =
     # Calculate rank within each partition
     DATASET[new_rank_col_name] = DATASET.groupby(column_for_partition)[column_to_rank].rank(ascending = ascending, method = rank_method)
 
-    if ControlVars.show_plots:
+    n_partitions = DATASET[column_for_partition].nunique()
+    if plotly:
+        import plotly.express as px
+        from idsw.plotly_utils import PlotlyHandler
+        p_title = plot_title if plot_title is not None else f"Rank Distribution of '{column_to_rank}' Partitioned by '{column_for_partition}'"
+        if n_partitions <= 15:
+            fig_plotly = px.box(DATASET, x = column_for_partition, y = new_rank_col_name, points = 'all',
+                                title = p_title,
+                                labels = {column_for_partition: horizontal_axis_title if horizontal_axis_title is not None else column_for_partition,
+                                          new_rank_col_name: vertical_axis_title if vertical_axis_title is not None else new_rank_col_name})
+        else:
+            fig_plotly = px.scatter(DATASET, x = column_to_rank, y = new_rank_col_name, color = column_for_partition,
+                                    title = p_title,
+                                    labels = {column_to_rank: horizontal_axis_title if horizontal_axis_title is not None else column_to_rank,
+                                              new_rank_col_name: vertical_axis_title if vertical_axis_title is not None else new_rank_col_name})
+        fig_plotly.update_layout(template = "plotly_white")
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         fig, ax = plt.subplots(figsize = (12, 8))
-        n_partitions = DATASET[column_for_partition].nunique()
         
         if n_partitions <= 15:
             sns.boxplot(data = DATASET, x = column_for_partition, y = new_rank_col_name, ax = ax)
@@ -4755,7 +4771,7 @@ def time_series_vis (data_in_same_column = False, df = None, column_with_predict
         plt.show()
 
 
-def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
@@ -4808,28 +4824,31 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
     fitted_normal = specification_limits['fitted_normal']
     actual_pdf = specification_limits['actual_pdf']
     
-    if ControlVars.show_plots:
-        string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
-        
-        if not (plot_title is None):
-            plot_title = plot_title + string_for_title
-            # %.2f: the number between . and f indicates the number of printed decimal cases
-            # the notation $\ - Latex code for printing formatted equations and symbols.
-        
-        else:
-            # Set graphic title
-            plot_title = f"histogram_of_{column_to_analyze}" + string_for_title
+    string_for_title = f" - mu = {stats_dict['mu']:.2f}, sigma = {stats_dict['sigma']:.2f}"
+    if plot_title is not None:
+        final_plot_title = plot_title + string_for_title
+    else:
+        final_plot_title = f"histogram_of_{column_to_analyze}" + string_for_title
 
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            horizontal_axis_title = column_to_analyze
+    h_axis = horizontal_axis_title if horizontal_axis_title is not None else column_to_analyze
+    v_axis = vertical_axis_title if vertical_axis_title is not None else "Counting/Frequency"
 
-        if (vertical_axis_title is None):
-            # Set vertical axis title
-            vertical_axis_title = "Counting/Frequency"
-            
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
+    if plotly:
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from idsw.plotly_utils import PlotlyHandler
+        fig_plotly = px.histogram(DATASET, x = column_to_analyze, nbins = total_of_bins,
+                                  title = final_plot_title,
+                                  labels = {column_to_analyze: h_axis})
+        if normal_curve_overlay and len(fitted_normal['x']) > 0:
+            fig_plotly.add_trace(go.Scatter(x = fitted_normal['x'], y = fitted_normal['y'], mode = 'lines',
+                                            line = dict(color = 'crimson', dash = 'dash'), name = 'Expected Normal'))
+        fig_plotly.update_layout(template = "plotly_white", yaxis_title = v_axis)
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
+        plot_title = final_plot_title
+        horizontal_axis_title = h_axis
+        vertical_axis_title = v_axis
         OPACITY = 0.95
         
         y_hist = DATASET[column_to_analyze]
@@ -4976,7 +4995,7 @@ def histogram (df, column_to_analyze, total_of_bins = 10, normal_curve_overlay =
     return general_stats, freq_table
 
 
-def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgroups = None, alpha = 0.10, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -5067,34 +5086,51 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
             normality_dict = capability_obj.normality_dict
             series_dict['normality_dict'] = normality_dict
         
-        if ControlVars.show_plots and (total_elements_to_test >= 20) and show_probability_plot:
-            if ControlVars.show_results:
-                print("\n")
-            fig, ax = plt.subplots(figsize = (12, 8))
-            ax.set_title(f"Probability Plot of {series_id} for Normal Distribution")
-            stats.probplot(y, dist = 'norm', fit = True, plot = ax)
-            ax.grid(grid)
-            plt.xticks(rotation = x_axis_rotation)
-            plt.yticks(rotation = y_axis_rotation)
-            
-            if export_png:
-                import os
-                if directory_to_save is None:
-                    directory_to_save = ""
-                if file_name is None:
-                    export_name = f"probability_plot_normal_{series_id}"
-                else:
-                    export_name = file_name
-                if png_resolution_dpi is None:
-                    png_resolution_dpi = 330
-                new_file_path = os.path.join(directory_to_save, export_name + ".png")
-                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+        if (total_elements_to_test >= 20) and show_probability_plot:
+            if plotly:
+                import plotly.graph_objects as go
+                from idsw.plotly_utils import PlotlyHandler
+                (osm, osr), (slope, intercept, r) = stats.probplot(y, dist = 'norm', fit = True)
+                fig_plotly = go.Figure()
+                fig_plotly.add_trace(go.Scatter(x = osm, y = osr, mode = 'markers', name = 'Data Quantiles', marker = dict(color = 'royalblue', size = 7)))
+                x_fit = np.array([min(osm), max(osm)])
+                y_fit = slope * x_fit + intercept
+                fig_plotly.add_trace(go.Scatter(x = x_fit, y = y_fit, mode = 'lines', name = f'Normal Fit (r={r:.3f})', line = dict(color = 'firebrick', dash = 'dash')))
+                fig_plotly.update_layout(
+                    title = f"Probability Plot of {series_id} for Normal Distribution",
+                    xaxis_title = "Theoretical Quantiles",
+                    yaxis_title = "Ordered Values",
+                    template = "plotly_white"
+                )
+                PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+            elif ControlVars.show_plots:
                 if ControlVars.show_results:
-                    print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
-            
-            plt.show()
-            if ControlVars.show_results:
-                print("\n")
+                    print("\n")
+                fig, ax = plt.subplots(figsize = (12, 8))
+                ax.set_title(f"Probability Plot of {series_id} for Normal Distribution")
+                stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+                ax.grid(grid)
+                plt.xticks(rotation = x_axis_rotation)
+                plt.yticks(rotation = y_axis_rotation)
+                
+                if export_png:
+                    import os
+                    if directory_to_save is None:
+                        directory_to_save = ""
+                    if file_name is None:
+                        export_name = f"probability_plot_normal_{series_id}"
+                    else:
+                        export_name = file_name
+                    if png_resolution_dpi is None:
+                        png_resolution_dpi = 330
+                    new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                    if ControlVars.show_results:
+                        print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+                
+                plt.show()
+                if ControlVars.show_results:
+                    print("\n")
         
         data_skew = float(stats.skew(y)) if len(y) > 0 else 0.0
         data_kurtosis = float(stats.kurtosis(y, fisher = True)) if len(y) > 0 else 0.0
@@ -5143,7 +5179,7 @@ def test_data_normality (df, column_to_analyze, column_with_labels_to_test_subgr
     return list_of_dicts
 
 
-def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal', alpha = 0.05, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal', alpha = 0.05, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_subgroups = None, statistical_distribution_to_test = 'lognormal', alpha = 0.05, show_probability_plot = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -5367,36 +5403,50 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
                 obs_freq = obs_counts.values.astype(float)
                 exp_freq = obs_freq
             
-            if ControlVars.show_plots and show_probability_plot:
-                fig, ax = plt.subplots(figsize = (12, 8))
-                ax.set_title(f"Observed vs Theoretical Frequency Plot of {series_id} for {statistical_distribution_to_test}")
-                ax.plot(obs_k, obs_freq, 'bo-', label='Observed Frequencies', linewidth=2)
-                ax.plot(obs_k, exp_freq, 'r*--', label='Theoretical Frequencies', linewidth=2, markersize=10)
-                ax.set_xlabel("Values / Counts")
-                ax.set_ylabel("Frequency")
-                ax.legend(loc='best')
-                ax.grid(grid)
-                plt.xticks(rotation = x_axis_rotation)
-                plt.yticks(rotation = y_axis_rotation)
-                
-                if export_png:
-                    import os
-                    if directory_to_save is None:
-                        directory_to_save = ""
-                    if file_name is None:
-                        export_name = f"freq_plot_{dist_clean}_{series_id}"
-                    else:
-                        export_name = file_name
-                    if png_resolution_dpi is None:
-                        png_resolution_dpi = 330
-                    new_file_path = os.path.join(directory_to_save, export_name + ".png")
-                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if show_probability_plot:
+                if plotly:
+                    import plotly.graph_objects as go
+                    from idsw.plotly_utils import PlotlyHandler
+                    fig_plotly = go.Figure()
+                    fig_plotly.add_trace(go.Bar(x = obs_k, y = obs_freq, name = 'Observed Frequencies', marker_color = 'steelblue'))
+                    fig_plotly.add_trace(go.Scatter(x = obs_k, y = exp_freq, mode = 'lines+markers', name = f'{statistical_distribution_to_test.capitalize()} Expected', line = dict(color = 'crimson', width = 2)))
+                    fig_plotly.update_layout(
+                        title = f"Observed vs Theoretical Frequency Plot of {series_id} for {statistical_distribution_to_test}",
+                        xaxis_title = "Values / Counts",
+                        yaxis_title = "Frequency",
+                        template = "plotly_white"
+                    )
+                    PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+                elif ControlVars.show_plots:
+                    fig, ax = plt.subplots(figsize = (12, 8))
+                    ax.set_title(f"Observed vs Theoretical Frequency Plot of {series_id} for {statistical_distribution_to_test}")
+                    ax.plot(obs_k, obs_freq, 'bo-', label='Observed Frequencies', linewidth=2)
+                    ax.plot(obs_k, exp_freq, 'r*--', label='Theoretical Frequencies', linewidth=2, markersize=10)
+                    ax.set_xlabel("Values / Counts")
+                    ax.set_ylabel("Frequency")
+                    ax.legend(loc='best')
+                    ax.grid(grid)
+                    plt.xticks(rotation = x_axis_rotation)
+                    plt.yticks(rotation = y_axis_rotation)
+                    
+                    if export_png:
+                        import os
+                        if directory_to_save is None:
+                            directory_to_save = ""
+                        if file_name is None:
+                            export_name = f"freq_plot_{dist_clean}_{series_id}"
+                        else:
+                            export_name = file_name
+                        if png_resolution_dpi is None:
+                            png_resolution_dpi = 330
+                        new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                        if ControlVars.show_results:
+                            print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+                    
+                    plt.show()
                     if ControlVars.show_results:
-                        print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
-                
-                plt.show()
-                if ControlVars.show_results:
-                    print("\n")
+                        print("\n")
         else:
             # Continuous distribution fitting
             distribution_parameters = dist_obj.fit(y)
@@ -5451,36 +5501,57 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
                 anderson_stat = None
             
             # Probability plot for continuous:
-            if ControlVars.show_plots and show_probability_plot:
-                fig, ax = plt.subplots(figsize = (12, 8))
-                ax.set_title(f"Probability Plot of {series_id} for {statistical_distribution_to_test} Distribution")
-                sparams = distribution_parameters[:-2] if len(distribution_parameters) > 2 else ()
-                try:
-                    stats.probplot(y, dist = dist_obj, sparams = sparams, fit = True, plot = ax)
-                except Exception:
-                    stats.probplot(y, dist = 'norm', fit = True, plot = ax)
-                ax.grid(grid)
-                plt.xticks(rotation = x_axis_rotation)
-                plt.yticks(rotation = y_axis_rotation)
-                
-                if export_png:
-                    import os
-                    if directory_to_save is None:
-                        directory_to_save = ""
-                    if file_name is None:
-                        export_name = f"probability_plot_{dist_clean}_{series_id}"
-                    else:
-                        export_name = file_name
-                    if png_resolution_dpi is None:
-                        png_resolution_dpi = 330
-                    new_file_path = os.path.join(directory_to_save, export_name + ".png")
-                    plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+            if show_probability_plot:
+                if plotly:
+                    import plotly.graph_objects as go
+                    from idsw.plotly_utils import PlotlyHandler
+                    sparams = distribution_parameters[:-2] if len(distribution_parameters) > 2 else ()
+                    try:
+                        (osm, osr), (slope, intercept, r) = stats.probplot(y, dist = dist_obj, sparams = sparams, fit = True)
+                    except Exception:
+                        (osm, osr), (slope, intercept, r) = stats.probplot(y, dist = 'norm', fit = True)
+                    fig_plotly = go.Figure()
+                    fig_plotly.add_trace(go.Scatter(x = osm, y = osr, mode = 'markers', name = 'Data Quantiles', marker = dict(color = 'royalblue', size = 7)))
+                    x_fit = np.array([min(osm), max(osm)])
+                    y_fit = slope * x_fit + intercept
+                    fig_plotly.add_trace(go.Scatter(x = x_fit, y = y_fit, mode = 'lines', name = f'Fit (r={r:.3f})', line = dict(color = 'firebrick', dash = 'dash')))
+                    fig_plotly.update_layout(
+                        title = f"Probability Plot of {series_id} for {statistical_distribution_to_test} Distribution",
+                        xaxis_title = "Theoretical Quantiles",
+                        yaxis_title = "Ordered Values",
+                        template = "plotly_white"
+                    )
+                    PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+                elif ControlVars.show_plots:
+                    fig, ax = plt.subplots(figsize = (12, 8))
+                    ax.set_title(f"Probability Plot of {series_id} for {statistical_distribution_to_test} Distribution")
+                    sparams = distribution_parameters[:-2] if len(distribution_parameters) > 2 else ()
+                    try:
+                        stats.probplot(y, dist = dist_obj, sparams = sparams, fit = True, plot = ax)
+                    except Exception:
+                        stats.probplot(y, dist = 'norm', fit = True, plot = ax)
+                    ax.grid(grid)
+                    plt.xticks(rotation = x_axis_rotation)
+                    plt.yticks(rotation = y_axis_rotation)
+                    
+                    if export_png:
+                        import os
+                        if directory_to_save is None:
+                            directory_to_save = ""
+                        if file_name is None:
+                            export_name = f"probability_plot_{dist_clean}_{series_id}"
+                        else:
+                            export_name = file_name
+                        if png_resolution_dpi is None:
+                            png_resolution_dpi = 330
+                        new_file_path = os.path.join(directory_to_save, export_name + ".png")
+                        plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                        if ControlVars.show_results:
+                            print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+                    
+                    plt.show()
                     if ControlVars.show_results:
-                        print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
-                
-                plt.show()
-                if ControlVars.show_results:
-                    print("\n")
+                        print("\n")
         
         if ControlVars.show_results:
             print(f"Distribution parameters calculated for '{statistical_distribution_to_test}': {distribution_parameters}")
@@ -5529,7 +5600,7 @@ def test_stat_distribution (df, column_to_analyze, column_with_labels_to_test_su
     
     return list_of_dicts
 
-def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_collection = 'hour', x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -5610,95 +5681,61 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
 
     f_per_year = f_per_dataset/years_per_dataset
     
-    if ControlVars.show_plots:
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
+    abs_fft = np.abs(fft)
+    
+    if (plot_title is None):
+        plot_title = "obtained_frequencies"
+
+    if (horizontal_axis_title is None):
+        horizontal_axis_title = "frequency_log_scale"
+
+    if (vertical_axis_title is None):
+        vertical_axis_title = "abs(fft)"
+
+    if plotly:
+        import plotly.graph_objects as go
+        from idsw.plotly_utils import PlotlyHandler
+        fig_plotly = go.Figure()
+        fig_plotly.add_trace(go.Scatter(x = f_per_year, y = abs_fft, mode = 'lines', line = dict(color = 'crimson', width = 1.5), name = 'FFT Magnitude'))
+        fig_plotly.update_xaxes(type = "log")
+        fig_plotly.update_layout(
+            title = plot_title,
+            xaxis_title = horizontal_axis_title,
+            yaxis_title = vertical_axis_title,
+            template = "plotly_white"
+        )
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         OPACITY = 0.95
-        
-        if (plot_title is None):
-            # Set graphic title
-            plot_title = "obtained_frequencies"
-
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            horizontal_axis_title = "frequency_log_scale"
-
-        if (vertical_axis_title is None):
-            # Set vertical axis title
-            vertical_axis_title = "abs(fft)"
-        
-        # fft is a complex tensor. Let's pick the absolute value of each complex:
-        abs_fft = np.abs(fft)
-        
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         fig = plt.figure(figsize = (12, 8))
         ax = fig.add_subplot()
         
         ax.step(f_per_year, abs_fft, color = 'crimson', linestyle = '-', alpha = OPACITY)
-        
-        # Set limits of the axes:
-        # Y from 0 to a value 1% higher than the maximum
-        # X from 0.1, close to zero, to the maximum. Zero cannot be present in log scale
-        
         plt.xlim([0.1, max(plt.xlim())])
-        
         plt.xscale('log')
         plt.xticks(xtick_list, labels = labels_list)
-            
-        #ROTATE X AXIS IN XX DEGREES
         plt.xticks(rotation = x_axis_rotation)
-        # XX = 0 DEGREES x_axis (Default)
-        #ROTATE Y AXIS IN XX DEGREES:
         plt.yticks(rotation = y_axis_rotation)
-        # XX = 0 DEGREES y_axis (Default)
 
         ax.set_title(plot_title)
         ax.set_xlabel(horizontal_axis_title)
         ax.set_ylabel(vertical_axis_title)
-
-        ax.grid(grid) # show grid or not
+        ax.grid(grid)
         
         if (export_png == True):
-            # Image will be exported
             import os
-
-            #check if the user defined a directory path. If not, set as the default root path:
             if (directory_to_save is None):
-                #set as the default
                 directory_to_save = ""
-
-            #check if the user defined a file name. If not, set as the default name for this
-            # function.
             if (file_name is None):
-                #set as the default
                 file_name = "fast_fourier_transform"
-
-            #check if the user defined an image resolution. If not, set as the default 110 dpi
-            # resolution.
             if (png_resolution_dpi is None):
-                #set as 330 dpi
                 png_resolution_dpi = 330
 
-            #Get the new_file_path
             new_file_path = os.path.join(directory_to_save, file_name)
             new_file_path = new_file_path + ".png"
-            # supported formats = 'png', 'pdf', 'ps', 'eps' or 'svg'
-            #Export the file to this new path:
             plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False) 
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html
             print (f"Figure exported as \'{new_file_path}\'. Any previous file in this root path was overwritten.")
         
-        #Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
-        #plt.figure(figsize = (12, 8))
-        #fig.tight_layout()
-
-        ## Show an image read from an image file:
-        ## import matplotlib.image as pltimg
-        ## img=pltimg.imread('mydecisiontree.png')
-        ## imgplot = plt.imshow(img)
-        ## See linkedIn Learning course: "Supervised machine learning and the technology boom",
-        ##  Ex_Files_Supervised_Learning, Exercise Files, lesson '03. Decision Trees', '03_05', 
-        ##  '03_05_END.ipynb'
         plt.show()
 
     returned_df = pd.DataFrame(data = {'freq_in_counts_per_year': f_per_year, 'abs_fft': abs_fft})
@@ -5744,7 +5781,7 @@ def fast_fourier_transform (df, column_to_analyze, average_frequency_of_data_col
     return fft, returned_df
 
 
-def discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, average_frequency_of_data_collection = 'hour', window = 'hann', detrend = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, average_frequency_of_data_collection = 'hour', window = 'hann', detrend = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, average_frequency_of_data_collection = 'hour', window = 'hann', detrend = True, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -5866,7 +5903,20 @@ def discrete_fourier_transform (df, column_to_analyze, timestamp_col = None, ave
         'spectral_power': abs_dft ** 2
     })
 
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.graph_objects as go
+        from idsw.plotly_utils import PlotlyHandler
+        fig_plotly = go.Figure()
+        fig_plotly.add_trace(go.Scatter(x = f_per_year, y = abs_dft, mode = 'lines', line = dict(color = 'navy', width = 1.5), name = 'DFT Amplitude'))
+        fig_plotly.update_xaxes(type = "log")
+        fig_plotly.update_layout(
+            title = plot_title if plot_title is not None else f"Discrete Fourier Transform Spectrum: '{column_to_analyze}'",
+            xaxis_title = horizontal_axis_title if horizontal_axis_title is not None else "Frequency (log scale, counts per year)",
+            yaxis_title = vertical_axis_title if vertical_axis_title is not None else "Amplitude",
+            template = "plotly_white"
+        )
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         fig, ax = plt.subplots(figsize = (12, 8))
         ax.step(f_per_year, abs_dft, where = 'mid', color = 'navy', linewidth = 1.5)
         ax.set_xscale('log')

@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+﻿from setuptools import setup, find_packages
 
 idsw_description = """Full workflow for ETL, statistics, and Machine learning modelling of (usually) time-stamped industrial facilities data."""
 
@@ -14,7 +14,7 @@ with open('HISTORY.md') as history_file:
 setup(
     name="idsw",
     url="""https://github.com/marcosoares-92/IndustrialDataScienceWorkflow""",
-    version="1.4.1",
+    version="2.0.0",
     license='MIT',
     author="Marco Cesar Prado Soares; Gabriel Fernandes Luz; Ivan Alexander Yapita Vargas; Sergio Guilherme Neto",
     author_email="marcosoares.feq@gmail.com",

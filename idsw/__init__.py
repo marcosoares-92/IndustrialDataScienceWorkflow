@@ -1,4 +1,4 @@
-__doc__ = """
+﻿__doc__ = """
 Industrial Data Science Workflow: full workflow for ETL, statistics, 
 and Machine learning modelling of (usually) time-stamped industrial facilities data.
 Not only applicable to monitoring quality and industrial facilities systems, the package
@@ -10,7 +10,7 @@ Check the project Github: https://github.com/marcosoares-92/IndustrialDataScienc
 """
 
 __author__ = """Marco Cesar Prado Soares; Gabriel Fernandes Luz; Sergio Guilherme Neto"""
-__version__ = "1.3.1"
+__version__ = "2.0.0"
 
 
 from dataclasses import dataclass
@@ -41,3 +41,5 @@ If not, a circular import error will be raised, since the modules will try to im
 from .datafetch import *
 from .etl import *
 from .modelling import *
+from .computer_vision import *
+from .geospatial import *

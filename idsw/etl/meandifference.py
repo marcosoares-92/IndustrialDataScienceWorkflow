@@ -524,7 +524,7 @@ def estimate_sample_size (target_mean_or_proportion, current_mean_or_proportion 
     return required_sample_size
 
 
-def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, non_parametric = False):
+def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, non_parametric = False, plotly = False):
     """
     anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orientation = 'vertical', reference_value = None, data_in_same_column = False, df = None, column_with_labels_or_groups = None, variable_to_analyze = None, list_of_dictionaries_with_series_to_analyze = [{'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}, {'values_to_analyze': None, 'label': None}], obtain_boxplot_with_filled_boxes = True, obtain_boxplot_with_notched_boxes = False, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, non_parametric = False):
       
@@ -906,48 +906,56 @@ def anova_box_violin_plot (plot_type = 'box', confidence_level_pct = 95, orienta
                 
 
         if ((plot_type is not None) & (plot_type != 'only_anova')):
+            if (orientation == 'horizontal'):
+                VERT = False
+                if (horizontal_axis_title is None):
+                    horizontal_axis_title = "analyzed_series"
+                if (vertical_axis_title is None):
+                    vertical_axis_title = "group_or_label"
+            else:
+                VERT = True
+                if (horizontal_axis_title is None):
+                    horizontal_axis_title = "group_or_label"
+                if (vertical_axis_title is None):
+                    vertical_axis_title = "analyzed_series"
 
-            if ControlVars.show_plots:
-                # Now, let's obtain the plots:
-                # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-                # so that the bars do not completely block other views.
+            if (plot_title is None):
+                plot_title = f"{plot_type}_plot"
+
+            if plotly:
+                import plotly.graph_objects as go
+                from idsw.plotly_utils import PlotlyHandler
+                fig_plotly = go.Figure()
+                for arr_data, lbl in zip(list_of_arrays, list_of_labels):
+                    arr_clean = np.asarray(arr_data)[~np.isnan(arr_data)]
+                    if plot_type == 'violin':
+                        if orientation == 'horizontal':
+                            fig_plotly.add_trace(go.Violin(x = arr_clean, name = str(lbl), orientation = 'h', box_visible = True, points = 'all'))
+                        else:
+                            fig_plotly.add_trace(go.Violin(y = arr_clean, name = str(lbl), box_visible = True, points = 'all'))
+                    else:
+                        if orientation == 'horizontal':
+                            fig_plotly.add_trace(go.Box(x = arr_clean, name = str(lbl), orientation = 'h'))
+                        else:
+                            fig_plotly.add_trace(go.Box(y = arr_clean, name = str(lbl)))
+                if reference_value is not None:
+                    if orientation == 'horizontal':
+                        fig_plotly.add_vline(x = reference_value, line_dash = 'dash', line_color = 'red', annotation_text = f'Ref: {reference_value}')
+                    else:
+                        fig_plotly.add_hline(y = reference_value, line_dash = 'dash', line_color = 'red', annotation_text = f'Ref: {reference_value}')
+                fig_plotly.update_layout(
+                    title = plot_title,
+                    xaxis_title = horizontal_axis_title,
+                    yaxis_title = vertical_axis_title,
+                    template = "plotly_white"
+                )
+                PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+            elif ControlVars.show_plots:
                 OPACITY = 0.95
-
-                # Manipulate the parameter vert (boolean, default: True)
-                # If True, draws vertical boxes. If False, draw horizontal boxes.
-                if (orientation == 'horizontal'):
-                    VERT = False
-
-                    if (horizontal_axis_title is None):
-                        # Set horizontal axis title
-                        horizontal_axis_title = "analyzed_series"
-
-                    if (vertical_axis_title is None):
-                        # Set vertical axis title
-                        vertical_axis_title = "group_or_label"
-
-                else:
-                    VERT = True
-
-                    if (horizontal_axis_title is None):
-                        # Set horizontal axis title
-                        horizontal_axis_title = "group_or_label"
-
-                    if (vertical_axis_title is None):
-                        # Set vertical axis title
-                        vertical_axis_title = "analyzed_series"
-
                 if (obtain_boxplot_with_filled_boxes is None):
                     obtain_boxplot_with_filled_boxes = True
-
                 if (obtain_boxplot_with_notched_boxes is None):
                     obtain_boxplot_with_notched_boxes = False
-
-                if (plot_title is None):
-                    # Set graphic title
-                    plot_title = f"{plot_type}_plot"
-
-                # Now, let's obtain the boxplot
                 fig, ax = plt.subplots(figsize = (12, 8))
 
                 if (plot_type == 'box'):
@@ -1956,7 +1964,7 @@ def test_proportion_diffs (df = None, column_with_labels_or_groups = None, varia
     return summary_dict, results_df
 
 
-def monte_carlo_simulation (simulation_function_or_equation, input_distributions, n_iterations = 10000, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 50, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def monte_carlo_simulation (simulation_function_or_equation, input_distributions, n_iterations = 10000, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 50, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     monte_carlo_simulation (simulation_function_or_equation, input_distributions, n_iterations = 10000, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 50, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -2089,37 +2097,50 @@ def monte_carlo_simulation (simulation_function_or_equation, input_distributions
         'CVaR_99': cvar_99
     }
 
-    if show_plot and ControlVars.show_plots:
-        fig, ax = plt.subplots(figsize = (12, 7))
-        sns.histplot(y, bins = bins, kde = True, color = 'steelblue', stat = 'density', alpha = 0.6, ax = ax)
-        ax.axvline(mean_val, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Mean ({mean_val:.2f})')
-        ax.axvline(median_val, color = 'forestgreen', linestyle = ':', linewidth = 2, label = f'Median ({median_val:.2f})')
-        ax.axvline(ci_lower, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.2f})')
-        ax.axvline(ci_upper, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.2f})')
-        ax.axvline(var_95, color = 'darkorange', linestyle = '-', linewidth = 2, label = f'VaR 95% ({var_95:.2f})')
+    if show_plot:
+        if plotly:
+            import plotly.express as px
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = px.histogram(x = y, nbins = bins, histnorm = 'probability density',
+                                      title = f"Monte Carlo Simulation Distribution ({n_iterations:,} Iterations)",
+                                      labels = {'x': "Simulated Outcome"})
+            fig_plotly.add_vline(x = mean_val, line_dash = 'dash', line_color = 'red', annotation_text = f'Mean ({mean_val:.2f})')
+            fig_plotly.add_vline(x = ci_lower, line_dash = 'dot', line_color = 'black', annotation_text = f'CI Lower ({ci_lower:.2f})')
+            fig_plotly.add_vline(x = ci_upper, line_dash = 'dot', line_color = 'black', annotation_text = f'CI Upper ({ci_upper:.2f})')
+            fig_plotly.add_vline(x = var_95, line_dash = 'solid', line_color = 'orange', annotation_text = f'VaR 95% ({var_95:.2f})')
+            fig_plotly.update_layout(template = "plotly_white", yaxis_title = "Probability Density")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (12, 7))
+            sns.histplot(y, bins = bins, kde = True, color = 'steelblue', stat = 'density', alpha = 0.6, ax = ax)
+            ax.axvline(mean_val, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Mean ({mean_val:.2f})')
+            ax.axvline(median_val, color = 'forestgreen', linestyle = ':', linewidth = 2, label = f'Median ({median_val:.2f})')
+            ax.axvline(ci_lower, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.2f})')
+            ax.axvline(ci_upper, color = 'black', linestyle = '-.', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.2f})')
+            ax.axvline(var_95, color = 'darkorange', linestyle = '-', linewidth = 2, label = f'VaR 95% ({var_95:.2f})')
 
-        ax.set_title(f"Monte Carlo Simulation Distribution ({n_iterations:,} Iterations)")
-        ax.set_xlabel("Simulated Outcome")
-        ax.set_ylabel("Probability Density")
-        ax.legend(loc = 'best')
-        ax.grid(grid, linestyle = '--', alpha = 0.7)
-        plt.xticks(rotation = x_axis_rotation)
-        plt.yticks(rotation = y_axis_rotation)
+            ax.set_title(f"Monte Carlo Simulation Distribution ({n_iterations:,} Iterations)")
+            ax.set_xlabel("Simulated Outcome")
+            ax.set_ylabel("Probability Density")
+            ax.legend(loc = 'best')
+            ax.grid(grid, linestyle = '--', alpha = 0.7)
+            plt.xticks(rotation = x_axis_rotation)
+            plt.yticks(rotation = y_axis_rotation)
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = "monte_carlo_simulation"
-            if png_resolution_dpi is None:
-                png_resolution_dpi = 330
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
-            if ControlVars.show_results:
-                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = "monte_carlo_simulation"
+                if png_resolution_dpi is None:
+                    png_resolution_dpi = 330
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                if ControlVars.show_results:
+                    print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
 
-        plt.show()
+            plt.show()
 
     if ControlVars.show_results:
         print(f"Monte Carlo Simulation Completed ({n_iterations:,} Iterations):\n")
@@ -2131,7 +2152,7 @@ def monte_carlo_simulation (simulation_function_or_equation, input_distributions
     return simulated_df, summary_dict
 
 
-def generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', quantile_p = 0.5, sample_size = None, n_replications = 2000, sampling_method = 'bootstrap', strata_column = None, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', quantile_p = 0.5, sample_size = None, n_replications = 2000, sampling_method = 'bootstrap', strata_column = None, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', quantile_p = 0.5, sample_size = None, n_replications = 2000, sampling_method = 'bootstrap', strata_column = None, confidence_level_pct = 95, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -2245,34 +2266,46 @@ def generate_sampling_distribution (df, column_to_analyze, statistic = 'mean', q
         'confidence_interval': (ci_lower, ci_upper)
     }
 
-    if show_plot and ControlVars.show_plots:
-        fig, ax = plt.subplots(figsize = (11, 6))
-        sns.histplot(replicated_stats, bins = bins, kde = True, color = 'darkcyan', stat = 'density', alpha = 0.6, ax = ax)
-        ax.axvline(observed_stat, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Observed ({observed_stat:.3f})')
-        ax.axvline(ci_lower, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.3f})')
-        ax.axvline(ci_upper, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.3f})')
-        ax.set_title(f"Sampling Distribution of {statistic.title()} ({sampling_method.title()}, n={sample_size}, reps={n_replications:,})")
-        ax.set_xlabel(f"Sample {statistic.title()}")
-        ax.set_ylabel("Density")
-        ax.legend(loc = 'best')
-        ax.grid(grid, linestyle = '--', alpha = 0.7)
-        plt.xticks(rotation = x_axis_rotation)
-        plt.yticks(rotation = y_axis_rotation)
+    if show_plot:
+        if plotly:
+            import plotly.express as px
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = px.histogram(x = replicated_stats, nbins = bins, histnorm = 'probability density',
+                                      title = f"Sampling Distribution of {statistic.title()} ({sampling_method.title()}, n={sample_size}, reps={n_replications:,})",
+                                      labels = {'x': f"Sample {statistic.title()}"})
+            fig_plotly.add_vline(x = observed_stat, line_dash = 'dash', line_color = 'red', annotation_text = f'Observed ({observed_stat:.3f})')
+            fig_plotly.add_vline(x = ci_lower, line_dash = 'dot', line_color = 'black', annotation_text = f'CI Lower ({ci_lower:.3f})')
+            fig_plotly.add_vline(x = ci_upper, line_dash = 'dot', line_color = 'black', annotation_text = f'CI Upper ({ci_upper:.3f})')
+            fig_plotly.update_layout(template = "plotly_white", yaxis_title = "Density")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (11, 6))
+            sns.histplot(replicated_stats, bins = bins, kde = True, color = 'darkcyan', stat = 'density', alpha = 0.6, ax = ax)
+            ax.axvline(observed_stat, color = 'darkred', linestyle = '--', linewidth = 2, label = f'Observed ({observed_stat:.3f})')
+            ax.axvline(ci_lower, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Lower ({ci_lower:.3f})')
+            ax.axvline(ci_upper, color = 'black', linestyle = ':', linewidth = 1.5, label = f'{confidence_level_pct}% CI Upper ({ci_upper:.3f})')
+            ax.set_title(f"Sampling Distribution of {statistic.title()} ({sampling_method.title()}, n={sample_size}, reps={n_replications:,})")
+            ax.set_xlabel(f"Sample {statistic.title()}")
+            ax.set_ylabel("Density")
+            ax.legend(loc = 'best')
+            ax.grid(grid, linestyle = '--', alpha = 0.7)
+            plt.xticks(rotation = x_axis_rotation)
+            plt.yticks(rotation = y_axis_rotation)
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = f"sampling_distribution_{column_to_analyze}_{statistic}"
-            if png_resolution_dpi is None:
-                png_resolution_dpi = 330
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
-            if ControlVars.show_results:
-                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = f"sampling_distribution_{column_to_analyze}_{statistic}"
+                if png_resolution_dpi is None:
+                    png_resolution_dpi = 330
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                if ControlVars.show_results:
+                    print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
 
-        plt.show()
+            plt.show()
 
     if ControlVars.show_results:
         print(f"Sampling Distribution Analysis ({sampling_method.title()}, {n_replications:,} replications):")
@@ -2476,7 +2509,7 @@ def bayesian_inference_analysis (model_type = 'beta_binomial', prior_alpha = 1.0
     return summary_dict, plot_df
 
 
-def generate_and_fit_distribution (distribution_name = 'normal', distribution_params = None, sample_size = 1000, fit_distribution = True, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def generate_and_fit_distribution (distribution_name = 'normal', distribution_params = None, sample_size = 1000, fit_distribution = True, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     generate_and_fit_distribution (distribution_name = 'normal', distribution_params = None, sample_size = 1000, fit_distribution = True, random_state = 42, show_plot = True, bins = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -2587,38 +2620,55 @@ def generate_and_fit_distribution (distribution_name = 'normal', distribution_pa
             except Exception:
                 pass
 
-    if show_plot and ControlVars.show_plots:
-        fig, ax = plt.subplots(figsize = (11, 6))
-        sns.histplot(data, bins = bins, stat = 'density', color = 'lightsteelblue', edgecolor = 'black', alpha = 0.5, label = 'Histogram', ax = ax)
-        sns.kdeplot(data, color = 'darkblue', linewidth = 2.5, label = 'Empirical KDE', ax = ax)
+    if show_plot:
+        if plotly:
+            import plotly.graph_objects as go
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = go.Figure()
+            fig_plotly.add_trace(go.Histogram(x = data, nbinsx = bins, histnorm = 'probability density', name = 'Sample Distribution', marker_color = 'lightsteelblue', opacity = 0.6))
+            if fitted_params is not None and dist_clean != 'poisson':
+                x_range = np.linspace(min(data), max(data), 400)
+                pdf_theoretical = dist_obj.pdf(x_range, *fitted_params)
+                fig_plotly.add_trace(go.Scatter(x = x_range, y = pdf_theoretical, mode = 'lines', line = dict(color = 'crimson', width = 2, dash = 'dash'), name = f'Theoretical Fit ({distribution_name})'))
+            fig_plotly.update_layout(
+                title = f"Empirical Distribution vs Theoretical PDF for {distribution_name.title()} (n={sample_size:,})",
+                xaxis_title = "Value",
+                yaxis_title = "Density",
+                template = "plotly_white"
+            )
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (11, 6))
+            sns.histplot(data, bins = bins, stat = 'density', color = 'lightsteelblue', edgecolor = 'black', alpha = 0.5, label = 'Histogram', ax = ax)
+            sns.kdeplot(data, color = 'darkblue', linewidth = 2.5, label = 'Empirical KDE', ax = ax)
 
-        if fitted_params is not None and dist_clean != 'poisson':
-            x_range = np.linspace(min(data), max(data), 400)
-            pdf_theoretical = dist_obj.pdf(x_range, *fitted_params)
-            ax.plot(x_range, pdf_theoretical, color = 'crimson', linestyle = '--', linewidth = 2, label = f'Theoretical Fit ({distribution_name})')
+            if fitted_params is not None and dist_clean != 'poisson':
+                x_range = np.linspace(min(data), max(data), 400)
+                pdf_theoretical = dist_obj.pdf(x_range, *fitted_params)
+                ax.plot(x_range, pdf_theoretical, color = 'crimson', linestyle = '--', linewidth = 2, label = f'Theoretical Fit ({distribution_name})')
 
-        ax.set_title(f"Empirical KDE vs Theoretical PDF for {distribution_name.title()} (n={sample_size:,})")
-        ax.set_xlabel("Value")
-        ax.set_ylabel("Density")
-        ax.legend(loc = 'best')
-        ax.grid(grid, linestyle = '--', alpha = 0.7)
-        plt.xticks(rotation = x_axis_rotation)
-        plt.yticks(rotation = y_axis_rotation)
+            ax.set_title(f"Empirical KDE vs Theoretical PDF for {distribution_name.title()} (n={sample_size:,})")
+            ax.set_xlabel("Value")
+            ax.set_ylabel("Density")
+            ax.legend(loc = 'best')
+            ax.grid(grid, linestyle = '--', alpha = 0.7)
+            plt.xticks(rotation = x_axis_rotation)
+            plt.yticks(rotation = y_axis_rotation)
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = f"distribution_fit_kde_{distribution_name}"
-            if png_resolution_dpi is None:
-                png_resolution_dpi = 330
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
-            if ControlVars.show_results:
-                print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = f"distribution_fit_kde_{distribution_name}"
+                if png_resolution_dpi is None:
+                    png_resolution_dpi = 330
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, transparent = False)
+                if ControlVars.show_results:
+                    print(f"Figure exported as '{new_file_path}'. Any previous file in this root path was overwritten.")
 
-        plt.show()
+            plt.show()
 
     if ControlVars.show_results:
         print(f"Generated {sample_size:,} samples following '{distribution_name}' distribution.")
