@@ -129,3 +129,15 @@ or as:
 		    from idsw import *
 		"""
 	print(msg)
+
+## Version 2.0.0 Architecture & Capabilities
+
+IDSW **2.0.0** organizes end-to-end industrial data science into five core top-level modules:
+
+- **`idsw.datafetch`**: Data ingestion pipelines, database/API connectors (SQL, BigQuery, IP21, SharePoint, AWS S3), text extraction & PDF/TXT database conversion (`create_txt_db`, `convert_text_db_format`), and unified modular model serialization (`import_export_model_list_dict`).
+- **`idsw.etl`**: Data characterization (`test_data_normality`, `test_stat_distribution`, `partition_and_rank_df`, `discrete_fourier_transform`, `adv_imputation_missing_values`), hypothesis testing & statistical simulations (`anova_box_violin_plot`, `AB_testing`, `test_proportion_diffs`, `monte_carlo_simulation`, `generate_sampling_distribution`, `bayesian_inference_analysis`), process capability/SPC, and time series diagnostics/ARIMA (`lag_diagnosis`, `test_d_parameters`, `best_arima_model`).
+- **`idsw.modelling`**: Linear & Generalized Linear Models (`glm_regression`, `poisson_regression`, `negative_binomial_regression`, `gamma_regression`, `lognormal_glm_regression`), Bayesian ML (`idsw.modelling.bayes`), Hyperparameter Tuning (`idsw.modelling.tuning`), Deep Learning & Bayesian Neural Networks with Monte Carlo Dropout (`idsw.modelling.deep`), Recommendation Engines (`idsw.modelling.recommendation_engines`), and SHAP explainability (`shap_feature_analysis`).
+- **`idsw.computer_vision`**: Image I/O, class-directory organization, image processing, 3D biomedical imaging, Keras & PyTorch CNNs/Transfer Learning/GANs/Siamese networks, and YOLO object detection.
+- **`idsw.geospatial`**: GeoJSON/Shapefile I/O, CRS transformations, spatial joins, buffers, dissolves, choropleths, and interactive Folium maps.
+
+All plotting functions support `plotly=True` for interactive HTML rendering and Dash UI integration. Automated unit tests are maintained under `idsw/test/`.

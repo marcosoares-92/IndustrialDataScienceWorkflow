@@ -1133,7 +1133,7 @@ def statistical_process_control_chart (df, column_with_variable_to_be_analyzed, 
     return df, red_df
 
 
-def process_capability (df, column_with_variable_to_be_analyzed, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def process_capability (df, column_with_variable_to_be_analyzed, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     process_capability (df, column_with_variable_to_be_analyzed, specification_limits = {'lower_spec_lim': None, 'upper_spec_lim': None}, reference_value = None, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
@@ -1255,36 +1255,34 @@ def process_capability (df, column_with_variable_to_be_analyzed, specification_l
     # Print the indicators' interpretation:
     capability_obj.capability_interpretation()
     
-    if ControlVars.show_plots: 
-        string_for_title = " - $\mu = %.2f$, $\sigma = %.2f$" %(stats_dict['mu'], stats_dict['sigma'])
-        
-        if (plot_title is not None):
-            plot_title = plot_title + string_for_title
-            
-        else:
-            # Set graphic title
-            plot_title = f"Process Capability" + string_for_title
+    string_for_title = f" - mu = {stats_dict['mu']:.2f}, sigma = {stats_dict['sigma']:.2f}"
+    p_title = (plot_title + string_for_title) if plot_title is not None else ("Process Capability" + string_for_title)
+    h_axis = horizontal_axis_title if horizontal_axis_title is not None else column_with_variable_to_be_analyzed
+    v_axis = vertical_axis_title if vertical_axis_title is not None else "Counting/Frequency"
+    y_hist = DATASET[column_with_variable_to_be_analyzed]
+    number_of_bins = histogram_dict['number_of_bins']
+    upper_spec = specification_limits['upper_spec_lim']
+    lower_spec = specification_limits['lower_spec_lim']
 
-        if (horizontal_axis_title is None):
-            # Set horizontal axis title
-            horizontal_axis_title = column_with_variable_to_be_analyzed
-
-        if (vertical_axis_title is None):
-            # Set vertical axis title
-            vertical_axis_title = "Counting/Frequency"
-            
-        y_hist = DATASET[column_with_variable_to_be_analyzed]
-        number_of_bins = histogram_dict['number_of_bins']
-        
-        upper_spec = specification_limits['upper_spec_lim']
-        lower_spec = specification_limits['lower_spec_lim']
+    if plotly:
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from idsw.plotly_utils import PlotlyHandler
+        fig_plotly = px.histogram(DATASET, x = column_with_variable_to_be_analyzed, nbins = number_of_bins, title = p_title, labels = {column_with_variable_to_be_analyzed: h_axis})
+        if lower_spec is not None:
+            fig_plotly.add_vline(x = lower_spec, line_dash = 'dash', line_color = 'red', annotation_text = f'LSL ({lower_spec})')
+        if upper_spec is not None:
+            fig_plotly.add_vline(x = upper_spec, line_dash = 'dash', line_color = 'red', annotation_text = f'USL ({upper_spec})')
+        if reference_value is not None:
+            fig_plotly.add_vline(x = reference_value, line_dash = 'dot', line_color = 'green', annotation_text = f'Target ({reference_value})')
+        fig_plotly.update_layout(template = "plotly_white", yaxis_title = v_axis)
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots: 
+        plot_title = p_title
+        horizontal_axis_title = h_axis
+        vertical_axis_title = v_axis
         target = (upper_spec + lower_spec)/2 # center of the specification range
-        
-        # Let's put a small degree of transparency (1 - OPACITY) = 0.05 = 5%
-        # so that the bars do not completely block other views.
         OPACITY = 0.95
-        
-        # Set image size (x-pixels, y-pixels) for printing in the notebook's cell:
         fig = plt.figure(figsize = (12, 8))
         ax = fig.add_subplot()
         

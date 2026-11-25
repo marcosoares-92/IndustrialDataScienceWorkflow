@@ -10,7 +10,7 @@ from .timestamps import calculate_delay
 
 
 
-def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -83,7 +83,30 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
         'pacf_values': pacf_vals.tolist()
     }
 
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        from idsw.plotly_utils import PlotlyHandler
+
+        lags_arr = np.arange(len(acf_vals))
+        fig_plotly = make_subplots(rows = 2, cols = 1, subplot_titles = ("Autocorrelation (ACF)", "Partial Autocorrelation (PACF)"))
+        
+        fig_plotly.add_trace(go.Bar(x = lags_arr, y = acf_vals, name = "ACF", marker_color = "darkblue", width = 0.25), row = 1, col = 1)
+        acf_ci_upper = acf_confint[:, 1] - acf_vals
+        acf_ci_lower = acf_confint[:, 0] - acf_vals
+        fig_plotly.add_trace(go.Scatter(x = lags_arr, y = acf_ci_upper, mode = "lines", line = dict(color = "rgba(0,0,255,0.3)", dash = "dash"), showlegend = False), row = 1, col = 1)
+        fig_plotly.add_trace(go.Scatter(x = lags_arr, y = acf_ci_lower, mode = "lines", line = dict(color = "rgba(0,0,255,0.3)", dash = "dash"), fill = "tonexty", fillcolor = "rgba(0,0,255,0.1)", showlegend = False), row = 1, col = 1)
+
+        fig_plotly.add_trace(go.Bar(x = lags_arr, y = pacf_vals, name = "PACF", marker_color = "darkred", width = 0.25), row = 2, col = 1)
+        pacf_ci_upper = pacf_confint[:, 1] - pacf_vals
+        pacf_ci_lower = pacf_confint[:, 0] - pacf_vals
+        fig_plotly.add_trace(go.Scatter(x = lags_arr, y = pacf_ci_upper, mode = "lines", line = dict(color = "rgba(255,0,0,0.3)", dash = "dash"), showlegend = False), row = 2, col = 1)
+        fig_plotly.add_trace(go.Scatter(x = lags_arr, y = pacf_ci_lower, mode = "lines", line = dict(color = "rgba(255,0,0,0.3)", dash = "dash"), fill = "tonexty", fillcolor = "rgba(255,0,0,0.1)", showlegend = False), row = 2, col = 1)
+
+        fig_plotly.update_layout(title = f"Lag Diagnosis (ACF & PACF) - {column_to_analyze}", height = 650, template = "plotly_white", showlegend = False)
+        fig_plotly.update_xaxes(title_text = "Lags", row = 2, col = 1)
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         fig = plt.figure(figsize = (12, 8))
         ax1 = fig.add_subplot(211)
         ax1.set_ylabel("Autocorrelation (ACF)")
@@ -127,7 +150,7 @@ def lag_diagnosis (df, column_to_analyze, number_of_lags = 40, x_axis_rotation =
     return suggested_p_vals, suggested_q_vals, diagnosis_dict
 
 
-def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d = 2, confidence_level = 0.95, x_axis_rotation = 0, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -191,7 +214,28 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
         }
 
     # Plot differenced series and their corresponding ACF
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        from statsmodels.tsa.stattools import acf
+        from idsw.plotly_utils import PlotlyHandler
+
+        subplot_titles = []
+        for i in range(max_tested_d + 1):
+            t_txt = "Original Series (d=0)" if i == 0 else f"{i}-Order Differencing (d={i})"
+            subplot_titles.extend([t_txt, f"ACF of {t_txt}"])
+
+        fig_plotly = make_subplots(rows = max_tested_d + 1, cols = 2, subplot_titles = subplot_titles)
+        for i in range(max_tested_d + 1):
+            s_i = differenced_series_list[i].dropna()
+            fig_plotly.add_trace(go.Scatter(y = s_i.values, mode = 'lines', line = dict(color = 'darkblue'), showlegend = False), row = i + 1, col = 1)
+            max_l = max(1, min(number_of_lags, len(s_i) // 2 - 1))
+            acf_v = acf(s_i.values, nlags = max_l)
+            fig_plotly.add_trace(go.Bar(x = np.arange(len(acf_v)), y = acf_v, marker_color = 'darkblue', width = 0.25, showlegend = False), row = i + 1, col = 2)
+
+        fig_plotly.update_layout(title = f"Differencing & Stationarity Diagnosis (d = 0..{max_tested_d}) - {column_to_analyze}", height = 350 * (max_tested_d + 1), template = "plotly_white", showlegend = False)
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         OPACITY = 0.95
         fig, axes = plt.subplots(max_tested_d + 1, 2, sharex = False, figsize = (12, 3.5 * (max_tested_d + 1)))
 
@@ -234,7 +278,7 @@ def test_d_parameters (df, column_to_analyze, number_of_lags = 40, max_tested_d 
     return optimal_d_list, adf_results_dict
 
 
-def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, criterion = 'aic', confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, criterion = 'aic', confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_column = None, criterion = 'aic', confidence_level = 0.95, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
 
@@ -360,7 +404,22 @@ def best_arima_model (df, column_to_analyze, p_vals, d, q_vals, timestamp_tag_co
     if timestamp_tag_column is not None:
         arima_df = arima_df.reset_index()
 
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.graph_objects as go
+        from idsw.plotly_utils import PlotlyHandler
+        fig_plotly = go.Figure()
+        fig_plotly.add_trace(go.Scatter(x = x, y = y, mode = 'lines', name = f'Actual: {column_to_analyze}', line = dict(color = 'darkblue')))
+        fig_plotly.add_trace(go.Scatter(x = x, y = arima_df['upper_cl'], mode = 'lines', line = dict(width = 0), showlegend = False))
+        fig_plotly.add_trace(go.Scatter(x = x, y = arima_df['lower_cl'], mode = 'lines', line = dict(width = 0), fill = 'tonexty', fillcolor = 'rgba(220, 20, 60, 0.2)', name = f'{confidence_level * 100:.0f}% Confidence Interval'))
+        fig_plotly.add_trace(go.Scatter(x = x, y = arima_df['arima_predictions'], mode = 'lines', name = f'ARIMA({returned_p},{returned_d},{returned_q}) Fit', line = dict(color = 'crimson', dash = 'dash')))
+        fig_plotly.update_layout(
+            title = plot_title if plot_title is not None else f"ARIMA({returned_p},{returned_d},{returned_q}) Model Fit",
+            xaxis_title = horizontal_axis_title if horizontal_axis_title is not None else "Time",
+            yaxis_title = vertical_axis_title if vertical_axis_title is not None else column_to_analyze,
+            template = "plotly_white"
+        )
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         fig, ax = plt.subplots(figsize = (12, 7))
         ax.plot(x, y, color = 'darkblue', label = f'Actual: {column_to_analyze}')
         ax.plot(x, arima_df['arima_predictions'], color = 'crimson', linestyle = '--', label = f'ARIMA({returned_p},{returned_d},{returned_q}) Fit')

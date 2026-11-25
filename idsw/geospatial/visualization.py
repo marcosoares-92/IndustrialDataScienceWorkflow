@@ -24,7 +24,8 @@ def plot_choropleth(
     title = None,
     export_png = False,
     file_name = None,
-    directory_to_save = None
+    directory_to_save = None,
+    plotly = False
 ):
     """
     plot_choropleth:
@@ -38,7 +39,25 @@ def plot_choropleth(
     : param: title: str, map title.
     : return: matplotlib Figure and Axes.
     """
-    if ControlVars.show_plots:
+    if plotly:
+        import json
+        import plotly.express as px
+        from idsw.plotly_utils import PlotlyHandler
+        gdf_wgs = gdf.to_crs(epsg = 4326) if gdf.crs is not None else gdf
+        geojson_data = json.loads(gdf_wgs.to_json())
+        fig_plotly = px.choropleth(
+            gdf_wgs,
+            geojson = geojson_data,
+            locations = gdf_wgs.index,
+            color = column,
+            color_continuous_scale = cmap if isinstance(cmap, str) else 'Viridis',
+            title = title if title is not None else f"Choropleth Map: {column}"
+        )
+        fig_plotly.update_geos(fitbounds = "locations", visible = False)
+        fig_plotly.update_layout(template = "plotly_white")
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        return fig_plotly, None
+    elif ControlVars.show_plots:
         fig, ax = plt.subplots(figsize = figsize)
         gdf.plot(
             column = column,

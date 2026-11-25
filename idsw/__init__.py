@@ -43,3 +43,4 @@ from .etl import *
 from .modelling import *
 from .computer_vision import *
 from .geospatial import *
+from .plotly_utils import PlotlyHandler

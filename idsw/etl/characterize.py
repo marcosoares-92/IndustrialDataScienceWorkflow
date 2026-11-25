@@ -1670,7 +1670,7 @@ def adv_imputation_missing_values (df, column_to_fill, timestamp_tag_column = No
     return cleaned_df
 
 
-def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     correlation_plot (df, show_masked_plot = True, responses_to_return_corr = None, set_returned_limit = None, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
@@ -1718,7 +1718,17 @@ def correlation_plot (df, show_masked_plot = True, responses_to_return_corr = No
     # Now, obtain the matrix
     correlation_matrix = DATASET.corr(method = 'pearson')
     
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.express as px
+        from idsw.plotly_utils import PlotlyHandler
+        corr_sq = (correlation_matrix) ** 2
+        if show_masked_plot:
+            mask = np.triu(np.ones_like(corr_sq, dtype = bool))
+            corr_sq = corr_sq.mask(mask)
+        fig_plotly = px.imshow(corr_sq, text_auto = ".2f", color_continuous_scale = "RdBu_r", title = "Squared Pearson Correlation Matrix (R²)")
+        fig_plotly.update_layout(template = "plotly_white")
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         if (show_masked_plot == False):
             #Show standard plot
             
@@ -2179,7 +2189,7 @@ def calculate_vif (df):
     return variance_inflation_factor_matrix
 
 
-def bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
+def bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330, plotly = False):
     """
     bar_chart (df, categorical_var_name, response_var_name, aggregate_function = 'sum', add_suffix_to_aggregated_col = True, suffix = None, calculate_and_plot_cumulative_percent = True, orientation = 'vertical', limit_of_plotted_categories = None, horizontal_axis_title = None, vertical_axis_title = None, plot_title = None, x_axis_rotation = 70, y_axis_rotation = 0, grid = True, export_png = False, directory_to_save = None, file_name = None, png_resolution_dpi = 330):
     
@@ -2713,7 +2723,29 @@ def bar_chart (df, categorical_var_name, response_var_name, aggregate_function =
         if (calculate_and_plot_cumulative_percent):
             cum_pct = DATASET[cum_pct_col]
     
-    if ControlVars.show_plots:
+    if plotly:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        from idsw.plotly_utils import PlotlyHandler
+        p_title = plot_title if plot_title is not None else (f"Bar_chart_count_of_{categorical_var_name}" if aggregate_function == 'count' else f"Bar_chart_for_{response_var_name}_by_{categorical_var_name}")
+        h_axis = horizontal_axis_title if horizontal_axis_title is not None else categorical_var_name
+        v_axis = vertical_axis_title if vertical_axis_title is not None else response_var_name
+        if calculate_and_plot_cumulative_percent:
+            fig_plotly = make_subplots(specs = [[{"secondary_y": True}]])
+            if orientation == 'horizontal':
+                fig_plotly.add_trace(go.Bar(y = categories, x = responses, orientation = 'h', name = v_axis, marker_color = 'steelblue'), secondary_y = False)
+            else:
+                fig_plotly.add_trace(go.Bar(x = categories, y = responses, name = v_axis, marker_color = 'steelblue'), secondary_y = False)
+                fig_plotly.add_trace(go.Scatter(x = categories, y = cum_pct, mode = 'lines+markers', name = 'Cumulative %', line = dict(color = 'crimson')), secondary_y = True)
+        else:
+            fig_plotly = go.Figure()
+            if orientation == 'horizontal':
+                fig_plotly.add_trace(go.Bar(y = categories, x = responses, orientation = 'h', name = v_axis, marker_color = 'steelblue'))
+            else:
+                fig_plotly.add_trace(go.Bar(x = categories, y = responses, name = v_axis, marker_color = 'steelblue'))
+        fig_plotly.update_layout(title = p_title, xaxis_title = h_axis, yaxis_title = v_axis, template = "plotly_white")
+        PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+    elif ControlVars.show_plots:
         # Now the data is prepared and we only have to plot 
         # categories, responses, and cum_pct:
         

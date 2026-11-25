@@ -675,7 +675,8 @@ def glm_regression(
     export_png = False,
     directory_to_save = None,
     file_name = None,
-    png_resolution_dpi = 330
+    png_resolution_dpi = 330,
+    plotly = False
 ):
     """
     glm_regression:
@@ -980,13 +981,28 @@ def glm_regression(
         print("   - exp(beta) represents the Odds Ratio (OR) associated with a 1-unit increase in X.\n")
 
     # Feature importance plot
-    if ControlVars.show_plots:
-        # Exclude constant from bar chart to emphasize predictors
-        plot_df = coefficients_df[coefficients_df['feature'] != 'const'].copy()
-        if len(plot_df) > 0:
-            plot_df['abs_coef'] = np.abs(plot_df['coefficient'])
-            plot_df = plot_df.sort_values(by = 'abs_coef', ascending = True)
+    plot_df = coefficients_df[coefficients_df['feature'] != 'const'].copy()
+    if len(plot_df) > 0:
+        plot_df['abs_coef'] = np.abs(plot_df['coefficient'])
+        plot_df = plot_df.sort_values(by = 'abs_coef', ascending = True)
+        p_title = plot_title if plot_title is not None else f"GLM Feature Coefficients ({family_obj.__class__.__name__})"
 
+        if plotly:
+            import plotly.express as px
+            from idsw.plotly_utils import PlotlyHandler
+            if orientation == 'horizontal':
+                fig_plotly = px.bar(plot_df, x = 'coefficient', y = 'feature', orientation = 'h', title = p_title,
+                                    labels = {'coefficient': horizontal_axis_title if horizontal_axis_title is not None else "Coefficient Value (beta)",
+                                              'feature': vertical_axis_title if vertical_axis_title is not None else "Feature"})
+                fig_plotly.add_vline(x = 0, line_dash = 'dash', line_color = 'black')
+            else:
+                fig_plotly = px.bar(plot_df, x = 'feature', y = 'coefficient', title = p_title,
+                                    labels = {'feature': horizontal_axis_title if horizontal_axis_title is not None else "Feature",
+                                              'coefficient': vertical_axis_title if vertical_axis_title is not None else "Coefficient Value (beta)"})
+                fig_plotly.add_hline(y = 0, line_dash = 'dash', line_color = 'black')
+            fig_plotly.update_layout(template = "plotly_white")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
             fig, ax = plt.subplots(figsize = (10, max(5, int(len(plot_df) * 0.4))))
 
             if orientation == 'horizontal':
@@ -1002,7 +1018,7 @@ def glm_regression(
                 plt.xticks(rotation = x_axis_rotation)
                 plt.yticks(rotation = y_axis_rotation)
 
-            ax.set_title(plot_title if plot_title is not None else f"GLM Feature Coefficients ({family_obj.__class__.__name__})")
+            ax.set_title(p_title)
             ax.grid(grid)
 
             if export_png:

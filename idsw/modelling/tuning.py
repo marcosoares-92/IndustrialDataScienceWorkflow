@@ -52,7 +52,8 @@ def grid_search_tuning(
     export_png = False,
     directory_to_save = None,
     file_name = None,
-    png_resolution_dpi = 330
+    png_resolution_dpi = 330,
+    plotly = False
 ):
     """
     grid_search_tuning:
@@ -128,29 +129,41 @@ def grid_search_tuning(
         except Exception:
             print(top_df.to_string())
 
-    if ControlVars.show_plots and plot_results and len(results_df) > 1:
-        fig, ax = plt.subplots(figsize = (10, 5))
+    if plot_results and len(results_df) > 1:
         plot_scores = results_df['mean_test_score'].values
-        ax.plot(range(1, len(plot_scores) + 1), plot_scores, marker = 'o', color = 'royalblue', linewidth = 1.5, markersize = 4)
-        ax.axhline(best_score, color = 'crimson', linestyle = '--', label = f'Best Score ({best_score:.4f})')
-        ax.set_title("Grid Search Model Evaluation Across Candidate Ranks")
-        ax.set_xlabel("Candidate Rank (Best to Worst)")
-        ax.set_ylabel(f"Mean CV Score ({scoring or 'metric'})")
-        ax.grid(grid)
-        ax.legend(loc = 'upper right')
+        if plotly:
+            import plotly.graph_objects as go
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = go.Figure()
+            fig_plotly.add_trace(go.Scatter(x = list(range(1, len(plot_scores) + 1)), y = plot_scores, mode = 'lines+markers', name = 'Mean CV Score', line = dict(color = 'royalblue')))
+            fig_plotly.add_hline(y = best_score, line_dash = 'dash', line_color = 'crimson', annotation_text = f'Best Score ({best_score:.4f})')
+            fig_plotly.update_layout(title = "Grid Search Model Evaluation Across Candidate Ranks",
+                                     xaxis_title = "Candidate Rank (Best to Worst)",
+                                     yaxis_title = f"Mean CV Score ({scoring or 'metric'})",
+                                     template = "plotly_white")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (10, 5))
+            ax.plot(range(1, len(plot_scores) + 1), plot_scores, marker = 'o', color = 'royalblue', linewidth = 1.5, markersize = 4)
+            ax.axhline(best_score, color = 'crimson', linestyle = '--', label = f'Best Score ({best_score:.4f})')
+            ax.set_title("Grid Search Model Evaluation Across Candidate Ranks")
+            ax.set_xlabel("Candidate Rank (Best to Worst)")
+            ax.set_ylabel(f"Mean CV Score ({scoring or 'metric'})")
+            ax.grid(grid)
+            ax.legend(loc = 'upper right')
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = "grid_search_scores"
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
-            if ControlVars.show_results:
-                print(f"Plot saved to '{new_file_path}'.")
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = "grid_search_scores"
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
+                if ControlVars.show_results:
+                    print(f"Plot saved to '{new_file_path}'.")
 
-        plt.show()
+            plt.show()
 
     return best_estimator, best_params, results_df
 
@@ -174,7 +187,8 @@ def random_search_tuning(
     export_png = False,
     directory_to_save = None,
     file_name = None,
-    png_resolution_dpi = 330
+    png_resolution_dpi = 330,
+    plotly = False
 ):
     """
     random_search_tuning:
@@ -245,27 +259,39 @@ def random_search_tuning(
         except Exception:
             print(top_df.to_string())
 
-    if ControlVars.show_plots and plot_results and len(results_df) > 1:
-        fig, ax = plt.subplots(figsize = (10, 5))
+    if plot_results and len(results_df) > 1:
         plot_scores = results_df['mean_test_score'].values
-        ax.plot(range(1, len(plot_scores) + 1), plot_scores, marker = 's', color = 'darkorange', linewidth = 1.5, markersize = 4)
-        ax.axhline(best_score, color = 'darkgreen', linestyle = '--', label = f'Best Score ({best_score:.4f})')
-        ax.set_title("Random Search Model Performance Distribution")
-        ax.set_xlabel("Candidate Rank (Best to Worst)")
-        ax.set_ylabel(f"Mean CV Score ({scoring or 'metric'})")
-        ax.grid(grid)
-        ax.legend(loc = 'upper right')
+        if plotly:
+            import plotly.graph_objects as go
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = go.Figure()
+            fig_plotly.add_trace(go.Scatter(x = list(range(1, len(plot_scores) + 1)), y = plot_scores, mode = 'lines+markers', name = 'Mean CV Score', line = dict(color = 'darkorange')))
+            fig_plotly.add_hline(y = best_score, line_dash = 'dash', line_color = 'darkgreen', annotation_text = f'Best Score ({best_score:.4f})')
+            fig_plotly.update_layout(title = "Random Search Model Performance Distribution",
+                                     xaxis_title = "Candidate Rank (Best to Worst)",
+                                     yaxis_title = f"Mean CV Score ({scoring or 'metric'})",
+                                     template = "plotly_white")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (10, 5))
+            ax.plot(range(1, len(plot_scores) + 1), plot_scores, marker = 's', color = 'darkorange', linewidth = 1.5, markersize = 4)
+            ax.axhline(best_score, color = 'darkgreen', linestyle = '--', label = f'Best Score ({best_score:.4f})')
+            ax.set_title("Random Search Model Performance Distribution")
+            ax.set_xlabel("Candidate Rank (Best to Worst)")
+            ax.set_ylabel(f"Mean CV Score ({scoring or 'metric'})")
+            ax.grid(grid)
+            ax.legend(loc = 'upper right')
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = "random_search_scores"
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = "random_search_scores"
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
 
-        plt.show()
+            plt.show()
 
     return best_estimator, best_params, results_df
 
@@ -407,7 +433,8 @@ def bayesian_optimization_tuning(
     export_png = False,
     directory_to_save = None,
     file_name = None,
-    png_resolution_dpi = 330
+    png_resolution_dpi = 330,
+    plotly = False
 ):
     """
     bayesian_optimization_tuning:
@@ -545,26 +572,38 @@ def bayesian_optimization_tuning(
         for k, v in best_config.items():
             print(f"  - {k}: {v}")
 
-    if ControlVars.show_plots and plot_convergence:
-        fig, ax = plt.subplots(figsize = (10, 5))
-        ax.plot(history_df['iteration'], history_df['score'], marker = 'o', color = 'lightsteelblue', alpha = 0.7, label = 'Trial Score')
-        ax.plot(history_df['iteration'], history_df['best_score_so_far'], marker = 's', color = 'navy', linewidth = 2, label = 'Best Score (Bayesian UCB)')
-        ax.set_title("Bayesian Optimization Convergence History")
-        ax.set_xlabel("Trial Iteration")
-        ax.set_ylabel(f"CV Score ({scoring or 'metric'})")
-        ax.grid(grid)
-        ax.legend(loc = 'lower right')
+    if plot_convergence:
+        if plotly:
+            import plotly.graph_objects as go
+            from idsw.plotly_utils import PlotlyHandler
+            fig_plotly = go.Figure()
+            fig_plotly.add_trace(go.Scatter(x = history_df['iteration'], y = history_df['score'], mode = 'lines+markers', name = 'Trial Score', line = dict(color = 'lightsteelblue')))
+            fig_plotly.add_trace(go.Scatter(x = history_df['iteration'], y = history_df['best_score_so_far'], mode = 'lines+markers', name = 'Best Score (Bayesian UCB)', line = dict(color = 'navy', width = 2)))
+            fig_plotly.update_layout(title = "Bayesian Optimization Convergence History",
+                                     xaxis_title = "Trial Iteration",
+                                     yaxis_title = f"CV Score ({scoring or 'metric'})",
+                                     template = "plotly_white")
+            PlotlyHandler.show_and_export(fig_plotly, export_file = export_png, directory_to_save = directory_to_save, file_name = file_name)
+        elif ControlVars.show_plots:
+            fig, ax = plt.subplots(figsize = (10, 5))
+            ax.plot(history_df['iteration'], history_df['score'], marker = 'o', color = 'lightsteelblue', alpha = 0.7, label = 'Trial Score')
+            ax.plot(history_df['iteration'], history_df['best_score_so_far'], marker = 's', color = 'navy', linewidth = 2, label = 'Best Score (Bayesian UCB)')
+            ax.set_title("Bayesian Optimization Convergence History")
+            ax.set_xlabel("Trial Iteration")
+            ax.set_ylabel(f"CV Score ({scoring or 'metric'})")
+            ax.grid(grid)
+            ax.legend(loc = 'lower right')
 
-        if export_png:
-            import os
-            if directory_to_save is None:
-                directory_to_save = ""
-            if file_name is None:
-                file_name = "bayesian_opt_convergence"
-            new_file_path = os.path.join(directory_to_save, file_name + ".png")
-            plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
+            if export_png:
+                import os
+                if directory_to_save is None:
+                    directory_to_save = ""
+                if file_name is None:
+                    file_name = "bayesian_opt_convergence"
+                new_file_path = os.path.join(directory_to_save, file_name + ".png")
+                plt.savefig(new_file_path, dpi = png_resolution_dpi, bbox_inches = 'tight')
 
-        plt.show()
+            plt.show()
 
     return best_estimator, best_config, history_df
 

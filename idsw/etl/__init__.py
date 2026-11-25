@@ -92,3 +92,4 @@ from .transform import *
 from .timeseries import *
 from .meandifference import *
 from .procdiagnosis import *
+from .doe import *
